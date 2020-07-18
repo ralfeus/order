@@ -1,10 +1,13 @@
-from app import app
-from app.models import Currency, User, Product, ShippingRate
+'''
+Contains all routes of the application
+'''
+from datetime import datetime
 
-from flask import Response, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Response, jsonify, request, send_from_directory
 from flask_login import current_user, login_required, login_user
 
-import re
+from app import app, db
+from app.models import Currency, Order, OrderProduct, Product, ShippingRate, User
 
 @app.route('/')
 def index():
@@ -14,10 +17,10 @@ def index():
     '''
     return send_from_directory('static/html', 'index.html')
 
-@app.route('/admin/<hash>')
-def admin(hash):
-    if hash == app.config['ADMIN_HASH']:
-        login_user(User(), remember=True)
+@app.route('/admin/<key>')
+def admin(key):
+    if key == app.config['ADMIN_HASH']:
+        login_user(User(0), remember=True)
     if current_user.is_anonymous:
         return Response('Anonymous access is denied', mimetype='text/html')
     else:
@@ -35,26 +38,47 @@ def get_currency_rate():
     return jsonify(currencies)
 
 
-################# TO BE DONE #####################
 @app.route('/api/order', methods=['POST'])
 def create_order():
     '''
     Creates order.
     Accepts order details in payload
-    Returns result status and generated order ID in JSON
+    Returns JSON:
+        {
+            'status': operation status
+            'order_id': ID of the created order
+        }
     '''
-    print(request.values)
+    request_data = request.get_json()
+    order = Order(
+        name=request_data['name'],
+        address=request_data['address'],
+        country=request_data['country'],
+        phone=request_data['phone'],
+        comment=request_data['comment'],
+        time_created=datetime.now()
+    )
+    order_products = [OrderProduct(
+        order=order,
+        subcustomer=product['subcustomer'],
+        product_id=item['item_code'],
+        quantity=item['quantity'],
+        status='pending'
+    ) for product in request_data['products'] for item in product['items']]
+    order.order_products = order_products
+    db.session.add(order)
+    db.session.commit()
     return jsonify({
         'status': 'success',
-        'order_id': 0
+        'order_id': order.id
     })
 
 ################# TO BE DONE #####################
-@app.route('/api/order')
+@app.route('/api/order_product')
 @login_required
 def get_orders():
     '''
-    Returns list of orders. So far implemented only for admins
+    Returns list of ordered items. So far implemented only for admins
     '''
     return jsonify([
         {
@@ -77,7 +101,7 @@ def get_orders():
             'product': 'Test product',
             'quantity': 3,
             'comment': 'Comment 2',
-            'status': 'pending'     
+            'status': 'pending'
         },
         {
             'order_id': 1,
@@ -99,8 +123,8 @@ def get_orders():
             'product': 'Test product',
             'quantity': 9,
             'comment': 'Comment 4',
-            'status': 'pending'        
-        }   
+            'status': 'pending'
+        }
     ])
 
 ################# TO BE DONE #####################
@@ -129,15 +153,13 @@ def get_product():
     '''
     products = Product.query.filter(Product.id.like(request.values['term'] + '%'))
     return jsonify(list(map(lambda product: {
-            'value': product.id, 
-            'label': product.name_english + " | " + product.name_russian, 
-            'price': product.price, 
-            'weight': product.weight, 
-            'points': product.points
-        }, products
-    )))
+        'value': product.id,
+        'label': product.name_english + " | " + product.name_russian,
+        'price': product.price,
+        'weight': product.weight,
+        'points': product.points
+        }, products)))
 
-################# TO BE DONE #####################
 @app.route('/api/shipping_cost/<country>/<weight>')
 def get_shipping_cost(country, weight):
     '''
@@ -162,7 +184,7 @@ def get_shipping_cost(country, weight):
         })
         response.status_code = 400
         return response
-    else: 
+    else:
         # print(rate)
         return jsonify({
             'shipping_cost': rate.rate

@@ -1,12 +1,17 @@
-from app import db, login
-from sqlalchemy import Column, String, Integer, Float
-
+'''
+Contains models (entities) of the application
+'''
 from flask_login import UserMixin
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from app import db, login
+
 @login.user_loader
-def load_user(id):
-    return User()
+def load_user(user_id):
+    return User(user_id=user_id)
+
 
 class Currency(db.Model):
     __tablename__ = 'currencies'
@@ -18,19 +23,36 @@ class Currency(db.Model):
     def __repr__(self):
         return "<Currency: {}>".format(self.code)
 
-class Order():
+
+class Order(db.Model):
     __tablename__ = 'orders'
 
-    id = Column(String(16), primary_key=True)
-    product = Column(String(16), index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(16))
     address = Column(String(64))
     country = Column(String(128))
     phone = Column(Integer)
     comment = Column(String(128))
+    time_created = Column(DateTime)
+    order_products = relationship('OrderProduct', backref='order', lazy='dynamic')
 
     def __repr__(self):
         return "<Order: {}>".format(self.id)
+
+class OrderProduct(db.Model):
+    __tablename__ = 'order_products'
+
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey('orders.id'))
+    product_id = Column(String(16), ForeignKey('products.id'))
+    product = relationship('Product')
+    quantity = Column(Integer)
+    subcustomer = Column(String(256))
+    status = Column(String(16))
+
+    def __repr__(self):
+        return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
+            self.order_id, self.product_id, self.status)
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -57,18 +79,16 @@ class ShippingRate(db.Model):
     def __repr__(self):
         return "<{}: {}/{}/{}>".format(type(self), self.destination, self.weight, self.rate)
 
-class Order_Product_Status(db.Model):
-    __tablename__ = 'order_product_status'
-
-    order_product_status = Column(String(16), primary_key=True)
-
-
-
 class User(UserMixin):
+    user_id = 0
+
+    def __init__(self, user_id):
+        self.user_id = user_id
+
     def get_id(self):
         return 0
 
-    def set_password(self, password = 'P@$$w0rd'):
+    def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):

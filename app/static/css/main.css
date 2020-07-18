@@ -2,6 +2,13 @@
     font-weight: bold;
 }
 
+.wait {
+    top: 50%;
+    left: 50%;
+    margin-top: -140px;
+    margin-left: -249px;
+}
+
 table {
     font-size: 11px;
 }

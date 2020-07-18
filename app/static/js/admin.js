@@ -12,7 +12,7 @@ $(document).ready( function () {
             { extend: 'status', text: 'Complete'}
         ],        
         ajax: {
-            url: '/api/order',
+            url: '/api/order_product',
             dataSrc: ''
         },
         columns: [
