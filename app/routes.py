@@ -92,7 +92,6 @@ def get_orders():
         'status': order_product.status
         }, order_products)))
 
-################# TO BE DONE #####################
 @app.route('/api/order_product/status/<int:order_product_id>/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
     '''
