@@ -8,8 +8,15 @@ $(document).ready( function () {
     $('#orders').DataTable({
         dom: 'lfrBtip',
         buttons: [
-            { extend: 'status', text: 'Pending' },
-            { extend: 'status', text: 'Complete'}
+	    'print',
+	    { 
+	        extend: 'collection', 
+		text: 'Status',
+                buttons: [
+            	    { extend: 'status', text: 'Pending' },
+            	    { extend: 'status', text: 'Complete'}
+		]
+	    }
         ],        
         ajax: {
             url: '/api/order',
