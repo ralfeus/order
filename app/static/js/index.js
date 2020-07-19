@@ -46,22 +46,28 @@ $(document).ready(function() {
     });
 
     $('#submit').on('click', function() {
+        $('.wait').show();
         $.ajax({
             url: '/api/order',
             method: 'post',
-            data: {
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({
                 name: $('#name').val(),
                 address: $('#address').val(),
                 country: $('#country').val(),
                 phone: $('#phone').val(),
                 comment: $('#comment').val(),
                 products: $('div.subcustomer-card').toArray().map(user => ({
-                    identity: $('.subcustomer-identity', user).val(),
+                    subcustomer: $('.subcustomer-identity', user).val(),
                     items: $('.item', user).toArray().map(item => ({
                         item_code: $('.item-code', item).val(),
                         quantity: $('.item-quantity', item).val()
                     }))
                 }))
+            }),
+            complete: function() {
+                $('.wait').hide();
             },
             success: function(data, _status, _xhr) {
                 if (data.status === 'success') {
