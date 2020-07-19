@@ -63,7 +63,7 @@ def create_order():
         subcustomer=product['subcustomer'],
         product_id=item['item_code'],
         quantity=item['quantity'],
-        status='pending'
+        status='Pending'
     ) for product in request_data['products'] for item in product['items']]
     order.order_products = order_products
     db.session.add(order)
@@ -73,63 +73,37 @@ def create_order():
         'order_id': order.id
     })
 
-################# TO BE DONE #####################
 @app.route('/api/order_product')
 @login_required
 def get_orders():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
-    return jsonify([
-        {
-            'order_id': 0,
-            'order_product_id': 0,
-            'customer': 'Test customer',
-            'subcustomer': 'Test subcustomer 1',
-            'product_id': 1,
-            'product': 'Test product',
-            'quantity': 5,
-            'comment': 'Comment 1',
-            'status': 'pending'
-        },
-        {
-            'order_id': 0,
-            'order_product_id': 1,
-            'customer': 'Test customer',
-            'subcustomer': 'Test subcustomer 1',
-            'product_id': 3,
-            'product': 'Test product',
-            'quantity': 3,
-            'comment': 'Comment 2',
-            'status': 'pending'
-        },
-        {
-            'order_id': 1,
-            'order_product_id': 2,
-            'customer': 'Test customer',
-            'subcustomer': 'Test subcustomer 2',
-            'product_id': 1,
-            'product': 'Test product',
-            'quantity': 2,
-            'comment': 'Comment 3',
-            'status': 'pending'
-        },
-        {
-            'order_id': 1,
-            'order_product_id': 3,
-            'customer': 'Test customer',
-            'subcustomer': 'Test subcustomer 3',
-            'product_id': 3,
-            'product': 'Test product',
-            'quantity': 9,
-            'comment': 'Comment 4',
-            'status': 'pending'
-        }
-    ])
+    order_products = OrderProduct.query.all()
+    return jsonify(list(map(lambda order_product: {
+        'order_id': order_product.order_id,
+        'order_product_id': order_product.id,
+        'customer': order_product.order.name,
+        'subcustomer': order_product.subcustomer,
+        'product_id': order_product.product_id,
+        'product': order_product.product.name_english,
+        'comment': order_product.order.comment,
+        'quantity': order_product.quantity,
+        'status': order_product.status
+        }, order_products)))
 
 ################# TO BE DONE #####################
-@app.route('/api/order_product/status/<order_product_id>/<order_product_status>', methods=['POST'])
+@app.route('/api/order_product/status/<int:order_product_id>/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
+    '''
+    Sets new status of the selected order product
+    '''
+    order_product = OrderProduct.query.get(order_product_id)
+    order_product.status = order_product_status
+
+    # db.session.merge(order_product) 
+    db.session.commit()
+
     return jsonify({
         'order_product_id': order_product_id,
         'order_product_status': order_product_status,

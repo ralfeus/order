@@ -40,6 +40,9 @@ class Order(db.Model):
         return "<Order: {}>".format(self.id)
 
 class OrderProduct(db.Model):
+    '''
+    Represents an ordered item of the order. Doesn't exist apart from order
+    '''
     __tablename__ = 'order_products'
 
     id = Column(Integer, primary_key=True)

@@ -11,7 +11,7 @@ $(document).ready( function () {
 	    'print',
 	    { 
 	        extend: 'collection', 
-		text: 'Status',
+		text: 'Set status',
                 buttons: [
             	    { extend: 'status', text: 'Pending' },
             	    { extend: 'status', text: 'Complete'}
