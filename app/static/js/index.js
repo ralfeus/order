@@ -6,13 +6,15 @@ var users = 1;
 var subtotalKRW = 0;
 var totalWeight = 0;
 
+var subcustomerTemplate;
+
 function roundUp(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
 $(document).ready(function() {
     var itemTemplate = $('#userItems0_0')[0].outerHTML;
-    var userTemplate = $('.subcustomer-card')[0].outerHTML;
+    subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
     $.ajax({
         url: '/api/currency',
@@ -35,7 +37,7 @@ $(document).ready(function() {
     });
 
     $('#add_user').on('click', function() {
-        var html = userTemplate
+        var html = subcustomerTemplate
             .replace(/userItems([A-Za-z]*)0/g, 'userItems$1' + users)
             .replace(/identity0/g, "identity" + users)
             .replace(/(\w)\[0\]/g, '$1[' + users + ']')
@@ -72,7 +74,17 @@ $(document).ready(function() {
             success: function(data, _status, _xhr) {
                 if (data.status === 'success') {
                     window.alert("The request is posted. The request ID is " + data.order_id);
+                    clear_form();
+                } else if (data.status === 'error') {
+                    if (data.message) {
+                        window.alert(data.message);
+                    } else {
+                        window.alert("Unknown error has occurred. Contact administrator");
+                    }
                 }
+            },
+            error: function(data, status, xhr) {
+                window.alert("Unknown error has occurred. Contact administrator");
             }
         });
     })
@@ -80,6 +92,13 @@ $(document).ready(function() {
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
 });
+
+function clear_form() {
+    $('.subcustomer-card').remove();
+    $('div#accordion').append(subcustomerTemplate);
+    product_code_autocomplete($('.item-code'));
+    product_quantity_change($('.item-quantity'));
+}
 
 function country_changed() {
     update_all_totals();
@@ -192,13 +211,19 @@ function update_item_subtotal(sender) {
 
 function update_item_total() {
     $('.total-krw').each(function() {
-        $(this).html(products[$(this).parent().attr('id')].totalKRW);
+        if (products[$(this).parent().attr('id')]) {
+            $(this).html(products[$(this).parent().attr('id')].totalKRW);
+        }
     });
     $('.total-rur').each(function() {
-        $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
+        if (products[$(this).parent().attr('id')]) {
+            $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
+        }
     });
     $('.total-usd').each(function() {
-        $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+        if (products[$(this).parent().attr('id')]) {
+            $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+        }
     });
 }
 
@@ -219,7 +244,9 @@ function update_shipping_cost(cost, totalWeight) {
         products[product].totalKRW = products[product].costKRW + products[product].shippingCostKRW;
     }
     $('.shipping-cost-krw').each(function() {
-        $(this).html(products[$(this).parent().attr('id')].shippingCostKRW);
+        if (products[$(this).parent().attr('id')]) {
+            $(this).html(products[$(this).parent().attr('id')].shippingCostKRW);
+        }
     });
 }
 

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from flask import Response, jsonify, request, send_from_directory
 from flask_login import current_user, login_required, login_user
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import app, db
 from app.models import Currency, Order, OrderProduct, Product, ShippingRate, User
@@ -44,12 +45,13 @@ def create_order():
     Creates order.
     Accepts order details in payload
     Returns JSON:
-        {
+        {   
             'status': operation status
             'order_id': ID of the created order
         }
     '''
     request_data = request.get_json()
+    result = {}
     order = Order(
         name=request_data['name'],
         address=request_data['address'],
@@ -67,11 +69,18 @@ def create_order():
     ) for product in request_data['products'] for item in product['items']]
     order.order_products = order_products
     db.session.add(order)
-    db.session.commit()
-    return jsonify({
-        'status': 'success',
-        'order_id': order.id
-    })
+    try:
+        db.session.commit()
+        result = {
+            'status': 'success',
+            'order_id': order.id
+        }
+    except (IntegrityError, OperationalError):
+        result = {
+            'status': 'error',
+            'message': "Couldn't add order due to input error. Check your form and try again."
+        }
+    return jsonify(result)
 
 @app.route('/api/order_product')
 @login_required

@@ -31,7 +31,7 @@ class Order(db.Model):
     name = Column(String(16))
     address = Column(String(64))
     country = Column(String(128))
-    phone = Column(Integer)
+    phone = Column(String(32))
     comment = Column(String(128))
     time_created = Column(DateTime)
     order_products = relationship('OrderProduct', backref='order', lazy='dynamic')
