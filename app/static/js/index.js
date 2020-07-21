@@ -148,7 +148,25 @@ function get_shipping_cost(totalWeight) {
 
 function product_code_autocomplete(target) {
     target.autocomplete({
-        source: "/api/product",
+        // source: "/api/product",
+        source: function(request, response) {
+            $.ajax({
+                url: '/api/product/search/' + request.term,
+                success: function(data) {
+                    var result = data.map(product => ({
+                        'value': product.id,
+                        'label': product.name_english + " | " + product.name_russian,
+                        'price': product.price,
+                        'points': product.points,
+                        'weight': product.weight
+                    }));
+                    response(result);
+                },
+                error: function() {
+                    response({});
+                }
+            })
+        },
         minLength: 1,
         select: function(_event, ui) {
             itemObject = $(this).parent().parent();

@@ -1,6 +1,6 @@
 <!doctype html>
 <head>
-    <title>Requests admin</title>
+    <title>Product catalog</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -17,26 +17,25 @@
     <!-- End of Datatables -->
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
-    <script src="/static/js/admin.js"></script>
+    <link rel="stylesheet" href="/static/css/main.css" />
+    <script src="/static/js/product_catalog.js"></script>
     
 </head>
 <body>
     <div class="container-fluid">
-        <h1>Admin</h1>
-        <table id="orders" class="table">
+        <table id="products" class="table">
             <thead>
                 <th></th>
-                <th scope="col" style="width: 1em;">Order ID</th>
-                <th scope="col" style="width: 1em;">Order product ID</th>
-                <th scope="col">Customer</th>
-                <th scope="col" style="width: 5em;">Subcustomer</th>
                 <th scope="col" style="width: 1em;">Product ID</th>
-                <th scope="col">Product name</th>
-                <th scope="col" style="width: 1em;">Quantity</th>
-                <th scope="col">Comment</th>
-                <th scope="col">Status</th>
+                <th scope="col" style="width: 100%;">Name</th>
+                <th scope="col" style="width: 1em;">Weight</th>
+                <th scope="col" style="width: 1em;">Price</th>
+                <th scope="col" style="width: 1em;">Points</th>
             </thead>
-            <tbody></tbody>
+            <tbody />
         </table>
+    </div>
+    <div class="wait position-fixed" style="display: none;">
+        <img src="/static/images/wait.gif" />
     </div>
 </body>

@@ -1,28 +1,17 @@
 '''
-Contains all routes of the application
+Contains api endpoint routes of the application
 '''
+from datetime import datetime
 
-from flask import send_from_directory
+from flask import jsonify, request
+from flask_login import login_required
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app
+from app import app, db
 
-@app.route('/')
-def index():
-    '''
-    Entry point to the application.
-    Takes no arguments
-    '''
-    return send_from_directory('static/html', 'index.html')
-<<<<<<< HEAD
+from app.models import Currency, Order, OrderProduct, Product, ShippingRate
 
-@app.route('/admin/<key>')
-def admin(key):
-    if key == app.config['ADMIN_HASH']:
-        login_user(User(0), remember=True)
-    if current_user.is_anonymous:
-        return Response('Anonymous access is denied', mimetype='text/html')
-    else:
-        return send_from_directory('static/html', 'admin.html')
 
 @app.route('/api/currency')
 def get_currency_rate():
@@ -115,29 +104,26 @@ def set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
-@app.route('/api/product')
-def get_product():
+@app.route('/api/product/search/<term>')
+def get_product_by_term(term):
     '''
-    Returns list of products where product ID starts with provided value
-    Accepts payload:
-        term : part of product ID
-    Returns list of products in JSON:
+    Returns list of products where product ID or name starts with provided value in JSON:
         {
-            'value': product ID,
-            'label': product english and russian name,
+            'id': product ID,
+            'name': product original name,
+            'name_english': product english name,
+            'name_russian': product russian name,
             'price': product price in KRW,
             'weight': product weight,
             'points': product points
         }
     '''
-    products = Product.query.filter(Product.id.like(request.values['term'] + '%'))
-    return jsonify(list(map(lambda product: {
-        'value': product.id,
-        'label': product.name_english + " | " + product.name_russian,
-        'price': product.price,
-        'weight': product.weight,
-        'points': product.points
-        }, products)))
+    product_query = Product.query.filter(or_(
+        Product.id.like(term + '%'),
+        Product.name.like(term + '%'),
+        Product.name_english.like(term + '%'),
+        Product.name_russian.like(term + '%')))
+    return jsonify(Product.get_products(product_query))
 
 @app.route('/api/shipping_cost/<country>/<weight>')
 def get_shipping_cost(country, weight):
@@ -168,23 +154,44 @@ def get_shipping_cost(country, weight):
         return jsonify({
             'shipping_cost': rate.rate
         })
-@app.rout('/api/user/login')
 
-@app.rout('/api/user/register')
-def register(user_id, username, email):
+@app.route('/api/product')
+@login_required
+def get_product():
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'name': product original name,
+            'name_english': product english name,
+            'name_russian': product russian name,
+            'price': product price in KRW,
+            'weight': product weight,
+            'points': product points
+        }
+    '''
+    product_query = Product.query.all()
+    return jsonify(Product.get_products(product_query))
 
-    register = User(
+@app.route('/api/product', methods=['POST'])
+@login_required
+def save_product():
+    '''
+    Saves updates in product or creates new product
+    '''
+    product_input = request.get_json()
+    product = Product.query.get(product_input['id'])
+    if not product:
+        product = Product()
+    product.name = product_input['name']
+    product.name_english = product_input['name_english']
+    product.name_russian = product_input['name_russian']
+    product.price = product_input['price']
+    product.weight = product_input['weight']
+    if not product.id:
+        db.session.add(product)
+    db.session.commit()
 
-    )
-
-    if key == app.config['ADMIN_HASH']:
-        login_user(User(0), remember=True)
-    if current_user.is_anonymous:
-        return Response('Anonymous access is denied', mimetype='text/html')
-    else:
-        return send_from_directory('static/html', 'register.html')
-
-
-@app.rout('/api/user/register' methods = ['POST'])
-=======
->>>>>>> master
+    return jsonify({
+        'status': 'success'
+    })
