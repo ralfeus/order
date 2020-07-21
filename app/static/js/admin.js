@@ -23,6 +23,12 @@ $(document).ready( function () {
             dataSrc: ''
         },
         columns: [
+            {
+                data: null,
+                defaultContent: '',
+                className: 'select-checkbox',
+                orderable: false
+            },
             {data: 'order_id'},
             {data: 'order_product_id'},
             {data: 'customer'},
