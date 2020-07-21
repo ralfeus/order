@@ -171,3 +171,21 @@ def get_shipping_cost(country, weight):
         return jsonify({
             'shipping_cost': rate.rate
         })
+@app.rout('/api/user/login')
+
+@app.rout('/api/user/register')
+def register(user_id, username, email):
+
+    register = User(
+
+    )
+
+    if key == app.config['ADMIN_HASH']:
+        login_user(User(0), remember=True)
+    if current_user.is_anonymous:
+        return Response('Anonymous access is denied', mimetype='text/html')
+    else:
+        return send_from_directory('static/html', 'register.html')
+
+
+@app.rout('/api/user/register' methods = ['POST'])

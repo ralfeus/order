@@ -82,14 +82,23 @@ class ShippingRate(db.Model):
     def __repr__(self):
         return "<{}: {}/{}/{}>".format(type(self), self.destination, self.weight, self.rate)
 
-class User(UserMixin):
-    user_id = 0
+class User(db.Model, UserMixin):
+    __tablename__ = 'users'
+    
+    user_id = Column(Integer, primary_key=True)
+    username = db.Column(db.String(32), unique=True, nullable=False)
+    email = db.Column(db.String(80), unique=True, nullable=False)
+    fname = db.Column(db.String(80))
+    lname = db.Column(db.String(80))
+    password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, username, email):
         self.user_id = user_id
+        self.username = username
+        self.email = email
 
     def get_id(self):
-        return 0
+        return User.user_id
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
