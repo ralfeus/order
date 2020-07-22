@@ -57,7 +57,7 @@ class OrderProduct(db.Model):
         return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
             self.order_id, self.product_id, self.status)
 
-Mergeclass OrderProductStatusHistory(db.Model):
+class OrderProductStatusHistory(db.Model):
     '''
     History of all changes of the product status change history
     '''
