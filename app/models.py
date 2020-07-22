@@ -61,7 +61,6 @@ class Product(db.Model):
     __tablename__ = 'products'
 
     id = Column(String(16), primary_key=True)
-    name = Column(String(256), index=True)
     name_english = Column(String(256), index=True)
     name_russian = Column(String(256), index=True)
     category = Column(String(64))
@@ -71,21 +70,6 @@ class Product(db.Model):
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
-
-    @staticmethod
-    def get_products(product_query):
-        '''
-        Returns list of products based on a query
-        '''
-        return list(map(lambda product: {
-            'id': product.id,
-            'name': product.name,
-            'name_english': product.name_english,
-            'name_russian': product.name_russian,
-            'price': product.price,
-            'weight': product.weight,
-            'points': product.points
-            }, product_query))
 
 class ShippingRate(db.Model):
     __tablename__ = 'shipping_rates'
@@ -98,14 +82,23 @@ class ShippingRate(db.Model):
     def __repr__(self):
         return "<{}: {}/{}/{}>".format(type(self), self.destination, self.weight, self.rate)
 
-class User(UserMixin):
-    user_id = 0
+class User(db.Model, UserMixin):
+    __tablename__ = 'users'
+    
+    user_id = Column(Integer, primary_key=True)
+    username = db.Column(db.String(32), unique=True, nullable=False)
+    email = db.Column(db.String(80), unique=True, nullable=False)
+    fname = db.Column(db.String(80))
+    lname = db.Column(db.String(80))
+    password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, username, email):
         self.user_id = user_id
+        self.username = username
+        self.email = email
 
     def get_id(self):
-        return 0
+        return User.user_id
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
