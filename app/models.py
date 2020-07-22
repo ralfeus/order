@@ -57,6 +57,20 @@ class OrderProduct(db.Model):
         return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
             self.order_id, self.product_id, self.status)
 
+Mergeclass OrderProductStatusHistory(db.Model):
+    '''
+    History of all changes of the product status change history
+    '''
+    __tablname__ = 'order_product_status_history'
+    order_product_id = Column(Integer, ForeignKey('order_products.id'), primary_key=True)
+    set_by = relationship('User')
+    set_at = Column(DateTime, primary_key=True)
+    status = Column(String(16))
+    user_id = Column(Integer, ForeignKey('users.id'))
+
+    def __repr__(self):
+        return f"<OrderProduct {self.order_product_id} \"{self.status}\" set {self.set_at}>"
+
 class Product(db.Model):
     __tablename__ = 'products'
 
@@ -92,10 +106,10 @@ class User(db.Model, UserMixin):
     lname = db.Column(db.String(80))
     password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
 
-    def __init__(self, user_id, username, email):
-        self.user_id = user_id
-        self.username = username
-        self.email = email
+    # def __init__(self, user_id, username, email):
+    #     self.user_id = user_id
+    #     self.username = username
+    #     self.email = email
 
     def get_id(self):
         return User.user_id
