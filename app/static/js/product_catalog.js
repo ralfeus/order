@@ -1,10 +1,25 @@
+$.fn.dataTable.ext.buttons.create = {
+    action: function(e, dt, node, config) {
+        window.location = '/admin/product/new';
+    }
+};
+$.fn.dataTable.ext.buttons.delete = {
+    action: function(e, dt, node, config) {
+        delete_product(dt.rows({selected: true}));
+    }
+}
+
 $(document).ready( function () {
     var table = $('#products').DataTable({
-        dom: 'lfrtip', 
+        dom: 'lfrBtip', 
         ajax: {
             url: '/api/product',
             dataSrc: ''
         },
+        buttons: [
+            {extend: 'create', text: 'Create'},
+            {extend: 'delete', text: 'Delete'}
+        ],
         columns: [
             {
                 "className":      'details-control',
@@ -87,4 +102,20 @@ function format ( d ) {
             '<input id="name_russian" class="form-control col-5" value="' + d.name_russian + '"/>'+
         '</div>'+
     '</div>';
+}
+
+function delete_product(rows) {
+    rows.every(function() {
+        var row = this
+        $.ajax({
+            url: '/api/product/' + row.data().id,
+            method: 'delete',
+            success: function() {
+                row.remove().draw()
+            },
+            error: function(xhr, _status, _error) {
+                alert(xhr.responseJSON.message);
+            }
+        });
+    });
 }

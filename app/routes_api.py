@@ -104,6 +104,27 @@ def set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
+@app.route('/api/product/<product_id>', methods=['DELETE'])
+@login_required
+def delete_product(product_id):
+    '''
+    Deletes a product by its product code
+    '''
+    result = None
+    try:
+        Product.query.filter_by(id=product_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete product {product_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
+
 @app.route('/api/product/search/<term>')
 def get_product_by_term(term):
     '''
@@ -147,7 +168,7 @@ def get_shipping_cost(country, weight):
         response = jsonify({
             'message': f"Couldn't find rate for {weight}g parcel to {country}"
         })
-        response.status_code = 400
+        response.status_code = 409
         return response
     else:
         # print(rate)

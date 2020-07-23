@@ -1,11 +1,13 @@
 '''
 Contains admin routes of the application
 '''
-from flask import Response, send_from_directory
+from flask import Response, flash, redirect, render_template, send_from_directory
 from flask_login import current_user, login_required, login_user
+from sqlalchemy.exc import IntegrityError
 
-from app import app
-from app.models import User
+from app import app, db
+from app.forms import ProductForm
+from app.models import Product, User
 
 @app.route('/admin/<key>')
 def admin(key):
@@ -19,10 +21,31 @@ def admin(key):
 
     return send_from_directory('static/html', 'admin.html')
 
+
+@app.route('/admin/product/new', methods=['GET', 'POST'])
+@login_required
+def product():
+    '''
+    Creates and edits product
+    '''
+    form = ProductForm()
+    if form.validate_on_submit():
+        new_product = Product()
+        form.populate_obj(new_product)
+
+        db.session.add(new_product)
+        try:
+            db.session.commit()
+            flash("The product is created", category='info')
+            return redirect('/admin/products')
+        except IntegrityError as e:
+            flash(f"The product couldn't be created. {e}", category="error")
+    return render_template('product.html', title="Create product", form=form)
+
 @app.route('/admin/products')
 @login_required
 def products():
     '''
     Product catalog management
     '''
-    return send_from_directory('static/html', 'products.html')
+    return render_template('products.html')

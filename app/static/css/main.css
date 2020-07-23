@@ -1,9 +1,21 @@
-td.details-control {
-    background: url('/static/images/details_open.png') no-repeat center center;
-    cursor: pointer;
+
+.flash {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 5px;
 }
-tr.shown td.details-control {
-    background: url('/static/images/details_close.png') no-repeat center center;
+.flash-error {
+    color: red;
+    background-color: mistyrose;
+}
+
+.flash-info {
+    color: green;
+    background-color: honeydew;
+}
+
+.help-block {
+    color: orange;
+    background-color: peachpuff;
 }
 
 .subcustomer-total {
@@ -19,4 +31,12 @@ tr.shown td.details-control {
 
 table {
     font-size: 11px;
+}
+
+td.details-control {
+    background: url('/static/images/details_open.png') no-repeat center center;
+    cursor: pointer;
+}
+tr.shown td.details-control {
+    background: url('/static/images/details_close.png') no-repeat center center;
 }
