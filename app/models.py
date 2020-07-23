@@ -13,6 +13,7 @@ def load_user(id):
     return User(id=id)
 
 
+
 class Currency(db.Model):
     __tablename__ = 'currencies'
 
@@ -51,11 +52,29 @@ class OrderProduct(db.Model):
     product = relationship('Product')
     quantity = Column(Integer)
     subcustomer = Column(String(256))
+    private_comment = Column(String(256))
+    public_comment = Column(String(256))
     status = Column(String(16))
+    status_history = relationship('OrderProductStatusEntry', backref="order_product", lazy='dynamic')
+    changed_at = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
             self.order_id, self.product_id, self.status)
+
+class OrderProductStatusEntry(db.Model):
+    '''
+    History of all changes of the product status change history
+    '''
+    __tablename__ = 'order_product_status_history'
+    order_product_id = Column(Integer, ForeignKey('order_products.id'), primary_key=True)
+    set_by = relationship('User')
+    set_at = Column(DateTime, primary_key=True)
+    status = Column(String(16))
+    user_id = Column(Integer, ForeignKey('users.id'))
+
+    def __repr__(self):
+        return f"<OrderProduct {self.order_product_id} \"{self.status}\" set {self.set_at}>"
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -103,13 +122,9 @@ class User(db.Model, UserMixin):
     
     id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
+
     email = db.Column(db.String(80))
     password_hash = db.Column(db.String(200))
-
-    # def __init__(self, id, username, email):
-    #     self.id = id
-    #     self.username = username
-    #     self.email = email
 
     def get_id(self):
         return User.id
