@@ -4,14 +4,12 @@ Contains api endpoint routes of the application
 from datetime import datetime
 
 from flask import jsonify, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app, db
-
-from app.models import Currency, Order, OrderProduct, Product, ShippingRate
-
+from app import app, db, login
+from app.models import Currency, Order, OrderProduct, OrderProductStatusEntry, Product, ShippingRate
 
 @app.route('/api/currency')
 def get_currency_rate():
@@ -70,7 +68,7 @@ def create_order():
 
 @app.route('/api/order_product')
 @login_required
-def get_orders():
+def get_order_products():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
@@ -82,20 +80,61 @@ def get_orders():
         'subcustomer': order_product.subcustomer,
         'product_id': order_product.product_id,
         'product': order_product.product.name_english,
+        'private_comment': order_product.private_comment,
+        'public_comment': order_product.public_comment,
         'comment': order_product.order.comment,
         'quantity': order_product.quantity,
         'status': order_product.status
         }, order_products)))
 
-@app.route('/api/order_product/status/<int:order_product_id>/<order_product_status>', methods=['POST'])
+@app.route('/api/order_product/<int:order_product_id>', methods=['POST'])
+@login_required
+def save_order_product(order_product_id):
+    '''
+    Modifies order products
+    '''
+    result = None
+    order_product_input = request.get_json()
+    order_product = OrderProduct.query.get(order_product_id)
+    if order_product:
+        order_product.private_comment = order_product_input['private_comment']
+        order_product.public_comment = order_product_input['public_comment']
+        order_product.changed_at = datetime.now()
+        try:
+            db.session.commit()
+            result = jsonify({
+                'status': 'success'
+            })
+        except Exception as e:
+            result = jsonify({
+                'status': 'error',
+                'message': e
+            })
+            result.status_code = 500
+    else:
+        result = jsonify({
+            'status': 'error',
+            'message': f"Order product ID={order_product_id} wasn't found"
+        })
+        result.status_code = 404
+    return result
+
+
+@app.route('/api/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
     '''
     order_product = OrderProduct.query.get(order_product_id)
     order_product.status = order_product_status
+    db.session.add(OrderProductStatusEntry(
+        order_product=order_product,
+        status=order_product_status,
+        # set_by=current_user,
+        user_id=1,
+        set_at=datetime.now()
+    ))
 
-    # db.session.merge(order_product) 
     db.session.commit()
 
     return jsonify({
@@ -103,6 +142,22 @@ def set_order_product_status(order_product_id, order_product_status):
         'order_product_status': order_product_status,
         'status': 'success'
     })
+@app.route('/api/order_product/<int:order_product_id>/status/history')
+def get_order_product_status_history(order_product_id):
+    history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
+    if history:
+        return jsonify(list(map(lambda entry: {
+            'set_by': entry.set_by.username,
+            'set_at': entry.set_at,
+            'status': entry.status
+        }, history)))
+    else:
+        result = jsonify({
+            'status': 'error',
+            'message': f'No order product ID={order_product_id} found'
+        })
+        result.status_code = 404
+        return result
 
 @app.route('/api/product/<product_id>', methods=['DELETE'])
 @login_required

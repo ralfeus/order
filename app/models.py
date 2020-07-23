@@ -10,7 +10,7 @@ from app import db, login
 
 @login.user_loader
 def load_user(user_id):
-    return User(user_id=user_id)
+    return User(id=user_id)
 
 
 class Currency(db.Model):
@@ -51,17 +51,21 @@ class OrderProduct(db.Model):
     product = relationship('Product')
     quantity = Column(Integer)
     subcustomer = Column(String(256))
+    private_comment = Column(String(256))
+    public_comment = Column(String(256))
     status = Column(String(16))
+    status_history = relationship('OrderProductStatusEntry', backref="order_product", lazy='dynamic')
+    changed_at = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
             self.order_id, self.product_id, self.status)
 
-class OrderProductStatusHistory(db.Model):
+class OrderProductStatusEntry(db.Model):
     '''
     History of all changes of the product status change history
     '''
-    __tablname__ = 'order_product_status_history'
+    __tablename__ = 'order_product_status_history'
     order_product_id = Column(Integer, ForeignKey('order_products.id'), primary_key=True)
     set_by = relationship('User')
     set_at = Column(DateTime, primary_key=True)
@@ -75,6 +79,7 @@ class Product(db.Model):
     __tablename__ = 'products'
 
     id = Column(String(16), primary_key=True)
+    name = Column(String(256), index=True)
     name_english = Column(String(256), index=True)
     name_russian = Column(String(256), index=True)
     category = Column(String(64))
@@ -84,6 +89,21 @@ class Product(db.Model):
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
+
+    @staticmethod
+    def get_products(product_query):
+        '''
+        Returns list of products based on a query
+        '''
+        return list(map(lambda product: {
+            'id': product.id,
+            'name': product.name,
+            'name_english': product.name_english,
+            'name_russian': product.name_russian,
+            'price': product.price,
+            'weight': product.weight,
+            'points': product.points
+            }, product_query))
 
 class ShippingRate(db.Model):
     __tablename__ = 'shipping_rates'
@@ -99,7 +119,7 @@ class ShippingRate(db.Model):
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
     
-    user_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
     email = db.Column(db.String(80), unique=True, nullable=False)
     fname = db.Column(db.String(80))
@@ -112,7 +132,7 @@ class User(db.Model, UserMixin):
     #     self.email = email
 
     def get_id(self):
-        return User.user_id
+        return User.id
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
