@@ -5,10 +5,10 @@ Contains all routes of the application
 from flask import send_from_directory
 from flask import Blueprint, redirect, render_template, flash, request, session, url_for
 from flask_login import login_required, logout_user, current_user, login_user
-from .forms import LoginForm, SignupForm
-from .models import db, User
-from . import login_manager
-from app import app
+from app.forms import LoginForm, SignupForm
+from app.models import User
+# from . import login_manager
+from app import app, db
 
 @app.route('/')
 def index():
@@ -30,7 +30,7 @@ def signup():
     if form.validate_on_submit():
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user is None:
-            user = User.id(
+            user = User(
                 name=form.name.data,
                 email=form.email.data
             )
@@ -57,7 +57,7 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
-            return redirect('/')
+            return redirect('login')
         login_user(user, remember=form.remember_me.data)
         return redirect(url_for('index'))
-    return render_template('login.html', title='Sign In', form=form)
+    return render_template('login.jinja2', title='Sign In', form=form)

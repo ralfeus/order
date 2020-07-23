@@ -9,8 +9,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app import db, login
 
 @login.user_loader
-def load_user(user_id):
-    return User(user_id=user_id)
+def load_user(id):
+    return User(id=id)
 
 
 class Currency(db.Model):
@@ -108,7 +108,7 @@ class User(db.Model, UserMixin):
     lname = db.Column(db.String(80))
     password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
 
-    # def __init__(self, user_id, username, email):
+    # def __init__(self, id, username, email):
     #     self.id = id
     #     self.username = username
     #     self.email = email
