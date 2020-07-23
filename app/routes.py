@@ -11,6 +11,7 @@ from app.models import User
 from app import app, db
 
 @app.route('/')
+@login_required
 def index():
     '''
     Entry point to the application.
@@ -31,7 +32,7 @@ def signup():
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user is None:
             user = User(
-                name=form.name.data,
+                username=form.name.data,
                 email=form.email.data
             )
             user.set_password(form.password.data)
@@ -61,3 +62,10 @@ def login():
         login_user(user, remember=form.remember_me.data)
         return redirect(url_for('index'))
     return render_template('login.jinja2', title='Sign In', form=form)
+
+@app.route("/logout")
+@login_required
+def logout():
+    """User log-out logic."""
+    logout_user()
+    return redirect(url_for('app.login'))

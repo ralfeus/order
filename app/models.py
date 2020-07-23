@@ -103,10 +103,8 @@ class User(db.Model, UserMixin):
     
     id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
-    email = db.Column(db.String(80), unique=True, nullable=False)
-    fname = db.Column(db.String(80))
-    lname = db.Column(db.String(80))
-    password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
+    email = db.Column(db.String(80))
+    password_hash = db.Column(db.String(200))
 
     # def __init__(self, id, username, email):
     #     self.id = id
