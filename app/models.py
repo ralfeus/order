@@ -101,20 +101,20 @@ class ShippingRate(db.Model):
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
     
-    user_id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
     email = db.Column(db.String(80), unique=True, nullable=False)
     fname = db.Column(db.String(80))
     lname = db.Column(db.String(80))
     password_hash = db.Column(db.String(200), primary_key=False, unique=False, nullable=False)
 
-    def __init__(self, user_id, username, email):
-        self.user_id = user_id
-        self.username = username
-        self.email = email
+    # def __init__(self, user_id, username, email):
+    #     self.id = id
+    #     self.username = username
+    #     self.email = email
 
     def get_id(self):
-        return User.user_id
+        return User.id
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
