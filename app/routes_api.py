@@ -103,7 +103,16 @@ def save_order_product(order_product_id):
         try:
             db.session.commit()
             result = jsonify({
-                'status': 'success'
+                'order_id': order_product.order_id,
+                'order_product_id': order_product.id,
+                'customer': order_product.order.name,
+                'subcustomer': order_product.subcustomer,
+                'product_id': order_product.product_id,
+                'product': order_product.product.name_english,
+                'private_comment': order_product.private_comment,
+                'public_comment': order_product.public_comment,
+                'quantity': order_product.quantity,
+                'status': order_product.status
             })
         except Exception as e:
             result = jsonify({
