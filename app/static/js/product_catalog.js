@@ -1,4 +1,4 @@
-$.fn.dataTable.ext.buttons.create = {
+å$.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
         window.location = '/admin/product/new';
     }
