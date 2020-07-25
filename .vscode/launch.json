@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "attach",
+            "host": "sandlet",
+            "port": 5678
+        },
+        {
             "type": "firefox",
             "request": "attach",
             "name": "Javascript: Firefox",
