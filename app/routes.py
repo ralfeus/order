@@ -3,8 +3,8 @@ Contains all routes of the application
 '''
 
 from flask import send_from_directory
-from flask import Blueprint, redirect, render_template, flash, request, session, url_for
-from flask_login import login_required, logout_user, current_user, login_user
+from flask import Blueprint, redirect, render_template, flash, request, session, url_for, Response
+from flask_login import login_required, logout_user, current_user, login_user, logout_user
 from app.forms import LoginForm, SignupForm
 from app.models import User
 # from . import login_manager
@@ -12,12 +12,13 @@ from app import app, db
 
 @app.route('/')
 @login_required
+
 def index():
     '''
     Entry point to the application.
     Takes no arguments
     '''
-    return send_from_directory('static/html', 'index.html')
+    return render_template('index.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -32,14 +33,14 @@ def signup():
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user is None:
             user = User(
-                username=form.name.data,
+                username=form.username.data,
                 email=form.email.data
             )
             user.set_password(form.password.data)
             db.session.add(user)
             db.session.commit()  # Create new user
             login_user(user)  # Log in as newly created user
-            return redirect('/')
+            return redirect('/login')
         flash('A user already exists with that email address.')
     return render_template(
         'signup.jinja2',
@@ -59,13 +60,20 @@ def login():
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
             return redirect('login')
-        login_user(user, remember=form.remember_me.data)
-        return redirect(url_for('index'))
+        login_user(user)
+        # , remember=form.remember_me.data
+        x = redirect(url_for('index'))
+        return x
+    
     return render_template('login.jinja2', title='Sign In', form=form)
 
 @app.route("/logout")
 @login_required
 def logout():
     """User log-out logic."""
+    user = current_user
+    user.authenticated = False
+    db.session.add(user)
+    db.session.commit()
     logout_user()
     return redirect(url_for('app.login'))

@@ -127,7 +127,7 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(200))
 
     def get_id(self):
-        return User.id
+        return str(User.id)
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
