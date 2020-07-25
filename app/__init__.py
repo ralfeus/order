@@ -15,5 +15,7 @@ app.config.from_object(Config)
 login = LoginManager(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db, compare_type=True)
+login.login_view = "login"
+login.logout_view = "logout"
 
 from app import routes, routes_admin, routes_api, models
