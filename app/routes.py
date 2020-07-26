@@ -70,7 +70,7 @@ def user_login():
         user = User.query.filter_by(username=form.username.data).first()
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
-            return redirect('login')
+            return redirect(url_for('user_login'))
         login_user(user, remember=True)
 
         return redirect(url_for('index'))
@@ -82,4 +82,4 @@ def user_login():
 def user_logout():
     """User log-out logic."""
     logout_user()
-    return redirect(url_for('login'))
+    return redirect(url_for('user_login'))
