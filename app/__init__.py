@@ -12,10 +12,10 @@ app = Flask(__name__)
 
 Bootstrap(app)
 app.config.from_object(Config)
-login = LoginManager(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db, compare_type=True)
-login.login_view = "login"
-login.logout_view = "logout"
+login = LoginManager(app)
+login.login_view = "user_login"
+login.logout_view = "user_logout"
 
 from app import routes, routes_admin, routes_api, models

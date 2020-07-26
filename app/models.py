@@ -8,12 +8,15 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db, login
 
+<<<<<<< HEAD
 @login.user_loader
 def load_user(id):
     return User(id=id)
 
 
 
+=======
+>>>>>>> master
 class Currency(db.Model):
     __tablename__ = 'currencies'
 
@@ -26,9 +29,11 @@ class Currency(db.Model):
 
 
 class Order(db.Model):
+    ''' System's order '''
     __tablename__ = 'orders'
 
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
     name = Column(String(16))
     address = Column(String(64))
     country = Column(String(128))
@@ -67,6 +72,7 @@ class OrderProductStatusEntry(db.Model):
     History of all changes of the product status change history
     '''
     __tablename__ = 'order_product_status_history'
+
     order_product_id = Column(Integer, ForeignKey('order_products.id'), primary_key=True)
     set_by = relationship('User')
     set_at = Column(DateTime, primary_key=True)
@@ -107,6 +113,9 @@ class Product(db.Model):
             }, product_query))
 
 class ShippingRate(db.Model):
+    '''
+    Rate of the parcel shipping
+    '''
     __tablename__ = 'shipping_rates'
 
     id = Column(Integer, primary_key=True)
@@ -118,16 +127,27 @@ class ShippingRate(db.Model):
         return "<{}: {}/{}/{}>".format(type(self), self.destination, self.weight, self.rate)
 
 class User(db.Model, UserMixin):
+    '''
+    Represents site's user
+    '''
     __tablename__ = 'users'
-    
+
     id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
 
     email = db.Column(db.String(80))
     password_hash = db.Column(db.String(200))
+<<<<<<< HEAD
 
     def get_id(self):
         return str(User.id)
+=======
+
+    orders = relationship('Order', backref='user', lazy='dynamic')
+
+    def get_id(self):
+        return str(self.id)
+>>>>>>> master
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)

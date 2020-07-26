@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app, db, login
+from app import app, db
 from app.models import Currency, Order, OrderProduct, OrderProductStatusEntry, Product, ShippingRate
 
 @app.route('/api/currency')
@@ -37,6 +37,7 @@ def create_order():
     request_data = request.get_json()
     result = {}
     order = Order(
+        user=current_user,
         name=request_data['name'],
         address=request_data['address'],
         country=request_data['country'],
@@ -59,7 +60,7 @@ def create_order():
             'status': 'success',
             'order_id': order.id
         }
-    except (IntegrityError, OperationalError):
+    except (IntegrityError, OperationalError) as e:
         result = {
             'status': 'error',
             'message': "Couldn't add order due to input error. Check your form and try again."
@@ -72,7 +73,13 @@ def get_order_products():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
-    order_products = OrderProduct.query.all()
+    request_params = request.get_json()
+    order_products = OrderProduct.query
+    if request_params and request_params['all'] and current_user.username == 'admin':
+        order_products = order_products.all()
+    else:
+        order_products = order_products.filter(
+            OrderProduct.order.has(Order.user == current_user))
     return jsonify(list(map(lambda order_product: {
         'order_id': order_product.order_id,
         'order_product_id': order_product.id,
@@ -103,7 +110,16 @@ def save_order_product(order_product_id):
         try:
             db.session.commit()
             result = jsonify({
-                'status': 'success'
+                'order_id': order_product.order_id,
+                'order_product_id': order_product.id,
+                'customer': order_product.order.name,
+                'subcustomer': order_product.subcustomer,
+                'product_id': order_product.product_id,
+                'product': order_product.product.name_english,
+                'private_comment': order_product.private_comment,
+                'public_comment': order_product.public_comment,
+                'quantity': order_product.quantity,
+                'status': order_product.status
             })
         except Exception as e:
             result = jsonify({
