@@ -3,19 +3,14 @@ Contains application's forms
 '''
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, IntegerField, StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
 from app.models import Product
 
 class SignupForm(FlaskForm):
     """User Sign-up Form."""
     username = StringField('User name', validators=[DataRequired()])
-<<<<<<< HEAD
-    email = StringField('Email', validators=[Length(min=6), Email(message='Enter a valid email.'), DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6, message='Select a stronger password.')])
-=======
     email = StringField('Email', validators=[Email(message='Enter a valid email.'), DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
->>>>>>> master
     confirm = PasswordField('Confirm Your Password', validators=[DataRequired(), EqualTo('password', message='Passwords must match.')])
     submit = SubmitField('Register')
 

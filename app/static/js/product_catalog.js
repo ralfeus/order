@@ -14,6 +14,9 @@ $(document).ready( function () {
         dom: 'lfrBtip', 
         ajax: {
             url: '/api/product',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({'all': true}),
             dataSrc: ''
         },
         buttons: [

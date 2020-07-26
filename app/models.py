@@ -8,15 +8,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db, login
 
-<<<<<<< HEAD
-@login.user_loader
-def load_user(id):
-    return User(id=id)
-
-
-
-=======
->>>>>>> master
 class Currency(db.Model):
     __tablename__ = 'currencies'
 
@@ -137,17 +128,11 @@ class User(db.Model, UserMixin):
 
     email = db.Column(db.String(80))
     password_hash = db.Column(db.String(200))
-<<<<<<< HEAD
-
-    def get_id(self):
-        return str(User.id)
-=======
-
     orders = relationship('Order', backref='user', lazy='dynamic')
 
     def get_id(self):
         return str(self.id)
->>>>>>> master
+
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)

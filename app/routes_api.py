@@ -75,7 +75,7 @@ def get_order_products():
     '''
     request_params = request.get_json()
     order_products = OrderProduct.query
-    if request_params and request_params['all'] and current_user.username == 'admin':
+    if request_params and request_params['all']:
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
