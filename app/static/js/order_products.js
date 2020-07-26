@@ -20,6 +20,7 @@ $(document).ready( function () {
         ],        
         ajax: {
             url: '/api/order_product',
+            data: { all: true },
             dataSrc: ''
         },
         columns: [

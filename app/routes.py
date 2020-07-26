@@ -40,7 +40,8 @@ def user_signup():
     """
     form = SignupForm()
     if form.validate_on_submit():
-        existing_user = User.query.filter_by(email=form.email.data).first()
+        existing_user = db.session.query(User.id). \
+            filter_by(username=form.username.data).scalar()
         if existing_user is None:
             user = User(
                 username=form.username.data,
@@ -50,8 +51,8 @@ def user_signup():
             db.session.add(user)
             db.session.commit()  # Create new user
             login_user(user)  # Log in as newly created user
-            return redirect('/login')
-        flash('A user already exists with that email address.')
+            return redirect(url_for('user_login'))
+        flash('A user already exists.')
     return render_template(
         'signup.html',
         title='Create an Account.',

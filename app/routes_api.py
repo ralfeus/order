@@ -73,9 +73,8 @@ def get_order_products():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
-    request_params = request.get_json()
     order_products = OrderProduct.query
-    if request_params and request_params['all']:
+    if request.args.get('all') and current_user.username == 'admin':
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
