@@ -1,5 +1,7 @@
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+'''
+Product model
+'''
+from sqlalchemy import Column, DateTime, Integer, String
 
 from app import db
 
@@ -14,6 +16,8 @@ class Product(db.Model):
     weight = Column(Integer)
     price = Column(Integer)
     points = Column(Integer)
+    when_created = Column(DateTime)
+    when_changed = Column(DateTime)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)

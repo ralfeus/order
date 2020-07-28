@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate
+    ShippingRate, Transaction
 
 @app.route('/api/currency')
 def get_currency_rate():
@@ -295,10 +295,16 @@ def get_shipping_cost(country, weight):
 @login_required
 def get_transactions():
     '''
+    Payload in JSON:
+    {
+        context: 'admin' if it's admin context. 
+                 Any other value is considered as empty and user context
+    }
     Returns user's or all transactions in JSON:
     {
         id: transaction ID,
         user_id: ID of the transaction owner,
+        user_name: name of the transaction owner,
         currency: transaction original currency,
         amount_original: amount in original currency,
         amount_krw: amount in KRW at the time of transaction,
@@ -307,7 +313,7 @@ def get_transactions():
     '''
     payload = request.get_json()
     transactions = Transaction.query
-    if (payload.get('context') == 'admin' and
+    if (payload and payload.get('context') == 'admin' and
         current_user.username == 'admin'):
         transactions = transactions.all()
     else:
@@ -315,4 +321,11 @@ def get_transactions():
     return jsonify(list(map(lambda entry: {
         'id': entry.id,
         'user_id': entry.user_id,
+        'user_name': entry.user.username,
+        'amount_original': entry.currency.format(entry.amount_original),
+        'amount_krw': entry.amount_krw,
+        'status': entry.status,
+        'created_at': entry.created_at,
+        'changed_at': entry.changed_at,
+        'changed_by': entry.changed_by
     }, transactions)))

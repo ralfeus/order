@@ -12,3 +12,6 @@ class Currency(db.Model):
 
     def __repr__(self):
         return "<Currency: {}>".format(self.code)
+
+    def format(self, amount):
+        return f"{amount} {self.code}"
