@@ -6,7 +6,7 @@ from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
 from app import app, db
-from app.forms import ProductForm
+from app.forms import ProductForm, SignupForm
 from app.models import Product, User
 
 @app.route('/admin', defaults={'key': None})
@@ -52,3 +52,17 @@ def products():
     Product catalog management
     '''
     return render_template('products.html')
+
+@app.route('/admin/user/new', methods=['GET', 'POST'])
+@login_required
+def admin():
+    '''
+    Creates and edits product user
+    '''
+    userform = SignupForm()
+    if userform.validate_on_submit():
+        new_user = User()
+        userform.populate_obj(new_user)
+
+        db.session.add(new_user)
+    return render_template('signup.html', title="Create user", form=userform)

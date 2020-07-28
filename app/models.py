@@ -5,6 +5,7 @@ from flask_login import UserMixin
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
+from flask_admin.model import BaseModelView
 
 from app import db, login
 
@@ -125,7 +126,6 @@ class User(db.Model, UserMixin):
 
     id = Column(Integer, primary_key=True)
     username = db.Column(db.String(32), unique=True, nullable=False)
-
     email = db.Column(db.String(80))
     password_hash = db.Column(db.String(200))
     orders = relationship('Order', backref='user', lazy='dynamic')
@@ -133,9 +133,19 @@ class User(db.Model, UserMixin):
     def get_id(self):
         return str(self.id)
 
-
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+class Admin(db.BaseModelView):
+    '''
+    Represents Administrators
+    '''
+    __tablename__ = 'admins'
+
+    admin_id = relationship('User', backref='user', primary_key=True)
+
+def __repr__(self):
+    return (self.admin_id)
