@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate, Transaction
+    ShippingRate, Transaction, User
 
 @app.route('/api/currency')
 def get_currency_rate():
@@ -329,3 +329,40 @@ def get_transactions():
         'changed_at': entry.changed_at,
         'changed_by': entry.changed_by
     }, transactions)))
+
+@app.route('/api/user')
+@login_required
+def get_user():
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'username': user name,
+            'email': user's email,
+            'creted': user's profile created,
+            'changed': last profile change
+        }
+    '''
+    user_query = User.query.all()
+    return jsonify(User.get_user(user_query))
+
+# @app.route('/api/product/<user_id>', methods=['DELETE'])
+# @login_required
+# def delete_user(product_id):
+#     '''
+#     Deletes a product by its product code
+#     '''
+#     result = None
+#     try:
+#         Product.query.filter_by(id=product_id).delete()
+#         db.session.commit()
+#         result = jsonify({
+#             'status': 'success'
+#         })
+#     except IntegrityError:
+#         result = jsonify({
+#             'message': f"Can't delete product {product_id} as it's used in some orders"
+#         })
+#         result.status_code = 409
+
+#     return result

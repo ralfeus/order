@@ -12,7 +12,7 @@ class Order(db.Model):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
-    user = relationship('User')
+    user = relationship('User', foreign_keys=[user_id])
     name = Column(String(16))
     address = Column(String(64))
     country = Column(String(128))

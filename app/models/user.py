@@ -16,7 +16,6 @@ class User(db.Model, UserMixin):
 
     id = Column(Integer, primary_key=True)
     username = Column(String(32), unique=True, nullable=False)
-
     email = Column(String(80))
     password_hash = Column(String(200))
     when_created = Column(DateTime)
@@ -30,3 +29,17 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @staticmethod
+    def get_user(user_query):
+        '''
+        Returns list of users based on a query
+        '''
+        return list(map(lambda user: {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'when_created': user.when_created,
+            'when_changed': user.when_changed
+            }, user_query))
+            

@@ -9,14 +9,11 @@ from app import app, db
 from app.forms import ProductForm, SignupForm
 from app.models import Product, User
 
-@app.route('/admin', defaults={'key': None})
-@app.route('/admin/<key>')
-def admin(key):
+@app.route('/admin')
+def admin():
     '''
     Shows list of ordered products
     '''
-    if key == app.config['ADMIN_HASH']:
-        login_user(User(id=0), remember=True)
     if current_user.is_anonymous:
         result = Response('Anonymous access is denied', mimetype='text/html')
         result.status_code = 401
@@ -55,9 +52,9 @@ def products():
 
 @app.route('/admin/user/new', methods=['GET', 'POST'])
 @login_required
-def admin():
+def new_user():
     '''
-    Creates and edits product user
+    Creates new user
     '''
     userform = SignupForm()
     if userform.validate_on_submit():
@@ -66,3 +63,33 @@ def admin():
 
         db.session.add(new_user)
     return render_template('signup.html', title="Create user", form=userform)
+
+@app.route('/admin/users', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user():
+    '''
+    Edits the user settings
+    '''
+    return render_template('users.html')
+
+@app.route('/admin/users/delete', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes, edits and disables a user by its user code
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
+
