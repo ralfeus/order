@@ -9,7 +9,9 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import app, db
-from app.models import Currency, Order, OrderProduct, OrderProductStatusEntry, Product, ShippingRate
+from app.models import \
+    Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    ShippingRate, Transaction
 
 @app.route('/api/currency')
 def get_currency_rate():
@@ -103,7 +105,9 @@ def save_order_product(order_product_id):
     order_product_input = request.get_json()
     order_product = OrderProduct.query.get(order_product_id)
     if order_product:
-        order_product.private_comment = order_product_input['private_comment']
+        if (order_product_input.get('context') == 'admin' and
+            current_user.username == 'admin'):
+            order_product.private_comment = order_product_input['private_comment']
         order_product.public_comment = order_product_input['public_comment']
         order_product.changed_at = datetime.now()
         try:
@@ -173,6 +177,47 @@ def get_order_product_status_history(order_product_id):
         })
         result.status_code = 404
         return result
+
+@app.route('/api/product')
+@login_required
+def get_product():
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'name': product original name,
+            'name_english': product english name,
+            'name_russian': product russian name,
+            'price': product price in KRW,
+            'weight': product weight,
+            'points': product points
+        }
+    '''
+    product_query = Product.query.all()
+    return jsonify(Product.get_products(product_query))
+
+@app.route('/api/product', methods=['POST'])
+@login_required
+def save_product():
+    '''
+    Saves updates in product or creates new product
+    '''
+    product_input = request.get_json()
+    product = Product.query.get(product_input['id'])
+    if not product:
+        product = Product()
+    product.name = product_input['name']
+    product.name_english = product_input['name_english']
+    product.name_russian = product_input['name_russian']
+    product.price = product_input['price']
+    product.weight = product_input['weight']
+    if not product.id:
+        db.session.add(product)
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success'
+    })
 
 @app.route('/api/product/<product_id>', methods=['DELETE'])
 @login_required
@@ -246,43 +291,41 @@ def get_shipping_cost(country, weight):
             'shipping_cost': rate.rate
         })
 
-@app.route('/api/product')
+@app.route('/api/transaction')
 @login_required
-def get_product():
+def get_transactions():
     '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'name': product original name,
-            'name_english': product english name,
-            'name_russian': product russian name,
-            'price': product price in KRW,
-            'weight': product weight,
-            'points': product points
-        }
+    Payload in JSON:
+    {
+        context: 'admin' if it's admin context. 
+                 Any other value is considered as empty and user context
+    }
+    Returns user's or all transactions in JSON:
+    {
+        id: transaction ID,
+        user_id: ID of the transaction owner,
+        user_name: name of the transaction owner,
+        currency: transaction original currency,
+        amount_original: amount in original currency,
+        amount_krw: amount in KRW at the time of transaction,
+        status: transaction status ('pending', 'approved', 'rejected', 'cancelled')
+    }
     '''
-    product_query = Product.query.all()
-    return jsonify(Product.get_products(product_query))
-
-@app.route('/api/product', methods=['POST'])
-@login_required
-def save_product():
-    '''
-    Saves updates in product or creates new product
-    '''
-    product_input = request.get_json()
-    product = Product.query.get(product_input['id'])
-    if not product:
-        product = Product()
-    product.name = product_input['name']
-    product.name_english = product_input['name_english']
-    product.name_russian = product_input['name_russian']
-    product.price = product_input['price']
-    product.weight = product_input['weight']
-    if not product.id:
-        db.session.add(product)
-    db.session.commit()
-
-    return jsonify({
-        'status': 'success'
-    })
+    payload = request.get_json()
+    transactions = Transaction.query
+    if (payload and payload.get('context') == 'admin' and
+        current_user.username == 'admin'):
+        transactions = transactions.all()
+    else:
+        transactions = transactions.filter_by(user=current_user)
+    return jsonify(list(map(lambda entry: {
+        'id': entry.id,
+        'user_id': entry.user_id,
+        'user_name': entry.user.username,
+        'amount_original': entry.currency.format(entry.amount_original),
+        'amount_krw': entry.amount_krw,
+        'status': entry.status,
+        'created_at': entry.created_at,
+        'changed_at': entry.changed_at,
+        'changed_by': entry.changed_by
+    }, transactions)))
