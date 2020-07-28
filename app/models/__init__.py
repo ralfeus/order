@@ -2,19 +2,11 @@
 All models of the application
 Each model is in its own file
 '''
-import os, sys
-
-dir_path = os.path.dirname(os.path.abspath(__file__))
-files_in_dir = [f[:-3] for f in os.listdir(dir_path)
-                if f.endswith('.py') and f != '__init__.py']
-for f in files_in_dir:
-    mod = __import__('.'.join([__name__, f]), fromlist=[f])
-    to_import = [getattr(mod, x) for x in dir(mod)
-                 if isinstance(getattr(mod, x), type)]  # if you need classes only
-
-    for i in to_import:
-        try:
-            setattr(sys.modules[__name__], i.__name__, i)
-        except AttributeError:
-            pass
-
+from app.models.currency import Currency
+from app.models.order import Order
+from app.models.order_product import OrderProduct
+from app.models.order_product_status_entry import OrderProductStatusEntry
+from app.models.product import Product
+from app.models.shipping_rate import ShippingRate
+from app.models.transaction import Transaction
+from app.models.user import User

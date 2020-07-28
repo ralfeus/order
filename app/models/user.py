@@ -2,8 +2,7 @@
 User model
 '''
 from flask_login import UserMixin
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, DateTime, Integer, String
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -16,13 +15,12 @@ class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    username = db.Column(db.String(32), unique=True, nullable=False)
+    username = Column(String(32), unique=True, nullable=False)
 
-    email = db.Column(db.String(80))
-    password_hash = db.Column(db.String(200))
-
-    orders = relationship('Order', backref='user', lazy='dynamic')
-    transactions = relationship('Transaction', backref='user', lazy='dynamic')
+    email = Column(String(80))
+    password_hash = Column(String(200))
+    when_created = Column(DateTime)
+    when_changed = Column(DateTime)
 
     def get_id(self):
         return str(self.id)
