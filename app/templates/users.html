@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/users.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="users" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 1em;">User ID</th>
+            <th scope="col" style="width: 100%;">UserName</th>
+            <th scope="col" style="width: 1em;">Email</th>
+            <th scope="col" style="width: 1em;">Password</th>
+            <th scope="col" style="width: 1em;">Creted</th>
+            <th scope="col" style="width: 1em;">Changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+<div class="wait position-fixed" style="display: none;">
+    <img src="/static/images/wait.gif" />
+</div>
+{% endblock %}
