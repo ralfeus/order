@@ -1,3 +1,5 @@
 {
-    "python.linting.pylintPath": "bin/pylint"
+    "python.linting.pylintPath": "bin/pylint",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }
