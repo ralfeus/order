@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/wallet.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="transactions" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 1em;">Transaction ID</th>
+            <th scope="col" style="width: 100%;">Amount</th>
+            <th scope="col" style="width: 1em;">Amount (KRW)</th>
+            <th scope="col" style="width: 1em;">Status</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+<div class="wait position-fixed" style="display: none;">
+    <img src="/static/images/wait.gif" />
+</div>
+{% endblock %}

@@ -18,4 +18,5 @@ login = LoginManager(app)
 login.login_view = "user_login"
 login.logout_view = "user_logout"
 
-from app import routes, routes_admin, routes_api, models
+# from app.models import *
+from app.routes import admin, api, client

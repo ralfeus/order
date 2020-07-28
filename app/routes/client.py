@@ -1,5 +1,5 @@
 '''
-Contains all routes of the application
+Contains client routes of the application
 '''
 
 from flask import redirect, render_template, flash, url_for
@@ -84,3 +84,8 @@ def user_logout():
     """User log-out logic."""
     logout_user()
     return redirect(url_for('user_login'))
+
+@app.route('/wallet')
+@login_required
+def get_wallet():
+    return render_template('wallet.html')
