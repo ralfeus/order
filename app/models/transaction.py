@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Enum, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -21,10 +21,11 @@ class Transaction(db.Model):
     user = relationship('User', foreign_keys=[user_id])
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
-    amount_orignal = Column(Float)
+    amount_original = Column(Numeric(scale=2))
     amount_krw = Column(Integer)
+    proof_image = Column(String(256))
     status = Column(Enum(TransactionStatus))
-    created_at = Column(DateTime)
-    changed_at = Column(DateTime)
+    when_created = Column(DateTime)
+    when_changed = Column(DateTime)
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])

@@ -14,6 +14,8 @@ class Product(db.Model):
     weight = Column(Integer)
     price = Column(Integer)
     points = Column(Integer)
+    when_created = Column(DateTime)
+    when_changed = Column(DateTime)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)

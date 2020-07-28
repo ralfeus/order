@@ -9,4 +9,5 @@ from app.models.order_product_status_entry import OrderProductStatusEntry
 from app.models.product import Product
 from app.models.shipping_rate import ShippingRate
 from app.models.transaction import Transaction
+from app.models.transaction import TransactionStatus
 from app.models.user import User
