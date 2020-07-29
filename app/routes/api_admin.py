@@ -85,3 +85,19 @@ def save_transaction(transaction_id):
         'when_created': transaction.when_created.strftime('%Y-%m-%d %H:%M:%S'),
         'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
     })
+@app.route('/api/v1/admin/user/<int:user_id>', methods=['POST'])
+@login_required
+def save_user(user_id):
+    '''
+    Saves updates in user profile.
+    '''
+    user_input = request.get_json()
+    user = User.query.get(user_input['user_id'])
+    if not user:
+        user = User()
+    user.username = user_input['username']
+    user.email = user_input['email']
+    user.password_hash = user_input['password_hash']
+    if not user.id:
+        db.session.add(user)
+    db.session.commit()

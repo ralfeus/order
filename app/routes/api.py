@@ -346,6 +346,12 @@ def get_user():
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
 
+
+
+    return jsonify({
+        'status': 'success'
+    })
+
 @app.route('/api/user/<user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):

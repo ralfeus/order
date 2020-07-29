@@ -62,8 +62,8 @@ $(document).ready( function () {
                 var users_node = $(this).closest('.user-details');
                 var data = {
                     user_name: $('#user_name', users_node).val(),
-                    email: $('#email', email_node).val(),
-                    password: $('#password', password_node).val(),
+                    email: $('#email', users_node).val(),
+                    password: $('#password', users_node).val(),
                 };
                 $('.wait').show();
                 $.ajax({
@@ -98,7 +98,7 @@ function format ( d ) {
                 '<input id="password" class="form-control col-5" value="' + d.password + '"/>'+
             '</div>' +
             '<div class="col-2">' +
-                '<input type="button" class="button btn-primary btn-save col-1" value="Save" />' +
+                '<input type="button" class="button btn-primary btn-save col-2" value="Save" />' +
             '</div>' +
         '</div>';
 }
