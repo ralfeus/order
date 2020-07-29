@@ -50,13 +50,18 @@ def create_order():
         comment=request_data['comment'],
         when_created=datetime.now()
     )
-    order_products = [OrderProduct(
-        order=order,
-        subcustomer=product['subcustomer'],
-        product_id=item['item_code'],
-        quantity=item['quantity'],
-        status='Pending'
-    ) for product in request_data['products'] for item in product['items']]
+    order_products = []
+    for suborder in request_data['products']:
+        for item in suborder['items']:
+            order_product = OrderProduct(
+                order=order,
+                subcustomer=suborder['subcustomer'],
+                product_id=item['item_code'],
+                quantity=item['quantity'],
+                status='Pending')
+            db.session.add(order_product)
+            order_products.append(order_product)
+
     order.order_products = order_products
     db.session.add(order)
     try:
