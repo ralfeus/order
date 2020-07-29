@@ -48,7 +48,7 @@ def create_order():
         country=request_data['country'],
         phone=request_data['phone'],
         comment=request_data['comment'],
-        time_created=datetime.now()
+        when_created=datetime.now()
     )
     order_products = [OrderProduct(
         order=order,
