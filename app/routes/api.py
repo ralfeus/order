@@ -24,7 +24,7 @@ def get_currency_rate():
             currency code: currency rate to KRW
         }
     '''
-    currencies = {c.code: c.rate for c in Currency.query.all()}
+    currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
 
