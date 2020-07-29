@@ -26,9 +26,7 @@ $(document).ready( function () {
             {data: 'amount_krw'},
             {data: 'status'},
             {data: 'when_created'},
-            {data: 'when_changed'},
-            {data: 'amount_original', visible: false},
-            {data: 'currency_code', visible: false}
+            {data: 'when_changed'}
         ],
 
         select: true
@@ -74,24 +72,7 @@ $(document).ready( function () {
                     }
                 })
             });
-            $('.btn-cancel').on('click', function() {
-                $('.wait').show();
-                $.ajax({
-                    url: '/api/transaction/' + row.data().id,
-                    method: 'post',
-                    dataType: 'json',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        status: 'cancelled'
-                    }),
-                    complete: function() {
-                        $('.wait').hide();
-                    },
-                    success: function(data) {
-                        row.data(data).draw();
-                    }
-                });
-            });
+            $('.btn-cancel').on('click', function() {cancel(row)});
         }
     } );
 });
@@ -118,7 +99,7 @@ function format ( row, data ) {
             // '</div>' +
         '</div>' +
         '<div class="row container">' +
-            '<img id="evidence" src="' + data.proof_image + '" class="col-4" />' +
+            '<img id="evidence" src="' + data.evidence_image + '" class="col-4" />' +
             '<div class="col-1">&nbsp;</div>' +
             '<div class="col-4">' +
                 // '<input type="file" id="evidence" class="form-control" />' +
@@ -133,6 +114,21 @@ function format ( row, data ) {
  * @param {*} target - table rows representing orders whose status is to be changed
  * @param {string} status - new status
  */
-function cancel(target, newStatus) {
-    
+function cancel(row) {
+    $('.wait').show();
+    $.ajax({
+        url: '/api/transaction/' + row.data().id,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            status: 'cancelled'
+        }),
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: function(data) {
+            row.data(data).draw();
+        }
+    });
 }

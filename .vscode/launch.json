@@ -22,6 +22,10 @@
                     "url": "http://sandlet:5000",
                     "path": "${workspaceFolder}/app"
                 }
+            ],
+            "skipFiles": [
+                "**/jquery*",
+                "**/popper.js/**"
             ]
         },
         {

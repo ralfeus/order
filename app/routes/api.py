@@ -2,8 +2,9 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
+vimport os.path
 
-from flask import abort, jsonify, request
+from flask import Response, abort, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -12,8 +13,10 @@ from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus
+from app.tools import rm, write_to_file
 
 @app.route('/api/currency')
+@app.route('/api/v1/currency')
 def get_currency_rate():
     '''
     Returns currency rates related to KRW in JSON:
@@ -340,15 +343,13 @@ def save_transaction(transaction_id):
     transaction = Transaction.query.get(transaction_id)
     if not transaction:
         abort(404)
-    if (payload and payload.get('context') == 'admin' and
-        current_user.username == 'admin'):
-        transaction.amount_original = payload['amount_original']
-        transaction.currency = Currency.query.get(payload['currency_code'])
-        transaction.amount_krw = payload['amount_krw']
-        transaction.status = payload['status']
-    else:
-        if payload['status'] == 'cancelled':
-            transaction.status = TransactionStatus.cancelled
+
+    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+        abort(Response(
+            f"Can't update transaction in state <{transaction.status}>", status=409))
+    if payload['status'] == 'cancelled':
+        transaction.status = TransactionStatus.cancelled
+
     transaction.when_changed = datetime.now()
     transaction.changed_by = current_user
 
@@ -366,3 +367,33 @@ def save_transaction(transaction_id):
         'when_created': transaction.when_created.strftime('%Y-%m-%d %H:%M:%S'),
         'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
     })
+
+@app.route('/api/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
+@login_required
+def upload_transaction_evidence(transaction_id):
+    transaction = Transaction.query.get(transaction_id)
+    if current_user.username != 'admin' and \
+        current_user != transaction.user:
+        abort(403)
+    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+        abort(Response(
+            f"Can't update transaction in state <{transaction.status}>", status=409))
+    if request.files and request.files['file'] and request.files['file'].filename:
+        file = request.files['file']
+        rm(transaction.proof_image)
+        image_data = file.read()
+        file_name = os.path.join(
+            app.config['UPLOAD_PATH'],
+            str(current_user.id),
+            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
+            ''.join(os.path.splitext(file.filename)[1:])
+        write_to_file(file_name, image_data)
+    
+        transaction.proof_image = file_name
+        transaction.when_changed = datetime.now()
+        transaction.changed_by = current_user
+        db.session.commit()
+    else:
+        abort(Response("No file is uploaded", status=400))
+    return jsonify({})
+        

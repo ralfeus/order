@@ -21,4 +21,4 @@ login.login_view = "user_login"
 login.logout_view = "user_logout"
 
 # from app.models import *
-from app.routes import admin, api, client
+from app.routes import admin, api, api_admin, client
