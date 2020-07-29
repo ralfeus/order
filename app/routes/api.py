@@ -329,7 +329,7 @@ def get_transactions(transaction_id):
     return jsonify(list(map(lambda entry: {
         'id': entry.id,
         'user_id': entry.user_id,
-        'amount_original': entry.amount_original,
+        'amount_original': str(entry.amount_original),
         'amount_original_string': entry.currency.format(entry.amount_original),
         'amount_krw': entry.amount_krw,
         'currency_code': entry.currency.code,
