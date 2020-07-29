@@ -50,8 +50,10 @@ def user_signup():
             user.set_password(form.password.data)
             db.session.add(user)
             db.session.commit()  # Create new user
-            login_user(user)  # Log in as newly created user
-            return redirect(url_for('user_login'))
+            if not current_user.is_authenticated:
+                login_user(user)  # Log in as newly created user
+            else:
+                return redirect('/admin/users')
         flash('A user already exists.')
     return render_template(
         'signup.html',

@@ -1,11 +1,6 @@
 $.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
-        window.location = '/admin/users';
-    }
-};
-$.fn.dataTable.ext.buttons.edit = {
-    action: function(e, dt, node, config) {
-        window.location = '/admin/users';
+        window.location = '/admin/user/new';
     }
 };
 $.fn.dataTable.ext.buttons.disable = {
@@ -13,16 +8,11 @@ $.fn.dataTable.ext.buttons.disable = {
         window.location = '/admin/users';
     }
 };
-$.fn.dataTable.ext.buttons.change_password = {
-    action: function(e, dt, node, config) {
-        window.location = '/admin/users';
-    }
-};
-$.fn.dataTable.ext.buttons.delete = {
-    action: function(e, dt, node, config) {
-        delete_user(dt.rows({selected: true}));
-    }
-}
+// $.fn.dataTable.ext.buttons.delete = {
+//     action: function(e, dt, node, config) {
+//         delete_user(dt.rows({selected: true}));
+//     }
+// }
 
 $(document).ready( function () {
     var table = $('#users').DataTable({
@@ -36,9 +26,7 @@ $(document).ready( function () {
         },
         buttons: [
             {extend: 'create', text: 'Create'},
-            {extend: 'delete', text: 'Delete'},
-            {extend: 'edit', text: 'Edit'},
-            {extend: 'change_password', text: 'Change the password'},
+            // {extend: 'delete', text: 'Delete'},
             {extend: 'disable', text: 'Disable'}
         ],
         columns: [

@@ -346,23 +346,23 @@ def get_user():
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
 
-# @app.route('/api/product/<user_id>', methods=['DELETE'])
-# @login_required
-# def delete_user(product_id):
-#     '''
-#     Deletes a product by its product code
-#     '''
-#     result = None
-#     try:
-#         Product.query.filter_by(id=product_id).delete()
-#         db.session.commit()
-#         result = jsonify({
-#             'status': 'success'
-#         })
-#     except IntegrityError:
-#         result = jsonify({
-#             'message': f"Can't delete product {product_id} as it's used in some orders"
-#         })
-#         result.status_code = 409
+@app.route('/api/user/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes a user by its user_id
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
 
-#     return result
+    return result

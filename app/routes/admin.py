@@ -63,6 +63,7 @@ def new_user():
 
         db.session.add(new_user)
     return render_template('signup.html', title="Create user", form=userform)
+    return redirect('/admin/users')
 
 @app.route('/admin/users', methods=['GET', 'POST'])
 @login_required
@@ -71,25 +72,3 @@ def admin_edit_user():
     Edits the user settings
     '''
     return render_template('users.html')
-
-@app.route('/admin/users/delete', methods=['DELETE'])
-@login_required
-def delete_user(user_id):
-    '''
-    Deletes, edits and disables a user by its user code
-    '''
-    result = None
-    try:
-        User.query.filter_by(id=user_id).delete()
-        db.session.commit()
-        result = jsonify({
-            'status': 'success'
-        })
-    except IntegrityError:
-        result = jsonify({
-            'message': f"Can't delete user {user_id} as it's used in some orders"
-        })
-        result.status_code = 409
-
-    return result
-
