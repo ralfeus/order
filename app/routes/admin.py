@@ -9,18 +9,14 @@ from app import app, db
 from app.forms import ProductForm
 from app.models import Product, User
 
-@app.route('/admin', defaults={'key': None})
-@app.route('/admin/<key>')
-def admin(key):
+@app.route('/admin')
+@login_required
+def admin():
     '''
     Shows list of ordered products
     '''
-    if key == app.config['ADMIN_HASH']:
-        login_user(User(id=0), remember=True)
-    if current_user.is_anonymous:
-        result = Response('Anonymous access is denied', mimetype='text/html')
-        result.status_code = 401
-        return result
+    if current_user.username != 'admin':
+        abort(403)
 
     return render_template('order_products.html')
 

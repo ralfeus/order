@@ -1,7 +1,6 @@
 '''
 Initialization of the application
 '''
-import app.tools
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -9,6 +8,8 @@ from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from app.config import Config
+
+import app.tools
 
 app = Flask(__name__)
 

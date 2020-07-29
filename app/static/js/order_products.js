@@ -19,8 +19,7 @@ $(document).ready( function () {
             }
         ],        
         ajax: {
-            url: '/api/order_product',
-            data: { context: 'admin' },
+            url: '/api/v1/admin/order_product',
             dataSrc: ''
         },
         columns: [
@@ -72,7 +71,7 @@ $(document).ready( function () {
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/order_product/' + update.id,
+                    url: '/api/v1/admin/order_product/' + update.id,
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -124,7 +123,7 @@ function format ( row, data ) {
  */
 function get_history(order_product_id, callback) {
     $.ajax({
-        url: '/api/order_product/' + order_product_id + '/status/history',
+        url: '/api/v1/admin/order_product/' + order_product_id + '/status/history',
         success: function(data) { callback(data); },
         error: function() {callback([]); }
     });
@@ -141,7 +140,7 @@ function setStatus(target, newStatus) {
         for (var i = 0; i < target.count(); i++) {
             order_products.push(target.data()[i].order_product_id);
             $.ajax({
-                url: '/api/order_product/' + 
+                url: '/api/v1/admin/order_product/' + 
                     target.data()[i].order_product_id + '/status/' + newStatus,
                 method: 'POST',
                 success: function(response, status, xhr) {
