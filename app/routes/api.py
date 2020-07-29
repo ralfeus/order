@@ -333,7 +333,7 @@ def get_transactions(transaction_id):
         'amount_original_string': entry.currency.format(entry.amount_original),
         'amount_krw': entry.amount_krw,
         'currency_code': entry.currency.code,
-        'proof_image': entry.proof_image,
+        'evidence_image': entry.proof_image,
         'status': entry.status.name,
         'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
         'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
@@ -368,7 +368,7 @@ def save_transaction(transaction_id):
         'amount_original_string': transaction.currency.format(transaction.amount_original),
         'amount_krw': transaction.amount_krw,
         'currency_code': transaction.currency.code,
-        'proof_image': transaction.proof_image,
+        'evidence_image': transaction.proof_image,
         'status': transaction.status.name,
         'when_created': transaction.when_created.strftime('%Y-%m-%d %H:%M:%S'),
         'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
