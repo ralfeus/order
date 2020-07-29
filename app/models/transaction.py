@@ -53,7 +53,7 @@ class Transaction(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'user_name': self.user.username,
-            'amount_original': self.amount_original,
+            'amount_original': float(self.amount_original),
             'amount_original_string': self.currency.format(self.amount_original),
             'amount_krw': self.amount_krw,
             'currency_code': self.currency.code,
