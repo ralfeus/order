@@ -1,7 +1,7 @@
 '''
 Contains admin routes of the application
 '''
-from flask import Response, flash, redirect, render_template
+from flask import abort, Response, flash, redirect, render_template
 from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
@@ -51,4 +51,18 @@ def products():
     '''
     Product catalog management
     '''
+    if current_user.username != 'admin':
+        abort(403)
+
     return render_template('products.html')
+
+@app.route('/admin/transactions')
+@login_required
+def admin_transactions():
+    '''
+    Transactions management
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    
+    return render_template('transactions.html')

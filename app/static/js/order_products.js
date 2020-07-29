@@ -20,7 +20,7 @@ $(document).ready( function () {
         ],        
         ajax: {
             url: '/api/order_product',
-            data: { all: true },
+            data: { context: 'admin' },
             dataSrc: ''
         },
         columns: [
