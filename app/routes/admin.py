@@ -74,7 +74,6 @@ def admin_edit_user():
     Edits the user settings
     '''
     return render_template('users.html')
-    
 @app.route('/admin/transactions')
 @login_required
 def admin_transactions():

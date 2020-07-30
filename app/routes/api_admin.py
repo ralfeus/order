@@ -181,10 +181,7 @@ def admin_save_transaction(transaction_id):
 
 @app.route('/api/v1/admin/user/<int:user_id>', methods=['POST'])
 @login_required
-def save_user(user_id):
-    '''
-    Saves updates in user profile.
-    '''
+def save_user(user_id):    
     user_input = request.get_json()
     user = User.query.get(user_id)
     if not user:
@@ -195,3 +192,5 @@ def save_user(user_id):
         
     if not user.id:
         db.session.add(user)
+
+    db.session.commit()

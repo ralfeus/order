@@ -386,6 +386,7 @@ def delete_user(user_id):
         result.status_code = 409
 
     return result
+    
 @app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
