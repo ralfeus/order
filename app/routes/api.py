@@ -12,12 +12,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-<<<<<<< HEAD
-    ShippingRate, Transaction, User
-=======
-    ShippingRate, Transaction, TransactionStatus
+    ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
->>>>>>> master
 
 @app.route('/api/currency')
 @app.route('/api/v1/currency')
@@ -348,7 +344,6 @@ def get_transactions(transaction_id):
         'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
     }, transactions)))
 
-<<<<<<< HEAD
 @app.route('/api/user')
 @login_required
 def get_user():
@@ -391,7 +386,6 @@ def delete_user(user_id):
         result.status_code = 409
 
     return result
-=======
 @app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
@@ -456,4 +450,3 @@ def upload_transaction_evidence(transaction_id):
         abort(Response("No file is uploaded", status=400))
     return jsonify({})
         
->>>>>>> master

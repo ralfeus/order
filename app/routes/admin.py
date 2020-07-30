@@ -10,23 +10,13 @@ from app.forms import ProductForm, SignupForm
 from app.models import Product, User
 
 @app.route('/admin')
-<<<<<<< HEAD
-=======
 @login_required
->>>>>>> master
 def admin():
     '''
     Shows list of ordered products
     '''
-<<<<<<< HEAD
-    if current_user.is_anonymous:
-        result = Response('Anonymous access is denied', mimetype='text/html')
-        result.status_code = 401
-        return result
-=======
     if current_user.username != 'admin':
         abort(403)
->>>>>>> master
 
     return render_template('order_products.html')
 
@@ -62,7 +52,6 @@ def products():
 
     return render_template('products.html')
 
-<<<<<<< HEAD
 @app.route('/admin/user/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
@@ -85,7 +74,7 @@ def admin_edit_user():
     Edits the user settings
     '''
     return render_template('users.html')
-=======
+    
 @app.route('/admin/transactions')
 @login_required
 def admin_transactions():
@@ -96,4 +85,3 @@ def admin_transactions():
         abort(403)
     
     return render_template('transactions.html')
->>>>>>> master
