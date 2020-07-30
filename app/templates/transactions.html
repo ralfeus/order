@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/admin_transactions.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="transactions" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 2em;">Transaction&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">User</th>
+            <th scope="col" style="width: 2em;">Amount</th>
+            <th scope="col" style="width: 2em;">Amount (KRW)</th>
+            <th scope="col" style="width: 2em;">Status</th>
+            <th scope="col" style="width: max-content;">When created</th>
+            <th scope="col" style="width: max-content;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+<div class="row transaction-details container-fluid" style="display: none;">
+    <div class="col-4">
+        <img id="evidence" src="" class="" style="max-width: 20em;">
+    </div>
+    <div class="col-8">
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Amount</span>
+            </div>
+            <input id="amount_original" class="form-control" />
+            <div class="input-group-append currency-dropdown">
+                <button id="currency_code" class="btn btn-outline-secondary dropdown-toggle" 
+                    type="button" data-toggle="dropdown" aria-haspopup="true" 
+                    aria-expanded="false"></button>
+                <div class="dropdown-menu" x-placement="bottom-start" style="position: absolute; will-change: transform; top: 0px; left: 0px; transform: translate3d(359px, 38px, 0px);">
+                    <!-- <a class="dropdown-item" href="#">Action</a>
+                    <a class="dropdown-item" href="#">Another action</a>
+                    <a class="dropdown-item" href="#">Something else here</a>
+                    <div role="separator" class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#">Separated link</a> -->
+                </div>
+            </div>
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Amount (KRW)</span>
+            </div>
+            <input id="amount_krw" class="form-control" />
+            <div class="input-group-append">
+                <span class="input-group-text">₩</span>
+            </div>
+        </div>
+        <div class="custom-file">
+            <input type="file" class="custom-file-input" id="evidence_image">
+            <label class="custom-file-label form-control" for="customFile">Upload payment evidence</label>
+        </div>
+        <button class="btn btn-primary btn-block btn-save">Save</button>
+    </div>
+</div>
+{% endblock %}

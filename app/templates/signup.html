@@ -1,11 +1,10 @@
 {% extends "base.html" %}
 
-
 {% block content %}
 {{ super() }}
 
   <div class="form-wrapper">
-    <h1>Sign Up</h1>
+    <h1>{{ title }}</h1>
 
     <form method="POST" action="/signup">
       {{ form.csrf_token }}
@@ -61,7 +60,7 @@
     </form>
 
     <div class="login-signup">
-      <span>Already have an account? <a href="{{ url_for('login') }}">Log in.</a></span>
+      <span>Already have an account? <a href="{{ url_for('user_login') }}">Log in.</a></span>
     </div>
   </div>
 {% endblock %}

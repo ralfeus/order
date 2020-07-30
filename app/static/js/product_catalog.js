@@ -1,4 +1,4 @@
-å$.fn.dataTable.ext.buttons.create = {
+$.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
         window.location = '/admin/product/new';
     }
@@ -14,6 +14,9 @@ $(document).ready( function () {
         dom: 'lfrBtip', 
         ajax: {
             url: '/api/product',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({'all': true}),
             dataSrc: ''
         },
         buttons: [

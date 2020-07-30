@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/new_order.js"></script>
+{% endblock %}
+    
+{% block content %}
+{{ super() }}
+    <!-- <form method='post'> -->
+        <div class="container-fluid row">
+            <div class="col-4">
+                <input class="form-control" id="name" placeholder="Customer name"/>
+                <input class="form-control" id="address" placeholder="Address" />
+                <select class="form-control" id="country" onchange="country_changed()">
+                    <!-- <option value="belorus">Belorus</option>
+                    <option value="georgia">Georgia</option> -->
+                    <option value="india">India</option>
+                    <option value="kazakhstan">Kazakhstan</option>
+                    <!-- <option value="kyrgyzstan">Kyrgyzstan</option>
+                    <option value="korea">Korea</option> -->
+                    <option value="russia">Russia</option>
+                    <option value="ukraine">Ukraine</option>
+                    <!-- <option value="uzbekistan">Uzbekistan</option> -->
+                </select>
+                <input class="form-control" id="phone" placeholder="+(country code) phone" />
+            </div>
+            <textarea id="comment" class="form-control col-3" placeholder="Additional comments"></textarea>
+        </div>
+        <div class="container-fluid row">&nbsp;</div>
+        <div class="container-fluid row">
+            <div class="col-6">            
+                <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
+            </div>          
+        </div>
+        <div id="accordion" class="container-fluid">
+            <div class="card subcustomer-card">
+                <div class="input-group card-header" id="userItemsHeader0">
+                    <input class="form-control subcustomer-identity" placeholder="Number, name, password"/>
+                    <button class="btn btn-primary" type="button" 
+                        data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
+                        aria-controls="userItems0">Toggle</button>
+                    <input type="button" class="btn btn-primary" value="-" onclick="delete_subcustomer(this)"/>
+                </div>
+                <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
+                    <table class="table-sm table-bordered table-hover col-12">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 8em;">Item code</th>
+                                <th scope="col" style="width: 30em;">Item name</th>
+                                <th scope="col" style="width: 5em;">Quantity</th>
+                                <th scope="col">Price</th>
+                                <th scope="col" style="width: 10em;">Items cost (KRW)</th>
+                                <th scope="col" style="width: 0em;">Weight</th>
+                                <th scope="col">Shipping cost (KRW)</th>
+                                <th scope="col">Total (KRW)</th>
+                                <th scope="col">Total (RUR)</th>
+                                <th scope="col">Total (USD)</th>
+                                <th scope="col">Item points</th>
+                                <th scope="col">Total points</th>
+                                <th scope="col">
+                                    <input type="button" class="btn btn-primary" 
+                                        id="add_userItems0" value="+" />
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="userItemsList0">
+                            <tr id="userItems0_0" class="item">
+                                <td><input class="form-control form-control-sm item-code" /></td>
+                                <td></td>
+                                <td><input class="form-control form-control-sm item-quantity" value="0"/></td>
+                                <td></td>
+                                <td class="cost-krw"></td>
+                                <td></td>
+                                <td class="shipping-cost-krw"></td>
+                                <td class="total-krw"></td>
+                                <td class="total-rur"></td>
+                                <td class="total-usd"></td>
+                                <td></td>
+                                <td></td>
+                                <td>
+                                    <input type="button" class="btn btn-primary" id="del_userItems0_0"
+                                        value="-" onclick="delete_user_item(this)"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr id="userItemsTotal0" class="table-dark subcustomer-total">
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td id="subtotalCostKRW"></td>
+                                <td id="subtotalWeight"></td>
+                                <td id="subtotalShippingCostKRW"></td>
+                                <td id="subtotalTotalKRW"></td>
+                                <td id="subtotalTotalRUR"></td>
+                                <td id="subtotalTotalUSD"></td>
+                                <td></td>
+                                <td id="subtotalTotalPoints"></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>                        
+                </div>
+            </div>
+        </div>
+    <!-- </form> -->
+    <div class="position-fixed" style="top:0; right:0">
+        <table class="table-sm table-bordered table-light">
+            <thead>
+                <th></th>
+                <th>Total items cost</th>
+                <th>Items weight</th>
+                <th>Shipping cost</th>
+                <th>Total</th>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>KRW</td>
+                    <td id="totalItemsCostKRW"></td>
+                    <td id="totalItemsWeightKRW"></td>
+                    <td id="totalShippingCostKRW"></td>
+                    <td id="totalGrandTotalKRW"></td>
+                </tr>
+                <tr>
+                    <td>RUR</td>
+                    <td id="totalItemsCostRUR"></td>
+                    <td id="totalItemsWeightRUR"></td>
+                    <td id="totalShippingCostRUR"></td>
+                    <td id="totalGrandTotalRUR"></td>
+                </tr>
+                <tr>
+                    <td>USD</td>
+                    <td id="totalItemsCostUSD"></td>
+                    <td id="totalItemsWeightUSD"></td>
+                    <td id="totalShippingCostUSD"></td>
+                    <td id="totalGrandTotalUSD"></td>
+                </tr>
+            </tbody>
+        </table>
+        <input type="button" class="btn btn-primary" id="submit" value="Submit" />
+    </div>    
+    <div class="wait position-fixed" style="display: none;">
+        <img src="/static/images/wait.gif" />
+    </div>
+</body>
+{% endblock %}
