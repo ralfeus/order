@@ -195,3 +195,5 @@ def save_user(user_id):
         
     if not user.id:
         db.session.add(user)
+
+    

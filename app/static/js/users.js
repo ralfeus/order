@@ -40,7 +40,8 @@ $(document).ready( function () {
             {data: 'username'},
             {data: 'email'},
             {data: 'when_created'},
-            {data: 'when_changed'}
+            {data: 'when_changed'},
+            {data: 'disabled'}
         ],
         select: true
     });
@@ -111,6 +112,22 @@ function delete_user(rows) {
             method: 'delete',
             success: function() {
                 row.remove().draw()
+            },
+            error: function(xhr, _status, _error) {
+                alert(xhr.responseJSON.message);
+            }
+        });
+    });
+}
+
+function desable_user(rows) {
+    rows.every(function() {
+        var row = this
+        $.ajax({
+            url: '/api/v1/admin/user/' + row.data().id,
+            method: 'desable',
+            success: function() {
+                row.disable().draw()
             },
             error: function(xhr, _status, _error) {
                 alert(xhr.responseJSON.message);
