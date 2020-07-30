@@ -61,7 +61,7 @@ $(document).ready( function () {
             $('.btn-save').on('click', function() {
                 var users_node = $(this).closest('.user-details');
                 var data = {
-                    user_name: $('#user_name', users_node).val(),
+                    username: $('#username', users_node).val(),
                     email: $('#email', users_node).val(),
                     password: $('#password', users_node).val(),
                 };
