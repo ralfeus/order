@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate, User #, Transaction, TransactionStatus
+    ShippingRate, User, Transaction, TransactionStatus
 
 @app.route('/api/v1/admin/order_product')
 @login_required
@@ -189,7 +189,7 @@ def save_user(user_id):
     user.username = user_input['username']
     user.email = user_input['email']
     user.password = user_input['password']
-        
+  
     if not user.id:
         db.session.add(user)
 
