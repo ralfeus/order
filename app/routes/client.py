@@ -1,13 +1,15 @@
 '''
 Contains client routes of the application
 '''
-
-from flask import redirect, render_template, flash, url_for
+import os.path
+from datetime import datetime
+from flask import request, redirect, render_template, send_from_directory, flash, url_for
 from flask_login import login_required, current_user, login_user, logout_user
 
-from app.forms import LoginForm, SignupForm
-from app.models import User
+from app.forms import LoginForm, SignupForm, TransactionForm
+from app.models import Currency, Transaction, TransactionStatus, User
 from app import app, db, login
+from app.tools import write_to_file
 
 @login.user_loader
 def load_user(user_id):
@@ -87,7 +89,47 @@ def user_logout():
     logout_user()
     return redirect(url_for('user_login'))
 
+@app.route('/upload/<path:path>')
+def send_from_upload(path):
+    return send_from_directory('upload', path)
+
 @app.route('/wallet')
 @login_required
 def get_wallet():
     return render_template('wallet.html')
+
+@app.route('/wallet/new', methods=['GET', 'POST'])
+@login_required
+def create_transaction():
+    '''
+    Creates new transaction request
+    '''
+    form = TransactionForm()
+    if form.validate_on_submit():
+        if form.proof.data:
+            image_data = request.files[form.proof.name].read()
+            file_name = os.path.join(
+                app.config['UPLOAD_PATH'],
+                str(current_user.id),
+                datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
+                ''.join(os.path.splitext(form.proof.data.filename)[1:])
+            write_to_file(file_name, image_data)
+
+        currency = Currency.query.get(form.currency_code.data)
+        new_transaction = Transaction(
+            user=current_user,
+            amount_original=form.amount_original.data,
+            currency=currency,
+            amount_krw=form.amount_original.data / currency.rate,
+            proof_image=file_name,
+            status=TransactionStatus.pending,
+            when_created=datetime.now())
+
+        db.session.add(new_transaction)
+        try:
+            db.session.commit()
+            flash("The transaction is created", category='info')
+            return redirect('/wallet')
+        except Exception as e:
+            flash(f"The transaction couldn't be created. {e}", category="error")
+    return render_template('generic_form.html', title="Create transaction", form=form)

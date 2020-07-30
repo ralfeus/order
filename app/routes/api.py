@@ -2,8 +2,9 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
+import os.path
 
-from flask import jsonify, request
+from flask import Response, abort, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -11,9 +12,15 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import app, db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+<<<<<<< HEAD
     ShippingRate, Transaction, User
+=======
+    ShippingRate, Transaction, TransactionStatus
+from app.tools import rm, write_to_file
+>>>>>>> master
 
 @app.route('/api/currency')
+@app.route('/api/v1/currency')
 def get_currency_rate():
     '''
     Returns currency rates related to KRW in JSON:
@@ -21,7 +28,7 @@ def get_currency_rate():
             currency code: currency rate to KRW
         }
     '''
-    currencies = {c.code: c.rate for c in Currency.query.all()}
+    currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
 
@@ -45,15 +52,20 @@ def create_order():
         country=request_data['country'],
         phone=request_data['phone'],
         comment=request_data['comment'],
-        time_created=datetime.now()
+        when_created=datetime.now()
     )
-    order_products = [OrderProduct(
-        order=order,
-        subcustomer=product['subcustomer'],
-        product_id=item['item_code'],
-        quantity=item['quantity'],
-        status='Pending'
-    ) for product in request_data['products'] for item in product['items']]
+    order_products = []
+    for suborder in request_data['products']:
+        for item in suborder['items']:
+            order_product = OrderProduct(
+                order=order,
+                subcustomer=suborder['subcustomer'],
+                product_id=item['item_code'],
+                quantity=item['quantity'],
+                status='Pending')
+            db.session.add(order_product)
+            order_products.append(order_product)
+
     order.order_products = order_products
     db.session.add(order)
     try:
@@ -76,7 +88,7 @@ def get_order_products():
     Returns list of ordered items. So far implemented only for admins
     '''
     order_products = OrderProduct.query
-    if request.args.get('all') and current_user.username == 'admin':
+    if request.args.get('context') and current_user.username == 'admin':
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
@@ -105,7 +117,8 @@ def save_order_product(order_product_id):
     order_product_input = request.get_json()
     order_product = OrderProduct.query.get(order_product_id)
     if order_product:
-        if (order_product_input.get('context') == 'admin' and
+        if (order_product_input and 
+            order_product_input.get('context') == 'admin' and
             current_user.username == 'admin'):
             order_product.private_comment = order_product_input['private_comment']
         order_product.public_comment = order_product_input['public_comment']
@@ -291,9 +304,10 @@ def get_shipping_cost(country, weight):
             'shipping_cost': rate.rate
         })
 
-@app.route('/api/transaction')
+@app.route('/api/transaction', defaults={'transaction_id': None})
+@app.route('/api/transaction/<int:transaction_id>')
 @login_required
-def get_transactions():
+def get_transactions(transaction_id):
     '''
     Payload in JSON:
     {
@@ -312,8 +326,11 @@ def get_transactions():
     }
     '''
     payload = request.get_json()
-    transactions = Transaction.query
-    if (payload and payload.get('context') == 'admin' and
+    transactions = Transaction.query \
+        if transaction_id is None \
+        else Transaction.query.filter_by(id=transaction_id)
+    if (payload and
+        payload.get('context') == 'admin' and
         current_user.username == 'admin'):
         transactions = transactions.all()
     else:
@@ -321,15 +338,17 @@ def get_transactions():
     return jsonify(list(map(lambda entry: {
         'id': entry.id,
         'user_id': entry.user_id,
-        'user_name': entry.user.username,
-        'amount_original': entry.currency.format(entry.amount_original),
+        'amount_original': str(entry.amount_original),
+        'amount_original_string': entry.currency.format(entry.amount_original),
         'amount_krw': entry.amount_krw,
-        'status': entry.status,
-        'created_at': entry.created_at,
-        'changed_at': entry.changed_at,
-        'changed_by': entry.changed_by
+        'currency_code': entry.currency.code,
+        'evidence_image': entry.proof_image,
+        'status': entry.status.name,
+        'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
     }, transactions)))
 
+<<<<<<< HEAD
 @app.route('/api/user')
 @login_required
 def get_user():
@@ -372,3 +391,69 @@ def delete_user(user_id):
         result.status_code = 409
 
     return result
+=======
+@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
+@login_required
+def save_transaction(transaction_id):
+    '''
+    Saves updates in transaction
+    '''
+    payload = request.get_json()
+    transaction = Transaction.query.get(transaction_id)
+    if not transaction:
+        abort(404)
+
+    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+        abort(Response(
+            f"Can't update transaction in state <{transaction.status}>", status=409))
+    if payload['status'] == 'cancelled':
+        transaction.status = TransactionStatus.cancelled
+
+    transaction.when_changed = datetime.now()
+    transaction.changed_by = current_user
+
+    db.session.commit()
+
+    return jsonify({
+        'id': transaction.id,
+        'user_id': transaction.user_id,
+        'amount_original': transaction.amount_original,
+        'amount_original_string': transaction.currency.format(transaction.amount_original),
+        'amount_krw': transaction.amount_krw,
+        'currency_code': transaction.currency.code,
+        'evidence_image': transaction.proof_image,
+        'status': transaction.status.name,
+        'when_created': transaction.when_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
+    })
+
+@app.route('/api/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
+@login_required
+def upload_transaction_evidence(transaction_id):
+    transaction = Transaction.query.get(transaction_id)
+    if current_user.username != 'admin' and \
+        current_user != transaction.user:
+        abort(403)
+    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+        abort(Response(
+            f"Can't update transaction in state <{transaction.status}>", status=409))
+    if request.files and request.files['file'] and request.files['file'].filename:
+        file = request.files['file']
+        rm(transaction.proof_image)
+        image_data = file.read()
+        file_name = os.path.join(
+            app.config['UPLOAD_PATH'],
+            str(current_user.id),
+            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
+            ''.join(os.path.splitext(file.filename)[1:])
+        write_to_file(file_name, image_data)
+    
+        transaction.proof_image = file_name
+        transaction.when_changed = datetime.now()
+        transaction.changed_by = current_user
+        db.session.commit()
+    else:
+        abort(Response("No file is uploaded", status=400))
+    return jsonify({})
+        
+>>>>>>> master

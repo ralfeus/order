@@ -14,10 +14,15 @@ class User(db.Model, UserMixin):
     '''
     __tablename__ = 'users'
 
+    # Identification
     id = Column(Integer, primary_key=True)
     username = Column(String(32), unique=True, nullable=False)
     email = Column(String(80))
     password_hash = Column(String(200))
+
+    # Business
+    balance = Column(Integer, default=0)
+
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
 

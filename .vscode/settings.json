@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 {
     "python.linting.pylintPath": "bin/pylint",
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": false
 }
+=======
+>>>>>>> master

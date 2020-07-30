@@ -1,7 +1,7 @@
 '''
 Contains admin routes of the application
 '''
-from flask import Response, flash, redirect, render_template
+from flask import abort, Response, flash, redirect, render_template
 from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
@@ -10,14 +10,23 @@ from app.forms import ProductForm, SignupForm
 from app.models import Product, User
 
 @app.route('/admin')
+<<<<<<< HEAD
+=======
+@login_required
+>>>>>>> master
 def admin():
     '''
     Shows list of ordered products
     '''
+<<<<<<< HEAD
     if current_user.is_anonymous:
         result = Response('Anonymous access is denied', mimetype='text/html')
         result.status_code = 401
         return result
+=======
+    if current_user.username != 'admin':
+        abort(403)
+>>>>>>> master
 
     return render_template('order_products.html')
 
@@ -48,8 +57,12 @@ def products():
     '''
     Product catalog management
     '''
+    if current_user.username != 'admin':
+        abort(403)
+
     return render_template('products.html')
 
+<<<<<<< HEAD
 @app.route('/admin/user/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
@@ -72,3 +85,15 @@ def admin_edit_user():
     Edits the user settings
     '''
     return render_template('users.html')
+=======
+@app.route('/admin/transactions')
+@login_required
+def admin_transactions():
+    '''
+    Transactions management
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    
+    return render_template('transactions.html')
+>>>>>>> master
