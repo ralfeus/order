@@ -11,9 +11,7 @@ class TransactionForm(FlaskForm):
     '''
     amount_original = DecimalField('Transaction amount', places=2, validators=[
         NumberRange(min=0, message='Amount must be positive number')])
-    currency_code = RadioField('Transaction currency',
-        choices=[(currency.code, currency.name) for currency in Currency.query.all()],
-        validators=[DataRequired()])
+    currency_code = RadioField('Transaction currency', validators=[DataRequired()])
     proof = FileField('Upload the transaction proof', validators=[
         FileAllowed(['jpg', 'jpeg', 'pdf', 'png'],
             message="Only acceptable files are JPEG, PNG and PDF")])

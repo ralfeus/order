@@ -3,19 +3,21 @@ Contains client routes of the application
 '''
 import os.path
 from datetime import datetime
-from flask import request, redirect, render_template, send_from_directory, flash, url_for
+from flask import Blueprint, request, redirect, render_template, send_from_directory, flash, url_for
 from flask_login import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
 from app.models import Currency, Transaction, TransactionStatus, User
-from app import app, db, login
+from app import db, login
 from app.tools import write_to_file
+
+client = Blueprint('client', __name__, url_prefix='/')
 
 @login.user_loader
 def load_user(user_id):
     return User.query.get(user_id)
 
-@app.route('/')
+@client.route('/')
 @login_required
 def index():
     '''
@@ -24,7 +26,7 @@ def index():
     '''
     return render_template('index.html')
 
-@app.route('/new_order')
+@client.route('/new_order')
 @login_required
 def new_order():
     '''
@@ -32,7 +34,7 @@ def new_order():
     '''
     return render_template('new_order.html')
 
-@app.route('/signup', methods=['GET', 'POST'])
+@client.route('/signup', methods=['GET', 'POST'])
 def user_signup():
     """
     User sign-up page.
@@ -63,7 +65,7 @@ def user_signup():
         body="Sign up for a user account."
     )
 
-@app.route('/login', methods=['GET', 'POST'])
+@client.route('/login', methods=['GET', 'POST'])
 def user_login():
     ''' Login user '''
     if current_user.is_authenticated:
@@ -80,34 +82,36 @@ def user_login():
     
     return render_template('login.html', title='Sign In', form=form)
 
-@app.route("/logout")
+@client.route("/logout")
 @login_required
 def user_logout():
     """User log-out logic."""
     logout_user()
     return redirect(url_for('user_login'))
 
-@app.route('/upload/<path:path>')
+@client.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
 
-@app.route('/wallet')
+@client.route('/wallet')
 @login_required
 def get_wallet():
     return render_template('wallet.html')
 
-@app.route('/wallet/new', methods=['GET', 'POST'])
+@client.route('/wallet/new', methods=['GET', 'POST'])
 @login_required
 def create_transaction():
     '''
     Creates new transaction request
     '''
     form = TransactionForm()
+    form.currency_code.choices=[
+        (currency.code, currency.name) for currency in Currency.query.all()]
     if form.validate_on_submit():
         if form.proof.data:
             image_data = request.files[form.proof.name].read()
             file_name = os.path.join(
-                app.config['UPLOAD_PATH'],
+                current_app.config['UPLOAD_PATH'],
                 str(current_user.id),
                 datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
                 ''.join(os.path.splitext(form.proof.data.filename)[1:])

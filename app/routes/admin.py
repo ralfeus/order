@@ -1,17 +1,19 @@
 '''
 Contains admin routes of the application
 '''
-from flask import abort, Response, flash, redirect, render_template
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template
 from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
-from app import app, db
+from app import db
 from app.forms import ProductForm
 from app.models import Product, User
 
-@app.route('/admin')
+admin = Blueprint('admin', __name__, url_prefix='/admin')
+
+@admin.route('/')
 @login_required
-def admin():
+def order_products():
     '''
     Shows list of ordered products
     '''
@@ -21,7 +23,7 @@ def admin():
     return render_template('order_products.html')
 
 
-@app.route('/admin/product/new', methods=['GET', 'POST'])
+@admin.route('/product/new', methods=['GET', 'POST'])
 @login_required
 def product():
     '''
@@ -41,7 +43,7 @@ def product():
             flash(f"The product couldn't be created. {e}", category="error")
     return render_template('product.html', title="Create product", form=form)
 
-@app.route('/admin/products')
+@admin.route('/products')
 @login_required
 def products():
     '''
@@ -52,7 +54,7 @@ def products():
 
     return render_template('products.html')
 
-@app.route('/admin/transactions')
+@admin.route('/transactions')
 @login_required
 def admin_transactions():
     '''

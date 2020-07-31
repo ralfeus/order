@@ -4,19 +4,21 @@ Contains api endpoint routes of the application
 from datetime import datetime
 import os.path
 
-from flask import Response, abort, jsonify, request
+from flask import Blueprint, Response, abort, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app, db
+from app import db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus
 from app.tools import rm, write_to_file
 
-@app.route('/api/currency')
-@app.route('/api/v1/currency')
+api = Blueprint('api', __name__, url_prefix='/api')
+
+@api.route('/currency')
+@api.route('/v1/currency')
 def get_currency_rate():
     '''
     Returns currency rates related to KRW in JSON:
@@ -28,7 +30,7 @@ def get_currency_rate():
     return jsonify(currencies)
 
 
-@app.route('/api/order', methods=['POST'])
+@api.route('/order', methods=['POST'])
 def create_order():
     '''
     Creates order.
@@ -77,7 +79,7 @@ def create_order():
         }
     return jsonify(result)
 
-@app.route('/api/order_product')
+@api.route('/order_product')
 @login_required
 def get_order_products():
     '''
@@ -103,7 +105,7 @@ def get_order_products():
         'status': order_product.status
         }, order_products)))
 
-@app.route('/api/order_product/<int:order_product_id>', methods=['POST'])
+@api.route('/order_product/<int:order_product_id>', methods=['POST'])
 @login_required
 def save_order_product(order_product_id):
     '''
@@ -148,7 +150,7 @@ def save_order_product(order_product_id):
     return result
 
 
-@app.route('/api/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
+@api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
@@ -170,7 +172,7 @@ def set_order_product_status(order_product_id, order_product_status):
         'order_product_status': order_product_status,
         'status': 'success'
     })
-@app.route('/api/order_product/<int:order_product_id>/status/history')
+@api.route('/order_product/<int:order_product_id>/status/history')
 def get_order_product_status_history(order_product_id):
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
     if history:
@@ -187,7 +189,7 @@ def get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/product')
+@api.route('/product')
 @login_required
 def get_product():
     '''
@@ -205,7 +207,7 @@ def get_product():
     product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/product', methods=['POST'])
+@api.route('/product', methods=['POST'])
 @login_required
 def save_product():
     '''
@@ -228,7 +230,7 @@ def save_product():
         'status': 'success'
     })
 
-@app.route('/api/product/<product_id>', methods=['DELETE'])
+@api.route('/product/<product_id>', methods=['DELETE'])
 @login_required
 def delete_product(product_id):
     '''
@@ -249,7 +251,7 @@ def delete_product(product_id):
 
     return result
 
-@app.route('/api/product/search/<term>')
+@api.route('/product/search/<term>')
 def get_product_by_term(term):
     '''
     Returns list of products where product ID or name starts with provided value in JSON:
@@ -270,7 +272,7 @@ def get_product_by_term(term):
         Product.name_russian.like(term + '%')))
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/shipping_cost/<country>/<weight>')
+@api.route('/shipping_cost/<country>/<weight>')
 def get_shipping_cost(country, weight):
     '''
     Returns shipping cost for provided country and weight
@@ -300,8 +302,8 @@ def get_shipping_cost(country, weight):
             'shipping_cost': rate.rate
         })
 
-@app.route('/api/transaction', defaults={'transaction_id': None})
-@app.route('/api/transaction/<int:transaction_id>')
+@api.route('/transaction', defaults={'transaction_id': None})
+@api.route('/transaction/<int:transaction_id>')
 @login_required
 def get_transactions(transaction_id):
     '''
@@ -344,7 +346,7 @@ def get_transactions(transaction_id):
         'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
     }, transactions)))
 
-@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
+@api.route('/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
     '''
@@ -379,7 +381,7 @@ def save_transaction(transaction_id):
         'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
     })
 
-@app.route('/api/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
+@api.route('/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
 @login_required
 def upload_transaction_evidence(transaction_id):
     transaction = Transaction.query.get(transaction_id)

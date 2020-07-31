@@ -3,15 +3,17 @@ Contains api endpoint routes of the application
 '''
 from datetime import datetime
 
-from flask import Response, abort, jsonify, request
+from flask import Blueprint, Response, abort, jsonify, request
 from flask_login import current_user, login_required
 
-from app import app, db
+from app import db
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus
 
-@app.route('/api/v1/admin/order_product')
+admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
+
+@admin_api.route('/order_product')
 @login_required
 def admin_get_order_products():
     '''
@@ -35,7 +37,7 @@ def admin_get_order_products():
         'status': order_product.status
         }, order_products)))
 
-@app.route('/api/v1/admin/order_product/<int:order_product_id>', methods=['POST'])
+@admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
 @login_required
 def admin_save_order_product(order_product_id):
     '''
@@ -80,7 +82,7 @@ def admin_save_order_product(order_product_id):
     return result
 
 
-@app.route('/api/v1/admin/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
+@admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def admin_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
@@ -105,7 +107,7 @@ def admin_set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
-@app.route('/api/v1/admin/order_product/<int:order_product_id>/status/history')
+@admin_api.route('/order_product/<int:order_product_id>/status/history')
 def admin_get_order_product_status_history(order_product_id):
     if current_user.username != 'admin':
         abort(403)
@@ -124,8 +126,8 @@ def admin_get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/v1/admin/transaction', defaults={'transaction_id': None})
-@app.route('/api/v1/admin/transaction/<int:transaction_id>')
+@admin_api.route('/transaction', defaults={'transaction_id': None})
+@admin_api.route('/transaction/<int:transaction_id>')
 @login_required
 def admin_get_transactions(transaction_id):
     '''
@@ -147,7 +149,7 @@ def admin_get_transactions(transaction_id):
 
     return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
 
-@app.route('/api/v1/admin/transaction/<int:transaction_id>', methods=['POST'])
+@admin_api.route('/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def admin_save_transaction(transaction_id):
     '''

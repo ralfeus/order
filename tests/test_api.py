@@ -1,15 +1,13 @@
 import unittest
-from flask_sqlalchemy import SQLAlchemy
-from app import app
+from app import app, db
 import app.routes.api as test_target
 
 # Common test initialization
-app.config['SQLALCHEMY_DATABASE_URI'] = 'file::memory:'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
 app.config['TESTING'] = True
-db = SQLAlchemy(app)
+db.init_app(app)
 from app.models import Currency
 db.create_all()
-db.session.commit()
 
 class TestClientApi(unittest.TestCase):
     def setUp(self):
