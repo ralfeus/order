@@ -14,6 +14,7 @@ class OrderProduct(db.Model):
     order_id = Column(Integer, ForeignKey('orders.id'))
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
+    price = Column(Integer)
     quantity = Column(Integer)
     subcustomer = Column(String(256))
     private_comment = Column(String(256))

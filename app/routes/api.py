@@ -51,24 +51,31 @@ def create_order():
         when_created=datetime.now()
     )
     order_products = []
+    errors = []
     for suborder in request_data['products']:
         for item in suborder['items']:
-            order_product = OrderProduct(
-                order=order,
-                subcustomer=suborder['subcustomer'],
-                product_id=item['item_code'],
-                quantity=item['quantity'],
-                status='Pending')
-            db.session.add(order_product)
-            order_products.append(order_product)
+            product = Product.query.get(item['item_code'])
+            if product:
+                order_product = OrderProduct(
+                    order=order,
+                    subcustomer=suborder['subcustomer'],
+                    product_id=product.id,
+                    price=product.price,
+                    quantity=item['quantity'],
+                    status='Pending')
+                db.session.add(order_product)
+                order_products.append(order_product)
+            else:
+                errors.append(f'{item["item_code"]}: no such product')
 
     order.order_products = order_products
     db.session.add(order)
     try:
         db.session.commit()
         result = {
-            'status': 'success',
-            'order_id': order.id
+            'status': 'warning',
+            'order_id': order.id,
+            'message': errors
         }
     except (IntegrityError, OperationalError) as e:
         result = {

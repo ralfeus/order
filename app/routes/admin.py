@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import app, db
 from app.forms import ProductForm, SignupForm
-from app.models import Product, User
+from app.models import Invoice, Product, User
 
 @app.route('/admin')
 @login_required
@@ -52,7 +52,7 @@ def products():
 
     return render_template('products.html')
 
-@app.route('/admin/user/new', methods=['GET', 'POST'])
+@app.route('/admin/users/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
     '''
@@ -64,8 +64,8 @@ def new_user():
         userform.populate_obj(new_user)
 
         db.session.add(new_user)
+        return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
-    return redirect('/admin/users')
 
 @app.route('/admin/users', methods=['GET', 'POST'])
 @login_required
@@ -74,6 +74,7 @@ def admin_edit_user():
     Edits the user settings
     '''
     return render_template('users.html')
+    
 @app.route('/admin/transactions')
 @login_required
 def admin_transactions():
@@ -84,3 +85,25 @@ def admin_transactions():
         abort(403)
     
     return render_template('transactions.html')
+
+@app.route('/admin/invoices')
+@login_required
+def admin_invoices():
+    '''
+    Invoice management
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    
+    return render_template('invoices.html')
+
+@app.route('/admin/orders')
+@login_required
+def admin_orders():
+    '''
+    Order management
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    
+    return render_template('orders.html')

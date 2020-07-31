@@ -2,7 +2,7 @@
 User model
 '''
 from flask_login import UserMixin
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -19,6 +19,7 @@ class User(db.Model, UserMixin):
     username = Column(String(32), unique=True, nullable=False)
     email = Column(String(80))
     password_hash = Column(String(200))
+    enabled = Column(Boolean, nullable=False)
 
     # Business
     balance = Column(Integer, default=0)

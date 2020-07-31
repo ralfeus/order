@@ -2,13 +2,15 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
+import xlrd, xlwt
+from xlutils.copy import copy as xlcopy
 
-from flask import Response, abort, jsonify, request
+from flask import Response, abort, jsonify, request, send_file
 from flask_login import current_user, login_required
 
 from app import app, db
 from app.models import \
-    Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    Currency, Invoice, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, User, Transaction, TransactionStatus
 
 @app.route('/api/v1/admin/order_product')
@@ -194,3 +196,127 @@ def save_user(user_id):
         db.session.add(user)
 
     db.session.commit()
+
+@app.route('/api/v1/admin/invoice', defaults={'invoice_id': None})
+@app.route('/api/v1/admin/invoice/<invoice_id>')
+@login_required
+def admin_get_invoices(invoice_id):
+    '''
+    Returns all or selected invoices in JSON:
+    {
+        id: invoice ID,
+        [
+            order_product_id: ID of the order product,
+            name: name of the order product,
+            quantity: quantity of order product,
+            amount_krw: amount in KRW
+        ]
+    }
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    invoices = Invoice.query.all() \
+        if invoice_id is None \
+        else Invoice.query.filter_by(id=invoice_id)
+
+    return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
+
+@app.route('/api/v1/admin/invoice/new', methods=['POST'])
+@login_required
+def admin_create_invoice():
+    '''
+    Creates invoice for provided orders
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+
+    payload = request.get_json()
+    if not payload or not payload['order_ids']:
+        abort(Response("No orders were provided", status=400))
+    orders = Order.query.filter(Order.id.in_(payload['order_ids'])).all()
+    if not orders:
+        abort(Response("No orders with provided IDs were found ", status=400))
+    invoice = Invoice()
+    invoice.when_created = datetime.now()
+    for order in orders:
+        order.invoice = invoice
+
+    db.session.add(invoice)
+    db.session.commit()
+    return jsonify({
+        'status': 'success',
+        'invoice_id': invoice.id
+    })
+
+@app.route('/api/v1/admin/invoice/<invoice_id>/excel')
+@login_required
+def get_invoice_excel(invoice_id):
+    def _getOutCell(outSheet, colIndex, rowIndex):
+        """ HACK: Extract the internal xlwt cell representation. """
+        row = outSheet._Worksheet__rows.get(rowIndex)
+        if not row: return None
+
+        cell = row._Row__cells.get(colIndex)
+        return cell
+
+    def setOutCell(outSheet, col, row, value):
+        """ Change cell value without changing formatting. """
+        # HACK to retain cell style.
+        previousCell = _getOutCell(outSheet, col, row)
+        # END HACK, PART I
+
+        outSheet.write(row, col, value)
+
+        # HACK, PART II
+        if previousCell:
+            newCell = _getOutCell(outSheet, col, row)
+            if newCell:
+                newCell.xf_idx = previousCell.xf_idx
+        # END HACK
+
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(404)
+    invoice_template = xlrd.open_workbook(
+        'app/static/invoices/invoice_template.xls', formatting_info=True)
+    wb = xlcopy(invoice_template)
+    ws = wb.get_sheet(0)
+
+    row = 30
+    for order_product in [order_product for order in invoice.orders
+                          for order_product in order.order_products]:
+        setOutCell(ws, 0, row, order_product.product_id)
+        setOutCell(ws, 1, row, order_product.product.name)
+        setOutCell(ws, 2, row, order_product.quantity)
+        setOutCell(ws, 3, row, order_product.price)
+        setOutCell(ws, 4, row, order_product.price * order_product.quantity)
+        row += 1
+
+    wb.save('app/static/invoices/test.xls')
+
+    return send_file('static/invoices/test.xls',
+        as_attachment=True, attachment_filename=invoice_id + '.xls')
+    
+@app.route('/api/v1/admin/order', defaults={'order_id': None})
+@app.route('/api/v1/admin/order/<order_id>')
+@login_required
+def admin_get_orders(order_id):
+    '''
+    Returns all or selected orders in JSON:
+    {
+        id: invoice ID,
+        [
+            user: username of order creator,
+            name: name of the customer,
+            total: total amount in KRW,
+            when_created: time of the order creation
+        ]
+    }
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    orders = Order.query.all() \
+        if order_id is None \
+        else Order.query.filter_by(id=order_id)
+
+    return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
