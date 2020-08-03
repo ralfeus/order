@@ -119,9 +119,9 @@ def create_transaction():
         currency = Currency.query.get(form.currency_code.data)
         new_transaction = Transaction(
             user=current_user,
-            amount_original=form.amount_original.data,
+            amount_sent_original=form.amount_original.data,
             currency=currency,
-            amount_krw=form.amount_original.data / currency.rate,
+            amount_sent_krw=form.amount_original.data / currency.rate,
             amount_received_krw=form.amount_original.data / currency.rate,
             proof_image=file_name,
             status=TransactionStatus.pending,

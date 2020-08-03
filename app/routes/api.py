@@ -341,14 +341,15 @@ def get_transactions(transaction_id):
     return jsonify(list(map(lambda entry: {
         'id': entry.id,
         'user_id': entry.user_id,
-        'amount_original': str(entry.amount_original),
-        'amount_original_string': entry.currency.format(entry.amount_original),
-        'amount_krw': entry.amount_krw,
+        'amount_original': str(entry.amount_sent_original),
+        'amount_original_string': entry.currency.format(entry.amount_sent_original),
+        'amount_krw': entry.amount_sent_krw,
         'currency_code': entry.currency.code,
         'evidence_image': entry.proof_image,
         'status': entry.status.name,
         'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
-        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
+        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+            if entry.when_changed else ''
     }, transactions)))
 
 @app.route('/api/user')
