@@ -21,8 +21,9 @@ class Transaction(db.Model):
     user = relationship('User', foreign_keys=[user_id])
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
-    amount_original = Column(Numeric(scale=2))
-    amount_krw = Column(Integer)
+    amount_sent_original = Column(Numeric(scale=2))
+    amount_sent_krw = Column(Integer)
+    amount_received_krw = Column(Integer)
     proof_image = Column(String(256))
     __status = Column('status', Enum(TransactionStatus))
     when_created = Column(DateTime)
@@ -53,9 +54,10 @@ class Transaction(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'user_name': self.user.username,
-            'amount_original': float(self.amount_original),
-            'amount_original_string': self.currency.format(self.amount_original),
-            'amount_krw': self.amount_krw,
+            'amount_original': float(self.amount_sent_original),
+            'amount_original_string': self.currency.format(self.amount_sent_original),
+            'amount_krw': self.amount_sent_krw,
+            'amount_received_krw': self.amount_received_krw,
             'currency_code': self.currency.code,
             'evidence_image': self.proof_image,
             'status': self.status.name,

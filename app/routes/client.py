@@ -122,6 +122,7 @@ def create_transaction():
             amount_original=form.amount_original.data,
             currency=currency,
             amount_krw=form.amount_original.data / currency.rate,
+            amount_received_krw=form.amount_original.data / currency.rate,
             proof_image=file_name,
             status=TransactionStatus.pending,
             when_created=datetime.now())

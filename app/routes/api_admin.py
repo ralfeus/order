@@ -164,11 +164,13 @@ def admin_save_transaction(transaction_id):
         abort(Response(f"Can't update transaction in state <{transaction.status}>", status=409))
     if payload:
         if payload.get('amount_original'):
-            transaction.amount_original = payload['amount_original']
+            transaction.amount_sent_original = payload['amount_original']
         if payload.get('currency_code'):
             transaction.currency = Currency.query.get(payload['currency_code'])
         if payload.get('amount_krw'):
-            transaction.amount_krw = payload['amount_krw']
+            transaction.amount_sent_krw = payload['amount_krw']
+        if payload.get('amount_received_krw'):
+            transaction.amount_received_krw = payload['amount_received_krw']
         if payload.get('status') and transaction.status != TransactionStatus.approved:
             transaction.status = payload['status'].lower()
     else:
