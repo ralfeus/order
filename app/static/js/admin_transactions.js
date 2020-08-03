@@ -59,6 +59,17 @@ $(document).ready( function () {
             };
  
             // Total over all pages
+            totalSentOriginal = api
+                .data()
+                .reduce(function (accumulator, current) {
+                    if (!accumulator[current.currency_code]) { 
+                        accumulator[current.currency_code] = 0;
+                    }
+                    accumulator[current.currency_code] += current.amount_original;
+                    return accumulator;
+                }, {})
+            totalSentOriginalString = Object.entries(totalSentOriginal)
+                .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
             totalSentKRW = api
                 .column( 4 )
                 .data()
@@ -73,6 +84,7 @@ $(document).ready( function () {
                 }, 0 );
  
             // Update footer
+            $(api.column(3).footer()).html(totalSentOriginalString);
             $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         }
