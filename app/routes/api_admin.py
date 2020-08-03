@@ -2,8 +2,7 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
-import xlrd, xlwt
-from xlutils.copy import copy as xlcopy
+import openpyxl
 
 from flask import Response, abort, jsonify, request, send_file
 from flask_login import current_user, login_required
@@ -251,51 +250,42 @@ def admin_create_invoice():
 @app.route('/api/v1/admin/invoice/<invoice_id>/excel')
 @login_required
 def get_invoice_excel(invoice_id):
-    def _getOutCell(outSheet, colIndex, rowIndex):
-        """ HACK: Extract the internal xlwt cell representation. """
-        row = outSheet._Worksheet__rows.get(rowIndex)
-        if not row: return None
-
-        cell = row._Row__cells.get(colIndex)
-        return cell
-
-    def setOutCell(outSheet, col, row, value):
-        """ Change cell value without changing formatting. """
-        # HACK to retain cell style.
-        previousCell = _getOutCell(outSheet, col, row)
-        # END HACK, PART I
-
-        outSheet.write(row, col, value)
-
-        # HACK, PART II
-        if previousCell:
-            newCell = _getOutCell(outSheet, col, row)
-            if newCell:
-                newCell.xf_idx = previousCell.xf_idx
-        # END HACK
-
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(404)
-    invoice_template = xlrd.open_workbook(
-        'app/static/invoices/invoice_template.xls', formatting_info=True)
-    wb = xlcopy(invoice_template)
-    ws = wb.get_sheet(0)
+    invoice_dict = invoice.to_dict()
+    invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
+    ws = invoice_wb.worksheets[0]
 
-    row = 30
+    # Set invoice header
+    ws.cell(7, 2, invoice_id)
+    ws.cell(7, 5, invoice.when_created)
+    ws.cell(13, 4, invoice.orders[0].name)
+    ws.cell(17, 4, invoice.orders[0].address)
+    ws.cell(21, 4, '') # city
+    ws.cell(23, 5, invoice.orders[0].country)
+    ws.cell(25, 4, invoice.orders[0].phone)
+
+    # Set invoice footer
+    ws.cell(118, 5, invoice_dict['total'])
+    ws.cell(125, 2, invoice_dict['weight'])
+
+    # Set order product lines
+    row = 31
+    last_row = 117
     for order_product in [order_product for order in invoice.orders
                           for order_product in order.order_products]:
-        setOutCell(ws, 0, row, order_product.product_id)
-        setOutCell(ws, 1, row, order_product.product.name)
-        setOutCell(ws, 2, row, order_product.quantity)
-        setOutCell(ws, 3, row, order_product.price)
-        setOutCell(ws, 4, row, order_product.price * order_product.quantity)
+        ws.cell(row, 1, order_product.product_id)
+        ws.cell(row, 2, order_product.product.name)
+        ws.cell(row, 3, order_product.quantity)
+        ws.cell(row, 4, order_product.price)
+        ws.cell(row, 5, order_product.price * order_product.quantity)
         row += 1
+    ws.delete_rows(row, last_row - row + 1)
+    invoice_wb.save('app/static/invoices/test.xlsx')
 
-    wb.save('app/static/invoices/test.xls')
-
-    return send_file('static/invoices/test.xls',
-        as_attachment=True, attachment_filename=invoice_id + '.xls')
+    return send_file('static/invoices/test.xlsx',
+        as_attachment=True, attachment_filename=invoice_id + '.xlsx')
     
 @app.route('/api/v1/admin/order', defaults={'order_id': None})
 @app.route('/api/v1/admin/order/<order_id>')

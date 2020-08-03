@@ -84,11 +84,11 @@ def create_order():
         }
     return jsonify(result)
 
-@app.route('/api/order_product')
+@app.route('/api/v1/order_product')
 @login_required
 def get_order_products():
     '''
-    Returns list of ordered items. So far implemented only for admins
+    Returns list of ordered items.
     '''
     order_products = OrderProduct.query
     if request.args.get('context') and current_user.username == 'admin':

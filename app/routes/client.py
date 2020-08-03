@@ -105,6 +105,7 @@ def create_transaction():
     Creates new transaction request
     '''
     form = TransactionForm()
+    file_name = ''
     if form.validate_on_submit():
         if form.proof.data:
             image_data = request.files[form.proof.name].read()

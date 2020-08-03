@@ -19,7 +19,7 @@ $(document).ready( function () {
             // }
         ],        
         ajax: {
-            url: '/api/order_product',
+            url: '/api/v1/order_product',
             dataSrc: ''
         },
         columns: [

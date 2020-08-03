@@ -18,6 +18,8 @@ class Invoice(db.Model):
     id = Column(String(16), primary_key=True)
     seq_num = Column(Integer)
     orders = relationship('Order')
+    #weight = Column(Integer)
+    #total = Column(Integer)
 
     when_created = Column(DateTime, index=True)
     when_changed = Column(DateTime)
@@ -38,9 +40,11 @@ class Invoice(db.Model):
         '''
         order_products_dict = {}
         total = 0
+        weight = 0
         for order_product in [order_product for order in self.orders
                               for order_product in order.order_products]:
             total += order_product.price * order_product.quantity
+            weight += order_product.product.weight * order_product.quantity
             if order_products_dict.get(order_product.product_id):
                 order_products_dict[order_product.product_id]['quantity'] += order_product.quantity
                 order_products_dict[order_product.product_id]['subtotal'] += \
@@ -60,6 +64,7 @@ class Invoice(db.Model):
             'address': self.orders[0].address,
             'country': self.orders[0].country,
             'phone': self.orders[0].phone,
+            'weight': weight,
             'total': total,
             'when_created': self.when_created,
             'when_changed': self.when_changed,
