@@ -276,7 +276,9 @@ def get_invoice_excel(invoice_id):
     for order_product in [order_product for order in invoice.orders
                           for order_product in order.order_products]:
         ws.cell(row, 1, order_product.product_id)
-        ws.cell(row, 2, order_product.product.name)
+        ws.cell(row, 2, order_product.product.name_english \
+                if order_product.product.name_english \
+                else order_product.product.name)
         ws.cell(row, 3, order_product.quantity)
         ws.cell(row, 4, order_product.price)
         ws.cell(row, 5, order_product.price * order_product.quantity)
