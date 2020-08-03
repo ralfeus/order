@@ -30,8 +30,8 @@ class Invoice(db.Model):
         last_invoice = db.session.query(Invoice.seq_num). \
             filter(Invoice.id.like(today_prefix + '%')). \
             order_by(Invoice.when_created.desc()). \
-            first()[0]
-        self.seq_num = last_invoice + 1 if last_invoice else 1
+            first()
+        self.seq_num = last_invoice[0] + 1 if last_invoice else 1
         self.id = today_prefix + '{:04d}'.format(self.seq_num)
 
     def to_dict(self):
