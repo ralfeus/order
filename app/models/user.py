@@ -19,11 +19,11 @@ class User(db.Model, UserMixin):
     username = Column(String(32), unique=True, nullable=False)
     email = Column(String(80))
     password_hash = Column(String(200))
-    enabled = Column(db.Boolean(), nullable=False)
+    enabled = Column(db.Boolean(), nullable=False, default=True)
 
     # User information
     # enabled = Column('is_enabled', db.Boolean(), nullable=False)
-    when_created = Column(DateTime)
+    when_created = Column(DateTime, nullable=False)
     when_changed = Column(DateTime)
     # Business
     balance = Column(Integer, default=0)
@@ -42,11 +42,17 @@ class User(db.Model, UserMixin):
         '''
         Returns list of users based on a query
         '''
-        return list(map(lambda user: {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'when_created': user.when_created,
-            'when_changed': user.when_changed
-            }, user_query))
+        return list(map(lambda user: user.to_dict(), user_query))
             
+    def to_dict(self):
+        '''
+        Get representation of the transaction as dictionary for JSON conversion
+        '''
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'enabled': self.enabled,
+            'when_created': self.when_created,
+            'when_changed': self.when_changed
+        }

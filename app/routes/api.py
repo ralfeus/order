@@ -353,14 +353,13 @@ def get_user():
             'id': product ID,
             'username': user name,
             'email': user's email,
+            'enabled': user is active
             'creted': user's profile created,
             'changed': last profile change
         }
     '''
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
-
-
 
     return jsonify({
         'status': 'success'
