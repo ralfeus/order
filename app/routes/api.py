@@ -88,7 +88,7 @@ def create_order():
     try:
         db.session.commit()
         result = {
-            'status': 'warning',
+            'status': 'warning' if len(errors) else 'success',
             'order_id': order.id,
             'message': errors
         }

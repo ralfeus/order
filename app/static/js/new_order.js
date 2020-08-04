@@ -83,6 +83,12 @@ $(document).ready(function() {
                 if (data.status === 'success') {
                     window.alert("The request is posted. The request ID is " + data.order_id);
                     clear_form();
+                } else if (data.status === 'warning') {
+                    window.alert(
+                        "The request is posted. The request ID is " + data.order_id +
+                        "\nDuring request creation following issues have occurred:\n" +
+                        message.join("\n")
+                    );
                 } else if (data.status === 'error') {
                     if (data.message) {
                         window.alert(data.message);
