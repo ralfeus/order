@@ -29,10 +29,16 @@
         </div>
         <div class="container-fluid row">&nbsp;</div>
         <div class="container-fluid row">
-            <div class="col-6">            
+            <div class="col-6 my-1">            
                 <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
             </div>          
         </div>
+        <div class="container-fluid box-weight my-1" style="display: none;">
+            <div class="card-header card flex-row">
+                Box weight:
+                <span id="box-weight" class="mx-1"></span>
+            </div>
+        </div>        
         <div id="accordion" class="container-fluid">
             <div class="card subcustomer-card">
                 <div class="input-group card-header" id="userItemsHeader0">
@@ -141,8 +147,8 @@
         </table>
         <input type="button" class="btn btn-primary" id="submit" value="Submit" />
     </div>    
-    <div class="wait position-fixed" style="display: none;">
+    <!-- <div class="wait position-fixed" style="display: none;">
         <img src="/static/images/wait.gif" />
-    </div>
+    </div> -->
 </body>
 {% endblock %}

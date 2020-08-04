@@ -1,7 +1,9 @@
 '''
 Contains api endpoint routes of the application
 '''
+from decimal import Decimal
 from datetime import datetime
+from functools import reduce
 import os.path
 
 from flask import Response, abort, jsonify, request
@@ -9,7 +11,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app, db
+from app import app, db, shipping
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus, User
@@ -52,6 +54,7 @@ def create_order():
     )
     order_products = []
     errors = []
+    # ordertotal_weight = 0
     for suborder in request_data['products']:
         for item in suborder['items']:
             product = Product.query.get(item['item_code'])
@@ -61,14 +64,26 @@ def create_order():
                     subcustomer=suborder['subcustomer'],
                     product_id=product.id,
                     price=product.price,
-                    quantity=item['quantity'],
+                    quantity=int(item['quantity']),
                     status='Pending')
                 db.session.add(order_product)
                 order_products.append(order_product)
+                order.total_weight += product.weight * order_product.quantity
+                order.subtotal_krw += product.price * order_product.quantity
             else:
                 errors.append(f'{item["item_code"]}: no such product')
 
     order.order_products = order_products
+    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
+    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
+    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
+    order.shipping_krw = Decimal(shipping.get_shipment_cost(
+        order.country, order.total_weight + order.shipping_box_weight))
+    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
+    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
+    order.total_krw = order.subtotal_krw + order.shipping_krw
+    order.total_rur = order.subtotal_rur + order.shipping_rur
+    order.total_usd = order.subtotal_usd + order.shipping_usd
     db.session.add(order)
     try:
         db.session.commit()

@@ -1,4 +1,12 @@
 var products = {};
+var box_weights = {
+    30000: 2200,
+    20000: 1900,
+    15000: 1400,
+    10000: 1000,
+    5000: 500,
+    2000: 250
+};
 var itemsCount = {};
 var currencyRates = {};
 var users = 1;
@@ -303,9 +311,19 @@ function update_grand_subtotal() {
     var userProducts = Object.entries(products);
     subtotalKRW = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
     totalWeight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
+    box_weight = totalWeight == 0 ? 0 : Object.entries(box_weights)
+        .sort((a, b) => b[0] - a[0])
+        .reduce((acc, box) => totalWeight < box[0] ? box[1] : acc, 0);
+    totalWeight += box_weight;
     $('#totalItemsCostKRW').html(subtotalKRW);
     $('#totalItemsCostRUR').html(roundUp(subtotalKRW * currencyRates.RUR, 2));
     $('#totalItemsCostUSD').html(roundUp(subtotalKRW * currencyRates.USD, 2));
     $('[id^=totalItemsWeight]').html(totalWeight);
+    if (box_weight) {
+        $('.box-weight').show();
+        $('#box-weight').text(box_weight);
+    } else {
+        $('.box-weight').hide();
+    }
 }
 

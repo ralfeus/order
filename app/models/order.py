@@ -3,7 +3,7 @@ Order model
 '''
 from functools import reduce
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -22,6 +22,17 @@ class Order(db.Model):
     country = Column(String(128))
     phone = Column(String(32))
     comment = Column(String(128))
+    shipping_box_weight = Column(Integer())
+    total_weight = Column(Integer(), default=0)
+    subtotal_krw = Column(Integer(), default=0)
+    subtotal_rur = Column(Numeric(10, 2), default=0)
+    subtotal_usd = Column(Numeric(10, 2), default=0)
+    shipping_krw = Column(Integer(), default=0)
+    shipping_rur = Column(Numeric(10, 2), default=0)
+    shipping_usd = Column(Numeric(10, 2), default=0)
+    total_krw = Column(Integer(), default=0)
+    total_rur = Column(Numeric(10, 2), default=0)
+    total_usd = Column(Numeric(10, 2), default=0)
     when_created = Column(DateTime)
     order_products = relationship('OrderProduct', backref='order', lazy='dynamic')
 
