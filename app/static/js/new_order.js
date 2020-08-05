@@ -20,6 +20,7 @@ function roundUp(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
+
 $(document).ready(function() {
     var itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
@@ -105,6 +106,10 @@ $(document).ready(function() {
 
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
+
+    if (window.location.href.endsWith('#upload')) {
+        upload_excel();
+    }
 });
 
 function clear_form() {
@@ -333,3 +338,22 @@ function update_grand_subtotal() {
     }
 }
 
+function upload_excel() {
+    $('<input type="file" />')
+        .on('change', function() {
+            var form_data = new FormData();
+            form_data.append('file', this.files[0]);
+            if (form_data) {
+                $.ajax({
+                    url: '/api/v1/order', 
+                    method: 'post',
+                    data: form_data, 
+                    contentType: false,
+                    cache: false,
+                    processData: false
+                });
+            }
+            this.remove();
+        })
+        .trigger('click');
+}
