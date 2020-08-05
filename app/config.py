@@ -13,5 +13,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = 'mysql+mysqldb://talya:talya@sandlet/talya'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True
+    }
 
     UPLOAD_PATH = '/upload'
