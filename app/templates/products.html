@@ -20,7 +20,47 @@
         <tbody />
     </table>
 </div>
-<div class="wait position-fixed" style="display: none;">
-    <img src="/static/images/wait.gif" />
+<div class="container product-details row" style="display: none;">
+    <div class="col-7">        
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="name">Original name</label>
+            </div>
+            <input id="name" class="form-control" />
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="name_english">English name</label>
+            </div>
+            <input id="name_english" class="form-control" />
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="name_russian">Russian name</label>
+            </div>
+            <input id="name_russian" class="form-control" />
+        </div>
+    </div>
+    <div class="col-2">
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text for="weight">Weight</label>
+            </div>
+            <input id="weight" class="form-control" />
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text for="price">Price</label>
+            </div>
+            <input id="price" class="form-control" />
+        </div>
+        <div class="input-group">
+            <div class="input-group-prepend">
+                <label class="input-group-text for="points">Points</label>
+            </div>
+            <input id="points" class="form-control" />
+        </div>
+    </div>
+    <input type="button" class="button btn-primary btn-save" value="Save" />
 </div>
 {% endblock %}

@@ -173,7 +173,6 @@ $(document).ready( function () {
 function format ( row, data ) {
     var transaction_details = $('.transaction-details')
         .clone()
-        .removeClass('transaction-details-template')
         .show();
     $('#evidence', transaction_details).attr('src', data.evidence_image);
     $('#currency_code', transaction_details).text(data.currency_code);
