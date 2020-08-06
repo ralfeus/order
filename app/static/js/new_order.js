@@ -42,6 +42,7 @@ $(document).ready(function() {
         product_code_autocomplete($('.item-code'));
         product_quantity_change($('.item-quantity'));
         itemsCount[id]++; 
+        window.scrollTo(0,document.body.scrollHeight);
     });
 
     $('#add_user').on('click', function() {
@@ -53,6 +54,7 @@ $(document).ready(function() {
         product_code_autocomplete($('.item-code'));
         product_quantity_change($('.item-quantity'));
         users++;
+        window.scrollTo(0,document.body.scrollHeight);
     });
 
     $('#submit').on('click', function() {

@@ -64,6 +64,13 @@
     {% endif %}
 {% endwith %}
 <div class="wait position-fixed" style="display: none;">
-  <img src="/static/images/wait.gif" />
+  <img src="/static/images/wait.gif" style="z-index: 1000;" />
 </div>
+{% endblock %}
+
+{% block body %}
+{{ super() }}
+{% block footer %}
+<div class="container-fluid py-5"></div>
+{% endblock %}
 {% endblock %}
