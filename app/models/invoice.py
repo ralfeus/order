@@ -58,6 +58,7 @@ class Invoice(db.Model):
                     'quantity': order_product.quantity,
                     'subtotal': order_product.price * order_product.quantity
                 }
+        print(f"{self.id}: {len(self.orders)} orders")
         return {
             'id': self.id,
             'customer': self.orders[0].name,
