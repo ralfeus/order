@@ -45,17 +45,7 @@ $(document).ready(function() {
         window.scrollTo(0,document.body.scrollHeight);
     });
 
-    $('#add_user').on('click', function() {
-        var html = subcustomerTemplate
-            .replace(/userItems([A-Za-z]*)0/g, 'userItems$1' + users)
-            .replace(/identity0/g, "identity" + users)
-            .replace(/(\w)\[0\]/g, '$1[' + users + ']')
-        $('div#accordion').append(html);
-        product_code_autocomplete($('.item-code'));
-        product_quantity_change($('.item-quantity'));
-        users++;
-        window.scrollTo(0,document.body.scrollHeight);
-    });
+    $('#add_user').on('click', add_subcustomer);
 
     $('#submit').on('click', function() {
         $('.wait').show();
@@ -108,6 +98,19 @@ $(document).ready(function() {
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
 });
+
+function add_subcustomer() {
+    var html = subcustomerTemplate
+        .replace(/userItems([A-Za-z]*)0/g, 'userItems$1' + users)
+        .replace(/identity0/g, "identity" + users)
+        .replace(/(\w)\[0\]/g, '$1[' + users + ']')
+    $('div#accordion').append(html);
+    product_code_autocomplete($('.item-code'));
+    product_quantity_change($('.item-quantity'));
+    users++;
+    window.scrollTo(0,document.body.scrollHeight);
+    return u
+}
 
 function clear_form() {
     $('.subcustomer-card').remove();

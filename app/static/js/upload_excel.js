@@ -26,7 +26,10 @@ function load_excel(data) {
     var user_id = 0;
     for (var i = 12; i <= 831; i++) {
         if (parseInt((i + 8) / 20) == (i + 8) / 20 && i != 32) {
-            user_id = add_user(user_id, ws['B' + i].v);
+            if (typeof ws['B' + i] === 'undefined') {
+                break;
+            }
+            user_id = add_user(ws['B' + i].v);
         } else {
             if (typeof ws['A' + i] === 'undefined') {
                 continue;
@@ -38,8 +41,8 @@ function load_excel(data) {
     alert(wb.Sheets);
 }
 
-function add_user(user_id, subcustomer) {
-
+function add_user(subcustomer) {
+    var user_id = add_subcustomer();
 }
 
 function cleanup() {
