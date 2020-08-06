@@ -58,13 +58,14 @@ class Invoice(db.Model):
                     'quantity': order_product.quantity,
                     'subtotal': order_product.price * order_product.quantity
                 }
-        print(f"{self.id}: {len(self.orders)} orders")
+        print(f"{self.id}: orders {','.join(map(lambda o: o.id, self.orders))}")
+
         return {
             'id': self.id,
-            'customer': self.orders[0].name,
-            'address': self.orders[0].address,
-            'country': self.orders[0].country,
-            'phone': self.orders[0].phone,
+            'customer': self.orders[0].name if self.orders else '',
+            'address': self.orders[0].address if self.orders else '',
+            'country': self.orders[0].country if self.orders else '',
+            'phone': self.orders[0].phone if self.orders else '',
             'weight': weight,
             'total': total,
             'when_created': self.when_created,
