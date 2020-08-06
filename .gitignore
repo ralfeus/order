@@ -55,3 +55,4 @@ app/upload
 app/upload/**
 
 .vscode/**
+config.py
