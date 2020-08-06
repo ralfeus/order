@@ -61,13 +61,13 @@ $(document).ready( function () {
                     name: $('#name', product_node).val(),
                     name_english: $('#name_english', product_node).val(),
                     name_russian: $('#name_russian', product_node).val(),
-                    points: row.data().points,
-                    price: row.data().price,
+                    points: $('#points', product_node).val(),
+                    price: $('#price', product_node).val(),
                     weight: $('#weight', product_node).val()
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/product',
+                    url: '/api/v1/admin/product',
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -86,32 +86,24 @@ $(document).ready( function () {
 
 // Formatting function for row details
 function format ( d ) {
-    // `d` is the original data object for the row
-    return '<div class="container product-details">'+
-        '<div class="row container">'+
-            '<label class="col-1" for="name">Original name:</label>'+
-            '<input id="name" class="form-control col-5" value="'+ d.name +'"/>'+
-            '<label class="col-1" for="weight">Weight:</label>' +
-            '<input id="weight" class="form-control col-1" value="' + d.weight + '"/>' +
-            '<div class="col-3" />' + 
-            '<input type="button" class="button btn-primary btn-save col-1" value="Save" />' +
-        '</div>'+
-        '<div class="row container">'+
-            '<label class="col-1" for="name_english">English name:</label>'+
-            '<input id="name_english" class="form-control col-5" value="' + d.name_english + '"/>'+
-        '</div>'+
-        '<div class="row container">'+
-            '<label class="col-1" for="name_russian">Russian name:</label>'+
-            '<input id="name_russian" class="form-control col-5" value="' + d.name_russian + '"/>'+
-        '</div>'+
-    '</div>';
+    var product_details = $('.product-details')
+    .clone()
+    .show();
+    $('#name', product_details).val(d.name);
+    $('#name_english', product_details).val(d.name_english);
+    $('#name_russian', product_details).val(d.name_russian);
+    $('#weight', product_details).val(d.weight);
+    $('#price', product_details).val(d.price);
+    $('#points', product_details).val(d.points);
+    return product_details;
+
 }
 
 function delete_product(rows) {
     rows.every(function() {
         var row = this
         $.ajax({
-            url: '/api/product/' + row.data().id,
+            url: '/api/v1/admin/product/' + row.data().id,
             method: 'delete',
             success: function() {
                 row.remove().draw()

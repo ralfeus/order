@@ -235,50 +235,6 @@ def get_product():
     product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/product', methods=['POST'])
-@login_required
-def save_product():
-    '''
-    Saves updates in product or creates new product
-    '''
-    product_input = request.get_json()
-    product = Product.query.get(product_input['id'])
-    if not product:
-        product = Product()
-    product.name = product_input['name']
-    product.name_english = product_input['name_english']
-    product.name_russian = product_input['name_russian']
-    product.price = product_input['price']
-    product.weight = product_input['weight']
-    if not product.id:
-        db.session.add(product)
-    db.session.commit()
-
-    return jsonify({
-        'status': 'success'
-    })
-
-@app.route('/api/product/<product_id>', methods=['DELETE'])
-@login_required
-def delete_product(product_id):
-    '''
-    Deletes a product by its product code
-    '''
-    result = None
-    try:
-        Product.query.filter_by(id=product_id).delete()
-        db.session.commit()
-        result = jsonify({
-            'status': 'success'
-        })
-    except IntegrityError:
-        result = jsonify({
-            'message': f"Can't delete product {product_id} as it's used in some orders"
-        })
-        result.status_code = 409
-
-    return result
-
 @app.route('/api/product/search/<term>')
 def get_product_by_term(term):
     '''

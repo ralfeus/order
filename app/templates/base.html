@@ -8,7 +8,7 @@
 {% block styles %}
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-<link rel="stylesheet" type="text/css" href="/static/css/datatables.min.css"/>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/dt-1.10.21/b-1.6.3/b-print-1.6.3/sl-1.3.1/datatables.min.css"/>
 <link rel="stylesheet" href="/static/css/main.css" />    
 {% endblock %}
 
@@ -17,7 +17,7 @@
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-<script type="text/javascript" src="/static/js/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.21/b-1.6.3/b-print-1.6.3/sl-1.3.1/datatables.min.js"></script>
 {% endblock %}
 
 {% block navbar %}
@@ -35,6 +35,7 @@
             Admin
           </a>
           <div class="dropdown-menu">
+            <a class="dropdown-item" href="/admin/products">Products</a>
             <a class="dropdown-item" href="/admin/orders">Orders</a>
             <a class="dropdown-item" href="/admin">Order products</a>
             <a class="dropdown-item" href="/admin/invoices">Invoices</a>
@@ -63,6 +64,13 @@
     {% endif %}
 {% endwith %}
 <div class="wait position-fixed" style="display: none;">
-  <img src="/static/images/wait.gif" />
+  <img src="/static/images/wait.gif" style="z-index: 1000;" />
 </div>
+{% endblock %}
+
+{% block body %}
+{{ super() }}
+{% block footer %}
+<div class="container-fluid py-5"></div>
+{% endblock %}
 {% endblock %}
