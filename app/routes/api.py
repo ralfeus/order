@@ -15,7 +15,6 @@ from app import app, db, shipping
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus, User
-from app.order_manager import get_order_from_file
 from app.tools import rm, write_to_file
 
 @app.route('/api/currency')
@@ -43,11 +42,7 @@ def create_order():
             'order_id': ID of the created order
         }
     '''
-    request_data = None
-    if request.files and request.files['file'] and request.files['file'].filename:
-        request_data = get_order_from_file(request.files['file'])
-    else:
-        request_data = request.get_json()
+    request_data = request.get_json()
     if not request_data:
         abort(Response("No data is provided", status=400))
     result = {}
