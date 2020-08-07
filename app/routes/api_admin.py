@@ -331,9 +331,9 @@ def get_invoice_excel(invoice_id):
         ws.cell(row, 5, order_product.price * order_product.quantity)
         row += 1
     ws.delete_rows(row, last_row - row + 1)
-    invoice_wb.save('app/static/invoices/test.xlsx')
+    invoice_wb.save(f'app/static/invoices/{invoice_id}.xlsx')
 
-    return send_file('static/invoices/test.xlsx',
+    return send_file(f'static/invoices/{invoice_id}.xlsx',
         as_attachment=True, attachment_filename=invoice_id + '.xlsx')
     
 @app.route('/api/v1/admin/order', defaults={'order_id': None})
