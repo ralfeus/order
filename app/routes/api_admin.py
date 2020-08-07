@@ -314,12 +314,12 @@ def get_invoice_excel(invoice_id):
     ws.cell(25, 4, invoice.orders[0].phone)
 
     # Set invoice footer
-    ws.cell(118, 5, invoice_dict['total'])
-    ws.cell(125, 2, invoice_dict['weight'])
+    ws.cell(305, 5, invoice_dict['total'])
+    ws.cell(312, 2, invoice_dict['weight'])
 
     # Set order product lines
     row = 31
-    last_row = 117
+    last_row = 304
     for order_product in [order_product for order in invoice.orders
                           for order_product in order.order_products]:
         ws.cell(row, 1, order_product.product_id)
