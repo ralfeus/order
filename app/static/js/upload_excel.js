@@ -5,10 +5,9 @@ var order_product_number = 0;
 
 $.when($.getScript(urlXLSX), $.getScript(urlJSZIP))
     .then(function () {
-        $('<input type="file" />')
+        $('#excel')
             .on('change', function() {
                 read_file(this.files[0]);
-                this.remove();
             })
             .trigger('click');
             $('.wait').show();
