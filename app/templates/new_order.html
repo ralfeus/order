@@ -3,11 +3,9 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/new_order.js"></script>
-{% if load_excel %}
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script> -->
 <script src="/static/js/upload_excel.js"></script>
-{% endif %}
 {% endblock %}
     
 {% block content %}
@@ -30,7 +28,17 @@
                 </select>
                 <input class="form-control" id="phone" placeholder="+(country code) phone" />
             </div>
-            <textarea id="comment" class="form-control col-3" placeholder="Additional comments"></textarea>
+            <div class="col-3">
+                <textarea id="comment" class="form-control" style="height: 100%;" placeholder="Additional comments"></textarea>
+                <div class="custom-file">
+                    <label class="custom-file-label " for="excel">Import from Excel</label>
+                    <input type="file" id="excel" class="custom-file-input" />
+                </div>
+            </div>
+        </div>
+        <div class="container-fluid row">
+            <div class="col-7 my-1">
+            </div>
         </div>
         <div class="container-fluid row">&nbsp;</div>
         <div class="container-fluid row">
@@ -152,6 +160,5 @@
         </table>
         <input type="button" class="btn btn-primary" id="submit" value="Submit" />
     </div> 
-    <input type="file" id="excel" style="display: none;" />
 </body>
 {% endblock %}

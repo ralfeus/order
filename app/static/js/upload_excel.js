@@ -7,10 +7,10 @@ $.when($.getScript(urlXLSX), $.getScript(urlJSZIP))
     .then(function () {
         $('#excel')
             .on('change', function() {
+                $('.wait').show();
                 read_file(this.files[0]);
-            })
-            .trigger('click');
-            $('.wait').show();
+            });
+            // .trigger('click');
         });
 
 function read_file(file) {
@@ -26,8 +26,8 @@ function load_excel(data) {
     var wb;
     try {
         var wb = XLSX.read(data, { type: 'binary' });
-    } catch (Exception) {
-        alert("Some error");
+    } catch (e) {
+        alert("Some error: " + e);
     }
     var ws = wb.Sheets['Бланк'];
     var current_node;
