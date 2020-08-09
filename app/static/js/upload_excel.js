@@ -67,7 +67,7 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    $('#country').val(countries[ws['J2'].v]);
+    $('#country').val(countries[ws['L2'].v]);
 
     
     for (var i = 12; i <= 831; i++) {
