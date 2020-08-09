@@ -231,9 +231,9 @@ def get_product(product_id):
     '''
     product_query = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id)
+        product_query = Product.query.filter_by(id=product_id, available=True)
     else:
-        product_query = Product.query.all()
+        product_query = Product.query.filter_by(available=True).all()
     return jsonify(Product.get_products(product_query))
 
 @app.route('/api/product/search/<term>')

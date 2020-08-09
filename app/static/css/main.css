@@ -18,6 +18,10 @@
     background-color: peachpuff;
 }
 
+tr.red-line {
+    color: red;
+}
+
 .subcustomer-total {
     font-weight: bold;
 }

@@ -125,6 +125,31 @@ def admin_get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
+@app.route('/api/v1/admin/product', defaults={'product_id': None})
+@app.route('/api/v1/admin/product/<product_id>')
+@login_required
+def admin_get_product(product_id):
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'name': product original name,
+            'name_english': product english name,
+            'name_russian': product russian name,
+            'price': product price in KRW,
+            'weight': product weight,
+            'points': product points
+        }
+    '''
+    if current_user.username != 'admin':
+        abort(403)
+    product_query = None
+    if product_id:
+        product_query = Product.query.filter_by(id=product_id)
+    else:
+        product_query = Product.query.all()
+    return jsonify(Product.get_products(product_query))
+
 @app.route('/api/v1/admin/product', methods=['POST'])
 @login_required
 def save_product():
@@ -141,6 +166,7 @@ def save_product():
     product.price = product_input['price']
     product.points = product_input['points']
     product.weight = product_input['weight']
+    product.available = product.input['available']
     if not product.id:
         db.session.add(product)
     db.session.commit()

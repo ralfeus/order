@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import IntegerField, StringField, SubmitField
+from wtforms import BooleanField, IntegerField, StringField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
 
 from app.models import Product
@@ -15,6 +15,7 @@ class ProductForm(FlaskForm):
     weight = IntegerField('Unit weight in grams', validators=[DataRequired()])
     price = IntegerField('Unit price', validators=[DataRequired()])
     points = IntegerField('Unit points', validators=[DataRequired()])
+    available = BooleanField('Product is available', default=True)
     submit = SubmitField('Create product')
 
     def validate_id(form, field):

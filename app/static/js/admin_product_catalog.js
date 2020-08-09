@@ -13,7 +13,7 @@ $(document).ready( function () {
     var table = $('#products').DataTable({
         dom: 'lfrBtip', 
         ajax: {
-            url: '/api/product',
+            url: '/api/v1/admin/product',
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({'all': true}),
@@ -34,11 +34,14 @@ $(document).ready( function () {
             {data: 'name'},
             {data: 'weight'},
             {data: 'price'},
-            {data: 'points'},
-            {data: 'name_english', visible: false},
-            {data: 'name_russian', visible: false}
+            {data: 'points'}
         ],
-        select: true
+        select: true,
+        createdRow: (row, data) => {
+            if (!data.available) {
+                $(row).addClass('red-line');
+            }
+        }
     });
 
     $('#products tbody').on('click', 'td.details-control', function () {
