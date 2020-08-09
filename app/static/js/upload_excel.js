@@ -99,9 +99,9 @@ function add_product(current_node, item, product_id, quantity) {
     item_code_node.val(product_id);
     $('.item-quantity', current_node).last().val(quantity);
     order_product_number++;
-    fetch('/api/v1/product/' + product_id)
-        .then(response => response.json())
-        .then(data => {
+    $.ajax({
+        url: '/api/v1/product/' + product_id,
+        success: data => {
             product_select(item_code_node, {
                 'value': data[0].id,
                 'label': data[0].name_english + " | " + data[0].name_russian,
@@ -113,7 +113,8 @@ function add_product(current_node, item, product_id, quantity) {
             if (!order_product_number) {
                 $('.wait').hide();
             }
-        });
+        }
+    });
 }
 
 function add_user(subcustomer) {
