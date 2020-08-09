@@ -3,6 +3,11 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/new_order.js"></script>
+{% if load_excel %}
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script> -->
+<script src="/static/js/upload_excel.js"></script>
+{% endif %}
 {% endblock %}
     
 {% block content %}
@@ -46,7 +51,7 @@
                     <button class="btn btn-primary" type="button" 
                         data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
                         aria-controls="userItems0">Toggle</button>
-                    <input type="button" class="btn btn-primary" value="-" onclick="delete_subcustomer(this)"/>
+                    <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
                 </div>
                 <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
                     <table class="table-sm table-bordered table-hover col-12">

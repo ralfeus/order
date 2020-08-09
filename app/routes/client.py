@@ -30,7 +30,8 @@ def new_order():
     '''
     New order form
     '''
-    return render_template('new_order.html')
+
+    return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def user_signup():
