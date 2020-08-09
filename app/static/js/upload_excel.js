@@ -81,7 +81,16 @@ function load_excel(data) {
             if (typeof ws['A' + i] === 'undefined') {
                 continue;
             } else {
-                add_product(current_node, item, ws['A' + i].v, ws['D' + i].v);
+                var quantity;
+                if (ws['D' + i]) {
+                    quantity = parseInt(ws['D' + i].v);
+                } else {
+                    quantity = 0;
+                }
+                if (isNaN(quantity)) {
+                    quantity = 0;
+                }
+                add_product(current_node, item, ws['A' + i].v, quantity);
                 item++;
             }
         }
