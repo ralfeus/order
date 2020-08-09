@@ -14,7 +14,7 @@ box_weights = {
 def get_box_weight(package_weight):
     return reduce(
         lambda acc, box: box[1] if package_weight < box[0] else acc,
-        box_weights.items()
+        box_weights.items(), 0
     ) if package_weight > 0 \
     else 0
 

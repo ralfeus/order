@@ -212,9 +212,11 @@ def get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/product')
+@app.route('/api/product', defaults={'product_id': None})
+@app.route('/api/v1/product', defaults={'product_id': None})
+@app.route('/api/v1/product/<product_id>')
 @login_required
-def get_product():
+def get_product(product_id):
     '''
     Returns list of products in JSON:
         {
@@ -227,7 +229,11 @@ def get_product():
             'points': product points
         }
     '''
-    product_query = Product.query.all()
+    product_query = None
+    if product_id:
+        product_query = Product.query.filter_by(id=product_id)
+    else:
+        product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
 @app.route('/api/product/search/<term>')

@@ -15,13 +15,14 @@ var subtotalKRW = 0;
 var totalWeight = 0;
 
 var subcustomerTemplate;
+var itemTemplate;
 
 function roundUp(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
 $(document).ready(function() {
-    var itemTemplate = $('#userItems0_0')[0].outerHTML;
+    itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
     $.ajax({
@@ -31,19 +32,7 @@ $(document).ready(function() {
         }
     })
 
-    $(document).on("click", "[id^=add_userItems]", function() {
-        var id = this.id.substring(13)
-        if (isNaN(itemsCount[id])) {
-            itemsCount[id] = 1;
-        } 
-        var html = itemTemplate
-            .replace(/userItems0_0/g, 'userItems' + id + '_' + itemsCount[id])
-        $('#userItemsList' + id).append(html);
-        product_code_autocomplete($('.item-code'));
-        product_quantity_change($('.item-quantity'));
-        itemsCount[id]++; 
-        window.scrollTo(0,document.body.scrollHeight);
-    });
+    $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
 
     $('#add_user').on('click', add_subcustomer);
 
@@ -99,17 +88,32 @@ $(document).ready(function() {
     product_quantity_change($('.item-quantity'));
 });
 
+function add_product_row(idString) {
+    var id = idString.substring(13)
+    if (isNaN(itemsCount[id])) {
+        itemsCount[id] = 1;
+    } 
+    var html = itemTemplate
+        .replace(/userItems0_0/g, 'userItems' + id + '_' + itemsCount[id])
+    $('#userItemsList' + id).append(html);
+    product_code_autocomplete($('.item-code'));
+    product_quantity_change($('.item-quantity'));
+    itemsCount[id]++; 
+    window.scrollTo(0,document.body.scrollHeight);
+}
+
 function add_subcustomer() {
     var html = subcustomerTemplate
         .replace(/userItems([A-Za-z]*)0/g, 'userItems$1' + users)
         .replace(/identity0/g, "identity" + users)
-        .replace(/(\w)\[0\]/g, '$1[' + users + ']')
-    $('div#accordion').append(html);
+        .replace(/(\w)\[0\]/g, '$1[' + users + ']');
+    var node = $(html)
+    $('div#accordion').append(node);
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
     users++;
     window.scrollTo(0,document.body.scrollHeight);
-    return u
+    return node;
 }
 
 function clear_form() {
@@ -187,19 +191,21 @@ function product_code_autocomplete(target) {
             })
         },
         minLength: 1,
-        select: function(_event, ui) {
-            itemObject = $(this).parent().parent();
-            $('td:nth-child(2)', itemObject).html(ui.item.label);
-            $('td:nth-child(4)', itemObject).html(ui.item.price);
-            $('td:nth-child(11)', itemObject).html(ui.item.points);
-            products[itemObject.attr('id')] = ui.item;
-            update_item_subtotal($('input.item-quantity', itemObject));
-        }
+        select: (event, ui) => product_select(event.target, ui.item)
     });
 }
 
 function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this)); });
+}
+
+function product_select(target, item) {
+    itemObject = $(target).parent().parent();
+    $('td:nth-child(2)', itemObject).html(item.label);
+    $('td:nth-child(4)', itemObject).html(item.price);
+    $('td:nth-child(11)', itemObject).html(item.points);
+    products[itemObject.attr('id')] = item;
+    update_item_subtotal($('input.item-quantity', itemObject));
 }
 
 /**
