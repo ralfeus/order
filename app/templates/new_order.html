@@ -5,6 +5,7 @@
 <script src="/static/js/new_order.js"></script>
 <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script> -->
+<script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
 <script src="/static/js/upload_excel.js"></script>
 {% endblock %}
     
@@ -152,7 +153,7 @@
         </table>
         <input type="button" class="btn btn-primary" id="submit" value="Submit" />
     </div> 
-    <div class="fixed-bottom">
+    <div class="fixed-bottom excel" style="display: none;">
         <div class="custom-file">
             <label class="custom-file-label " for="excel">Import from Excel</label>
             <input type="file" id="excel" class="custom-file-input" />

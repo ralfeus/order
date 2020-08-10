@@ -117,6 +117,12 @@ function add_subcustomer() {
 }
 
 function clear_form() {
+    products = {};
+    itemsCount = {};
+    users = 1;
+    subtotalKRW = 0;
+    totalWeight = 0;
+
     $('.subcustomer-card').remove();
     $('div#accordion').append(subcustomerTemplate);
     product_code_autocomplete($('.item-code'));
