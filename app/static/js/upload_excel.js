@@ -3,15 +3,14 @@ var urlJSZIP = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js";
 
 var order_product_number = 0;
 
-$.when($.getScript(urlXLSX), $.getScript(urlJSZIP))
-    .then(function () {
-        $('#excel')
-            .on('change', function() {
-                $('.wait').show();
-                read_file(this.files[0]);
-            });
-            // .trigger('click');
-        });
+$(document).ready(() => {
+    $('#excel')
+        .on('change', function() {
+            $('.wait').show();
+            read_file(this.files[0]);
+        })
+    $('.excel').show();
+});
 
 function read_file(file) {
     const reader = new FileReader();
@@ -67,23 +66,28 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    $('#country').val(countries[ws['J2'].v]);
+    $('#country').val(countries[ws['L2'].v]);
 
     
     for (var i = 12; i <= 831; i++) {
-        if (parseInt((i + 8) / 20) == (i + 8) / 20 && i != 32) {
-            if (typeof ws['B' + i] === 'undefined') {
-                break;
-            }
+        if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
+        if (!ws['A' + i]) continue;
+        // if (parseInt((i + 8) / 20) == (i + 8) / 20 && i != 32) {
+        if (/^\d+$/.test(ws['A' + i].v) && /^\d+/.test(ws['B' + i].v) && !ws['E' + i]) {
             current_node = add_user(ws['B' + i].v);
             item = 0;
         } else {
-            if (typeof ws['A' + i] === 'undefined') {
-                continue;
+            var quantity;
+            if (ws['D' + i]) {
+                quantity = parseInt(ws['D' + i].v);
             } else {
-                add_product(current_node, item, ws['A' + i].v, ws['D' + i].v);
-                item++;
+                quantity = 0;
             }
+            if (isNaN(quantity)) {
+                quantity = 0;
+            }
+            add_product(current_node, item, ws['A' + i].v, quantity);
+            item++;
         }
     }
     alert('Order is prefilled. Submit it.');
@@ -108,6 +112,8 @@ function add_product(current_node, item, product_id, quantity) {
                 'points': data[0].points,
                 'weight': data[0].weight
             });
+        },
+        complete: () => {
             order_product_number--;
             if (!order_product_number) {
                 $('.wait').hide();
@@ -123,5 +129,6 @@ function add_user(subcustomer) {
 }
 
 function cleanup() {
+    clear_form();
     delete_subcustomer($('.btn-delete'));
 }

@@ -58,7 +58,7 @@ class Invoice(db.Model):
                     'quantity': order_product.quantity,
                     'subtotal': order_product.price * order_product.quantity
                 }
-        print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
+        # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
 
         return {
             'id': self.id,
