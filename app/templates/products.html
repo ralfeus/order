@@ -50,17 +50,30 @@
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <label class="input-group-text for="price">Price</label>
+                <label class="input-group-text" for="price">Price</label>
             </div>
             <input id="price" class="form-control" />
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <label class="input-group-text for="points">Points</label>
+                <label class="input-group-text" for="points">Points</label>
             </div>
             <input id="points" class="form-control" />
         </div>
     </div>
-    <input type="button" class="button btn-primary btn-save" value="Save" />
+    <div class="col-2">
+        <div class="btn-group btn-group-toggle" data-toggle="buttons">
+            <label class="btn btn-secondary">
+                <input type="radio" name="options" id="availability-yes" autocomplete="off" checked>
+                    Available
+            </label>
+            <label class="btn btn-secondary">
+                <input type="radio" name="options" id="availability-no" autocomplete="off">
+                    Unavailable
+            </label>
+        </div>
+        <div>&nbsp;</div>
+        <input type="button" class="button btn-primary btn-save" value="Save" />
+    </div>
 </div>
 {% endblock %}
