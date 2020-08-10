@@ -112,6 +112,8 @@ function add_product(current_node, item, product_id, quantity) {
                 'points': data[0].points,
                 'weight': data[0].weight
             });
+        },
+        complete: () => {
             order_product_number--;
             if (!order_product_number) {
                 $('.wait').hide();
