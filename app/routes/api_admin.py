@@ -321,9 +321,9 @@ def admin_create_invoice():
         'invoice_id': invoice.id
     })
 
-@app.route('/api/v1/admin/invoice/<invoice_id>/excel')
+@app.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
 @login_required
-def get_invoice_excel(invoice_id):
+def get_invoice_excel(invoice_id, usd_rate):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(404)
@@ -341,7 +341,7 @@ def get_invoice_excel(invoice_id):
     ws.cell(25, 4, invoice.orders[0].phone)
 
     # Set invoice footer
-    ws.cell(305, 5, invoice_dict['total'])
+    ws.cell(305, 5, invoice_dict['total'] * usd_rate)
     ws.cell(312, 2, invoice_dict['weight'])
 
     # Set order product lines
@@ -354,7 +354,7 @@ def get_invoice_excel(invoice_id):
             op.product_id,
             op.product.name_english if op.product.name_english \
                 else op.product.name,
-            op.price),
+            op.price * usd_rate),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )

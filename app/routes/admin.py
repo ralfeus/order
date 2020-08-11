@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import app, db
 from app.forms import ProductForm, SignupForm
-from app.models import Invoice, Product, User
+from app.models import Currency, Invoice, Product, User
 
 @app.route('/admin')
 @login_required
@@ -94,8 +94,10 @@ def admin_invoices():
     '''
     if current_user.username != 'admin':
         abort(403)
+
+    usd_rate = Currency.query.get('USD').rate
     
-    return render_template('invoices.html')
+    return render_template('invoices.html', usd_rate=usd_rate)
 
 @app.route('/admin/orders')
 @login_required

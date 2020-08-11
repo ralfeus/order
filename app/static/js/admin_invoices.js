@@ -67,7 +67,7 @@ function format ( row, data ) {
 function get_excel(rows) {
     $('.wait').show();
     for (var i = 0; i < rows.count(); i++) {
-        window.open('/api/v1/admin/invoice/' + rows.data()[i].id + '/excel');
+        window.open('/api/v1/admin/invoice/' + rows.data()[i].id + '/excel/' + $('#usd_rate').val());
     }
     $('.wait').hide()
 }
