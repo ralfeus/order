@@ -13,7 +13,10 @@ $(document).ready( function () {
                 extend: 'collection', 
                 text: 'Set status',
                 buttons: [
-                    { extend: 'status', text: 'Pending' },
+                    { extend: 'status', text: 'Waiting' },
+                    { extend: 'status', text: 'Ordered'},
+                    { extend: 'status', text: 'Purchased'},
+                    { extend: 'status', text: 'Shipped'},
                     { extend: 'status', text: 'Complete'}
                 ]
             }
