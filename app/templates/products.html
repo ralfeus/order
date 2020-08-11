@@ -61,19 +61,15 @@
             <input id="points" class="form-control" />
         </div>
     </div>
-    <div class="col-2">
-        <div class="btn-group btn-group-toggle" data-toggle="buttons">
-            <label class="btn btn-secondary">
-                <input type="radio" name="options" id="availability-yes" autocomplete="off" checked>
-                    Available
-            </label>
-            <label class="btn btn-secondary">
-                <input type="radio" name="options" id="availability-no" autocomplete="off">
-                    Unavailable
+    <div class="col-3">
+        <div class="btn-group-toggle" data-toggle="buttons">
+            <label class="btn btn-secondary btn-checkbox btn-block">
+                <input type="checkbox" id="available" autocomplete="off">
+                Unavailable
             </label>
         </div>
         <div>&nbsp;</div>
-        <input type="button" class="button btn-primary btn-save" value="Save" />
+        <input type="button" class="btn btn-primary btn-save btn-block" value="Save" />
     </div>
 </div>
 {% endblock %}

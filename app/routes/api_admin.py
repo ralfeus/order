@@ -166,7 +166,7 @@ def save_product():
     product.price = product_input['price']
     product.points = product_input['points']
     product.weight = product_input['weight']
-    product.available = product.input['available']
+    product.available = product_input['available']
     if not product.id:
         db.session.add(product)
     db.session.commit()

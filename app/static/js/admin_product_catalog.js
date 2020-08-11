@@ -16,7 +16,6 @@ $(document).ready( function () {
             url: '/api/v1/admin/product',
             dataType: 'json',
             contentType: 'application/json',
-            data: JSON.stringify({'all': true}),
             dataSrc: ''
         },
         buttons: [
@@ -54,6 +53,10 @@ $(document).ready( function () {
             tr.removeClass('shown');
         }
         else {
+            $('tr.shown').each(function() {
+                table.row(this).child.hide();
+                $(this).removeClass('shown');
+            })
             // Open this row
             row.child( format(row.data()) ).show();
             tr.addClass('shown');
@@ -66,7 +69,8 @@ $(document).ready( function () {
                     name_russian: $('#name_russian', product_node).val(),
                     points: $('#points', product_node).val(),
                     price: $('#price', product_node).val(),
-                    weight: $('#weight', product_node).val()
+                    weight: $('#weight', product_node).val(),
+                    available: $('#available', product_node).is(':checked')
                 };
                 $('.wait').show();
                 $.ajax({
@@ -98,6 +102,16 @@ function format ( d ) {
     $('#weight', product_details).val(d.weight);
     $('#price', product_details).val(d.price);
     $('#points', product_details).val(d.points);
+    if (d.available) {
+        $('#available', product_details)[0].checked = true;
+        $('#available', product_details).parent().addClass('active');
+        $('#available', product_details)[0].nextSibling.textContent = 'Available';
+    }
+
+    $('#available', product_details).on('click', event => {
+        event.target.nextSibling.textContent = event.target.checked ? 'Available' : 'Unavailable';
+    });
+
     return product_details;
 
 }

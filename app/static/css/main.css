@@ -1,3 +1,14 @@
+.btn-checkbox {
+    background: red;
+}
+
+.btn-checkbox.focus {
+    background: red;
+}
+
+.btn-checkbox:not(:disabled):not(.disabled).active {
+    background: green;
+}
 
 .flash {
     font-family: 'Courier New', Courier, monospace;

@@ -236,7 +236,7 @@ def get_product(product_id):
         product_query = Product.query.filter_by(available=True).all()
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/product/search/<term>')
+@app.route('/api/v1/product/search/<term>')
 def get_product_by_term(term):
     '''
     Returns list of products where product ID or name starts with provided value in JSON:
@@ -250,7 +250,7 @@ def get_product_by_term(term):
             'points': product points
         }
     '''
-    product_query = Product.query.filter(or_(
+    product_query = Product.query.filter_by(available=True).filter(or_(
         Product.id.like(term + '%'),
         Product.name.like(term + '%'),
         Product.name_english.like(term + '%'),
