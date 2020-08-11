@@ -105,5 +105,5 @@ def admin_orders():
     '''
     if current_user.username != 'admin':
         abort(403)
-    
+
     return render_template('orders.html')

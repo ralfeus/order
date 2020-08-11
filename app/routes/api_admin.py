@@ -2,6 +2,7 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
+from more_itertools import map_reduce
 import openpyxl
 
 from flask import Response, abort, jsonify, request, send_file
@@ -346,15 +347,23 @@ def get_invoice_excel(invoice_id):
     # Set order product lines
     row = 31
     last_row = 304
-    for order_product in [order_product for order in invoice.orders
-                          for order_product in order.order_products]:
-        ws.cell(row, 1, order_product.product_id)
-        ws.cell(row, 2, order_product.product.name_english \
-                if order_product.product.name_english \
-                else order_product.product.name)
-        ws.cell(row, 3, order_product.quantity)
-        ws.cell(row, 4, order_product.price)
-        ws.cell(row, 5, order_product.price * order_product.quantity)
+    order_products = map_reduce(
+        [order_product for order in invoice.orders
+            for order_product in order.order_products],
+        keyfunc=lambda op: (
+            op.product_id,
+            op.product.name_english if op.product.name_english \
+                else op.product.name,
+            op.price),
+        valuefunc=lambda op: op.quantity,
+        reducefunc=sum
+    )
+    for op, quantity in order_products.items():
+        ws.cell(row, 1, op[0])
+        ws.cell(row, 2, op[1])
+        ws.cell(row, 3, quantity)
+        ws.cell(row, 4, op[2])
+        ws.cell(row, 5, op[2] * quantity)
         row += 1
     ws.delete_rows(row, last_row - row + 1)
     invoice_wb.save(f'app/static/invoices/{invoice_id}.xlsx')
