@@ -22,21 +22,11 @@ def admin_get_order_products():
     '''
     if current_user.username != 'admin':
         abort(403)
-    order_products = OrderProduct.query.all()
+    order_products_query = OrderProduct.query
+    if request.values['order_id']:
+        order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
 
-    return jsonify(list(map(lambda order_product: {
-        'order_id': order_product.order_id,
-        'order_product_id': order_product.id,
-        'customer': order_product.order.name,
-        'subcustomer': order_product.subcustomer,
-        'product_id': order_product.product_id,
-        'product': order_product.product.name_english,
-        'private_comment': order_product.private_comment,
-        'public_comment': order_product.public_comment,
-        'comment': order_product.order.comment,
-        'quantity': order_product.quantity,
-        'status': order_product.status
-        }, order_products)))
+    return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
 
 @app.route('/api/v1/admin/order_product/<int:order_product_id>', methods=['POST'])
 @login_required

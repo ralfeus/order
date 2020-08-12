@@ -58,10 +58,23 @@ $(document).ready( function () {
  * @param {object} data - data object for the row
  */
 function format ( row, data ) {
-    var invoice_details = $('.invoice-details')
+    var order_details = $('.order-details')
         .clone()
         .show();
-    return invoice_details;
+    $('#order-products', order_details).DataTable({
+        ajax: {
+            url: '/api/v1/admin/order_product?order_id=' + data.id,
+            dataSrc: ''
+        },
+        columns: [
+            {data: 'id'},
+            {data: 'product'},
+            {data: 'price'},
+            {data: 'quantity'},
+            {data: 'status'}
+        ]
+    });
+    return order_details;
 }
 
 function create_invoice(rows) {
