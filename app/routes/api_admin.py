@@ -2,6 +2,7 @@
 Contains api endpoint routes of the application
 '''
 from datetime import datetime
+from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
 
@@ -328,25 +329,6 @@ def get_invoice_excel(invoice_id, usd_rate):
     if not invoice:
         abort(404)
     invoice_dict = invoice.to_dict()
-    invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
-    ws = invoice_wb.worksheets[0]
-
-    # Set invoice header
-    ws.cell(7, 2, invoice_id)
-    ws.cell(7, 5, invoice.when_created)
-    ws.cell(13, 4, invoice.orders[0].name)
-    ws.cell(17, 4, invoice.orders[0].address)
-    ws.cell(21, 4, '') # city
-    ws.cell(23, 5, invoice.orders[0].country)
-    ws.cell(25, 4, invoice.orders[0].phone)
-
-    # Set invoice footer
-    ws.cell(305, 5, invoice_dict['total'] * usd_rate)
-    ws.cell(312, 2, invoice_dict['weight'])
-
-    # Set order product lines
-    row = 31
-    last_row = 304
     order_products = map_reduce(
         [order_product for order in invoice.orders
             for order_product in order.order_products],
@@ -357,15 +339,58 @@ def get_invoice_excel(invoice_id, usd_rate):
             op.price * usd_rate),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
-    )
+    )    
+    invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
+    ws = invoice_wb.worksheets[0]
+    pl = invoice_wb.worksheets[1]
+
+    # Set invoice header
+    ws.cell(7, 2, invoice_id)
+    ws.cell(7, 5, invoice.when_created)
+    ws.cell(13, 4, invoice.orders[0].name)
+    ws.cell(17, 4, invoice.orders[0].address)
+    ws.cell(21, 4, '') # city
+    ws.cell(23, 5, invoice.orders[0].country)
+    ws.cell(25, 4, invoice.orders[0].phone)
+
+    # Set packing list header
+    pl.cell(7, 2, invoice_id)
+    pl.cell(7, 5, invoice.when_created)
+    pl.cell(13, 4, invoice.orders[0].name)
+    pl.cell(17, 4, invoice.orders[0].address)
+    pl.cell(21, 4, '') # city
+    pl.cell(23, 5, invoice.orders[0].country)
+    pl.cell(25, 4, invoice.orders[0].phone)
+
+    # Set invoice footer
+    ws.cell(305, 5, invoice_dict['total'] * usd_rate)
+    ws.cell(312, 2, invoice_dict['weight'])
+
+    # Set packing list footer
+
+    pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op[1], order_products.items(), 0)}psc")
+    pl.cell(312, 2, invoice_dict['weight'])
+
+    # Set order product lines
+    row = 31
+    last_row = 304
+
     for op, quantity in order_products.items():
+        # Set invoice product item
         ws.cell(row, 1, op[0])
         ws.cell(row, 2, op[1])
         ws.cell(row, 3, quantity)
         ws.cell(row, 4, op[2])
         ws.cell(row, 5, op[2] * quantity)
+
+        # Set packing list product item
+        pl.cell(row, 1, op[0])
+        pl.cell(row, 2, op[1])
+        pl.cell(row, 4, quantity)
+
         row += 1
     ws.delete_rows(row, last_row - row + 1)
+    pl.delete_rows(row, last_row - row + 1)
     invoice_wb.save(f'app/static/invoices/{invoice_id}.xlsx')
 
     return send_file(f'static/invoices/{invoice_id}.xlsx',
