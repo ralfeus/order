@@ -322,13 +322,7 @@ def admin_create_invoice():
         'invoice_id': invoice.id
     })
 
-@app.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
-@login_required
-def get_invoice_excel(invoice_id, usd_rate):
-    invoice = Invoice.query.get(invoice_id)
-    if not invoice:
-        abort(404)
-    invoice_dict = invoice.to_dict()
+def get_invoice_order_products(invoice, usd_rate):
     order_products = map_reduce(
         [order_product for order in invoice.orders
             for order_product in order.order_products],
@@ -339,7 +333,24 @@ def get_invoice_excel(invoice_id, usd_rate):
             op.price * usd_rate),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
-    )    
+    )
+    result = list(map(lambda op: {
+        'id': op[0][0],
+        'name': op[0][1],
+        'price': op[0][2],
+        'quantity': op[1],
+        'subtotal': op[0][2] * op[1]
+    }, order_products.items()))
+    return result
+
+@app.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
+@login_required
+def get_invoice_excel(invoice_id, usd_rate):
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(404)
+    invoice_dict = invoice.to_dict()
+    order_products = get_invoice_order_products(invoice, usd_rate)
     invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
@@ -364,29 +375,29 @@ def get_invoice_excel(invoice_id, usd_rate):
 
     # Set invoice footer
     ws.cell(305, 5, invoice_dict['total'] * usd_rate)
+    ws.cell(311, 4, f"{round(invoice_dict['total'] * usd_rate, 2)} USD")
     ws.cell(312, 2, invoice_dict['weight'])
 
     # Set packing list footer
-
-    pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op[1], order_products.items(), 0)}psc")
+    pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
     pl.cell(312, 2, invoice_dict['weight'])
 
     # Set order product lines
     row = 31
     last_row = 304
 
-    for op, quantity in order_products.items():
+    for op in order_products:
         # Set invoice product item
-        ws.cell(row, 1, op[0])
-        ws.cell(row, 2, op[1])
-        ws.cell(row, 3, quantity)
-        ws.cell(row, 4, op[2])
-        ws.cell(row, 5, op[2] * quantity)
+        ws.cell(row, 1, op['id'])
+        ws.cell(row, 2, op['name'])
+        ws.cell(row, 3, op['quantity'])
+        ws.cell(row, 4, op['price'])
+        ws.cell(row, 5, op['subtotal'])
 
         # Set packing list product item
-        pl.cell(row, 1, op[0])
-        pl.cell(row, 2, op[1])
-        pl.cell(row, 4, quantity)
+        pl.cell(row, 1, op['id'])
+        pl.cell(row, 2, op['name'])
+        pl.cell(row, 4, op['quantity'])
 
         row += 1
     ws.delete_rows(row, last_row - row + 1)
