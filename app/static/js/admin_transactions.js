@@ -46,6 +46,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
+        order: [[7, 'desc']],
         select: true,
         footerCallback: function(row, data, start, end, display) {
             var api = this.api(), data;

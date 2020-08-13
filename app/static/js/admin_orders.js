@@ -27,6 +27,7 @@ $(document).ready( function () {
             {data: 'total'},
             {data: 'when_created'}
         ],
+        order: [[5, 'desc']],
         select: true
     });
 

@@ -27,6 +27,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
+        order: [[4, 'desc']],
         select: true
     });
 
