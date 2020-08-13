@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/admin_orders.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="orders" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 2em;">Order&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">Creator</th>
+            <th scope="col" style="width: max-content;">Customer</th>
+            <th scope="col" style="width: 2em;">Total (KRW)</th>
+            <th scope="col" style="width: 8em;">When created</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+<div class="row order-details container-fluid" style="display: none;">
+    <div class="container row col-10">
+        <div class="col-8">
+            <table id="order-products" class="table" style="width: 100%;">
+                <thead>
+                    <th scope="col">Subcustomer</th>
+                    <th scope="col">Product Code</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Status</th>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="container col-4">
+            <div id='invoice-input-group' class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="invoice-id">Invoice</label>
+                </div>
+                <input id="invoice-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+        </div>
+    </div>
+    <div class="col-2 container-fluid">
+        <button class="btn btn-primary btn-block btn-save">Save</button>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/admin_invoices.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <div class="container-fluid row">
+        <div class="col-9">&nbsp;</div>
+        <div class="input-group col-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="usd_rate">USD rate</label>
+            </div>
+            <input id="usd_rate" class="form-control" value="{{ usd_rate }}" />
+        </div>
+    </div>
+    <table id="invoices" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 2em;">Invoice&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">Order&nbsp;IDs</th>
+            <th scope="col" style="width: 2em;">Total (KRW)</th>
+            <th scope="col" style="width: max-content;">When created</th>
+            <th scope="col" style="width: max-content;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+<div class="row invoice-details container-fluid" style="display: none;">
+    <div class="col-4">
+    </div>
+    <div class="col-8">
+        <button class="btn btn-primary btn-block btn-save">Save</button>
+    </div>
+</div>
+{% endblock %}

@@ -1,11 +1,14 @@
 '''
 Product model
 '''
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from app import db
 
 class Product(db.Model):
+    '''
+    Represents a product
+    '''
     __tablename__ = 'products'
 
     id = Column(String(16), primary_key=True)
@@ -16,6 +19,7 @@ class Product(db.Model):
     weight = Column(Integer)
     price = Column(Integer)
     points = Column(Integer)
+    available = Column(Boolean, default=True)
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
 
@@ -27,12 +31,16 @@ class Product(db.Model):
         '''
         Returns list of products based on a query
         '''
-        return list(map(lambda product: {
-            'id': product.id,
-            'name': product.name,
-            'name_english': product.name_english,
-            'name_russian': product.name_russian,
-            'price': product.price,
-            'weight': product.weight,
-            'points': product.points
-            }, product_query))
+        return list(map(lambda product: product.to_dict(), product_query))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'name_english': self.name_english,
+            'name_russian': self.name_russian,
+            'price': self.price,
+            'weight': self.weight,
+            'points': self.points,
+            'available': self.available
+        }

@@ -1,3 +1,19 @@
+.btn-checkbox {
+    background: red;
+}
+
+.btn-checkbox.focus {
+    background: red;
+}
+
+.btn-checkbox:not(:disabled):not(.disabled).active {
+    background: green;
+}
+
+.btn-secondary:not(:disabled):not(.disabled).active {
+    background: greenyellow;
+    color: black;
+}
 
 .flash {
     font-family: 'Courier New', Courier, monospace;
@@ -16,6 +32,10 @@
 .help-block {
     color: orange;
     background-color: peachpuff;
+}
+
+tr.red-line {
+    color: red;
 }
 
 .subcustomer-total {
@@ -37,6 +57,9 @@ td.details-control {
     background: url('/static/images/details_open.png') no-repeat center center;
     cursor: pointer;
 }
+
+th { white-space: nowrap; }
+
 tr.shown td.details-control {
     background: url('/static/images/details_close.png') no-repeat center center;
 }

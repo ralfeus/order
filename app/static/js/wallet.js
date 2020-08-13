@@ -22,13 +22,15 @@ $(document).ready( function () {
                 "defaultContent": ''
             },
             {data: 'id'},
+            {data: 'order_id'},
+            {data: 'payment_method'},
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-
+        order: [[7, 'desc']],
         select: true
     });
 
@@ -83,30 +85,11 @@ $(document).ready( function () {
  * @param {object} data - data object for the row
  */
 function format ( row, data ) {
-    return '<div class="container transaction-details">'+
-        '<div class="row container">'+
-            '<label class="col-5" for="evidence">Payment proof:</label>'+
-            // '<div class="col-4">' +
-            //     '<div class="input-group">' +
-            //         '<div class="input-group-prepend">' +
-            //             '<span class="input-group-text">Amount:</span>' +
-            //         '</div>' +
-            //         '<input id="amount" class="form-control" value="' + data.amount_original + '" />' +
-            //         '<div class="input-group-append">' +
-            //             '<span class="input-group-text">' + data.currency_code + '</span>' +
-            //         '</div>' +
-            //     '</div>' +
-            // '</div>' +
-        '</div>' +
-        '<div class="row container">' +
-            '<img id="evidence" src="' + data.evidence_image + '" class="col-4" />' +
-            '<div class="col-1">&nbsp;</div>' +
-            '<div class="col-4">' +
-                // '<input type="file" id="evidence" class="form-control" />' +
-                // '<input type="button" class="button btn-primary btn-save col-2" value="Save" />' +
-                '<input type="button" class="button btn-primary btn-cancel" value="Cancel transaction" />' +
-            '</div>'+
-    '</div>';
+    var transaction_details = $('.transaction-details')
+        .clone()
+        .show(); 
+    $('#evidence', transaction_details).attr('src', data.evidence_image);
+    return transaction_details;
 }
 
 /**

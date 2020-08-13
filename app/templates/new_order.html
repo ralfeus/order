@@ -3,6 +3,10 @@
 {% block scripts %}
 {{ super() }}
 <script src="/static/js/new_order.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script> -->
+<script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
+<script src="/static/js/upload_excel.js"></script>
 {% endblock %}
     
 {% block content %}
@@ -25,14 +29,22 @@
                 </select>
                 <input class="form-control" id="phone" placeholder="+(country code) phone" />
             </div>
-            <textarea id="comment" class="form-control col-3" placeholder="Additional comments"></textarea>
+            <div class="col-3">
+                <textarea id="comment" class="form-control" style="height: 100%;" placeholder="Additional comments"></textarea>
+            </div>
         </div>
         <div class="container-fluid row">&nbsp;</div>
         <div class="container-fluid row">
-            <div class="col-6">            
+            <div class="col-6 my-1">            
                 <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
             </div>          
         </div>
+        <div class="container-fluid box-weight my-1" style="display: none;">
+            <div class="card-header card flex-row">
+                Box weight:
+                <span id="box-weight" class="mx-1"></span>
+            </div>
+        </div>        
         <div id="accordion" class="container-fluid">
             <div class="card subcustomer-card">
                 <div class="input-group card-header" id="userItemsHeader0">
@@ -40,7 +52,7 @@
                     <button class="btn btn-primary" type="button" 
                         data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
                         aria-controls="userItems0">Toggle</button>
-                    <input type="button" class="btn btn-primary" value="-" onclick="delete_subcustomer(this)"/>
+                    <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
                 </div>
                 <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
                     <table class="table-sm table-bordered table-hover col-12">
@@ -68,7 +80,7 @@
                             <tr id="userItems0_0" class="item">
                                 <td><input class="form-control form-control-sm item-code" /></td>
                                 <td></td>
-                                <td><input class="form-control form-control-sm item-quantity" value="0"/></td>
+                                <td><input class="form-control form-control-sm item-quantity" value="1"/></td>
                                 <td></td>
                                 <td class="cost-krw"></td>
                                 <td></td>
@@ -80,7 +92,7 @@
                                 <td></td>
                                 <td>
                                     <input type="button" class="btn btn-primary" id="del_userItems0_0"
-                                        value="-" onclick="delete_user_item(this)"/>
+                                        value="-" onclick="delete_product(this)"/>
                                 </td>
                             </tr>
                         </tbody>
@@ -140,9 +152,12 @@
             </tbody>
         </table>
         <input type="button" class="btn btn-primary" id="submit" value="Submit" />
-    </div>    
-    <div class="wait position-fixed" style="display: none;">
-        <img src="/static/images/wait.gif" />
+    </div> 
+    <div class="fixed-bottom excel" style="display: none;">
+        <div class="custom-file">
+            <label class="custom-file-label " for="excel">Import from Excel</label>
+            <input type="file" id="excel" class="custom-file-input" />
+        </div>
     </div>
 </body>
 {% endblock %}

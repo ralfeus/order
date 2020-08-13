@@ -1,12 +1,12 @@
 var currencies = [];
 
 $.fn.dataTable.ext.buttons.create = {
-    action: function(e, dt, node, config) {
+    action: function(_e, _dt, _node, _config) {
         window.location = '/wallet/new';
     }
 };
 $.fn.dataTable.ext.buttons.status = {
-    action: function(e, dt, node, config) {
+    action: function(_e, dt, _node, _config) {
         setStatus(dt.rows({selected: true}), this.text());
     }
 };
@@ -41,13 +41,86 @@ $(document).ready( function () {
             {data: 'user_name'},
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
+            {data: 'amount_received_krw'},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-
-        select: true
+        order: [[7, 'desc']],
+        select: true,
+        footerCallback: function(row, data, start, end, display) {
+            var api = this.api(), data;
+ 
+            // // Remove the formatting to get integer data for summation
+            // var intVal = function ( i ) {
+            //     return typeof i === 'string' ?
+            //         i.replace(/[\$,]/g, '')*1 :
+            //         typeof i === 'number' ?
+            //             i : 0;
+            // };
+ 
+            // Total over all pages
+            totalSentOriginal = api
+                .data()
+                .reduce(function (accumulator, current) {
+                    if (!accumulator[current.currency_code]) { 
+                        accumulator[current.currency_code] = 0;
+                    }
+                    accumulator[current.currency_code] += current.amount_original;
+                    return accumulator;
+                }, {})
+            totalSentOriginalString = Object.entries(totalSentOriginal)
+                .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+            totalSentKRW = api
+                .column( 4 )
+                .data()
+                .reduce( function (a, b) {
+                    return a + b;
+                }, 0 );
+            totalReceivedKRW = api
+                .column( 5 )
+                .data()
+                .reduce( function (a, b) {
+                    return a + b;
+                }, 0 );
+ 
+            // Update footer
+            $(api.column(3).footer()).html(totalSentOriginalString);
+            $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+            $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+        }
     });
+
+    // table.on('select', function(e, dt, type, indexes) {
+    //         // Total over all pages
+    //         totalSentOriginal = dt.data()
+    //             .reduce(function (accumulator, i) {
+    //                 if (!accumulator[i.currency_code]) { 
+    //                     accumulator[dt.data()[i].currency_code] = 0;
+    //                 }
+    //                 accumulator[dt.data()[i].currency_code] += dt.data()[i].amount_original;
+    //                 return accumulator;
+    //             }, {})
+    //         totalSentOriginalString = Object.entries(totalSentOriginal)
+    //             .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+    //         totalSentKRW = api
+    //             .column( 4 )
+    //             .data()
+    //             .reduce( function (a, b) {
+    //                 return intVal(a) + intVal(b);
+    //             }, 0 );
+    //         totalReceivedKRW = api
+    //             .column( 5 )
+    //             .data()
+    //             .reduce( function (a, b) {
+    //                 return intVal(a) + intVal(b);
+    //             }, 0 );
+ 
+    //         // Update footer
+    //         $(api.column(3).footer()).html(totalSentOriginalString);
+    //         $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+    //         $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+    // });
 
     $('#transactions tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -101,12 +174,12 @@ $(document).ready( function () {
 function format ( row, data ) {
     var transaction_details = $('.transaction-details')
         .clone()
-        .removeClass('transaction-details-template')
         .show();
     $('#evidence', transaction_details).attr('src', data.evidence_image);
     $('#currency_code', transaction_details).text(data.currency_code);
     $('#amount_original', transaction_details).val(data.amount_original);
     $('#amount_krw', transaction_details).val(data.amount_krw);
+    $('#amount_received_krw', transaction_details).val(data.amount_received_krw);
 
     $('.currency-dropdown', transaction_details).on('hidden.bs.dropdown', function(target) {
         $('#currency_code', transaction_details).text(target.clickEvent.target.innerText);
@@ -114,6 +187,13 @@ function format ( row, data ) {
     });
     $('#amount_original', transaction_details).on('change', function() {
         update_amount_krw(transaction_details, data);
+    });
+    $('#amount_krw', transaction_details).on('change', function() {
+        data.amount_krw = this.value;
+        
+    });
+    $('#amount_received_krw', transaction_details).on('change', function() {
+        data.amount_received_krw = this.value;
     });
     $('#evidence_image', transaction_details).on('change', function() {
         if (this.files[0]) {
@@ -156,6 +236,7 @@ function save_transaction(row) {
         data: JSON.stringify({
             amount_original: row.data().amount_original,
             amount_krw: row.data().amount_krw,
+            amount_received_krw: row.data().amount_received_krw,
             currency_code: row.data().currency_code
         }),
         complete: function() {
@@ -205,9 +286,9 @@ function setStatus(target, newStatus) {
                         $('.wait').hide();
                     }
                 },
-                success: function(response, status, xhr) {
+                success: function(response, _status, _xhr) {
                     target.cell(
-                        (idx, data, node) => 
+                        (_idx, data, _node) => 
                             data.id === parseInt(response.id), 
                         5).data(response.status).draw();
                 }

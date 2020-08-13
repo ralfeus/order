@@ -51,5 +51,11 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+
+
+invoices/
 app/upload
 app/upload/**
+
+.vscode/**
+config.py

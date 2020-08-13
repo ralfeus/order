@@ -1,7 +1,9 @@
 '''
 Contains api endpoint routes of the application
 '''
+from decimal import Decimal
 from datetime import datetime
+from functools import reduce
 import os.path
 
 from flask import Blueprint, Response, abort, jsonify, request
@@ -9,10 +11,10 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import db
+from app import db, shipping
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate, Transaction, TransactionStatus
+    ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -30,7 +32,7 @@ def get_currency_rate():
     return jsonify(currencies)
 
 
-@api.route('/order', methods=['POST'])
+@app.route('/api/v1/order', methods=['POST'])
 def create_order():
     '''
     Creates order.
@@ -42,6 +44,8 @@ def create_order():
         }
     '''
     request_data = request.get_json()
+    if not request_data:
+        abort(Response("No data is provided", status=400))
     result = {}
     order = Order(
         user=current_user,
@@ -53,24 +57,44 @@ def create_order():
         when_created=datetime.now()
     )
     order_products = []
+    errors = []
+    # ordertotal_weight = 0
     for suborder in request_data['products']:
         for item in suborder['items']:
-            order_product = OrderProduct(
-                order=order,
-                subcustomer=suborder['subcustomer'],
-                product_id=item['item_code'],
-                quantity=item['quantity'],
-                status='Pending')
-            db.session.add(order_product)
-            order_products.append(order_product)
+            product = Product.query.get(item['item_code'])
+            if product:
+                order_product = OrderProduct(
+                    order=order,
+                    subcustomer=suborder['subcustomer'],
+                    product_id=product.id,
+                    price=product.price,
+                    quantity=int(item['quantity']),
+                    status='Pending')
+                db.session.add(order_product)
+                order_products.append(order_product)
+                order.total_weight += product.weight * order_product.quantity
+                order.subtotal_krw += product.price * order_product.quantity
+            else:
+                errors.append(f'{item["item_code"]}: no such product')
 
     order.order_products = order_products
+    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
+    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
+    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
+    order.shipping_krw = Decimal(shipping.get_shipment_cost(
+        order.country, order.total_weight + order.shipping_box_weight))
+    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
+    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
+    order.total_krw = order.subtotal_krw + order.shipping_krw
+    order.total_rur = order.subtotal_rur + order.shipping_rur
+    order.total_usd = order.subtotal_usd + order.shipping_usd
     db.session.add(order)
     try:
         db.session.commit()
         result = {
-            'status': 'success',
-            'order_id': order.id
+            'status': 'warning' if len(errors) else 'success',
+            'order_id': order.id,
+            'message': errors
         }
     except (IntegrityError, OperationalError) as e:
         result = {
@@ -79,11 +103,11 @@ def create_order():
         }
     return jsonify(result)
 
-@api.route('/order_product')
+@app.route('/api/v1/order_product')
 @login_required
 def get_order_products():
     '''
-    Returns list of ordered items. So far implemented only for admins
+    Returns list of ordered items.
     '''
     order_products = OrderProduct.query
     if request.args.get('context') and current_user.username == 'admin':
@@ -189,9 +213,10 @@ def get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@api.route('/product')
+@app.route('/api/v1/product', defaults={'product_id': None})
+@app.route('/api/v1/product/<product_id>')
 @login_required
-def get_product():
+def get_product(product_id):
     '''
     Returns list of products in JSON:
         {
@@ -204,7 +229,11 @@ def get_product():
             'points': product points
         }
     '''
-    product_query = Product.query.all()
+    product_query = None
+    if product_id:
+        product_query = Product.query.filter_by(id=product_id, available=True)
+    else:
+        product_query = Product.query.filter_by(available=True).all()
     return jsonify(Product.get_products(product_query))
 
 @api.route('/product', methods=['POST'])
@@ -251,7 +280,7 @@ def delete_product(product_id):
 
     return result
 
-@api.route('/product/search/<term>')
+@app.route('/api/v1/product/search/<term>')
 def get_product_by_term(term):
     '''
     Returns list of products where product ID or name starts with provided value in JSON:
@@ -265,7 +294,7 @@ def get_product_by_term(term):
             'points': product points
         }
     '''
-    product_query = Product.query.filter(or_(
+    product_query = Product.query.filter_by(available=True).filter(or_(
         Product.id.like(term + '%'),
         Product.name.like(term + '%'),
         Product.name_english.like(term + '%'),
@@ -307,11 +336,6 @@ def get_shipping_cost(country, weight):
 @login_required
 def get_transactions(transaction_id):
     '''
-    Payload in JSON:
-    {
-        context: 'admin' if it's admin context. 
-                 Any other value is considered as empty and user context
-    }
     Returns user's or all transactions in JSON:
     {
         id: transaction ID,
@@ -327,26 +351,53 @@ def get_transactions(transaction_id):
     transactions = Transaction.query \
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
-    if (payload and
-        payload.get('context') == 'admin' and
-        current_user.username == 'admin'):
-        transactions = transactions.all()
-    else:
-        transactions = transactions.filter_by(user=current_user)
-    return jsonify(list(map(lambda entry: {
-        'id': entry.id,
-        'user_id': entry.user_id,
-        'amount_original': str(entry.amount_original),
-        'amount_original_string': entry.currency.format(entry.amount_original),
-        'amount_krw': entry.amount_krw,
-        'currency_code': entry.currency.code,
-        'evidence_image': entry.proof_image,
-        'status': entry.status.name,
-        'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
-        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
-    }, transactions)))
+    transactions = transactions.filter_by(user=current_user)
+    return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
 
-@api.route('/transaction/<int:transaction_id>', methods=['POST'])
+@app.route('/api/user')
+@login_required
+def get_user():
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'username': user name,
+            'email': user's email,
+            'creted': user's profile created,
+            'changed': last profile change
+        }
+    '''
+    user_query = User.query.all()
+    return jsonify(User.get_user(user_query))
+
+
+
+    return jsonify({
+        'status': 'success'
+    })
+
+@app.route('/api/user/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes a user by its user_id
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
+    
+@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
     '''
