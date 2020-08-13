@@ -292,11 +292,6 @@ def get_shipping_cost(country, weight):
 @login_required
 def get_transactions(transaction_id):
     '''
-    Payload in JSON:
-    {
-        context: 'admin' if it's admin context. 
-                 Any other value is considered as empty and user context
-    }
     Returns user's or all transactions in JSON:
     {
         id: transaction ID,
@@ -312,25 +307,8 @@ def get_transactions(transaction_id):
     transactions = Transaction.query \
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
-    if (payload and
-        payload.get('context') == 'admin' and
-        current_user.username == 'admin'):
-        transactions = transactions.all()
-    else:
-        transactions = transactions.filter_by(user=current_user)
-    return jsonify(list(map(lambda entry: {
-        'id': entry.id,
-        'user_id': entry.user_id,
-        'amount_original': str(entry.amount_sent_original),
-        'amount_original_string': entry.currency.format(entry.amount_sent_original),
-        'amount_krw': entry.amount_sent_krw,
-        'currency_code': entry.currency.code,
-        'evidence_image': entry.proof_image,
-        'status': entry.status.name,
-        'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
-        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
-            if entry.when_changed else ''
-    }, transactions)))
+    transactions = transactions.filter_by(user=current_user)
+    return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
 
 @app.route('/api/user')
 @login_required

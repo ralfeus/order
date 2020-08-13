@@ -12,6 +12,8 @@
         <thead>
             <th></th>
             <th scope="col" style="width: 2em;">Transaction&nbsp;ID</th>
+            <th scope="col">Order&nbsp;ID</th>
+            <th scope="col">Payment&nbsp;method</th>
             <th scope="col" style="width: 2em;">Amount</th>
             <th scope="col" style="width: 2em;">Amount (KRW)</th>
             <th scope="col" style="width: 2em;">Status</th>
@@ -21,7 +23,13 @@
         <tbody />
     </table>
 </div>
-<div class="wait position-fixed" style="display: none;">
-    <img src="/static/images/wait.gif" />
+<div class="container row transaction-details" style="display: none;">
+    <div class="row container">
+        <img id="evidence" class="col-4" />
+        <div class="col-1">&nbsp;</div>
+        <div class="col-4">
+            <button type="button" class="btn btn-primary btn-cancel">Cancel transaction</button>
+        </div>
+    </div>
 </div>
 {% endblock %}

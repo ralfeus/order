@@ -7,7 +7,7 @@ from flask import request, redirect, render_template, send_from_directory, flash
 from flask_login import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
-from app.models import Currency, Transaction, TransactionStatus, User
+from app.models import Currency, Order, Transaction, TransactionStatus, User
 from app import app, db, login
 from app.tools import write_to_file
 
@@ -106,15 +106,17 @@ def create_transaction():
     Creates new transaction request
     '''
     form = TransactionForm()
+    form.order_id.choices = [('None', '-- None --')] + \
+        [(order.id,order.id) for order in Order.query.filter_by(user=current_user)]
     file_name = ''
     if form.validate_on_submit():
-        if form.proof.data:
-            image_data = request.files[form.proof.name].read()
+        if form.evidence.data:
+            image_data = request.files[form.evidence.name].read()
             file_name = os.path.join(
                 app.config['UPLOAD_PATH'],
                 str(current_user.id),
                 datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
-                ''.join(os.path.splitext(form.proof.data.filename)[1:])
+                ''.join(os.path.splitext(form.evidence.data.filename)[1:])
             write_to_file(file_name, image_data)
 
         currency = Currency.query.get(form.currency_code.data)
@@ -124,6 +126,8 @@ def create_transaction():
             currency=currency,
             amount_sent_krw=form.amount_original.data / currency.rate,
             amount_received_krw=form.amount_original.data / currency.rate,
+            payment_method=form.payment_method.data,
+            order_id=form.order_id.data if form.order_id.data != 'None' else None,
             proof_image=file_name,
             status=TransactionStatus.pending,
             when_created=datetime.now())
@@ -135,4 +139,4 @@ def create_transaction():
             return redirect('/wallet')
         except Exception as e:
             flash(f"The transaction couldn't be created. {e}", category="error")
-    return render_template('generic_form.html', title="Create transaction", form=form)
+    return render_template('transaction.html', title="Create transaction", form=form)

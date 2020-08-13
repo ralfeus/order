@@ -17,6 +17,7 @@ class Transaction(db.Model):
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
+    order_id = Column(String(16), ForeignKey('orders.id'))
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
     currency_code = Column(String(3), ForeignKey('currencies.code'))
@@ -24,6 +25,7 @@ class Transaction(db.Model):
     amount_sent_original = Column(Numeric(scale=2))
     amount_sent_krw = Column(Integer)
     amount_received_krw = Column(Integer)
+    payment_method = Column(String(16))
     proof_image = Column(String(256))
     __status = Column('status', Enum(TransactionStatus))
     when_created = Column(DateTime)
@@ -52,6 +54,7 @@ class Transaction(db.Model):
         '''
         return {
             'id': self.id,
+            'order_id': self.order_id,
             'user_id': self.user_id,
             'user_name': self.user.username,
             'amount_original': float(self.amount_sent_original),
@@ -59,6 +62,7 @@ class Transaction(db.Model):
             'amount_krw': self.amount_sent_krw,
             'amount_received_krw': self.amount_received_krw,
             'currency_code': self.currency.code,
+            'payment_method': self.payment_method,
             'evidence_image': self.proof_image,
             'status': self.status.name,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S'),
