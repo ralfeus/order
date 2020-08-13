@@ -3,7 +3,6 @@ Contains api endpoint routes of the application
 '''
 from decimal import Decimal
 from datetime import datetime
-from functools import reduce
 import os.path
 
 from flask import Response, abort, jsonify, request
@@ -218,23 +217,16 @@ def get_order_product_status_history(order_product_id):
 @login_required
 def get_product(product_id):
     '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'name': product original name,
-            'name_english': product english name,
-            'name_russian': product russian name,
-            'price': product price in KRW,
-            'weight': product weight,
-            'points': product points
-        }
+    Returns list of products in JSON
     '''
     product_query = None
     if product_id:
         product_query = Product.query.filter_by(id=product_id, available=True)
     else:
         product_query = Product.query.filter_by(available=True).all()
-    return jsonify(Product.get_products(product_query))
+    if product_query.count():
+        return jsonify(Product.get_products(product_query))
+    abort(Response("No products were found", status=404))
 
 @app.route('/api/v1/product/search/<term>')
 def get_product_by_term(term):
@@ -303,7 +295,6 @@ def get_transactions(transaction_id):
         status: transaction status ('pending', 'approved', 'rejected', 'cancelled')
     }
     '''
-    payload = request.get_json()
     transactions = Transaction.query \
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
@@ -325,12 +316,6 @@ def get_user():
     '''
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
-
-
-
-    return jsonify({
-        'status': 'success'
-    })
 
 @app.route('/api/user/<user_id>', methods=['DELETE'])
 @login_required

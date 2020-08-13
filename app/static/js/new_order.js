@@ -201,21 +201,39 @@ function product_code_autocomplete(target) {
             })
         },
         minLength: 1,
-        select: (event, ui) => product_select(event.target, ui.item)
+        // select: (event, ui) => product_select(event.target, ui.item)
     });
+    target.on('change', () => product_line_fill(event.target));
+}
+
+function product_line_fill(line_input) {
+    var product_line = $(line_input).closest('tr')[0];
+    if (line_input.value) {
+        $.ajax({
+            url: '/api/v1/product/' + line_input.value,
+            success: data => {
+                $('.item-name', product_line).html(data[0].name_english + " | " + data[0].name_russian);
+                $('.item-price', product_line).html(data[0].price);
+                $('.item-points', product_line).html(data[0].points);
+                products[product_line.id] = data[0];
+                update_item_subtotal($('.item-quantity', product_line));
+            },
+            error: (data) => {
+                $('.modal-body').text(data.responseText);
+                $('#modal').modal();
+            }
+        });
+    } else {
+        $('.item-name', product_line).html('');
+        $('.item-price', product_line).html('');
+        $('.item-points', product_line).html('');
+        delete products[product_line.id];
+        update_item_subtotal($('.item-quantity', product_line));
+    }
 }
 
 function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this)); });
-}
-
-function product_select(target, item) {
-    itemObject = $(target).parent().parent();
-    $('td:nth-child(2)', itemObject).html(item.label);
-    $('td:nth-child(4)', itemObject).html(item.price);
-    $('td:nth-child(11)', itemObject).html(item.points);
-    products[itemObject.attr('id')] = item;
-    update_item_subtotal($('input.item-quantity', itemObject));
 }
 
 /**
@@ -252,13 +270,19 @@ function update_grand_totals() {
 
 function update_item_subtotal(sender) {
     var itemObject = sender.parent().parent(); // tr
-    var productId = itemObject.attr('id');
-    products[productId].user = '';
-    products[productId].quantity = sender.val();
-    products[productId].costKRW = products[productId].price * products[productId].quantity;
-    $('td:nth-child(5)', itemObject).html(products[productId].costKRW);
-    $('td:nth-child(6)', itemObject).html(products[productId].weight * products[productId].quantity);
-    $('td:nth-child(12)', itemObject).html(products[productId].points * products[productId].quantity);
+    var product_id = itemObject.attr('id');
+    if (products[product_id]) {
+        products[product_id].user = '';
+        products[product_id].quantity = sender.val();
+        products[product_id].costKRW = products[product_id].price * products[product_id].quantity;
+        $('td:nth-child(5)', itemObject).html(products[product_id].costKRW);
+        $('td:nth-child(6)', itemObject).html(products[product_id].weight * products[product_id].quantity);
+        $('td:nth-child(12)', itemObject).html(products[product_id].points * products[product_id].quantity);
+    } else {
+        $('.cost-krw', itemObject).html('');
+        $('.total-weight', itemObject).html('');
+        $('.total-points', itemObject).html('');
+    }
     update_all_totals();
 }
 
@@ -266,16 +290,22 @@ function update_item_total() {
     $('.total-krw').each(function() {
         if (products[$(this).parent().attr('id')]) {
             $(this).html(products[$(this).parent().attr('id')].totalKRW);
+        } else {
+            $(this).html('');
         }
     });
     $('.total-rur').each(function() {
         if (products[$(this).parent().attr('id')]) {
             $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
+        } else {
+            $(this).html('');
         }
     });
     $('.total-usd').each(function() {
         if (products[$(this).parent().attr('id')]) {
             $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+        } else {
+            $(this).html('');
         }
     });
 }
@@ -299,6 +329,8 @@ function update_shipping_cost(cost, totalWeight) {
     $('.shipping-cost-krw').each(function() {
         if (products[$(this).parent().attr('id')]) {
             $(this).html(products[$(this).parent().attr('id')].shippingCostKRW);
+        } else {
+            $(this).html('');
         }
     });
 }
