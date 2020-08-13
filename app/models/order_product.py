@@ -11,7 +11,7 @@ class OrderProduct(db.Model):
     __tablename__ = 'order_products'
 
     id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey('orders.id'))
+    order_id = Column(String(16), ForeignKey('orders.id'))
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
     price = Column(Integer)
