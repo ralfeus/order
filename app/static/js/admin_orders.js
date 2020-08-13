@@ -68,6 +68,7 @@ function format ( row, data ) {
             dataSrc: ''
         },
         columns: [
+            {data: 'subcustomer'},
             {data: 'id'},
             {data: 'product'},
             {data: 'price'},
@@ -75,6 +76,8 @@ function format ( row, data ) {
             {data: 'status'}
         ]
     });
+    $('#invoice-id', order_details).val(data.invoice_id);
+    $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     return order_details;
 }
 

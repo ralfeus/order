@@ -65,6 +65,7 @@ class Order(db.Model):
             'id': self.id,
             'user': self.user.username if self.user else None,
             'customer': self.name,
+            'invoice_id': self.invoice_id,
             'total': reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0),
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else ''
         }

@@ -23,9 +23,10 @@
 
 <div class="row order-details container-fluid" style="display: none;">
     <div class="container row col-10">
-        <div class="col-11">
-            <table id="order-products" class="table">
+        <div class="col-8">
+            <table id="order-products" class="table" style="width: 100%;">
                 <thead>
+                    <th scope="col">Subcustomer</th>
                     <th scope="col">Product Code</th>
                     <th scope="col">Name</th>
                     <th scope="col">Price</th>
@@ -35,11 +36,16 @@
                 <tbody></tbody>
             </table>
         </div>
-        <div class="container col-5">
-
+        <div class="container col-4">
+            <div id='invoice-input-group' class="input-group input-group-sm">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="invoice-id">Invoice</label>
+                </div>
+                <input id="invoice-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
         </div>
     </div>
-    <div class="col-2">
+    <div class="col-2 container-fluid">
         <button class="btn btn-primary btn-block btn-save">Save</button>
     </div>
 </div>
