@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.models import Currency
 
 class Order(db.Model):
     ''' System's order '''
@@ -61,11 +62,20 @@ class Order(db.Model):
         return "<Order: {}>".format(self.id)
 
     def to_dict(self):
+        if not self.total_krw:
+            self.total_krw = reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0)
+        if not self.total_rur:
+            self.total_rur = self.total_krw * Currency.query.get('RUR').rate
+        if not self.total_usd:
+            self.total_usd = self.total_krw * Currency.query.get('USD').rate
         return {
             'id': self.id,
             'user': self.user.username if self.user else None,
             'customer': self.name,
             'invoice_id': self.invoice_id,
-            'total': reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0),
+            'total': self.total_krw,
+            'total_krw': self.total_krw,
+            'total_rur': float(self.total_rur),
+            'total_usd': float(self.total_usd),
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else ''
         }

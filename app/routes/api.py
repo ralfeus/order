@@ -28,6 +28,22 @@ def get_currency_rate():
     currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
+@app.route('/api/v1/order', defaults={'order_id': None})
+@app.route('/api/v1/order/<order_id>')
+@login_required
+def get_orders(order_id):
+    '''
+    Returns all or selected orders in JSON
+    '''
+    orders = Order.query.filter_by(user=current_user) \
+        if order_id is None \
+        else Order.query.filter_by(id=order_id, user=current_user)
+    if orders.count() == 0:
+        abort(Response("No orders were found", status=404))
+    elif orders.count() == 1:
+        return jsonify(orders.first().to_dict())
+    else:
+        return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
 @app.route('/api/order', methods=['POST'])
 @app.route('/api/v1/order', methods=['POST'])
