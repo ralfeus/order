@@ -16,7 +16,7 @@ def get_document_from_url(url, headers=None):
             lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
     ]
     output = subprocess.run([
-        'curl',
+        '/usr/bin/curl',
         url,
         '-v'
         ] + headers_list,
@@ -59,7 +59,7 @@ def atomy_login():
     Logins to Atomy customer section
     '''
     output = subprocess.run([
-        'curl',
+        '/usr/bin/curl',
         'https://www.atomy.kr/center/check_user.asp',
         '-H',
         'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',

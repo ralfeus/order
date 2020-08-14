@@ -11,6 +11,7 @@ cron.start()
 
 @cron.scheduled_job(trigger="interval", seconds=flask.config['PRODUCT_IMPORT_PERIOD'])
 def import_products():
+    flask.logger.info('Starting products import')
     products = Product.query.all()
     same = new = modified = 0
     for atomy_product in atomy():
