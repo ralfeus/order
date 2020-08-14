@@ -1,8 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
-from sqlalchemy import inspect
 
-from app import db
+from app import flask, db
 from app.import_products import atomy
 from app.models import Product
 
@@ -10,7 +9,7 @@ cron = BackgroundScheduler()
 # Explicitly kick off the background thread
 cron.start()
 
-@cron.scheduled_job(trigger="interval", hours=1)
+@cron.scheduled_job(trigger="interval", seconds=flask.config['PRODUCT_IMPORT_PERIOD'])
 def import_products():
     products = Product.query.all()
     same = new = modified = 0
@@ -49,5 +48,5 @@ def import_products():
             )
             new += 1
             db.session.add(product)
-    print(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
+    flask.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
     db.session.commit()

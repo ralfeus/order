@@ -13,9 +13,10 @@ from app.config import Config
 import app.tools
 
 flask = Flask(__name__)
+flask.config.from_object(Config)
+flask.logger.setLevel(flask.config['LOG_LEVEL'])
 
 Bootstrap(flask)
-flask.config.from_object(Config)
 db = SQLAlchemy(flask)
 migrate = Migrate(flask, db, compare_type=True)
 login = LoginManager(flask)
