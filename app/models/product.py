@@ -16,7 +16,7 @@ class Product(db.Model):
     name_english = Column(String(256), index=True)
     name_russian = Column(String(256), index=True)
     category = Column(String(64))
-    weight = Column(Integer)
+    weight = Column(Integer, default=0)
     price = Column(Integer)
     points = Column(Integer)
     available = Column(Boolean, default=True)

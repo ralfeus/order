@@ -10,14 +10,14 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import app, db, shipping
+from app import flask, db, shipping
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
-@app.route('/api/currency')
-@app.route('/api/v1/currency')
+@flask.route('/api/currency')
+@flask.route('/api/v1/currency')
 def get_currency_rate():
     '''
     Returns currency rates related to KRW in JSON:
@@ -28,8 +28,8 @@ def get_currency_rate():
     currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
-@app.route('/api/v1/order', defaults={'order_id': None})
-@app.route('/api/v1/order/<order_id>')
+@flask.route('/api/v1/order', defaults={'order_id': None})
+@flask.route('/api/v1/order/<order_id>')
 @login_required
 def get_orders(order_id):
     '''
@@ -45,8 +45,8 @@ def get_orders(order_id):
     else:
         return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
-@app.route('/api/order', methods=['POST'])
-@app.route('/api/v1/order', methods=['POST'])
+@flask.route('/api/order', methods=['POST'])
+@flask.route('/api/v1/order', methods=['POST'])
 def create_order():
     '''
     Creates order.
@@ -117,7 +117,7 @@ def create_order():
         }
     return jsonify(result)
 
-@app.route('/api/v1/order_product')
+@flask.route('/api/v1/order_product')
 @login_required
 def get_order_products():
     '''
@@ -143,7 +143,7 @@ def get_order_products():
         'status': order_product.status
         }, order_products)))
 
-@app.route('/api/order_product/<int:order_product_id>', methods=['POST'])
+@flask.route('/api/order_product/<int:order_product_id>', methods=['POST'])
 @login_required
 def save_order_product(order_product_id):
     '''
@@ -188,7 +188,7 @@ def save_order_product(order_product_id):
     return result
 
 
-@app.route('/api/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
+@flask.route('/api/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
@@ -210,7 +210,7 @@ def set_order_product_status(order_product_id, order_product_status):
         'order_product_status': order_product_status,
         'status': 'success'
     })
-@app.route('/api/order_product/<int:order_product_id>/status/history')
+@flask.route('/api/order_product/<int:order_product_id>/status/history')
 def get_order_product_status_history(order_product_id):
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
     if history:
@@ -227,9 +227,9 @@ def get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/product', defaults={'product_id': None})
-@app.route('/api/v1/product', defaults={'product_id': None})
-@app.route('/api/v1/product/<product_id>')
+@flask.route('/api/product', defaults={'product_id': None})
+@flask.route('/api/v1/product', defaults={'product_id': None})
+@flask.route('/api/v1/product/<product_id>')
 @login_required
 def get_product(product_id):
     '''
@@ -237,14 +237,14 @@ def get_product(product_id):
     '''
     product_query = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id, available=True)
+        product_query = Product.query.filter_by(id=product_id, available=True).all()
     else:
         product_query = Product.query.filter_by(available=True).all()
-    if product_query.count():
+    if len(product_query):
         return jsonify(Product.get_products(product_query))
     abort(Response("No products were found", status=404))
 
-@app.route('/api/v1/product/search/<term>')
+@flask.route('/api/v1/product/search/<term>')
 def get_product_by_term(term):
     '''
     Returns list of products where product ID or name starts with provided value in JSON:
@@ -265,7 +265,7 @@ def get_product_by_term(term):
         Product.name_russian.like(term + '%')))
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/shipping_cost/<country>/<weight>')
+@flask.route('/api/shipping_cost/<country>/<weight>')
 def get_shipping_cost(country, weight):
     '''
     Returns shipping cost for provided country and weight
@@ -295,8 +295,8 @@ def get_shipping_cost(country, weight):
             'shipping_cost': rate.rate
         })
 
-@app.route('/api/transaction', defaults={'transaction_id': None})
-@app.route('/api/transaction/<int:transaction_id>')
+@flask.route('/api/transaction', defaults={'transaction_id': None})
+@flask.route('/api/transaction/<int:transaction_id>')
 @login_required
 def get_transactions(transaction_id):
     '''
@@ -317,7 +317,7 @@ def get_transactions(transaction_id):
     transactions = transactions.filter_by(user=current_user)
     return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
 
-@app.route('/api/user')
+@flask.route('/api/user')
 @login_required
 def get_user():
     '''
@@ -333,7 +333,7 @@ def get_user():
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
 
-@app.route('/api/user/<user_id>', methods=['DELETE'])
+@flask.route('/api/user/<user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
     '''
@@ -354,7 +354,7 @@ def delete_user(user_id):
 
     return result
     
-@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
+@flask.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
     '''
@@ -389,7 +389,7 @@ def save_transaction(transaction_id):
         'when_changed': transaction.when_changed.strftime('%Y-%m-%d %H:%M:%S') if transaction.when_changed else ''
     })
 
-@app.route('/api/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
+@flask.route('/api/v1/transaction/<int:transaction_id>/evidence', methods=['POST'])
 @login_required
 def upload_transaction_evidence(transaction_id):
     transaction = Transaction.query.get(transaction_id)

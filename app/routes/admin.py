@@ -5,11 +5,11 @@ from flask import abort, Response, flash, redirect, render_template
 from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
-from app import app, db
+from app import flask, db
 from app.forms import ProductForm, SignupForm
 from app.models import Currency, Invoice, Product, User
 
-@app.route('/admin')
+@flask.route('/admin')
 @login_required
 def admin():
     '''
@@ -21,7 +21,7 @@ def admin():
     return render_template('order_products.html')
 
 
-@app.route('/admin/product/new', methods=['GET', 'POST'])
+@flask.route('/admin/product/new', methods=['GET', 'POST'])
 @login_required
 def product():
     '''
@@ -41,7 +41,7 @@ def product():
             flash(f"The product couldn't be created. {e}", category="error")
     return render_template('product.html', title="Create product", form=form)
 
-@app.route('/admin/products')
+@flask.route('/admin/products')
 @login_required
 def products():
     '''
@@ -52,7 +52,7 @@ def products():
 
     return render_template('products.html')
 
-@app.route('/admin/users/new', methods=['GET', 'POST'])
+@flask.route('/admin/users/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
     '''
@@ -67,7 +67,7 @@ def new_user():
         return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
 
-@app.route('/admin/users', methods=['GET', 'POST'])
+@flask.route('/admin/users', methods=['GET', 'POST'])
 @login_required
 def admin_edit_user():
     '''
@@ -75,7 +75,7 @@ def admin_edit_user():
     '''
     return render_template('users.html')
     
-@app.route('/admin/transactions')
+@flask.route('/admin/transactions')
 @login_required
 def admin_transactions():
     '''
@@ -86,7 +86,7 @@ def admin_transactions():
     
     return render_template('transactions.html')
 
-@app.route('/admin/invoices')
+@flask.route('/admin/invoices')
 @login_required
 def admin_invoices():
     '''
@@ -99,7 +99,7 @@ def admin_invoices():
     
     return render_template('invoices.html', usd_rate=usd_rate)
 
-@app.route('/admin/orders')
+@flask.route('/admin/orders')
 @login_required
 def admin_orders():
     '''

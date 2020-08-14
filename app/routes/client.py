@@ -8,14 +8,14 @@ from flask_login import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
 from app.models import Currency, Order, Transaction, TransactionStatus, User
-from app import app, db, login
+from app import flask, db, login
 from app.tools import write_to_file
 
 @login.user_loader
 def load_user(user_id):
     return User.query.get(user_id)
 
-@app.route('/')
+@flask.route('/')
 @login_required
 def index():
     '''
@@ -24,7 +24,7 @@ def index():
     '''
     return render_template('index.html')
 
-@app.route('/new_order')
+@flask.route('/new_order')
 @login_required
 def new_order():
     '''
@@ -33,7 +33,7 @@ def new_order():
 
     return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
-@app.route('/signup', methods=['GET', 'POST'])
+@flask.route('/signup', methods=['GET', 'POST'])
 def user_signup():
     """
     User sign-up page.
@@ -66,7 +66,7 @@ def user_signup():
         body="Sign up for a user account."
     )
 
-@app.route('/login', methods=['GET', 'POST'])
+@flask.route('/login', methods=['GET', 'POST'])
 def user_login():
     ''' Login user '''
     if current_user.is_authenticated:
@@ -83,23 +83,23 @@ def user_login():
     
     return render_template('login.html', title='Sign In', form=form)
 
-@app.route("/logout")
+@flask.route("/logout")
 @login_required
 def user_logout():
     """User log-out logic."""
     logout_user()
     return redirect(url_for('user_login'))
 
-@app.route('/upload/<path:path>')
+@flask.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
 
-@app.route('/wallet')
+@flask.route('/wallet')
 @login_required
 def get_wallet():
     return render_template('wallet.html')
 
-@app.route('/wallet/new', methods=['GET', 'POST'])
+@flask.route('/wallet/new', methods=['GET', 'POST'])
 @login_required
 def create_transaction():
     '''

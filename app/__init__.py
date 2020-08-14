@@ -12,15 +12,16 @@ from app.config import Config
 
 import app.tools
 
-app = Flask(__name__)
+flask = Flask(__name__)
 
-Bootstrap(app)
-app.config.from_object(Config)
-db = SQLAlchemy(app)
-migrate = Migrate(app, db, compare_type=True)
-login = LoginManager(app)
+Bootstrap(flask)
+flask.config.from_object(Config)
+db = SQLAlchemy(flask)
+migrate = Migrate(flask, db, compare_type=True)
+login = LoginManager(flask)
 login.login_view = "user_login"
 login.logout_view = "user_logout"
 
 # from app.models import *
+import app.jobs
 from app.routes import admin, api, api_admin, client
