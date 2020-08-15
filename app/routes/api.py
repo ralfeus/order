@@ -5,7 +5,7 @@ from decimal import Decimal
 from datetime import datetime
 import os.path
 
-from flask import Blueprint, Response, abort, jsonify, request
+from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -403,7 +403,7 @@ def upload_transaction_evidence(transaction_id):
         rm(transaction.proof_image)
         image_data = file.read()
         file_name = os.path.join(
-            app.config['UPLOAD_PATH'],
+            current_app.config['UPLOAD_PATH'],
             str(current_user.id),
             datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
             ''.join(os.path.splitext(file.filename)[1:])

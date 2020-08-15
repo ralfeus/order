@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+from sqlalchemy.exc import IntegrityError
 
 from flask import Blueprint, Response, abort, jsonify, request, send_file
 from flask_login import current_user, login_required
