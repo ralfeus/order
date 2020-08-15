@@ -32,7 +32,8 @@ def create_app(*args, **kwargs):
     flask_app = Flask(__name__)
     flask_app.config.from_object(Config)
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
-    flask_app.logger.info(*args)
+    flask_app.logger.info(args)
+    flask_app.logger.info(kwargs)
 
     Bootstrap(flask_app)
     db.init_app(flask_app)
