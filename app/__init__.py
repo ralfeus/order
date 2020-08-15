@@ -25,15 +25,15 @@ from app.routes.api import api
 from app.routes.client import client
 from app.routes.api_admin import admin_api
 
-def create_app(*args, **kwargs):
+def create_app(config=None, import_name=None):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
     flask_app.config.from_object(Config)
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
-    flask_app.logger.info(args)
-    flask_app.logger.info(kwargs)
+    flask_app.logger.info(config)
+    flask_app.logger.info(import_name)
 
     Bootstrap(flask_app)
     db.init_app(flask_app)
