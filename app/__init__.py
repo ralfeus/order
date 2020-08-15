@@ -25,12 +25,12 @@ from app.routes.api import api
 from app.routes.client import client
 from app.routes.api_admin import admin_api
 
-def create_app(config=None, import_name=None):
+def create_app(config=Config, import_name=None):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
-    flask_app.config.from_object(Config)
+    flask_app.config.from_object(config)
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
     flask_app.logger.info(config)
     flask_app.logger.info(import_name)

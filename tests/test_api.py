@@ -1,11 +1,11 @@
 import unittest
-from app import app, db
+from app import create_app, db
+from app.config import TestConfig
 import app.routes.api as test_target
 
+app = create_app(TestConfig)
+app.app_context().push()
 # Common test initialization
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
-app.config['TESTING'] = True
-db.init_app(app)
 from app.models import Currency
 db.create_all()
 
@@ -25,8 +25,8 @@ class TestClientApi(unittest.TestCase):
     def test_get_currency_rate(self):
         res = test_target.get_currency_rate()
         self.assertEqual(res.json, {
-            'USD': 'US Dollar',
-            'RUR': 'Russian rouble'
+            'USD': '1.00000',
+            'RUR': '1.00000'
         })
 
 if __name__ == '__main__':
