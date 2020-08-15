@@ -49,5 +49,8 @@ def import_products():
             )
             new += 1
             db.session.add(product)
+    for product in products:
+        product.available = False
+        modified += 1
     flask.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
     db.session.commit()
