@@ -213,10 +213,10 @@ def set_order_product_status(order_product_id, order_product_status):
 @api.route('/order_product/<int:order_product_id>/status/history')
 def get_order_product_status_history(order_product_id):
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
-    if history:
+    if history.count():
         return jsonify(list(map(lambda entry: {
             'set_by': entry.set_by.username,
-            'set_at': entry.set_at,
+            'set_at': entry.set_at.strftime('%Y-%m-%d %H:%M:%S'),
             'status': entry.status
         }, history)))
     else:
