@@ -45,6 +45,7 @@ def create_app(*args, **kwargs):
     flask_app.register_blueprint(admin)
     flask_app.register_blueprint(client)
 
+    flask_app.logger.info('Routes are registered')
     cron = BackgroundScheduler()
     cron.add_job(
         func=app.jobs.import_products,
