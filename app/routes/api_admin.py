@@ -25,7 +25,7 @@ def admin_get_order_products():
     if current_user.username != 'admin':
         abort(403)
     order_products_query = OrderProduct.query
-    if request.values['order_id']:
+    if request.values.get('order_id'):
         order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
 
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))

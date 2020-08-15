@@ -44,7 +44,7 @@ class Transaction(db.Model):
         elif isinstance(value, int):
             value = TransactionStatus(value)
         if value == TransactionStatus.approved:
-            self.user.balance += self.amount_krw
+            self.user.balance += self.amount_received_krw
         self.__status = value
 
 
