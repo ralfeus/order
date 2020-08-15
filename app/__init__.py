@@ -25,7 +25,7 @@ from app.routes.api import api
 from app.routes.client import client
 from app.routes.api_admin import admin_api
 
-def create_app():
+def create_app(**kwargs):
     '''
     Application factory
     '''
