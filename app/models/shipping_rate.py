@@ -10,9 +10,11 @@ class ShippingRate(db.Model):
     __tablename__ = 'shipping_rates'
 
     id = Column(Integer, primary_key=True)
+    shipping_method_id = Column(Integer)
+    shipping_method = relationship('Shipping', foreign_keys=[shipping_method_id])
     destination = Column(String(32), index=True)
     weight = Column(Integer, index=True)
     rate = Column(Float)
 
     def __repr__(self):
-        return "<{}: {}/{}/{}>".format(type(self), self.destination, self.weight, self.rate)
+        return f"<{type(self)}: {self.shipping_method.name}/{self.destination}/{self.weight}/{self.rate}>"

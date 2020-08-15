@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import flask, db, shipping
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate, Transaction, TransactionStatus, User
+    Shipping, ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
 @flask.route('/api/currency')
@@ -265,6 +265,24 @@ def get_product_by_term(term):
         Product.name_russian.like(term + '%')))
     return jsonify(Product.get_products(product_query))
 
+@flask.route('/api/v1/shipping', defaults={'country': None, 'weight': None})
+@flask.route('/api/v1/shipping/<country>', defaults={'weight': None})
+@flask.route('/api/v1/shipping/<country>/<weight>')
+@login_required
+def get_shipping_methods(country, weight):
+    '''
+    Returns shipping methods available for specific country and weight (if both provided)
+    '''
+    shipping_methods = Shipping.query
+    if country:
+        shipping_methods = shipping_methods.filter(
+            Shipping.rates.filter_by(destination=country).exists())
+    if weight:
+        shipping_methods = shipping_methods.filter(
+            Shipping.rates.filter(ShippingRate.weight < weight)
+        )
+    return jsonify(list(map(lambda s: s.to_dict(), shipping_methods)))
+
 @flask.route('/api/shipping_cost/<country>/<weight>')
 def get_shipping_cost(country, weight):
     '''
@@ -316,43 +334,6 @@ def get_transactions(transaction_id):
         else Transaction.query.filter_by(id=transaction_id)
     transactions = transactions.filter_by(user=current_user)
     return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
-
-@flask.route('/api/user')
-@login_required
-def get_user():
-    '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'username': user name,
-            'email': user's email,
-            'creted': user's profile created,
-            'changed': last profile change
-        }
-    '''
-    user_query = User.query.all()
-    return jsonify(User.get_user(user_query))
-
-@flask.route('/api/user/<user_id>', methods=['DELETE'])
-@login_required
-def delete_user(user_id):
-    '''
-    Deletes a user by its user_id
-    '''
-    result = None
-    try:
-        User.query.filter_by(id=user_id).delete()
-        db.session.commit()
-        result = jsonify({
-            'status': 'success'
-        })
-    except IntegrityError:
-        result = jsonify({
-            'message': f"Can't delete user {user_id} as it's used in some orders"
-        })
-        result.status_code = 409
-
-    return result
     
 @flask.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
@@ -417,4 +398,41 @@ def upload_transaction_evidence(transaction_id):
     else:
         abort(Response("No file is uploaded", status=400))
     return jsonify({})
+
+@flask.route('/api/user')
+@login_required
+def get_user():
+    '''
+    Returns list of products in JSON:
+        {
+            'id': product ID,
+            'username': user name,
+            'email': user's email,
+            'creted': user's profile created,
+            'changed': last profile change
+        }
+    '''
+    user_query = User.query.all()
+    return jsonify(User.get_user(user_query))
+
+@flask.route('/api/user/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes a user by its user_id
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
         
