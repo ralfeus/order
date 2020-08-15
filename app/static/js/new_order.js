@@ -26,7 +26,7 @@ $(document).ready(function() {
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
     $.ajax({
-        url: '/api/currency',
+        url: '/api/v1/currency',
         success: function(data, _status, _xhr) {
             currencyRates = data;
         }
@@ -39,7 +39,7 @@ $(document).ready(function() {
     $('#submit').on('click', function() {
         $('.wait').show();
         $.ajax({
-            url: '/api/order',
+            url: '/api/v1/order',
             method: 'post',
             dataType: 'json',
             contentType: 'application/json',
@@ -163,7 +163,7 @@ function get_shipping_cost(totalWeight) {
         update_all_grand_totals(0, 0);
     } else {
         $.ajax({
-            url: '/api/shipping_cost/' + $('#country').val() + '/' + totalWeight,
+            url: '/api/v1/shipping_cost/' + $('#country').val() + '/' + totalWeight,
             success: function(data, _status, _xhr) {
                 update_all_grand_totals(data.shipping_cost, totalWeight);
             },
@@ -177,7 +177,7 @@ function get_shipping_cost(totalWeight) {
 
 function product_code_autocomplete(target) {
     target.autocomplete({
-        // source: "/api/product",
+        // source: "/api/v1/product",
         source: function(request, response) {
             $.ajax({
                 url: '/api/v1/product/search/' + request.term,

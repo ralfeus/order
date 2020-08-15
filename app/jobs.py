@@ -1,17 +1,15 @@
-from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
+from flask import current_app
 
-from app import flask, db
+from app import db
 from app.import_products import atomy
 from app.models import Product
 
-cron = BackgroundScheduler()
-# Explicitly kick off the background thread
-cron.start()
 
-@cron.scheduled_job(trigger="interval", seconds=flask.config['PRODUCT_IMPORT_PERIOD'])
 def import_products():
-    flask.logger.info('Starting products import')
+    from app import create_app
+    create_app().app_context().push()
+    current_app.logger.info('Starting products import')
     products = Product.query.all()
     same = new = modified = 0
     for atomy_product in atomy():
@@ -52,5 +50,5 @@ def import_products():
     for product in products:
         product.available = False
         modified += 1
-    flask.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
+    current_app.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
     db.session.commit()

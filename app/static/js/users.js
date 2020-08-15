@@ -18,7 +18,7 @@ $(document).ready( function () {
     var table = $('#users').DataTable({
         dom: 'lfrBtip', 
         ajax: {
-            url: '/api/user',
+            url: '/api/v1/user',
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({'all': true}),
@@ -107,7 +107,7 @@ function delete_user(rows) {
     rows.every(function() {
         var row = this
         $.ajax({
-            url: '/api/user/' + row.data().id,
+            url: '/api/v1/user/' + row.data().id,
             method: 'delete',
             success: function() {
                 row.remove().draw()

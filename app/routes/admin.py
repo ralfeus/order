@@ -54,7 +54,7 @@ def products():
 
     return render_template('products.html')
 
-@flask.route('/admin/users/new', methods=['GET', 'POST'])
+@admin.route('/users/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
     '''
@@ -69,7 +69,7 @@ def new_user():
         return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
 
-@flask.route('/admin/users', methods=['GET', 'POST'])
+@admin.route('/users', methods=['GET', 'POST'])
 @login_required
 def admin_edit_user():
     '''
@@ -77,7 +77,7 @@ def admin_edit_user():
     '''
     return render_template('users.html')
     
-@flask.route('/admin/transactions')
+@admin.route('/transactions')
 @login_required
 def admin_transactions():
     '''
@@ -88,7 +88,7 @@ def admin_transactions():
     
     return render_template('transactions.html')
 
-@flask.route('/admin/invoices')
+@admin.route('/invoices')
 @login_required
 def admin_invoices():
     '''
@@ -101,7 +101,7 @@ def admin_invoices():
     
     return render_template('invoices.html', usd_rate=usd_rate)
 
-@flask.route('/admin/orders')
+@admin.route('/orders')
 @login_required
 def admin_orders():
     '''

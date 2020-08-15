@@ -3,12 +3,12 @@ Contains client routes of the application
 '''
 import os.path
 from datetime import datetime
-from flask import Blueprint, request, redirect, render_template, send_from_directory, flash, url_for
+from flask import Blueprint, current_app, request, redirect, render_template, send_from_directory, flash, url_for
 from flask_login import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
 from app.models import Currency, Order, Transaction, TransactionStatus, User
-from app import flask, db, login
+from app import db, login
 from app.tools import write_to_file
 
 client = Blueprint('client', __name__, url_prefix='/')
