@@ -119,8 +119,8 @@ def admin_get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/v1/admin/product', defaults={'product_id': None})
-@app.route('/api/v1/admin/product/<product_id>')
+@flask.route('/api/v1/admin/product', defaults={'product_id': None})
+@flask.route('/api/v1/admin/product/<product_id>')
 @login_required
 def admin_get_product(product_id):
     '''
@@ -144,7 +144,7 @@ def admin_get_product(product_id):
         product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@app.route('/api/v1/admin/product', methods=['POST'])
+@flask.route('/api/v1/admin/product', methods=['POST'])
 @login_required
 def save_product():
     '''
@@ -169,7 +169,7 @@ def save_product():
         'status': 'success'
     })
 
-@app.route('/api/v1/admin/product/<product_id>', methods=['DELETE'])
+@flask.route('/api/v1/admin/product/<product_id>', methods=['DELETE'])
 @login_required
 def delete_product(product_id):
     '''
@@ -247,7 +247,7 @@ def admin_save_transaction(transaction_id):
 
     return jsonify(transaction.to_dict())
 
-@app.route('/api/v1/admin/user/<int:user_id>', methods=['POST'])
+@flask.route('/api/v1/admin/user/<int:user_id>', methods=['POST'])
 @login_required
 def save_user(user_id):    
     user_input = request.get_json()
@@ -263,8 +263,8 @@ def save_user(user_id):
 
     db.session.commit()
 
-@app.route('/api/v1/admin/invoice', defaults={'invoice_id': None})
-@app.route('/api/v1/admin/invoice/<invoice_id>')
+@flask.route('/api/v1/admin/invoice', defaults={'invoice_id': None})
+@flask.route('/api/v1/admin/invoice/<invoice_id>')
 @login_required
 def admin_get_invoices(invoice_id):
     '''
@@ -287,7 +287,7 @@ def admin_get_invoices(invoice_id):
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
-@app.route('/api/v1/admin/invoice/new', methods=['POST'])
+@flask.route('/api/v1/admin/invoice/new', methods=['POST'])
 @login_required
 def admin_create_invoice():
     '''
@@ -335,7 +335,7 @@ def get_invoice_order_products(invoice, usd_rate):
     }, order_products.items()))
     return result
 
-@app.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
+@flask.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
 @login_required
 def get_invoice_excel(invoice_id, usd_rate):
     invoice = Invoice.query.get(invoice_id)
@@ -399,8 +399,8 @@ def get_invoice_excel(invoice_id, usd_rate):
     return send_file(f'static/invoices/{invoice_id}.xlsx',
         as_attachment=True, attachment_filename=invoice_id + '.xlsx')
     
-@app.route('/api/v1/admin/order', defaults={'order_id': None})
-@app.route('/api/v1/admin/order/<order_id>')
+@flask.route('/api/v1/admin/order', defaults={'order_id': None})
+@flask.route('/api/v1/admin/order/<order_id>')
 @login_required
 def admin_get_orders(order_id):
     '''

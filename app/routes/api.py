@@ -3,7 +3,6 @@ Contains api endpoint routes of the application
 '''
 from decimal import Decimal
 from datetime import datetime
-from functools import reduce
 import os.path
 
 from flask import Blueprint, Response, abort, jsonify, request
@@ -17,10 +16,9 @@ from app.models import \
     ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
-api = Blueprint('api', __name__, url_prefix='/api')
+api = Blueprint('api', __name__, url_prefix='/api/v1')
 
 @api.route('/currency')
-@api.route('/v1/currency')
 def get_currency_rate():
     '''
     Returns currency rates related to KRW in JSON:
@@ -31,8 +29,24 @@ def get_currency_rate():
     currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
+@api.route('/order', defaults={'order_id': None})
+@api.route('/order/<order_id>')
+@login_required
+def get_orders(order_id):
+    '''
+    Returns all or selected orders in JSON
+    '''
+    orders = Order.query.filter_by(user=current_user) \
+        if order_id is None \
+        else Order.query.filter_by(id=order_id, user=current_user)
+    if orders.count() == 0:
+        abort(Response("No orders were found", status=404))
+    elif orders.count() == 1:
+        return jsonify(orders.first().to_dict())
+    else:
+        return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
-@app.route('/api/v1/order', methods=['POST'])
+@api.route('/order', methods=['POST'])
 def create_order():
     '''
     Creates order.
@@ -103,7 +117,7 @@ def create_order():
         }
     return jsonify(result)
 
-@app.route('/api/v1/order_product')
+@api.route('/order_product')
 @login_required
 def get_order_products():
     '''
@@ -213,74 +227,23 @@ def get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@app.route('/api/v1/product', defaults={'product_id': None})
-@app.route('/api/v1/product/<product_id>')
+@api.route('/product', defaults={'product_id': None})
+@api.route('/product/<product_id>')
 @login_required
 def get_product(product_id):
     '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'name': product original name,
-            'name_english': product english name,
-            'name_russian': product russian name,
-            'price': product price in KRW,
-            'weight': product weight,
-            'points': product points
-        }
+    Returns list of products in JSON
     '''
     product_query = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id, available=True)
+        product_query = Product.query.filter_by(id=product_id, available=True).all()
     else:
         product_query = Product.query.filter_by(available=True).all()
-    return jsonify(Product.get_products(product_query))
+    if len(product_query):
+        return jsonify(Product.get_products(product_query))
+    abort(Response("No products were found", status=404))
 
-@api.route('/product', methods=['POST'])
-@login_required
-def save_product():
-    '''
-    Saves updates in product or creates new product
-    '''
-    product_input = request.get_json()
-    product = Product.query.get(product_input['id'])
-    if not product:
-        product = Product()
-    product.name = product_input['name']
-    product.name_english = product_input['name_english']
-    product.name_russian = product_input['name_russian']
-    product.price = product_input['price']
-    product.weight = product_input['weight']
-    if not product.id:
-        db.session.add(product)
-    db.session.commit()
-
-    return jsonify({
-        'status': 'success'
-    })
-
-@api.route('/product/<product_id>', methods=['DELETE'])
-@login_required
-def delete_product(product_id):
-    '''
-    Deletes a product by its product code
-    '''
-    result = None
-    try:
-        Product.query.filter_by(id=product_id).delete()
-        db.session.commit()
-        result = jsonify({
-            'status': 'success'
-        })
-    except IntegrityError:
-        result = jsonify({
-            'message': f"Can't delete product {product_id} as it's used in some orders"
-        })
-        result.status_code = 409
-
-    return result
-
-@app.route('/api/v1/product/search/<term>')
+@api.route('/product/search/<term>')
 def get_product_by_term(term):
     '''
     Returns list of products where product ID or name starts with provided value in JSON:
@@ -347,14 +310,13 @@ def get_transactions(transaction_id):
         status: transaction status ('pending', 'approved', 'rejected', 'cancelled')
     }
     '''
-    payload = request.get_json()
     transactions = Transaction.query \
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
     transactions = transactions.filter_by(user=current_user)
     return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
 
-@app.route('/api/user')
+@api.route('/user')
 @login_required
 def get_user():
     '''
@@ -370,13 +332,7 @@ def get_user():
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))
 
-
-
-    return jsonify({
-        'status': 'success'
-    })
-
-@app.route('/api/user/<user_id>', methods=['DELETE'])
+@api.route('/user/<user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
     '''
@@ -397,7 +353,7 @@ def delete_user(user_id):
 
     return result
     
-@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
+@api.route('/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
     '''

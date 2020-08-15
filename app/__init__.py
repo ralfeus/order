@@ -10,6 +10,7 @@ from flask_admin import Admin
 from app.config import Config
 
 from app.config import Config
+import app.jobs
 import app.tools
 
 # app = Flask(__name__)
@@ -30,19 +31,20 @@ from app.routes.client import client
 from app.routes.api_admin import admin_api
 
 def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
+    flask_app = Flask(__name__)
+    flask_app.config.from_object(Config)
+    flask_app.logger.setLevel(flask.config['LOG_LEVEL'])
 
-    Bootstrap(app)
-    db.init_app(app)
-    migrate.init_app(app, db, compare_type=True)
-    login.init_app(app)
+    Bootstrap(flask_app)
+    db.init_app(flask_app)
+    migrate.init_app(flask_app, db, compare_type=True)
+    login.init_app(flask_app)
     # login.login_view = "user_login"
     # login.logout_view = "user_logout"
 
-    app.register_blueprint(api)
-    app.register_blueprint(admin_api)
-    app.register_blueprint(admin)
-    app.register_blueprint(client)
+    flask_app.register_blueprint(api)
+    flask_app.register_blueprint(admin_api)
+    flask_app.register_blueprint(admin)
+    flask_app.register_blueprint(client)
 
-    return app
+    return flask_app

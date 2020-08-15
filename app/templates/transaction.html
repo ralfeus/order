@@ -56,3 +56,21 @@
         </form>
     </div>
 {% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    $('#order_id').change(function() {
+        $.ajax({
+            url: '/api/v1/order/' + this.value,
+            success: data => {
+                if ($('.active [name=currency_code]').val() == 'RUR') {
+                    $('#amount_original').val(data.total_rur);
+                } else if ($('.active [name=currency_code]').val() == 'USD') {
+                    $('#amount_original').val(data.total_usd);
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
