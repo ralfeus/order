@@ -45,7 +45,7 @@ def create_app(**kwargs):
 
     cron = BackgroundScheduler()
     cron.add_job(
-        func=app.jobs.import_products, 
+        func=app.jobs.import_products,
         trigger="interval", seconds=flask_app.config['PRODUCT_IMPORT_PERIOD'])
     cron.start()
 
