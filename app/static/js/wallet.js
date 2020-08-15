@@ -11,7 +11,7 @@ $(document).ready( function () {
             { extend: 'create', text: 'Create new transaction' },
         ],        
         ajax: {
-            url: '/api/transaction',
+            url: '/api/v1/transaction',
             dataSrc: ''
         },
         columns: [
@@ -61,7 +61,7 @@ $(document).ready( function () {
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/transaction/' + update.id,
+                    url: '/api/v1/transaction/' + update.id,
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -100,7 +100,7 @@ function format ( row, data ) {
 function cancel(row) {
     $('.wait').show();
     $.ajax({
-        url: '/api/transaction/' + row.data().id,
+        url: '/api/v1/transaction/' + row.data().id,
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',

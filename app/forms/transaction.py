@@ -11,9 +11,7 @@ class TransactionForm(FlaskForm):
     '''
     amount_original = DecimalField('Transaction amount', places=2, validators=[
         NumberRange(min=0, message='Amount must be positive number')])
-    currency_code = RadioField('Transaction currency',
-        choices=[(currency.code, currency.name) for currency in Currency.query.all()],
-        validators=[DataRequired()])
+    currency_code = RadioField('Transaction currency', validators=[DataRequired()])
     order_id = SelectField('Order ID to pay for')
     payment_method = SelectField('Payment method',
         choices=[('Wire transfer', 'Wire transfer'), ('PayPal', 'PayPal')]

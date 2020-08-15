@@ -5,16 +5,19 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+from sqlalchemy.exc import IntegrityError
 
-from flask import Response, abort, jsonify, request, send_file
+from flask import Blueprint, Response, abort, jsonify, request, send_file
 from flask_login import current_user, login_required
 
-from app import flask, db
+from app import db
 from app.models import \
     Currency, Invoice, Order, OrderProduct, OrderProductStatusEntry, Product, \
     ShippingRate, User, Transaction, TransactionStatus
 
-@flask.route('/api/v1/admin/order_product')
+admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
+
+@admin_api.route('/order_product')
 @login_required
 def admin_get_order_products():
     '''
@@ -23,12 +26,12 @@ def admin_get_order_products():
     if current_user.username != 'admin':
         abort(403)
     order_products_query = OrderProduct.query
-    if request.values['order_id']:
+    if request.values.get('order_id'):
         order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
 
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
 
-@flask.route('/api/v1/admin/order_product/<int:order_product_id>', methods=['POST'])
+@admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
 @login_required
 def admin_save_order_product(order_product_id):
     '''
@@ -73,7 +76,7 @@ def admin_save_order_product(order_product_id):
     return result
 
 
-@flask.route('/api/v1/admin/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
+@admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def admin_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
@@ -98,7 +101,7 @@ def admin_set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
-@flask.route('/api/v1/admin/order_product/<int:order_product_id>/status/history')
+@admin_api.route('/order_product/<int:order_product_id>/status/history')
 def admin_get_order_product_status_history(order_product_id):
     if current_user.username != 'admin':
         abort(403)
@@ -117,8 +120,8 @@ def admin_get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@flask.route('/api/v1/admin/product', defaults={'product_id': None})
-@flask.route('/api/v1/admin/product/<product_id>')
+@admin_api.route('/product', defaults={'product_id': None})
+@admin_api.route('/product/<product_id>')
 @login_required
 def admin_get_product(product_id):
     '''
@@ -142,7 +145,7 @@ def admin_get_product(product_id):
         product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@flask.route('/api/v1/admin/product', methods=['POST'])
+@admin_api.route('/product', methods=['POST'])
 @login_required
 def save_product():
     '''
@@ -167,7 +170,7 @@ def save_product():
         'status': 'success'
     })
 
-@flask.route('/api/v1/admin/product/<product_id>', methods=['DELETE'])
+@admin_api.route('/product/<product_id>', methods=['DELETE'])
 @login_required
 def delete_product(product_id):
     '''
@@ -188,8 +191,8 @@ def delete_product(product_id):
 
     return result
 
-@flask.route('/api/v1/admin/transaction', defaults={'transaction_id': None})
-@flask.route('/api/v1/admin/transaction/<int:transaction_id>')
+@admin_api.route('/transaction', defaults={'transaction_id': None})
+@admin_api.route('/transaction/<int:transaction_id>')
 @login_required
 def admin_get_transactions(transaction_id):
     '''
@@ -211,7 +214,7 @@ def admin_get_transactions(transaction_id):
 
     return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
 
-@flask.route('/api/v1/admin/transaction/<int:transaction_id>', methods=['POST'])
+@admin_api.route('/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def admin_save_transaction(transaction_id):
     '''
@@ -245,7 +248,28 @@ def admin_save_transaction(transaction_id):
 
     return jsonify(transaction.to_dict())
 
-@flask.route('/api/v1/admin/user/<int:user_id>', methods=['POST'])
+@admin.route('/user/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes a user by its user_id
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
+        
+@admin_api.route('/user/<int:user_id>', methods=['POST'])
 @login_required
 def save_user(user_id):    
     user_input = request.get_json()
@@ -261,8 +285,8 @@ def save_user(user_id):
 
     db.session.commit()
 
-@flask.route('/api/v1/admin/invoice', defaults={'invoice_id': None})
-@flask.route('/api/v1/admin/invoice/<invoice_id>')
+@admin_api.route('/invoice', defaults={'invoice_id': None})
+@admin_api.route('/invoice/<invoice_id>')
 @login_required
 def admin_get_invoices(invoice_id):
     '''
@@ -285,7 +309,7 @@ def admin_get_invoices(invoice_id):
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
-@flask.route('/api/v1/admin/invoice/new', methods=['POST'])
+@admin_api.route('/invoice/new', methods=['POST'])
 @login_required
 def admin_create_invoice():
     '''
@@ -333,7 +357,7 @@ def get_invoice_order_products(invoice, usd_rate):
     }, order_products.items()))
     return result
 
-@flask.route('/api/v1/admin/invoice/<invoice_id>/excel/<float:usd_rate>')
+@admin_api.route('/invoice/<invoice_id>/excel/<float:usd_rate>')
 @login_required
 def get_invoice_excel(invoice_id, usd_rate):
     invoice = Invoice.query.get(invoice_id)
@@ -397,8 +421,8 @@ def get_invoice_excel(invoice_id, usd_rate):
     return send_file(f'static/invoices/{invoice_id}.xlsx',
         as_attachment=True, attachment_filename=invoice_id + '.xlsx')
     
-@flask.route('/api/v1/admin/order', defaults={'order_id': None})
-@flask.route('/api/v1/admin/order/<order_id>')
+@admin_api.route('/order', defaults={'order_id': None})
+@admin_api.route('/order/<order_id>')
 @login_required
 def admin_get_orders(order_id):
     '''

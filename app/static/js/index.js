@@ -68,7 +68,7 @@ $(document).ready( function () {
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/order_product/' + update.id,
+                    url: '/api/v1/order_product/' + update.id,
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -113,7 +113,7 @@ function format ( row, data ) {
 //         for (var i = 0; i < target.count(); i++) {
 //             order_products.push(target.data()[i].order_product_id);
 //             $.ajax({
-//                 url: '/api/order_product/' + 
+//                 url: '/api/v1/order_product/' + 
 //                     target.data()[i].order_product_id + '/status/' + newStatus,
 //                 method: 'POST',
 //                 success: function(response, status, xhr) {

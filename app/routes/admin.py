@@ -1,17 +1,19 @@
 '''
 Contains admin routes of the application
 '''
-from flask import abort, Response, flash, redirect, render_template
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template
 from flask_login import current_user, login_required, login_user
 from sqlalchemy.exc import IntegrityError
 
-from app import flask, db
+from app import db
 from app.forms import ProductForm, SignupForm
 from app.models import Currency, Invoice, Product, User
 
-@flask.route('/admin')
+admin = Blueprint('admin', __name__, url_prefix='/admin')
+
+@admin.route('/')
 @login_required
-def admin():
+def order_products():
     '''
     Shows list of ordered products
     '''
@@ -21,7 +23,7 @@ def admin():
     return render_template('order_products.html')
 
 
-@flask.route('/admin/product/new', methods=['GET', 'POST'])
+@admin.route('/product/new', methods=['GET', 'POST'])
 @login_required
 def product():
     '''
@@ -41,7 +43,7 @@ def product():
             flash(f"The product couldn't be created. {e}", category="error")
     return render_template('product.html', title="Create product", form=form)
 
-@flask.route('/admin/products')
+@admin.route('/products')
 @login_required
 def products():
     '''
@@ -52,7 +54,7 @@ def products():
 
     return render_template('products.html')
 
-@flask.route('/admin/users/new', methods=['GET', 'POST'])
+@admin.route('/users/new', methods=['GET', 'POST'])
 @login_required
 def new_user():
     '''
@@ -67,7 +69,7 @@ def new_user():
         return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
 
-@flask.route('/admin/users', methods=['GET', 'POST'])
+@admin.route('/users', methods=['GET', 'POST'])
 @login_required
 def admin_edit_user():
     '''
@@ -75,7 +77,7 @@ def admin_edit_user():
     '''
     return render_template('users.html')
     
-@flask.route('/admin/transactions')
+@admin.route('/transactions')
 @login_required
 def admin_transactions():
     '''
@@ -86,7 +88,7 @@ def admin_transactions():
     
     return render_template('transactions.html')
 
-@flask.route('/admin/invoices')
+@admin.route('/invoices')
 @login_required
 def admin_invoices():
     '''
@@ -99,7 +101,7 @@ def admin_invoices():
     
     return render_template('invoices.html', usd_rate=usd_rate)
 
-@flask.route('/admin/orders')
+@admin.route('/orders')
 @login_required
 def admin_orders():
     '''
