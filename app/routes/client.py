@@ -92,7 +92,7 @@ def user_login():
 def user_logout():
     """User log-out logic."""
     logout_user()
-    return redirect(url_for('user_login'))
+    return redirect(url_for('client.user_login'))
 
 @client.route('/upload/<path:path>')
 def send_from_upload(path):

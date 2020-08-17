@@ -83,6 +83,7 @@ class TestClientApi(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
         order = Order.query.get(created_order_id)
         self.assertEqual(order.total_krw, 101)
+        self.assertEqual(order.shipping.name, 'Shipping1')
 
     def test_get_countries(self):
         res = self.client.get(url_for('api.get_countries'))

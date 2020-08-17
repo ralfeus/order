@@ -78,6 +78,7 @@ function format ( row, data ) {
     });
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
+    $('#shipping', order_details).val(data.shipping);
     return order_details;
 }
 

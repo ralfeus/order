@@ -74,6 +74,7 @@ def create_order():
         name=request_data['name'],
         address=request_data['address'],
         country=request_data['country'],
+        shipping_method_id=request_data['shipping'],
         phone=request_data['phone'],
         comment=request_data['comment'],
         subtotal_krw=0,

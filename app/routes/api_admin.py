@@ -258,7 +258,7 @@ def delete_user(user_id):
         abort(403)
     result = None
     try:
-        User.query.filter_by(id=user_id).delete()
+        User.query.filter_by(id=user_id).delete(synchronize_session='fetch')
         db.session.commit()
         result = jsonify({
             'status': 'success'
@@ -426,7 +426,7 @@ def get_invoice_excel(invoice_id, usd_rate):
 @admin_api.route('/order', defaults={'order_id': None})
 @admin_api.route('/order/<order_id>')
 @login_required
-def admin_get_orders(order_id):
+def get_orders(order_id):
     '''
     Returns all or selected orders in JSON:
     {

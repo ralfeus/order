@@ -29,6 +29,8 @@ class Order(db.Model):
     comment = Column(String(128))
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
+    shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
+    shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
     subtotal_usd = Column(Numeric(10, 2), default=0)
@@ -77,5 +79,6 @@ class Order(db.Model):
             'total_krw': self.total_krw,
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
+            'shipping': self.shipping.name if self.shipping else '',
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else ''
         }
