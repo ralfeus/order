@@ -14,9 +14,18 @@ import app.tools
 
 db = SQLAlchemy()
 migrate = Migrate()
-login = LoginManager()
+login = LoginManager()    
+
+import app.jobs
+cron = BackgroundScheduler(daemon=True)
+cron.add_job(
+    func=app.jobs.import_products,
+    trigger="interval", seconds=Config.PRODUCT_IMPORT_PERIOD)
+cron.start()
+
 login.login_view = "client.user_login"
 login.logout_view = "client.user_logout"
+
 
 import app.jobs
 
@@ -46,10 +55,5 @@ def create_app(config=Config, import_name=None):
     flask_app.register_blueprint(client)
 
     flask_app.logger.info('Routes are registered')
-    cron = BackgroundScheduler()
-    cron.add_job(
-        func=app.jobs.import_products,
-        trigger="interval", seconds=flask_app.config['PRODUCT_IMPORT_PERIOD'])
-    cron.start()
 
     return flask_app

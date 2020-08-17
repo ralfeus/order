@@ -44,15 +44,13 @@ def atomy():
             item_available = False
         else:
             item_available = True
-        result = {
+        yield {
             'id': item_code,
             'name': item_name,
             'price': item_price,
             'points': item_points,
             'available': item_available
         }
-        yield result
-
 
 def atomy_login():
     '''
