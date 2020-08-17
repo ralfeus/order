@@ -12,7 +12,7 @@ class ShippingRate(db.Model):
     id = Column(Integer, primary_key=True)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
     shipping_method = relationship('Shipping', foreign_keys=[shipping_method_id])
-    destination = Column(String(32), index=True)
+    destination = Column(String(2), ForeignKey('countries.id'))
     weight = Column(Integer, index=True)
     rate = Column(Float)
 

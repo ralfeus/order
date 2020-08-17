@@ -2,6 +2,7 @@
 All models of the application
 Each model is in its own file
 '''
+from app.models.country import Country
 from app.models.currency import Currency
 from app.models.invoice import Invoice
 from app.models.order import Order

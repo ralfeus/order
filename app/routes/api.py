@@ -13,11 +13,17 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db, shipping
 from app.models import \
-    Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    Country, Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
+
+@api.route('/country')
+@login_required
+def get_countries():
+    countries = Country.query.join(ShippingRate)
+    return jsonify(list(map(lambda c: c.to_dict(), countries)))
 
 @api.route('/currency')
 def get_currency_rate():
@@ -276,15 +282,17 @@ def get_shipping_methods(country, weight):
     '''
     Returns shipping methods available for specific country and weight (if both provided)
     '''
+    country_name = ''
     shipping_methods = Shipping.query.join(ShippingRate)
     if country:
+        country_name = Country.query.get(country).name
         shipping_methods = shipping_methods.filter(ShippingRate.destination == country)
     if weight:
         shipping_methods = shipping_methods.filter(ShippingRate.weight >= weight)
     if shipping_methods.count():
         return jsonify(list(map(lambda s: s.to_dict(), shipping_methods)))
     abort(Response(
-        f"Couldn't find shipping method to send {weight}g parcel to {country.title()}",
+        f"Couldn't find shipping method to send {weight}g parcel to {country_name}",
         status=409))
 
 @api.route('/shipping/rate/<country>/<shipping_method_id>/<weight>')

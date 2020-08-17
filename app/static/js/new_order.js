@@ -26,20 +26,13 @@ $(document).ready(function() {
     itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
-    $.ajax({
-        url: '/api/v1/currency',
-        success: function(data, _status, _xhr) {
-            currencyRates = data;
-        }
-    })
-
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
-
     $('#add_user').on('click', add_subcustomer);
-
     $('#submit').on('click', submit_order)
 
-    get_shipping_methods($('#country').val(), 0);
+    get_countries();
+    get_currencies();
+    // get_shipping_methods($('#country').val(), 0);
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
 });
@@ -107,6 +100,25 @@ function delete_product(target) {
         update_all_totals();
         $(target).parent().parent().remove();
     }
+}
+
+function get_countries() {
+    $.ajax({
+        url: '/api/v1/country',
+        success: function(data) {
+            $('#country').html(data.map(c => '<option value="' + c.id + '">' + c.name + '</option>'))
+            get_shipping_methods($('#country').val(), 0);
+        }
+    })
+}
+
+function get_currencies() {
+    $.ajax({
+        url: '/api/v1/currency',
+        success: function(data, _status, _xhr) {
+            currencyRates = data;
+        }
+    })
 }
 
 /**
