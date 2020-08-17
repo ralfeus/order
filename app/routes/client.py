@@ -53,6 +53,7 @@ def user_signup():
                 email=form.email.data
             )
             user.set_password(form.password.data)
+            user.when_created = datetime.now()
             db.session.add(user)
             db.session.commit()  # Create new user
             if not current_user.is_authenticated:

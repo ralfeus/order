@@ -64,14 +64,14 @@ def new_user():
     if userform.validate_on_submit():
         new_user = User()
         userform.populate_obj(new_user)
-
+        
         db.session.add(new_user)
         return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
 
 @admin.route('/users', methods=['GET', 'POST'])
 @login_required
-def admin_edit_user():
+def users():
     '''
     Edits the user settings
     '''

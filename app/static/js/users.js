@@ -5,7 +5,12 @@ $.fn.dataTable.ext.buttons.create = {
 };
 $.fn.dataTable.ext.buttons.disable = {
     action: function(e, dt, node, config) {
-        window.location = '/admin/users';
+        change_user_status(dt.rows({selected: true}), false);
+    }
+};
+$.fn.dataTable.ext.buttons.enable = {
+    action: function(e, dt, node, config) {
+        change_user_status(dt.rows({selected: true}), true);
     }
 };
 // $.fn.dataTable.ext.buttons.delete = {
@@ -26,8 +31,9 @@ $(document).ready( function () {
         },
         buttons: [
             {extend: 'create', text: 'Create'},
-            // {extend: 'delete', text: 'Delete'},
-            {extend: 'disable', text: 'Disable'}
+            {extend: 'enable', text: 'Enable'},
+            {extend: 'disable', text: 'Disable'},
+            // {extend: 'delete', text: 'Delete'}
         ],
         columns: [
             {
@@ -39,6 +45,7 @@ $(document).ready( function () {
             {data: 'id'},
             {data: 'username'},
             {data: 'email'},
+            {data: 'enabled'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
@@ -64,21 +71,9 @@ $(document).ready( function () {
                     username: $('#username', users_node).val(),
                     email: $('#email', users_node).val(),
                     password: $('#password', users_node).val(),
+                    enabled: $('#enabled', users_node).val()
                 };
-                $('.wait').show();
-                $.ajax({
-                    url: '/api/v1/admin/user/' + row.data().id,
-                    method: 'post',
-                    dataType: 'json',
-                    contentType: 'application/json',
-                    data: JSON.stringify(data),
-                    complete: function() {
-                        $('.wait').hide();
-                    },
-                    success: function() {
-                        row.data(data).draw();
-                    }
-                })
+                update_user(row, data);
             })
         }
     } );
@@ -117,4 +112,44 @@ function delete_user(rows) {
             }
         });
     });
+}
+
+function update_user(row, update_data) {
+    $('.wait').show();
+    $.ajax({
+        url: '/api/v1/admin/user/' + row.data().id,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify(update_data),
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: function(data) {
+            row.data(data).draw();
+        }
+    })
+}
+
+function change_user_status(rows, status) {
+    $('.wait').show();
+    var to_do = rows.length;
+    for (var i = 0; i < rows.length; i++) {
+        $.ajax({
+            url: '/api/v1/admin/user/' + rows.data()[i].id,
+            method: 'post',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({enabled: status}),
+            complete: function() {
+                to_do--;
+                if (!to_do) {
+                    $('.wait').hide();
+                }
+            },
+            success: function(data) {
+                rows.data(data).draw();
+            }
+        });
+    }
 }

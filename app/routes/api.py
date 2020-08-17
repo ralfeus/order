@@ -352,9 +352,40 @@ def get_transactions(transaction_id):
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
     transactions = transactions.filter_by(user=current_user)
-    return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
-    
-@api.route('/transaction/<int:transaction_id>', methods=['POST'])
+    return jsonify(list(map(lambda entry: {
+        'id': entry.id,
+        'user_id': entry.user_id,
+        'amount_original': str(entry.amount_original),
+        'amount_original_string': entry.currency.format(entry.amount_original),
+        'amount_krw': entry.amount_krw,
+        'currency_code': entry.currency.code,
+        'evidence_image': entry.proof_image,
+        'status': entry.status.name,
+        'when_created': entry.when_created.strftime('%Y-%m-%d %H:%M:%S'),
+        'when_changed': entry.when_changed.strftime('%Y-%m-%d %H:%M:%S') if entry.when_changed else ''
+    }, transactions)))
+
+@app.route('/api/user/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    '''
+    Deletes a user by its user_id
+    '''
+    result = None
+    try:
+        User.query.filter_by(id=user_id).delete()
+        db.session.commit()
+        result = jsonify({
+            'status': 'success'
+        })
+    except IntegrityError:
+        result = jsonify({
+            'message': f"Can't delete user {user_id} as it's used in some orders"
+        })
+        result.status_code = 409
+
+    return result
+@app.route('/api/transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def save_transaction(transaction_id):
     '''

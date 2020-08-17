@@ -278,171 +278,23 @@ def save_user(user_id):
     user = User.query.get(user_id)
     if not user:
         user = User()
-    user.username = user_input['username']
-    user.email = user_input['email']
-    user.password = user_input['password']
-  
+
+    if user_input.get('username') is not None:
+        user.username = user_input['username']
+    
+    if user_input.get('email') is not None:
+        user.email = user_input['email']
+
+    if user_input.get('password') is not None:
+        user.password = user_input['password']
+
+    if user_input.get('enabled') is not None:
+        user.enabled = user_input['enabled']
+
     if not user.id:
         db.session.add(user)
 
+    user.when_changed = datetime.now()
+
     db.session.commit()
-
-@admin_api.route('/invoice', defaults={'invoice_id': None})
-@admin_api.route('/invoice/<invoice_id>')
-@login_required
-def admin_get_invoices(invoice_id):
-    '''
-    Returns all or selected invoices in JSON:
-    {
-        id: invoice ID,
-        [
-            order_product_id: ID of the order product,
-            name: name of the order product,
-            quantity: quantity of order product,
-            amount_krw: amount in KRW
-        ]
-    }
-    '''
-    if current_user.username != 'admin':
-        abort(403)
-    invoices = Invoice.query.all() \
-        if invoice_id is None \
-        else Invoice.query.filter_by(id=invoice_id)
-
-    return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
-
-@admin_api.route('/invoice/new', methods=['POST'])
-@login_required
-def admin_create_invoice():
-    '''
-    Creates invoice for provided orders
-    '''
-    if current_user.username != 'admin':
-        abort(403)
-
-    payload = request.get_json()
-    if not payload or not payload['order_ids']:
-        abort(Response("No orders were provided", status=400))
-    orders = Order.query.filter(Order.id.in_(payload['order_ids'])).all()
-    if not orders:
-        abort(Response("No orders with provided IDs were found ", status=400))
-    invoice = Invoice()
-    invoice.when_created = datetime.now()
-    for order in orders:
-        order.invoice = invoice
-
-    db.session.add(invoice)
-    db.session.commit()
-    return jsonify({
-        'status': 'success',
-        'invoice_id': invoice.id
-    })
-
-def get_invoice_order_products(invoice, usd_rate):
-    order_products = map_reduce(
-        [order_product for order in invoice.orders
-            for order_product in order.order_products],
-        keyfunc=lambda op: (
-            op.product_id,
-            op.product.name_english if op.product.name_english \
-                else op.product.name,
-            op.price * usd_rate),
-        valuefunc=lambda op: op.quantity,
-        reducefunc=sum
-    )
-    result = list(map(lambda op: {
-        'id': op[0][0],
-        'name': op[0][1],
-        'price': op[0][2],
-        'quantity': op[1],
-        'subtotal': op[0][2] * op[1]
-    }, order_products.items()))
-    return result
-
-@admin_api.route('/invoice/<invoice_id>/excel/<float:usd_rate>')
-@login_required
-def get_invoice_excel(invoice_id, usd_rate):
-    invoice = Invoice.query.get(invoice_id)
-    if not invoice:
-        abort(404)
-    invoice_dict = invoice.to_dict()
-    order_products = get_invoice_order_products(invoice, usd_rate)
-    invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
-    ws = invoice_wb.worksheets[0]
-    pl = invoice_wb.worksheets[1]
-
-    # Set invoice header
-    ws.cell(7, 2, invoice_id)
-    ws.cell(7, 5, invoice.when_created)
-    ws.cell(13, 4, invoice.orders[0].name)
-    ws.cell(17, 4, invoice.orders[0].address)
-    ws.cell(21, 4, '') # city
-    ws.cell(23, 5, invoice.orders[0].country)
-    ws.cell(25, 4, invoice.orders[0].phone)
-
-    # Set packing list header
-    pl.cell(7, 2, invoice_id)
-    pl.cell(7, 5, invoice.when_created)
-    pl.cell(13, 4, invoice.orders[0].name)
-    pl.cell(17, 4, invoice.orders[0].address)
-    pl.cell(21, 4, '') # city
-    pl.cell(23, 5, invoice.orders[0].country)
-    pl.cell(25, 4, invoice.orders[0].phone)
-
-    # Set invoice footer
-    ws.cell(305, 5, invoice_dict['total'] * usd_rate)
-    ws.cell(311, 4, f"{round(invoice_dict['total'] * usd_rate, 2)} USD")
-    ws.cell(312, 2, invoice_dict['weight'])
-
-    # Set packing list footer
-    pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
-    pl.cell(312, 2, invoice_dict['weight'])
-
-    # Set order product lines
-    row = 31
-    last_row = 304
-
-    for op in order_products:
-        # Set invoice product item
-        ws.cell(row, 1, op['id'])
-        ws.cell(row, 2, op['name'])
-        ws.cell(row, 3, op['quantity'])
-        ws.cell(row, 4, op['price'])
-        ws.cell(row, 5, op['subtotal'])
-
-        # Set packing list product item
-        pl.cell(row, 1, op['id'])
-        pl.cell(row, 2, op['name'])
-        pl.cell(row, 4, op['quantity'])
-
-        row += 1
-    ws.delete_rows(row, last_row - row + 1)
-    pl.delete_rows(row, last_row - row + 1)
-    invoice_wb.save(f'app/static/invoices/{invoice_id}.xlsx')
-
-    return send_file(f'static/invoices/{invoice_id}.xlsx',
-        as_attachment=True, attachment_filename=invoice_id + '.xlsx')
-    
-@admin_api.route('/order', defaults={'order_id': None})
-@admin_api.route('/order/<order_id>')
-@login_required
-def admin_get_orders(order_id):
-    '''
-    Returns all or selected orders in JSON:
-    {
-        id: invoice ID,
-        [
-            user: username of order creator,
-            name: name of the customer,
-            total: total amount in KRW,
-            when_created: time of the order creation
-        ]
-    }
-    '''
-    if current_user.username != 'admin':
-        abort(403)
-    orders = Order.query.all() \
-        if order_id is None \
-        else Order.query.filter_by(id=order_id)
-
-    return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
+    return jsonify(user.to_dict())
