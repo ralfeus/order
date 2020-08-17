@@ -15,6 +15,9 @@
         <div class="container-fluid row">
             <div class="col-4">
                 <input class="form-control" id="name" placeholder="Customer name"/>
+                <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
+            </div>
+            <div class="col-4">
                 <input class="form-control" id="address" placeholder="Address" />
                 <select class="form-control" id="country" onchange="country_changed()">
                     <!-- <option value="belorus">Belorus</option>
@@ -27,10 +30,9 @@
                     <option value="ukraine">Ukraine</option>
                     <!-- <option value="uzbekistan">Uzbekistan</option> -->
                 </select>
+                <select class="form-control" id="shipping" onchange="shipping_changed()">
+		</select>
                 <input class="form-control" id="phone" placeholder="+(country code) phone" />
-            </div>
-            <div class="col-3">
-                <textarea id="comment" class="form-control" style="height: 100%;" placeholder="Additional comments"></textarea>
             </div>
         </div>
         <div class="container-fluid row">&nbsp;</div>

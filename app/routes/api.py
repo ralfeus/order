@@ -3,6 +3,7 @@ Contains api endpoint routes of the application
 '''
 from decimal import Decimal
 from datetime import datetime
+from more_itertools import map_reduce
 import os.path
 
 from flask import Blueprint, Response, abort, current_app, jsonify, request
@@ -47,6 +48,7 @@ def get_orders(order_id):
         return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
 @api.route('/order', methods=['POST'])
+@login_required
 def create_order():
     '''
     Creates order.
@@ -68,6 +70,7 @@ def create_order():
         country=request_data['country'],
         phone=request_data['phone'],
         comment=request_data['comment'],
+        subtotal_krw=0,
         when_created=datetime.now()
     )
     order_products = []
@@ -95,8 +98,8 @@ def create_order():
     order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
     order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
     order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
-    order.shipping_krw = Decimal(shipping.get_shipment_cost(
-        order.country, order.total_weight + order.shipping_box_weight))
+    order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
+        order.country, order.total_weight + order.shipping_box_weight)))
     order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
     order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
     order.total_krw = order.subtotal_krw + order.shipping_krw
@@ -210,6 +213,7 @@ def set_order_product_status(order_product_id, order_product_status):
         'order_product_status': order_product_status,
         'status': 'success'
     })
+
 @api.route('/order_product/<int:order_product_id>/status/history')
 def get_order_product_status_history(order_product_id):
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
@@ -264,53 +268,61 @@ def get_product_by_term(term):
         Product.name_russian.like(term + '%')))
     return jsonify(Product.get_products(product_query))
 
-@api.route('/v1/shipping', defaults={'country': None, 'weight': None})
-@api.route('/v1/shipping/<country>', defaults={'weight': None})
-@api.route('/v1/shipping/<country>/<weight>')
+@api.route('/shipping', defaults={'country': None, 'weight': None})
+@api.route('/shipping/<country>', defaults={'weight': None})
+@api.route('/shipping/<country>/<weight>')
 @login_required
 def get_shipping_methods(country, weight):
     '''
     Returns shipping methods available for specific country and weight (if both provided)
     '''
-    shipping_methods = Shipping.query
+    shipping_methods = Shipping.query.join(ShippingRate)
     if country:
-        shipping_methods = shipping_methods.filter(
-            Shipping.rates.filter_by(destination=country).exists())
+        shipping_methods = shipping_methods.filter(ShippingRate.destination == country)
     if weight:
-        shipping_methods = shipping_methods.filter(
-            Shipping.rates.filter(ShippingRate.weight < weight)
-        )
-    return jsonify(list(map(lambda s: s.to_dict(), shipping_methods)))
+        shipping_methods = shipping_methods.filter(ShippingRate.weight >= weight)
+    if shipping_methods.count():
+        return jsonify(list(map(lambda s: s.to_dict(), shipping_methods)))
+    abort(Response(
+        f"Couldn't find shipping method to send {weight}g parcel to {country.title()}",
+        status=409))
 
-@api.route('/shipping_cost/<country>/<weight>')
-def get_shipping_cost(country, weight):
+@api.route('/shipping/rate/<country>/<shipping_method_id>/<weight>')
+@api.route('/shipping/rate/<country>/<weight>', defaults={'shipping_method_id': None})
+def get_shipping_rate(country, shipping_method_id, weight):
     '''
     Returns shipping cost for provided country and weight
     Accepts parameters:
         country - Destination country
+        shipping_method_id - ID of the shipping method
         weight - package weight in grams
-    Returns JSON:
-        {
-            'message': optional message in case of error
-            'shipping_cost': shipping cost in KRW
-        }
+    Returns JSON
     '''
     # print(country, weight)
-    rate = ShippingRate.query. \
-        filter(ShippingRate.destination == country, ShippingRate.weight > weight). \
-        order_by(ShippingRate.weight). \
-        first()
-    if rate is None:
-        response = jsonify({
-            'message': f"Couldn't find rate for {weight}g parcel to {country}"
-        })
-        response.status_code = 409
-        return response
+    shipping_rate_query = ShippingRate.query. \
+        filter_by(destination=country). \
+        filter(ShippingRate.weight > weight)
+    if shipping_rate_query.count():
+        if shipping_method_id:
+            rate = shipping_rate_query. \
+                filter_by(shipping_method_id=shipping_method_id, ). \
+                order_by(ShippingRate.weight). \
+                first()
+            return jsonify({
+                'shipping_cost': rate.rate
+            })
+        else:
+            rates = map_reduce(shipping_rate_query,
+                keyfunc=lambda i: i.shipping_method_id,
+                valuefunc=lambda i: i.rate,
+                reducefunc=min 
+            )
+            return jsonify(rates)
     else:
-        # print(rate)
-        return jsonify({
-            'shipping_cost': rate.rate
-        })
+        abort(Response(
+            f"Couldn't find rate for {weight}g parcel to {country.title()}",
+            status=409
+        ))
 
 @api.route('/transaction', defaults={'transaction_id': None})
 @api.route('/transaction/<int:transaction_id>')

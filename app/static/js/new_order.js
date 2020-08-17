@@ -1,3 +1,4 @@
+var g_selected_shipping_method;
 var products = {};
 var box_weights = {
     30000: 2200,
@@ -36,54 +37,9 @@ $(document).ready(function() {
 
     $('#add_user').on('click', add_subcustomer);
 
-    $('#submit').on('click', function() {
-        $('.wait').show();
-        $.ajax({
-            url: '/api/v1/order',
-            method: 'post',
-            dataType: 'json',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                name: $('#name').val(),
-                address: $('#address').val(),
-                country: $('#country').val(),
-                phone: $('#phone').val(),
-                comment: $('#comment').val(),
-                products: $('div.subcustomer-card').toArray().map(user => ({
-                    subcustomer: $('.subcustomer-identity', user).val(),
-                    items: $('.item', user).toArray().map(item => ({
-                        item_code: $('.item-code', item).val(),
-                        quantity: $('.item-quantity', item).val()
-                    }))
-                }))
-            }),
-            complete: function() {
-                $('.wait').hide();
-            },
-            success: function(data, _status, _xhr) {
-                if (data.status === 'success') {
-                    window.alert("The request is posted. The request ID is " + data.order_id);
-                    clear_form();
-                } else if (data.status === 'warning') {
-                    window.alert(
-                        "The request is posted. The request ID is " + data.order_id +
-                        "\nDuring request creation following issues have occurred:\n" +
-                        message.join("\n")
-                    );
-                } else if (data.status === 'error') {
-                    if (data.message) {
-                        window.alert(data.message);
-                    } else {
-                        window.alert("Unknown error has occurred. Contact administrator");
-                    }
-                }
-            },
-            error: function(data, status, xhr) {
-                window.alert("Unknown error has occurred. Contact administrator");
-            }
-        });
-    })
+    $('#submit').on('click', submit_order)
 
+    get_shipping_methods($('#country').val(), 0);
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
 });
@@ -150,7 +106,6 @@ function delete_product(target) {
         delete products[userItemId];
         update_all_totals();
         $(target).parent().parent().remove();
-
     }
 }
 
@@ -158,21 +113,44 @@ function delete_product(target) {
  * Gets shipping cost for chosen country and weight
  * @param {number} totalWeight - total parcel weight
  */
-function get_shipping_cost(totalWeight) {
-    if (totalWeight == 0) {
+function get_shipping_cost(shipping_method, weight) {
+    if (weight == 0) {
         update_all_grand_totals(0, 0);
     } else {
-        $.ajax({
-            url: '/api/v1/shipping_cost/' + $('#country').val() + '/' + totalWeight,
-            success: function(data, _status, _xhr) {
-                update_all_grand_totals(data.shipping_cost, totalWeight);
-            },
-            error: function(xhr, _status, _error) {
-                alert(xhr.responseJSON.message);
-                update_all_grand_totals(0, totalWeight);
-            }
-        });
+        update_all_grand_totals(shipping_rates[shipping_method], weight);
     }
+}
+
+function get_shipping_methods(country, weight) {
+    if ($('#shipping').val()) {
+        g_selected_shipping_method = $('#shipping').val();
+    }
+    $('#shipping').html('');
+    $.ajax({
+        url: '/api/v1/shipping/' + country + '/' + weight,
+        success: data => {
+            $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
+            if ($('#shipping option').toArray().map(i => i.value).includes(g_selected_shipping_method)) {
+                $('#shipping').val(g_selected_shipping_method);
+            }
+            $.ajax({
+                url: '/api/v1/shipping/rate/' + country + '/' + weight,
+                success: data => {
+                    shipping_rates = data;
+                    get_shipping_cost($('#shipping').val(), weight);
+                },
+                error: xhr => {
+                    $('.modal-title').text('Something went wrong...');
+                    $('.modal-body').text(xhr.responseText);
+                    $('.modal').modal();
+                }
+            })
+        },
+        error: (xhr) => {
+            $('.modal-body').text(xhr.responseText);
+            $('.modal').modal();
+        }
+    })
 }
 
 function product_code_autocomplete(target) {
@@ -236,6 +214,64 @@ function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this)); });
 }
 
+function set_total_weight(total_weight) {
+    totalWeight = total_weight;
+    get_shipping_methods($('#country').val(), total_weight);
+}
+
+function shipping_changed() {
+    get_shipping_cost($('#shipping').val(), totalWeight);
+}
+
+function submit_order() {
+    $('.wait').show();
+    $.ajax({
+        url: '/api/v1/order',
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            name: $('#name').val(),
+            address: $('#address').val(),
+            country: $('#country').val(),
+            shipping: $('#shipping').val(),
+            phone: $('#phone').val(),
+            comment: $('#comment').val(),
+            products: $('div.subcustomer-card').toArray().map(user => ({
+                subcustomer: $('.subcustomer-identity', user).val(),
+                items: $('.item', user).toArray().map(item => ({
+                    item_code: $('.item-code', item).val(),
+                    quantity: $('.item-quantity', item).val()
+                }))
+            }))
+        }),
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: function(data, _status, _xhr) {
+            if (data.status === 'success') {
+                window.alert("The request is posted. The request ID is " + data.order_id);
+                clear_form();
+            } else if (data.status === 'warning') {
+                window.alert(
+                    "The request is posted. The request ID is " + data.order_id +
+                    "\nDuring request creation following issues have occurred:\n" +
+                    message.join("\n")
+                );
+            } else if (data.status === 'error') {
+                if (data.message) {
+                    window.alert(data.message);
+                } else {
+                    window.alert("Unknown error has occurred. Contact administrator");
+                }
+            }
+        },
+        error: function(data, status, xhr) {
+            window.alert("Unknown error has occurred. Contact administrator");
+        }
+    });
+}
+
 /**
  * Updates all grand totals (subtotals + shipping) and items totals 
  * @param {number} shippingCost - shipping cost for chosen country and weight
@@ -253,7 +289,6 @@ function update_all_grand_totals(shippingCost, totalWeight) {
  */
 function update_all_totals() {
     update_grand_subtotal();
-    get_shipping_cost(totalWeight);
 }
 
 /**
@@ -319,11 +354,12 @@ function update_shipping_cost(cost, totalWeight) {
     $('#totalShippingCostKRW').html(cost);
     $('#totalShippingCostRUR').html(roundUp(cost * currencyRates.RUR, 2));
     $('#totalShippingCostUSD').html(roundUp(cost * currencyRates.USD, 2));
+    var product_weight = totalWeight - parseInt($('#box-weight').text())
 
     // Distribute shipping cost among items
     for (product in products) {
         products[product].shippingCostKRW = 
-            roundUp(cost / totalWeight * products[product].weight * products[product].quantity, 0);
+            roundUp(cost / product_weight * products[product].weight * products[product].quantity, 0);
         products[product].totalKRW = products[product].costKRW + products[product].shippingCostKRW;
     }
     $('.shipping-cost-krw').each(function() {
@@ -369,11 +405,11 @@ function update_subcustomer_totals() {
 function update_grand_subtotal() {
     var userProducts = Object.entries(products);
     subtotalKRW = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
-    totalWeight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
-    box_weight = totalWeight == 0 ? 0 : Object.entries(box_weights)
+    var total_weight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
+    box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
         .sort((a, b) => b[0] - a[0])
-        .reduce((acc, box) => totalWeight < box[0] ? box[1] : acc, 0);
-    totalWeight += box_weight;
+        .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
+    set_total_weight(total_weight + box_weight);
     $('#totalItemsCostKRW').html(subtotalKRW);
     $('#totalItemsCostRUR').html(roundUp(subtotalKRW * currencyRates.RUR, 2));
     $('#totalItemsCostUSD').html(roundUp(subtotalKRW * currencyRates.USD, 2));

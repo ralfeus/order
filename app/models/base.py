@@ -1,7 +1,7 @@
 '''
 Abscract base model
 '''
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, Integer
 
 class BaseModel:
     '''

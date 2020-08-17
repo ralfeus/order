@@ -248,12 +248,14 @@ def admin_save_transaction(transaction_id):
 
     return jsonify(transaction.to_dict())
 
-@admin.route('/user/<user_id>', methods=['DELETE'])
+@admin_api.route('/user/<user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
     '''
     Deletes a user by its user_id
     '''
+    if current_user.username != 'admin':
+        abort(403)
     result = None
     try:
         User.query.filter_by(id=user_id).delete()
