@@ -190,8 +190,14 @@ function get_shipping_methods(country, weight) {
 
 function product_code_autocomplete(target) {
     target.autocomplete({
-        source: g_products,
-        minLength: 1
+        source: (query, response) => {
+            var result = g_products.filter(product =>
+                product.value.includes(query.term)
+                || product.label.includes(query.term)
+            );
+            response(result);
+        },
+        minLength: 2
     });
     target.on('change', () => product_line_fill(event.target));
 }
