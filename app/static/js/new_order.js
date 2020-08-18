@@ -1,5 +1,6 @@
 var g_selected_shipping_method;
-var products = {};
+var g_products;
+var g_cart = {};
 var box_weights = {
     30000: 2200,
     20000: 1900,
@@ -32,8 +33,8 @@ $(document).ready(function() {
 
     get_countries();
     get_currencies();
-    // get_shipping_methods($('#country').val(), 0);
-    product_code_autocomplete($('.item-code'));
+    get_products()
+        .then(() => product_code_autocomplete($('.item-code')));
     product_quantity_change($('.item-quantity'));
 });
 
@@ -66,7 +67,7 @@ function add_subcustomer() {
 }
 
 function clear_form() {
-    products = {};
+    g_cart = {};
     itemsCount = {};
     users = 1;
     subtotalKRW = 0;
@@ -84,9 +85,9 @@ function country_changed() {
 
 function delete_subcustomer(target) {
     var userId = $(target).parent().attr('id').substr(15);
-        for (product in products) {
+        for (product in g_cart) {
             if (product.match(new RegExp('userItems' + userId + '_\\d+'))) {
-                delete products[product];
+                delete g_cart[product];
             }
         }
         $(target).parent().parent().remove();
@@ -96,7 +97,7 @@ function delete_subcustomer(target) {
 function delete_product(target) {
     var userItemId = target.id.substr(4);
     if(!userItemId.match(/userItems\d+_0/)) {
-        delete products[userItemId];
+        delete g_cart[userItemId];
         update_all_totals();
         $(target).parent().parent().remove();
     }
@@ -119,6 +120,26 @@ function get_currencies() {
             currencyRates = data;
         }
     })
+}
+
+function get_products() {
+    var promise = $.Deferred()
+    $.ajax({
+        url: '/api/v1/product',
+        success: function(data) {
+            if (data) {
+                g_products = data.map(product => ({
+                    'value': product.id,
+                    'label': product.name_english + " | " + product.name_russian,
+                    'price': product.price,
+                    'points': product.points,
+                    'weight': product.weight
+                }));
+            }
+            promise.resolve();
+        }
+    })
+    return promise;
 }
 
 /**
@@ -167,31 +188,8 @@ function get_shipping_methods(country, weight) {
 
 function product_code_autocomplete(target) {
     target.autocomplete({
-        // source: "/api/v1/product",
-        source: function(request, response) {
-            $.ajax({
-                url: '/api/v1/product/search/' + request.term,
-                success: function(data) {
-                    if (data) {
-                        var result = data.map(product => ({
-                            'value': product.id,
-                            'label': product.name_english + " | " + product.name_russian,
-                            'price': product.price,
-                            'points': product.points,
-                            'weight': product.weight
-                        }));
-                        response(result);
-                    } else {
-                        response({});
-                    }
-                },
-                error: function() {
-                    response({});
-                }
-            })
-        },
-        minLength: 1,
-        // select: (event, ui) => product_select(event.target, ui.item)
+        source: g_products,
+        minLength: 1
     });
     target.on('change', () => product_line_fill(event.target));
 }
@@ -205,7 +203,7 @@ function product_line_fill(line_input) {
                 $('.item-name', product_line).html(data[0].name_english + " | " + data[0].name_russian);
                 $('.item-price', product_line).html(data[0].price);
                 $('.item-points', product_line).html(data[0].points);
-                products[product_line.id] = data[0];
+                g_cart[product_line.id] = data[0];
                 update_item_subtotal($('.item-quantity', product_line));
             },
             error: (data) => {
@@ -217,7 +215,7 @@ function product_line_fill(line_input) {
         $('.item-name', product_line).html('');
         $('.item-price', product_line).html('');
         $('.item-points', product_line).html('');
-        delete products[product_line.id];
+        delete g_cart[product_line.id];
         update_item_subtotal($('.item-quantity', product_line));
     }
 }
@@ -318,13 +316,13 @@ function update_grand_totals() {
 function update_item_subtotal(sender) {
     var itemObject = sender.parent().parent(); // tr
     var product_id = itemObject.attr('id');
-    if (products[product_id]) {
-        products[product_id].user = '';
-        products[product_id].quantity = sender.val();
-        products[product_id].costKRW = products[product_id].price * products[product_id].quantity;
-        $('td:nth-child(5)', itemObject).html(products[product_id].costKRW);
-        $('td:nth-child(6)', itemObject).html(products[product_id].weight * products[product_id].quantity);
-        $('td:nth-child(12)', itemObject).html(products[product_id].points * products[product_id].quantity);
+    if (g_cart[product_id]) {
+        g_cart[product_id].user = '';
+        g_cart[product_id].quantity = sender.val();
+        g_cart[product_id].costKRW = g_cart[product_id].price * g_cart[product_id].quantity;
+        $('td:nth-child(5)', itemObject).html(g_cart[product_id].costKRW);
+        $('td:nth-child(6)', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
+        $('td:nth-child(12)', itemObject).html(g_cart[product_id].points * g_cart[product_id].quantity);
     } else {
         $('.cost-krw', itemObject).html('');
         $('.total-weight', itemObject).html('');
@@ -335,22 +333,22 @@ function update_item_subtotal(sender) {
 
 function update_item_total() {
     $('.total-krw').each(function() {
-        if (products[$(this).parent().attr('id')]) {
-            $(this).html(products[$(this).parent().attr('id')].totalKRW);
+        if (g_cart[$(this).parent().attr('id')]) {
+            $(this).html(g_cart[$(this).parent().attr('id')].totalKRW);
         } else {
             $(this).html('');
         }
     });
     $('.total-rur').each(function() {
-        if (products[$(this).parent().attr('id')]) {
-            $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
+        if (g_cart[$(this).parent().attr('id')]) {
+            $(this).html(roundUp(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
         } else {
             $(this).html('');
         }
     });
     $('.total-usd').each(function() {
-        if (products[$(this).parent().attr('id')]) {
-            $(this).html(roundUp(products[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+        if (g_cart[$(this).parent().attr('id')]) {
+            $(this).html(roundUp(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
         } else {
             $(this).html('');
         }
@@ -369,14 +367,14 @@ function update_shipping_cost(cost, totalWeight) {
     var product_weight = totalWeight - parseInt($('#box-weight').text())
 
     // Distribute shipping cost among items
-    for (product in products) {
-        products[product].shippingCostKRW = 
-            roundUp(cost / product_weight * products[product].weight * products[product].quantity, 0);
-        products[product].totalKRW = products[product].costKRW + products[product].shippingCostKRW;
+    for (product in g_cart) {
+        g_cart[product].shippingCostKRW = 
+            roundUp(cost / product_weight * g_cart[product].weight * g_cart[product].quantity, 0);
+        g_cart[product].totalKRW = g_cart[product].costKRW + g_cart[product].shippingCostKRW;
     }
     $('.shipping-cost-krw').each(function() {
-        if (products[$(this).parent().attr('id')]) {
-            $(this).html(products[$(this).parent().attr('id')].shippingCostKRW);
+        if (g_cart[$(this).parent().attr('id')]) {
+            $(this).html(g_cart[$(this).parent().attr('id')].shippingCostKRW);
         } else {
             $(this).html('');
         }
@@ -390,7 +388,7 @@ function update_shipping_cost(cost, totalWeight) {
 function update_subcustomer_totals() { 
     $('.subcustomer-total').each(function(){
         var userId = parseInt(this.id.substr(14));
-        var userProducts = Object.entries(products)
+        var userProducts = Object.entries(g_cart)
             .filter(product => product[0].startsWith('userItems' + userId));
 
         $('#subtotalCostKRW', $(this)).html(
@@ -415,7 +413,7 @@ function update_subcustomer_totals() {
 }
 
 function update_grand_subtotal() {
-    var userProducts = Object.entries(products);
+    var userProducts = Object.entries(g_cart);
     subtotalKRW = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
     var total_weight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
     box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
