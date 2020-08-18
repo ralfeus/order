@@ -20,7 +20,8 @@ def login(client, username, password):
 class TestClientApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        db.session.execute('pragma foreign_keys=on')
+        # db.session.execute('pragma foreign_keys=on')
+        pass
 
     def setUp(self):
         self.app = app

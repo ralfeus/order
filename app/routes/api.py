@@ -248,8 +248,11 @@ def get_product(product_id):
     '''
     product_query = None
     if product_id:
+        stripped_id = product_id.lstrip('0')
         product_query = Product.query.filter_by(available=True). \
-            filter(func.ltrim(Product.id, '0') == product_id.lstrip('0')).all()
+            filter(func.right(Product.id, func.length(stripped_id)) == stripped_id).all()
+        product_query = [product for product in product_query
+                        if product.id.lstrip('0') == stripped_id]
     else:
         product_query = Product.query.filter_by(available=True).all()
     if len(product_query) != 0:
