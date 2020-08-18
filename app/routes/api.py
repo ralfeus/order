@@ -10,6 +10,7 @@ from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.sql.expression import func 
 
 from app import db, shipping
 from app.models import \
@@ -247,10 +248,11 @@ def get_product(product_id):
     '''
     product_query = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id, available=True).all()
+        product_query = Product.query.filter_by(available=True). \
+            filter(func.ltrim(Product.id, '0') == product_id.lstrip('0')).all()
     else:
         product_query = Product.query.filter_by(available=True).all()
-    if len(product_query):
+    if len(product_query) != 0:
         return jsonify(Product.get_products(product_query))
     abort(Response("No products were found", status=404))
 

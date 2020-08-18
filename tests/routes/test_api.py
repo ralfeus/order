@@ -133,6 +133,11 @@ class TestClientApi(unittest.TestCase):
                 'weight': 0
             }
         ])
+        res = self.client.get('/api/v1/product/0001')
+        self.assertEqual(len(res.json), 1)
+        res = self.client.get('/api/v1/product/1')
+        self.assertEqual(len(res.json), 1)
+        self.assertEqual(res.json[0]['id'], '0001')
 
     def test_get_shipping(self):
         res = self.client.get('/api/v1/shipping')
@@ -158,7 +163,7 @@ class TestClientApi(unittest.TestCase):
         res = self.client.get('/api/v1/product/search/0001')
         self.assertEqual(res.json, [
             {
-                'id': '0001', 
+                'id': '0001',
                 'name': 'Korean name 1',
                 'name_english': 'English name',
                 'name_russian': 'Russian name',
