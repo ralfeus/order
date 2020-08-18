@@ -202,7 +202,10 @@ function product_line_fill(line_input) {
         $.ajax({
             url: '/api/v1/product/' + line_input.value,
             success: data => {
-                $('.item-name', product_line).html(data[0].name_english + " | " + data[0].name_russian);
+                $('.item-name', product_line).html(
+                    data[0].name_english == null
+                        ? data[0].name
+                        : data[0].name_english + " | " + data[0].name_russian);
                 $('.item-price', product_line).html(data[0].price);
                 $('.item-points', product_line).html(data[0].points);
                 g_cart[product_line.id] = data[0];
