@@ -130,7 +130,9 @@ function get_products() {
             if (data) {
                 g_products = data.map(product => ({
                     'value': product.id,
-                    'label': product.name_english + " | " + product.name_russian,
+                    'label': product.name_english == 'null' 
+                                ? product.name
+                                : product.name_english + " | " + product.name_russian,
                     'price': product.price,
                     'points': product.points,
                     'weight': product.weight
