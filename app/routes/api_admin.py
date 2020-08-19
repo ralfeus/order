@@ -8,23 +8,22 @@ import openpyxl
 from sqlalchemy.exc import IntegrityError
 
 from flask import Blueprint, Response, abort, jsonify, request, send_file
-from flask_login import current_user, login_required
+from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.models import \
     Currency, Invoice, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    ShippingRate, User, Transaction, TransactionStatus
+    User, Transaction, TransactionStatus
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 
 @admin_api.route('/order_product')
 @login_required
-def admin_get_order_products():
+@roles_required('admin')
+def get_order_products():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
-    if current_user.username != 'admin':
-        abort(403)
     order_products_query = OrderProduct.query
     if request.values.get('order_id'):
         order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
@@ -33,12 +32,11 @@ def admin_get_order_products():
 
 @admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
 @login_required
-def admin_save_order_product(order_product_id):
+@roles_required('admin')
+def save_order_product(order_product_id):
     '''
     Modifies order products
     '''
-    if current_user.username != 'admin':
-        abort(403)
     result = None
     payload = request.get_json()
     order_product = OrderProduct.query.get(order_product_id)
@@ -77,12 +75,11 @@ def admin_save_order_product(order_product_id):
 
 
 @admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
+@roles_required('admin')
 def admin_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
     '''
-    if current_user.username != 'admin':
-        abort(403)
     order_product = OrderProduct.query.get(order_product_id)
     order_product.status = order_product_status
     db.session.add(OrderProductStatusEntry(
@@ -102,9 +99,8 @@ def admin_set_order_product_status(order_product_id, order_product_status):
     })
 
 @admin_api.route('/order_product/<int:order_product_id>/status/history')
+@roles_required('admin')
 def admin_get_order_product_status_history(order_product_id):
-    if current_user.username != 'admin':
-        abort(403)
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
     if history:
         return jsonify(list(map(lambda entry: {
@@ -122,7 +118,7 @@ def admin_get_order_product_status_history(order_product_id):
 
 @admin_api.route('/product', defaults={'product_id': None})
 @admin_api.route('/product/<product_id>')
-@login_required
+@roles_required('admin')
 def admin_get_product(product_id):
     '''
     Returns list of products in JSON:
@@ -136,8 +132,6 @@ def admin_get_product(product_id):
             'points': product points
         }
     '''
-    if current_user.username != 'admin':
-        abort(403)
     product_query = None
     if product_id:
         product_query = Product.query.filter_by(id=product_id)
@@ -146,7 +140,7 @@ def admin_get_product(product_id):
     return jsonify(Product.get_products(product_query))
 
 @admin_api.route('/product', methods=['POST'])
-@login_required
+@roles_required('admin')
 def save_product():
     '''
     Saves updates in product or creates new product
@@ -171,7 +165,7 @@ def save_product():
     })
 
 @admin_api.route('/product/<product_id>', methods=['DELETE'])
-@login_required
+@roles_required('admin')
 def delete_product(product_id):
     '''
     Deletes a product by its product code
@@ -193,7 +187,7 @@ def delete_product(product_id):
 
 @admin_api.route('/transaction', defaults={'transaction_id': None})
 @admin_api.route('/transaction/<int:transaction_id>')
-@login_required
+@roles_required('admin')
 def admin_get_transactions(transaction_id):
     '''
     Returns all or selected transactions in JSON:
@@ -206,8 +200,6 @@ def admin_get_transactions(transaction_id):
         status: transaction status ('pending', 'approved', 'rejected', 'cancelled')
     }
     '''
-    if current_user.username != 'admin':
-        abort(403)
     transactions = Transaction.query.all() \
         if transaction_id is None \
         else Transaction.query.filter_by(id=transaction_id)
@@ -215,13 +207,11 @@ def admin_get_transactions(transaction_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
 
 @admin_api.route('/transaction/<int:transaction_id>', methods=['POST'])
-@login_required
+@roles_required('admin')
 def admin_save_transaction(transaction_id):
     '''
     Saves updates in user profile.
     '''
-    if current_user.username != 'admin':
-        abort(403)
     payload = request.get_json()
     transaction = Transaction.query.get(transaction_id)
     if not transaction:
@@ -249,13 +239,11 @@ def admin_save_transaction(transaction_id):
     return jsonify(transaction.to_dict())
 
 @admin_api.route('/user/<user_id>', methods=['DELETE'])
-@login_required
+@roles_required('admin')
 def delete_user(user_id):
     '''
     Deletes a user by its user_id
     '''
-    if current_user.username != 'admin':
-        abort(403)
     result = None
     try:
         User.query.filter_by(id=user_id).delete(synchronize_session='fetch')
@@ -272,7 +260,7 @@ def delete_user(user_id):
     return result
         
 @admin_api.route('/user/<int:user_id>', methods=['POST'])
-@login_required
+@roles_required('admin')
 def save_user(user_id):    
     user_input = request.get_json()
     user = User.query.get(user_id)
@@ -289,7 +277,7 @@ def save_user(user_id):
 
 @admin_api.route('/invoice', defaults={'invoice_id': None})
 @admin_api.route('/invoice/<invoice_id>')
-@login_required
+@roles_required('admin')
 def admin_get_invoices(invoice_id):
     '''
     Returns all or selected invoices in JSON:
@@ -303,8 +291,6 @@ def admin_get_invoices(invoice_id):
         ]
     }
     '''
-    if current_user.username != 'admin':
-        abort(403)
     invoices = Invoice.query.all() \
         if invoice_id is None \
         else Invoice.query.filter_by(id=invoice_id)
@@ -312,14 +298,11 @@ def admin_get_invoices(invoice_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
 @admin_api.route('/invoice/new', methods=['POST'])
-@login_required
+@roles_required('admin')
 def admin_create_invoice():
     '''
     Creates invoice for provided orders
     '''
-    if current_user.username != 'admin':
-        abort(403)
-
     payload = request.get_json()
     if not payload or not payload['order_ids']:
         abort(Response("No orders were provided", status=400))
@@ -360,7 +343,7 @@ def get_invoice_order_products(invoice, usd_rate):
     return result
 
 @admin_api.route('/invoice/<invoice_id>/excel/<float:usd_rate>')
-@login_required
+@roles_required('admin')
 def get_invoice_excel(invoice_id, usd_rate):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
@@ -425,7 +408,7 @@ def get_invoice_excel(invoice_id, usd_rate):
     
 @admin_api.route('/order', defaults={'order_id': None})
 @admin_api.route('/order/<order_id>')
-@login_required
+@roles_required('admin')
 def get_orders(order_id):
     '''
     Returns all or selected orders in JSON:
@@ -439,8 +422,6 @@ def get_orders(order_id):
         ]
     }
     '''
-    if current_user.username != 'admin':
-        abort(403)
     orders = Order.query.all() \
         if order_id is None \
         else Order.query.filter_by(id=order_id)
