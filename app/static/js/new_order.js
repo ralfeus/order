@@ -203,6 +203,7 @@ function product_code_autocomplete(target) {
 }
 
 function product_line_fill(line_input) {
+    var promise = $.Deferred()
     var product_line = $(line_input).closest('tr')[0];
     if (line_input.value) {
         $.ajax({
@@ -220,7 +221,8 @@ function product_line_fill(line_input) {
             error: (data) => {
                 $('.modal-body').text(data.responseText);
                 $('#modal').modal();
-            }
+            },
+            complete: () => { promise.resolve(); }
         });
     } else {
         $('.item-name', product_line).html('');
@@ -228,7 +230,9 @@ function product_line_fill(line_input) {
         $('.item-points', product_line).html('');
         delete g_cart[product_line.id];
         update_item_subtotal($('.item-quantity', product_line));
+        promise.resolve();
     }
+    return promise;
 }
 
 function product_quantity_change(target) {

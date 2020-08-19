@@ -34,28 +34,28 @@ function load_excel(data) {
 
     var countries = {
         0: 'korea',
-        1: 'russia',
-        2: 'ukraine',
-        3: 'india',
-        4: 'australia',
-        5: 'brazil',
-        6: 'canada',
-        7: 'china',
-        8: 'france',
-        9: 'germany',
-        10: 'hongkong',
-        11: 'indonesia',
-        12: 'japan',
-        13: 'malaysia',
-        14: 'newzeland',
-        15: 'philippines',
-        16: 'singapore',
-        17: 'spain',
-        18: 'taiwan',
-        19: 'thailand',
-        20: 'uk',
+        1: 'ru',
+        2: 'ua',
+        3: 'in',
+        4: 'au',
+        5: 'br',
+        6: 'ca',
+        7: 'cn',
+        8: 'fr',
+        9: 'de',
+        10: 'hk',
+        11: 'id',
+        12: 'jp',
+        13: 'my',
+        14: 'nz',
+        15: 'ph',
+        16: 'sg',
+        17: 'es',
+        18: 'tw',
+        19: 'th',
+        20: 'gb',
         21: 'us',
-        22: 'vietnam',
+        22: 'vn',
         23: 'zone1',
         24: 'zone2',
         25: 'zone3',
@@ -66,6 +66,7 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
+    $('#shipping').val(countries[ws['L1'].v]);
     $('#country').val(countries[ws['L2'].v]);
 
     
@@ -102,24 +103,13 @@ function add_product(current_node, item, product_id, quantity) {
     item_code_node.val(product_id);
     $('.item-quantity', current_node).last().val(quantity);
     order_product_number++;
-    $.ajax({
-        url: '/api/v1/product/' + product_id,
-        success: data => {
-            product_select(item_code_node, {
-                'value': data[0].id,
-                'label': data[0].name_english + " | " + data[0].name_russian,
-                'price': data[0].price,
-                'points': data[0].points,
-                'weight': data[0].weight
-            });
-        },
-        complete: () => {
+    product_line_fill(item_code_node[0])
+        .then(() => {
             order_product_number--;
             if (!order_product_number) {
                 $('.wait').hide();
             }
-        }
-    });
+        });
 }
 
 function add_user(subcustomer) {
