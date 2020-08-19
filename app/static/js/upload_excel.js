@@ -66,7 +66,6 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    $('#shipping').val(countries[ws['L1'].v]);
     $('#country').val(countries[ws['L2'].v]);
 
     
@@ -74,7 +73,7 @@ function load_excel(data) {
         if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
         if (!ws['A' + i]) continue;
         // if (parseInt((i + 8) / 20) == (i + 8) / 20 && i != 32) {
-        if (/^\d+$/.test(ws['A' + i].v) && /^\d+/.test(ws['B' + i].v) && !ws['E' + i]) {
+        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
             current_node = add_user(ws['B' + i].v);
             item = 0;
         } else {
@@ -91,6 +90,7 @@ function load_excel(data) {
             item++;
         }
     }
+    $('#shipping').val(countries[ws['L1'].v]);
     alert('Order is prefilled. Submit it.');
 }
 
