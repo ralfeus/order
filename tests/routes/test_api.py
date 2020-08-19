@@ -111,6 +111,11 @@ class TestClientApi(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
 
     def test_get_products(self):
+        '''
+        In order to run this test it's necessary to change DB to MySQL
+        because get_products uses calling of SQL function RIGHT, 
+        which behaves differently in SQLite
+        '''
         res = self.client.get('/api/v1/product')
         self.assertEqual(res.json, [
             {

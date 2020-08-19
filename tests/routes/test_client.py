@@ -1,4 +1,3 @@
-from datetime import datetime
 from flask_security import current_user
 import unittest
 
@@ -7,8 +6,6 @@ from app.config import TestConfig
 
 app = create_app(TestConfig)
 app.app_context().push()
-from app.models import Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-        Shipping, ShippingRate, User
 
 def login(client, username='user1', password='1'):
     return client.post('/login', data={
@@ -48,6 +45,7 @@ class TestClient(unittest.TestCase):
     def test_login(self):
         with self.client:
             res = login(self.client, 'user1', '1')
+            self.assertEqual(res.status_code, 302)
             self.assertEqual(current_user.username, 'user1')
 
 if __name__ == '__main__':
