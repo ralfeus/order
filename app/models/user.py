@@ -35,6 +35,14 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    @property
+    def password(self):
+        raise Exception
+    
+    @password.setter
+    def password(self, value):
+        self.set_password(value)
 
     @staticmethod
     def get_user(user_query):
