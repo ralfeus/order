@@ -21,11 +21,12 @@ class User(db.Model, UserMixin):
     password_hash = Column(String(200))
     enabled = Column(Boolean, nullable=False)
 
-    # Business
-    balance = Column(Integer, default=0)
-
+    # User information
+    # enabled = Column('is_enabled', db.Boolean(), nullable=False)
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
+    # Business
+    balance = Column(Integer, default=0)
 
     def get_id(self):
         return str(self.id)
@@ -36,6 +37,10 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    @property
+    def active(self):
+        return self.enabled
+        
     @property
     def password(self):
         raise Exception
