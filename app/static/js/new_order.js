@@ -157,6 +157,7 @@ function get_shipping_cost(shipping_method, weight) {
 }
 
 function get_shipping_methods(country, weight) {
+    var promise = $.Deferred()
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
     }
@@ -184,8 +185,10 @@ function get_shipping_methods(country, weight) {
         error: (xhr) => {
             $('.modal-body').text(xhr.responseText);
             $('.modal').modal();
-        }
-    })
+        },
+        complete: () => {promise.resolve()}
+    });
+    return promise;
 }
 
 function product_code_autocomplete(target) {

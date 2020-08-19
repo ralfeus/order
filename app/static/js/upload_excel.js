@@ -67,15 +67,20 @@ function load_excel(data) {
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
     $('#country').val(countries[ws['L2'].v]);
-
+    get_shipping_methods(countries[ws['L2'].v], 0)
+        .then(() => $('#shipping').val(ws['L1'].v));
     
     for (var i = 12; i <= 831; i++) {
+        // Line is beginning of a new subcustomer but no subcustomer data provided
+        // it means no new entries in the file
         if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
+        // Just empty line. Ignored
         if (!ws['A' + i]) continue;
-        // if (parseInt((i + 8) / 20) == (i + 8) / 20 && i != 32) {
+        // The line is beginning of new subcustomer
         if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
             current_node = add_user(ws['B' + i].v);
             item = 0;
+        // The line is product line
         } else {
             var quantity;
             if (ws['D' + i]) {
@@ -90,7 +95,6 @@ function load_excel(data) {
             item++;
         }
     }
-    $('#shipping').val(countries[ws['L1'].v]);
     alert('Order is prefilled. Submit it.');
 }
 
