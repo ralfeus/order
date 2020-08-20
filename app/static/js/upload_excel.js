@@ -66,9 +66,13 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    $('#country').val(countries[ws['L2'].v]);
-    get_shipping_methods(countries[ws['L2'].v], 0)
-        .then(() => $('#shipping').val(ws['L1'].v));
+    if (ws['L2'].v == 0) {
+        $('shipping').val(4); // No shipping
+    } else {
+        $('#country').val(countries[ws['L2'].v]);
+        get_shipping_methods(countries[ws['L2'].v], 0)
+            .then(() => $('#shipping').val(ws['L1'].v));
+    }
     
     for (var i = 12; i <= 831; i++) {
         // Line is beginning of a new subcustomer but no subcustomer data provided

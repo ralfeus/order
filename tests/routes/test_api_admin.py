@@ -22,6 +22,7 @@ class TestAdminApi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         db.session.execute('pragma foreign_keys=on')
+        # db.session.execute('SET default_storage_engine=MEMORY')
 
     def setUp(self):
         self.app = app
