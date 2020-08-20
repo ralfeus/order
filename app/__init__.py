@@ -22,12 +22,12 @@ security = Security()
 # security.login_view = "client.user_login"
 # security.logout_view = "client.user_logout"
 
-import app.jobs
-cron = BackgroundScheduler(daemon=True)
-cron.add_job(
-    func=app.jobs.import_products,
-    trigger="interval", seconds=Config.PRODUCT_IMPORT_PERIOD)
-cron.start()
+# import app.jobs
+# cron = BackgroundScheduler(daemon=True)
+# cron.add_job(
+#     func=app.jobs.import_products,
+#     trigger="interval", seconds=Config.PRODUCT_IMPORT_PERIOD)
+# cron.start()
 
 
 
