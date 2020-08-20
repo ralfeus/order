@@ -2,7 +2,7 @@
 Initialization of the application
 '''
 
-from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_bootstrap import Bootstrap
 # from flask_login import LoginManager
