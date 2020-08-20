@@ -13,6 +13,9 @@ def login(client, username='user1', password='1'):
         'password': password
     })
 
+def logout(client):
+    return client.get('/logout')
+
 class TestClient(unittest.TestCase):
     @classmethod
     # def setUpClass(cls):
@@ -25,16 +28,9 @@ class TestClient(unittest.TestCase):
         self._ctx.push()
 
         db.create_all()
-            
-        # entities = [
-        #     User(
-        #         username='user1',
-        #         password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
-        #         enabled=True)
-        # ]
-        # db.session.add_all(entities)
-        # db.session.commit()
-        security.datastore.create_user(username='user1', password='1')
+
+        security.datastore.create_user(username='user1', password='1', enabled=True)
+        security.datastore.create_user(username='user2', password='1', active=False)
 
     def tearDown(self):
         if self._ctx is not None:
@@ -46,6 +42,22 @@ class TestClient(unittest.TestCase):
         with self.client:
             res = login(self.client, 'user1', '1')
             self.assertEqual(res.status_code, 302)
+            self.assertEqual(current_user.username, 'user1')
+            logout(self.client)
+            res = login(self.client, 'user2', '1')
+            self.assertEqual(res.status_code, 200)
+
+    def test_signup(self):
+        with self.client:
+            self.client.post('/signup', data={
+                'username': 'user1',
+                'password': '1',
+                'email': 'test@email.com'
+            })
+            res = login(self.client, 'user1', '1')
+            self.assertEqual(res.status_code, 200)
+            security.datastore.activate_user('user1')
+            res = login(self.client, 'user1', '1')
             self.assertEqual(current_user.username, 'user1')
 
 if __name__ == '__main__':

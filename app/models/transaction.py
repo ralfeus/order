@@ -65,7 +65,6 @@ class Transaction(db.Model):
             'payment_method': self.payment_method,
             'evidence_image': self.proof_image,
             'status': self.status.name,
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S'),
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
-                if self.when_changed else ''
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
         }

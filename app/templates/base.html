@@ -42,6 +42,7 @@
             <a class="dropdown-item" href="/admin">Order products</a>
             <a class="dropdown-item" href="/admin/invoices">Invoices</a>
             <a class="dropdown-item" href="/admin/transactions">Transactions</a>
+            <a class="dropdown-item" href="/admin/users">Users</a>
           </div>
         </li>
         {% endif %}
@@ -54,6 +55,9 @@
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
         </li>
+	<li class="nav-item">
+	    {{ current_user.username }}
+	</li>
       </ul>
     </div>
   </nav>

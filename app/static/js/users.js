@@ -1,6 +1,6 @@
 $.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
-        window.location = '/admin/user/new';
+        window.location = '/admin/users/new';
     }
 };
 $.fn.dataTable.ext.buttons.disable = {

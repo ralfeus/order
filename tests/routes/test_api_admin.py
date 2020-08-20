@@ -116,7 +116,7 @@ class TestAdminApi(unittest.TestCase):
             {
                 'id': '2',
                 'customer': None,
-                'invoice_id': None,
+                'invoice_id': 'INV-2020-00-00',
                 'total': 0,
                 'total_krw': 0,
                 'total_rur': 0,

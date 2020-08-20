@@ -8,7 +8,7 @@ from flask_security import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
 from app.models import Currency, Order, Transaction, TransactionStatus, User
-from app import db #, login
+from app import db, security
 from app.tools import write_to_file
 
 client = Blueprint('client', __name__, url_prefix='/')
@@ -47,25 +47,35 @@ def user_signup():
     if form.validate_on_submit():
         existing_user = db.session.query(User.id). \
             filter_by(username=form.username.data).scalar()
+        print(existing_user)
         if existing_user is None:
-            user = User(
-                username=form.username.data,
-                email=form.email.data
-            )
-            user.set_password(form.password.data)
-            user.when_created = datetime.now()
-            db.session.add(user)
+            user = security.datastore.create_user(
+                username=form.username.data, 
+                password=form.password.data, 
+                email=form.email.data,
+                when_created = datetime.now(),
+                active=False)
+            # user = User(
+            #     username=form.username.data,
+            #     email=form.email.data
+            # )
+            # user.set_password(form.password.data)
+            # user.when_created = datetime.now()
+            # db.session.add(user)
             db.session.commit()  # Create new user
             if not current_user.is_authenticated:
-                login_user(user)  # Log in as newly created user
+                #login_user(user)  # Log in as newly created user
+                flash('You have succeswfully signed up. Wait till adminitrator will activate your account', category='info')
             else:
                 return redirect('/admin/users')
-        flash('A user already exists.')
+        else:
+            print(existing_user)
+            flash('A user already exists.', category='warning')
     return render_template(
         'signup.html',
         title='Create an Account.',
         form=form,
-        template='signup-page',
+        template='security/register_user.html', #'signup-page',
         body="Sign up for a user account."
     )
 

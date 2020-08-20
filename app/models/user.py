@@ -58,6 +58,9 @@ class User(db.Model, UserMixin):
     def password(self, value):
         self.set_password(value)
 
+    def __repr__(self):
+        return f'<User {self.id}: {self.username}>'
+
     @staticmethod
     def get_user(user_query):
         '''
