@@ -48,7 +48,10 @@ def import_products():
             new += 1
             db.session.add(product)
     for product in products:
-        product.available = False
-        modified += 1
+        if product.available:
+            product.available = False
+            modified += 1
+        else:
+            same += 1
     current_app.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
     db.session.commit()

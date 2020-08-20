@@ -4,18 +4,18 @@ Contains client routes of the application
 import os.path
 from datetime import datetime
 from flask import Blueprint, current_app, request, redirect, render_template, send_from_directory, flash, url_for
-from flask_login import login_required, current_user, login_user, logout_user
+from flask_security import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
 from app.models import Currency, Order, Transaction, TransactionStatus, User
-from app import db, login
+from app import db #, login
 from app.tools import write_to_file
 
 client = Blueprint('client', __name__, url_prefix='/')
 
-@login.user_loader
-def load_user(user_id):
-    return User.query.get(user_id)
+# @login.user_loader
+# def load_user(user_id):
+#     return User.query.get(user_id)
 
 @client.route('/')
 @login_required
@@ -93,7 +93,7 @@ def user_login():
 def user_logout():
     """User log-out logic."""
     logout_user()
-    return redirect(url_for('user_login'))
+    return redirect(url_for('client.user_login'))
 
 @client.route('/upload/<path:path>')
 def send_from_upload(path):

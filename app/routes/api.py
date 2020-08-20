@@ -10,6 +10,7 @@ from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.sql.expression import func 
 
 from app import db, shipping
 from app.models import \
@@ -74,6 +75,7 @@ def create_order():
         name=request_data['name'],
         address=request_data['address'],
         country=request_data['country'],
+        shipping_method_id=request_data['shipping'],
         phone=request_data['phone'],
         comment=request_data['comment'],
         subtotal_krw=0,
@@ -246,10 +248,14 @@ def get_product(product_id):
     '''
     product_query = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id, available=True).all()
+        stripped_id = product_id.lstrip('0')
+        product_query = Product.query.filter_by(available=True). \
+            filter(func.right(Product.id, func.length(stripped_id)) == stripped_id).all()
+        product_query = [product for product in product_query
+                        if product.id.lstrip('0') == stripped_id]
     else:
         product_query = Product.query.filter_by(available=True).all()
-    if len(product_query):
+    if len(product_query) != 0:
         return jsonify(Product.get_products(product_query))
     abort(Response("No products were found", status=404))
 

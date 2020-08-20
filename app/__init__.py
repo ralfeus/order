@@ -2,11 +2,13 @@
 Initialization of the application
 '''
 
-from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_bootstrap import Bootstrap
-from flask_login import LoginManager
+# from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_security import Security
+from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
 from app.config import Config
@@ -14,9 +16,20 @@ import app.tools
 
 db = SQLAlchemy()
 migrate = Migrate()
-login = LoginManager()
-login.login_view = "client.user_login"
-login.logout_view = "client.user_logout"
+# login = LoginManager()
+from app.forms import LoginForm
+security = Security()
+# security.login_view = "client.user_login"
+# security.logout_view = "client.user_logout"
+
+# import app.jobs
+# cron = BackgroundScheduler(daemon=True)
+# cron.add_job(
+#     func=app.jobs.import_products,
+#     trigger="interval", seconds=Config.PRODUCT_IMPORT_PERIOD)
+# cron.start()
+
+
 
 import app.jobs
 
@@ -38,7 +51,10 @@ def create_app(config=Config, import_name=None):
     Bootstrap(flask_app)
     db.init_app(flask_app)
     migrate.init_app(flask_app, db, compare_type=True)
-    login.init_app(flask_app)
+    # login.init_app(flask_app)
+    from app.models.user import User
+    from app.models.role import Role
+    security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
@@ -46,10 +62,5 @@ def create_app(config=Config, import_name=None):
     flask_app.register_blueprint(client)
 
     flask_app.logger.info('Routes are registered')
-    cron = BackgroundScheduler()
-    cron.add_job(
-        func=app.jobs.import_products,
-        trigger="interval", seconds=flask_app.config['PRODUCT_IMPORT_PERIOD'])
-    cron.start()
 
     return flask_app

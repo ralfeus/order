@@ -1,12 +1,16 @@
 '''
 User model
 '''
-from flask_login import UserMixin
+from flask_security import UserMixin
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from app import db
+
+roles_users = db.Table('roles_users',
+        db.Column('user_id', db.Integer(), db.ForeignKey('users.id')),
+        db.Column('role_id', db.Integer(), db.ForeignKey('roles.id')))
 
 class User(db.Model, UserMixin):
     '''
@@ -19,11 +23,12 @@ class User(db.Model, UserMixin):
     username = Column(String(32), unique=True, nullable=False)
     email = Column(String(80))
     password_hash = Column(String(200))
-    enabled = Column(db.Boolean(), nullable=False, default=True)
+    enabled = Column(Boolean, nullable=False)
+    roles = db.relationship('Role', secondary=roles_users,
+                            backref=db.backref('users', lazy='dynamic'))
 
     # User information
-    # enabled = Column('is_enabled', db.Boolean(), nullable=False)
-    when_created = Column(DateTime, nullable=False)
+    when_created = Column(DateTime)
     when_changed = Column(DateTime)
     # Business
     balance = Column(Integer, default=0)
@@ -36,6 +41,22 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    @property
+    def active(self):
+        return self.enabled
+    
+    @active.setter
+    def active(self, value):
+        self.enabled = value
+
+    @property
+    def password(self):
+        raise Exception
+    
+    @password.setter
+    def password(self, value):
+        self.set_password(value)
 
     @staticmethod
     def get_user(user_query):
