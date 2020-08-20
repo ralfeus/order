@@ -1,4 +1,5 @@
 from flask import url_for
+from datetime import datetime
 import unittest
 
 from app import create_app, db
@@ -7,7 +8,7 @@ from app.config import TestConfig
 app = create_app(TestConfig)
 app.app_context().push()
 
-from app.models import Currency, Order, Role, Shipping, User
+from app.models import Currency, Invoice, Order, Role, Shipping, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -35,6 +36,11 @@ class TestAdminApi(unittest.TestCase):
         db.session.add_all([
             Currency(code='RUR', rate=1),
             Currency(code='USD', rate=1),
+            Invoice(id='INV-2020-00-00', 
+                when_created=datetime(2020, 1, 1, 1, 0, 0),
+                when_changed=datetime(2020, 1, 1, 1, 0, 0)),
+            Order(id=1, user_id=2, shipping_method_id=1),
+            Order(id=2, user_id=2, invoice_id='INV-2020-00-00'),
             Shipping(id=1, name='shipping1'),
             User(id=0, username='root', email='user@name.com',
                 password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
@@ -45,8 +51,6 @@ class TestAdminApi(unittest.TestCase):
             User(id=2, username='user2', email='user@name.com',
                 password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
                 enabled=True),
-            Order(id=1, user_id=2, shipping_method_id=1),
-            Order(id=2, user_id=2),
             admin_role
         ])
         db.session.commit()
@@ -68,6 +72,22 @@ class TestAdminApi(unittest.TestCase):
     def test_get_invoices(self):
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice'))
+        res = self.client.get('/api/v1/admin/invoice/INV-2020-00-00')
+        self.assertEqual(res.json, [
+            {
+                'address': None, 
+                'country': None, 
+                'customer': None, 
+                'id': 'INV-2020-00-00', 
+                'order_products': [], 
+                'orders': ['2'], 
+                'phone': None, 
+                'total': 0, 
+                'weight': 0, 
+                'when_changed': '2020-01-01 01:00:00', 
+                'when_created': '2020-01-01 01:00:00'
+            }
+        ])
 
     def test_create_invoice(self):
         self.try_admin_operation(

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 
@@ -24,7 +25,7 @@ class Invoice(db.Model):
     when_created = Column(DateTime, index=True)
     when_changed = Column(DateTime)
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         today = datetime.now()
         today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
         last_invoice = db.session.query(Invoice.seq_num). \
@@ -33,6 +34,12 @@ class Invoice(db.Model):
             first()
         self.seq_num = last_invoice[0] + 1 if last_invoice else 1
         self.id = today_prefix + '{:04d}'.format(self.seq_num)
+
+        attributes = [a[0] for a in type(self).__dict__.items() if isinstance(a[1], InstrumentedAttribute)]
+        for arg in kwargs:
+            if arg in attributes:
+                setattr(self, arg, kwargs[arg])
+
 
     def to_dict(self):
         '''
@@ -68,8 +75,8 @@ class Invoice(db.Model):
             'phone': self.orders[0].phone if self.orders else '',
             'weight': weight,
             'total': total,
-            'when_created': self.when_created,
-            'when_changed': self.when_changed,
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
             'orders': [order.id for order in self.orders],
             'order_products': list(order_products_dict.values())
         }
