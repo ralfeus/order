@@ -2,7 +2,7 @@
 Contains admin routes of the application
 '''
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template
-from flask_login import current_user, login_required, login_user
+from flask_security import current_user, login_required, login_user, roles_required
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -12,19 +12,16 @@ from app.models import Currency, Invoice, Product, User
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
 @admin.route('/')
-@login_required
+@roles_required('admin')
 def order_products():
     '''
     Shows list of ordered products
     '''
-    if current_user.username != 'admin':
-        abort(403)
-
     return render_template('order_products.html')
 
 
 @admin.route('/product/new', methods=['GET', 'POST'])
-@login_required
+@roles_required('admin')
 def product():
     '''
     Creates and edits product
@@ -44,18 +41,15 @@ def product():
     return render_template('product.html', title="Create product", form=form)
 
 @admin.route('/products')
-@login_required
+@roles_required('admin')
 def products():
     '''
     Product catalog management
     '''
-    if current_user.username != 'admin':
-        abort(403)
-
     return render_template('products.html')
 
 @admin.route('/users/new', methods=['GET', 'POST'])
-@login_required
+@roles_required('admin')
 def new_user():
     '''
     Creates new user
@@ -70,7 +64,7 @@ def new_user():
     return render_template('signup.html', title="Create user", form=userform)
 
 @admin.route('/users', methods=['GET', 'POST'])
-@login_required
+@roles_required('admin')
 def users():
     '''
     Edits the user settings
@@ -78,36 +72,27 @@ def users():
     return render_template('users.html')
     
 @admin.route('/transactions')
-@login_required
+@roles_required('admin')
 def admin_transactions():
     '''
     Transactions management
     '''
-    if current_user.username != 'admin':
-        abort(403)
-    
     return render_template('transactions.html')
 
 @admin.route('/invoices')
-@login_required
+@roles_required('admin')
 def admin_invoices():
     '''
     Invoice management
     '''
-    if current_user.username != 'admin':
-        abort(403)
-
     usd_rate = Currency.query.get('USD').rate
     
     return render_template('invoices.html', usd_rate=usd_rate)
 
 @admin.route('/orders')
-@login_required
+@roles_required('admin')
 def admin_orders():
     '''
     Order management
     '''
-    if current_user.username != 'admin':
-        abort(403)
-
     return render_template('orders.html')

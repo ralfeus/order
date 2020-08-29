@@ -387,11 +387,11 @@ def get_invoice_excel(invoice_id, usd_rate):
     # Set invoice footer
     ws.cell(305, 5, invoice_dict['total'] * usd_rate)
     ws.cell(311, 4, f"{round(invoice_dict['total'] * usd_rate, 2)} USD")
-    ws.cell(312, 2, invoice_dict['weight'])
+    ws.cell(312, 2, invoice_dict['weight'] / 1000)
 
     # Set packing list footer
     pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
-    pl.cell(312, 2, invoice_dict['weight'])
+    pl.cell(312, 2, invoice_dict['weight'] / 1000)
 
     # Set order product lines
     row = 31

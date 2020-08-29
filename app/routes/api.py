@@ -280,19 +280,21 @@ def get_product_by_term(term):
         Product.name_russian.like(term + '%')))
     return jsonify(Product.get_products(product_query))
 
-@api.route('/shipping', defaults={'country': None, 'weight': None})
-@api.route('/shipping/<country>', defaults={'weight': None})
-@api.route('/shipping/<country>/<weight>')
+@api.route('/shipping', defaults={'country_id': None, 'weight': None})
+@api.route('/shipping/<country_id>', defaults={'weight': None})
+@api.route('/shipping/<country_id>/<int:weight>')
 @login_required
-def get_shipping_methods(country, weight):
+def get_shipping_methods(country_id, weight):
     '''
     Returns shipping methods available for specific country and weight (if both provided)
     '''
     country_name = ''
     shipping_methods = Shipping.query.join(ShippingRate)
-    if country:
-        country_name = Country.query.get(country).name
-        shipping_methods = shipping_methods.filter(ShippingRate.destination == country)
+    if country_id:
+        country = Country.query.get(country_id)
+        if country:
+            country_name = country.name
+            shipping_methods = shipping_methods.filter(ShippingRate.destination == country_id)
     if weight:
         shipping_methods = shipping_methods.filter(ShippingRate.weight >= weight)
     if shipping_methods.count():
