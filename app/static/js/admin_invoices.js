@@ -67,8 +67,14 @@ function format ( row, data ) {
 
 function get_excel(rows) {
     $('.wait').show();
-    for (var i = 0; i < rows.count(); i++) {
-        window.open('/api/v1/admin/invoice/' + rows.data()[i].id + '/excel/' + $('#usd_rate').val());
+    if (rows.count() == 1) {
+        window.open('/api/v1/admin/invoice/' + rows.data()[0].id + '/excel/' + $('#usd_rate').val());
+    } else {
+        var invoices = '';
+        for (var i = 0; i < rows.count(); i++) {
+            invoices += 'invoices=' + rows.data()[i].id + '&';
+        }
+        window.open('/api/v1/admin/invoice/excel/' + $('#usd_rate').val() + '?' + invoices);
     }
     $('.wait').hide()
 }

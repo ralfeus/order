@@ -354,35 +354,30 @@ def get_invoice_order_products(invoice, usd_rate):
     }, order_products.items()))
     return result
 
-@admin_api.route('/invoice/<invoice_id>/excel/<float:usd_rate>')
-@roles_required('admin')
-def get_invoice_excel(invoice_id, usd_rate):
-    invoice = Invoice.query.get(invoice_id)
-    if not invoice:
-        abort(404)
-    invoice_dict = invoice.to_dict()
-    order_products = get_invoice_order_products(invoice, usd_rate)
+def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
     invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
+    invoice_dict = reference_invoice.to_dict()
+    order_products = get_invoice_order_products(reference_invoice, usd_rate)
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
 
     # Set invoice header
-    ws.cell(7, 2, invoice_id)
-    ws.cell(7, 5, invoice.when_created)
-    ws.cell(13, 4, invoice.orders[0].name)
-    ws.cell(17, 4, invoice.orders[0].address)
+    ws.cell(7, 2, reference_invoice.id)
+    ws.cell(7, 5, reference_invoice.when_created)
+    ws.cell(13, 4, reference_invoice.orders[0].name)
+    ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
-    ws.cell(23, 5, invoice.orders[0].country)
-    ws.cell(25, 4, invoice.orders[0].phone)
+    ws.cell(23, 5, reference_invoice.orders[0].country)
+    ws.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set packing list header
-    pl.cell(7, 2, invoice_id)
-    pl.cell(7, 5, invoice.when_created)
-    pl.cell(13, 4, invoice.orders[0].name)
-    pl.cell(17, 4, invoice.orders[0].address)
+    pl.cell(7, 2, reference_invoice.id)
+    pl.cell(7, 5, reference_invoice.when_created)
+    pl.cell(13, 4, reference_invoice.orders[0].name)
+    pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
-    pl.cell(23, 5, invoice.orders[0].country)
-    pl.cell(25, 4, invoice.orders[0].phone)
+    pl.cell(23, 5, reference_invoice.orders[0].country)
+    pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer
     ws.cell(305, 5, invoice_dict['total'] * usd_rate)
@@ -413,11 +408,44 @@ def get_invoice_excel(invoice_id, usd_rate):
         row += 1
     ws.delete_rows(row, last_row - row + 1)
     pl.delete_rows(row, last_row - row + 1)
-    invoice_wb.save(f'app/static/invoices/{invoice_id}.xlsx')
+    invoice_wb.save(f'app/static/invoices/{invoice_file_name}')
+
+@admin_api.route('/invoice/<invoice_id>/excel/<float:usd_rate>')
+@roles_required('admin')
+def get_invoice_excel(invoice_id, usd_rate):
+    '''
+    Generates an Excel file for an invoice
+    '''
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(404)
+    create_invoice_excel(
+        reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx', 
+        usd_rate=usd_rate)
 
     return send_file(f'static/invoices/{invoice_id}.xlsx',
-        as_attachment=True, attachment_filename=invoice_id + '.xlsx')
-    
+                     as_attachment=True, attachment_filename=invoice_id + '.xlsx')
+
+@admin_api.route('/invoice/excel/<float:usd_rate>')
+@roles_required('admin')
+def get_invoice_cumulative_excel(usd_rate):
+    '''
+    Returns cumulative Excel of several invoices
+    invoice IDs are provides as URL arguments
+    Resulting Excel isn't saved anywhere
+    '''
+    cumulative_invoice = Invoice()
+    for invoice_id in request.args.getlist('invoices'):
+        invoice = Invoice.query.get(invoice_id)
+        cumulative_invoice.orders += invoice.orders
+
+    invoice_file_name = 'cumulative_invoice.xlsx'
+    create_invoice_excel(
+        reference_invoice=cumulative_invoice,
+        invoice_file_name=invoice_file_name, usd_rate=usd_rate)
+    return send_file(f'static/invoices/{invoice_file_name}',
+        as_attachment=True, attachment_filename=invoice_file_name)
+
 @admin_api.route('/order', defaults={'order_id': None})
 @admin_api.route('/order/<order_id>')
 @roles_required('admin')

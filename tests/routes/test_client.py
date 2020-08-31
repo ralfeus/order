@@ -49,16 +49,17 @@ class TestClient(unittest.TestCase):
 
     def test_signup(self):
         with self.client:
-            self.client.post('/signup', data={
-                'username': 'user1',
+            res = self.client.post('/signup', data={
+                'username': 'user3',
                 'password': '1',
                 'email': 'test@email.com'
             })
-            res = login(self.client, 'user1', '1')
+            res = login(self.client, 'user3', '1')
             self.assertEqual(res.status_code, 200)
-            security.datastore.activate_user('user1')
-            res = login(self.client, 'user1', '1')
-            self.assertEqual(current_user.username, 'user1')
+            user3 = security.datastore.get_user('user3')
+            security.datastore.activate_user(user3)
+            res = login(self.client, 'user3', '1')
+            self.assertEqual(current_user.username, 'user3')
 
 if __name__ == '__main__':
     unittest.main()

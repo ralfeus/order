@@ -1,4 +1,4 @@
-from flask import url_for
+from flask import Response
 from datetime import datetime
 import unittest
 
@@ -96,6 +96,12 @@ class TestAdminApi(unittest.TestCase):
     def test_get_invoice_excel(self):
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice/0/excel/0'))
+
+    def test_get_invoice_cumulative_excel(self):
+        self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00'))
+        res = self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00')
+        self.assertTrue(isinstance(res, Response))
 
     def test_get_orders(self):
         res = self.try_admin_operation(
