@@ -52,11 +52,12 @@ class TestClient(unittest.TestCase):
             res = self.client.post('/signup', data={
                 'username': 'user3',
                 'password': '1',
+                'confirm': '1',
                 'email': 'test@email.com'
             })
             res = login(self.client, 'user3', '1')
             self.assertEqual(res.status_code, 200)
-            user3 = security.datastore.get_user('user3')
+            user3 = security.datastore.user_model.query.filter_by(username='user3').first()
             security.datastore.activate_user(user3)
             res = login(self.client, 'user3', '1')
             self.assertEqual(current_user.username, 'user3')

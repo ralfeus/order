@@ -40,7 +40,11 @@ class Order(db.Model):
     total_krw = Column(Integer(), default=0)
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
+    status = Column(String(16))
+    tracking_id = Column(String(64))
+    tracking_url = Column(String(256))
     when_created = Column(DateTime)
+    when_changed = Column(DateTime)
     order_products = relationship('OrderProduct', backref='order', lazy='dynamic')
 
     def __init__(self, **kwargs):
@@ -80,5 +84,9 @@ class Order(db.Model):
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
             'shipping': self.shipping.name if self.shipping else '',
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else ''
+            'status': self.status if self.status else '',
+            'tracking_id': self.tracking_id if self.tracking_id else '',
+            'tracking_url': self.tracking_url if self.tracking_url else '',
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
         }

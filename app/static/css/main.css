@@ -53,10 +53,14 @@ table {
     font-size: 11px;
 }
 
+td { white-space: nowrap;}
+
 td.details-control {
     background: url('/static/images/details_open.png') no-repeat center center;
     cursor: pointer;
 }
+
+td.wrapok { white-space: normal;}
 
 th { white-space: nowrap; }
 

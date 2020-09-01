@@ -467,3 +467,29 @@ def get_orders(order_id):
         else Order.query.filter_by(id=order_id)
 
     return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
+
+@admin_api.route('/order/<order_id>', methods=['POST'])
+@roles_required('admin')
+def save_order(order_id):
+    '''
+    Updates existing order
+    Payload is provided in JSON
+    '''
+    order_input = request.get_json()
+    order = Order.query.get(order_id)
+    if not order:
+        abort(Response(f'No order {order_id} was found', status=404))
+
+    if order_input.get('status') is not None:
+        order.status = order_input['status']
+
+    if order_input.get('tracking_id') is not None:
+        order.tracking_id = order_input['tracking_id']
+
+    if order_input.get('tracking_url') is not None:
+        order.tracking_url = order_input['tracking_url']
+
+    order.when_changed = datetime.now()
+
+    db.session.commit()
+    return jsonify(order.to_dict())

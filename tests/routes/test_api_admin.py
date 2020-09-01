@@ -30,6 +30,7 @@ class TestAdminApi(unittest.TestCase):
         self.client = self.app.test_client()
         self._ctx = self.app.test_request_context()
         self._ctx.push()
+        self.maxDiff = None
 
         db.create_all()
         admin_role = Role(id=1, name='admin')
@@ -39,8 +40,9 @@ class TestAdminApi(unittest.TestCase):
             Invoice(id='INV-2020-00-00', 
                 when_created=datetime(2020, 1, 1, 1, 0, 0),
                 when_changed=datetime(2020, 1, 1, 1, 0, 0)),
-            Order(id=1, user_id=2, shipping_method_id=1),
-            Order(id=2, user_id=2, invoice_id='INV-2020-00-00'),
+            Order(id=1, user_id=2, shipping_method_id=1, 
+                  tracking_id='T00', tracking_url='https://tracking.fake/T00', status='shipped'),
+            Order(id=2, user_id=2, invoice_id='INV-2020-00-00', status='pending'),
             Shipping(id=1, name='shipping1'),
             User(id=0, username='root', email='user@name.com',
                 password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
@@ -116,8 +118,12 @@ class TestAdminApi(unittest.TestCase):
                 'total_rur': 0,
                 'total_usd': 0,
                 'shipping': 'shipping1',
+                'tracking_id': 'T00',
+                'tracking_url': 'https://tracking.fake/T00',
                 'user': 'user2',
-                'when_created': ''
+                'status': 'shipped',
+                'when_created': '',
+                'when_changed': ''
             },
             {
                 'id': '2',
@@ -129,9 +135,32 @@ class TestAdminApi(unittest.TestCase):
                 'total_usd': 0,
                 'shipping': '',
                 'user': 'user2',
-                'when_created': ''
+                'tracking_id': '',
+                'tracking_url': '',
+                'status': 'pending',
+                'when_created': '',
+                'when_changed': ''
             }
         ])
+
+    def test_save_order(self):
+        self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/order/1',
+                json={'tracking_id': 'T00', 'tracking_url': 'https://tracking.fake/T00'}
+            )
+        )
+        res = self.client.post(
+            '/api/v1/admin/order/1',
+            json={
+                'id':1, 'tracking_id': 'T00', 'tracking_url': 'https://tracking.fake/T00',
+                'status': 'done'
+            }
+        )
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get('/api/v1/admin/order/1')
+        self.assertEqual(res.get_json()[0]['tracking_id'], 'T00')
+        self.assertEqual(res.get_json()[0]['tracking_url'], 'https://tracking.fake/T00')
+        self.assertEqual(res.get_json()[0]['status'], 'done')
 
     def test_get_order_products(self):
         res = self.try_admin_operation(

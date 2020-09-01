@@ -25,7 +25,9 @@ $(document).ready( function () {
             {data: 'user'},
             {data: 'customer'},
             {data: 'total'},
-            {data: 'when_created'}
+            {data: 'status'},
+            {data: 'when_created'},
+            {data: 'when_changed'},
         ],
         order: [[5, 'desc']],
         select: true
@@ -49,9 +51,35 @@ $(document).ready( function () {
             // Open this row
             row.child( format(row, row.data()) ).show();
             tr.addClass('shown');
+
+            $('.btn-save').on('click', event => save_order(event.target, row));
         }
     } );
 });
+
+function save_order(target, row) {
+    var order_node = $(target).closest('.order-details');
+    var update = {
+        id: row.data().id,
+        status: $('#status', order_node).val(),
+        tracking_id: $('#tracking-id', order_node).val(),
+        tracking_url: $('#tracking-url', order_node).val()
+    };
+    $('.wait').show();
+    $.ajax({
+        url: '/api/v1/admin/order/' + update.id,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify(update),
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: function(data) {
+            row.data(data).draw();
+        }
+    });
+}
 
 /**
  * Draws invoice details
@@ -70,7 +98,7 @@ function format ( row, data ) {
         columns: [
             {data: 'subcustomer'},
             {data: 'id'},
-            {data: 'product'},
+            {data: 'product', class: 'wrapok'},
             {data: 'price'},
             {data: 'quantity'},
             {data: 'status'}
@@ -79,6 +107,9 @@ function format ( row, data ) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping);
+    $('#status', order_details).val(data.status);
+    $('#tracking-id', order_details).val(data.tracking_id);
+    $('#tracking-url', order_details).val(data.tracking_url);
     return order_details;
 }
 
