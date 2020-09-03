@@ -369,7 +369,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
 
     # Set invoice footer
     ws.cell(305, 5, total)
-    ws.cell(311, 4, f"{total} USD")
+    ws.cell(311, 4, f"{round(total, 2)} USD")
     ws.cell(312, 2, invoice_dict['weight'] / 1000)
 
     # Set packing list footer
