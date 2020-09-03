@@ -345,7 +345,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
     invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
     invoice_dict = reference_invoice.to_dict()
     order_products = get_invoice_order_products(reference_invoice, usd_rate)
-    total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0) * usd_rate
+    total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
 
