@@ -2,14 +2,15 @@
 Order model
 '''
 from datetime import datetime
+from decimal import Decimal
 from functools import reduce
 
 from sqlalchemy import Column, DateTime, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app import db
-from app.models import Currency
+from app import db, shipping
+from app.models import Currency, Shipping, NoShipping
 
 class Order(db.Model):
     ''' System's order '''
@@ -30,7 +31,7 @@ class Order(db.Model):
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
+    __shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
     subtotal_usd = Column(Numeric(10, 2), default=0)
@@ -45,7 +46,17 @@ class Order(db.Model):
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
-    order_products = relationship('OrderProduct', backref='order', lazy='dynamic')
+    order_products = relationship('OrderProduct', lazy='dynamic')
+
+    @property
+    def shipping(self):
+        if self.__shipping is None:
+            self.__shipping = NoShipping()
+        return self.__shipping
+
+    @shipping.setter
+    def shipping(self, value):
+        self.__shipping = value
 
     def __init__(self, **kwargs):
         today = datetime.now()
@@ -90,3 +101,28 @@ class Order(db.Model):
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
         }
+
+    def update_total(self):
+        '''
+        Updates totals of the order
+        '''
+        if self.shipping is None and self.shipping_method_id is not None:
+            self.shipping = Shipping.query.get(self.shipping_method_id)
+
+        self.total_weight = reduce(lambda acc, op: acc + op.product.weight * op.quantity,
+                                   self.order_products, 0)
+        self.shipping_box_weight = shipping.get_box_weight(self.total_weight)
+
+        self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
+                                   self.order_products, 0)
+        self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
+        self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
+
+        self.shipping_krw = int(Decimal(self.shipping.get_shipment_cost(
+            self.country, self.total_weight + self.shipping_box_weight)))
+        self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate
+        self.shipping_usd = self.shipping_krw * Currency.query.get('USD').rate
+
+        self.total_krw = self.subtotal_krw + self.shipping_krw
+        self.total_rur = self.subtotal_rur + self.shipping_rur
+        self.total_usd = self.subtotal_usd + self.shipping_usd

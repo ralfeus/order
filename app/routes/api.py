@@ -3,14 +3,14 @@ Contains api endpoint routes of the application
 '''
 from decimal import Decimal
 from datetime import datetime
-from more_itertools import map_reduce
 import os.path
+
+from more_itertools import map_reduce
 
 from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.sql.expression import func 
 
 from app import db, shipping
 from app.models import \
@@ -154,51 +154,6 @@ def get_order_products():
         'status': order_product.status
         }, order_products)))
 
-@api.route('/order_product/<int:order_product_id>', methods=['POST'])
-@login_required
-def save_order_product(order_product_id):
-    '''
-    Modifies order products
-    '''
-    result = None
-    order_product_input = request.get_json()
-    order_product = OrderProduct.query.get(order_product_id)
-    if order_product:
-        if (order_product_input and 
-            order_product_input.get('context') == 'admin' and
-            current_user.username == 'admin'):
-            order_product.private_comment = order_product_input['private_comment']
-        order_product.public_comment = order_product_input['public_comment']
-        order_product.changed_at = datetime.now()
-        try:
-            db.session.commit()
-            result = jsonify({
-                'order_id': order_product.order_id,
-                'order_product_id': order_product.id,
-                'customer': order_product.order.name,
-                'subcustomer': order_product.subcustomer,
-                'product_id': order_product.product_id,
-                'product': order_product.product.name_english,
-                'private_comment': order_product.private_comment,
-                'public_comment': order_product.public_comment,
-                'quantity': order_product.quantity,
-                'status': order_product.status
-            })
-        except Exception as e:
-            result = jsonify({
-                'status': 'error',
-                'message': e
-            })
-            result.status_code = 500
-    else:
-        result = jsonify({
-            'status': 'error',
-            'message': f"Order product ID={order_product_id} wasn't found"
-        })
-        result.status_code = 404
-    return result
-
-
 @api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
     '''
@@ -250,7 +205,7 @@ def get_product(product_id):
     if product_id:
         stripped_id = product_id.lstrip('0')
         product_query = Product.query.filter_by(available=True). \
-            filter(func.right(Product.id, func.length(stripped_id)) == stripped_id).all()
+            filter(Product.id.endswith(stripped_id)).all()
         product_query = [product for product in product_query
                         if product.id.lstrip('0') == stripped_id]
     else:

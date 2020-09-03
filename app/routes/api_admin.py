@@ -31,48 +31,31 @@ def get_order_products():
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
 
 @admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
-@login_required
 @roles_required('admin')
 def save_order_product(order_product_id):
     '''
     Modifies order products
+    Order product payload is received as JSON
     '''
-    result = None
     payload = request.get_json()
+    if not payload:
+        return Response(status=304)
     order_product = OrderProduct.query.get(order_product_id)
-    if order_product:
-        if payload and payload.get('private_comment'):
-            order_product.private_comment = payload['private_comment']
-        order_product.public_comment = payload['public_comment']
-        order_product.changed_at = datetime.now()
-        try:
-            db.session.commit()
-            result = jsonify({
-                'order_id': order_product.order_id,
-                'order_product_id': order_product.id,
-                'customer': order_product.order.name,
-                'subcustomer': order_product.subcustomer,
-                'product_id': order_product.product_id,
-                'product': order_product.product.name_english,
-                'private_comment': order_product.private_comment,
-                'public_comment': order_product.public_comment,
-                'quantity': order_product.quantity,
-                'status': order_product.status
-            })
-        except Exception as e:
-            result = jsonify({
-                'status': 'error',
-                'message': e
-            })
-            result.status_code = 500
-    else:
-        result = jsonify({
-            'status': 'error',
-            'message': f"Order product ID={order_product_id} wasn't found"
-        })
-        result.status_code = 404
-    return result
+    if not order_product:
+        abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
 
+    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer', 
+                           'private_comment', 'public_comment', 'status']
+    for attr in editable_attributes:
+        if payload.get(attr):
+            setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
+            order_product.when_changed = datetime.now()
+    try:
+        order_product.order.update_total()
+        db.session.commit()
+        return jsonify(order_product.to_dict())
+    except Exception as e:
+        abort(Response(str(e), status=500))
 
 @admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 @roles_required('admin')
@@ -145,19 +128,23 @@ def save_product():
     '''
     Saves updates in product or creates new product
     '''
-    product_input = request.get_json()
-    product = Product.query.get(product_input['id'])
+    payload = request.get_json()
+    if not payload.get('id'):
+        abort(Response('No product ID is provided', status=400))
+
+    product = Product.query.get(payload['id'])
     if not product:
         product = Product()
-    product.name = product_input['name']
-    product.name_english = product_input['name_english']
-    product.name_russian = product_input['name_russian']
-    product.price = product_input['price']
-    product.points = product_input['points']
-    product.weight = product_input['weight']
-    product.available = product_input['available']
-    if not product.id:
+        product.id = payload['id']
         db.session.add(product)
+
+    editable_attributes = ['name', 'name_english', 'name_russian', 'price',
+                           'points', 'weight', 'available']
+    for attr in editable_attributes:
+        if payload.get(attr):
+            setattr(product, attr, payload[attr])
+            product.when_changed = datetime.now()
+
     db.session.commit()
 
     return jsonify({

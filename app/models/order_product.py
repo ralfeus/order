@@ -2,6 +2,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
+from app.models import Order
 
 
 class OrderProduct(db.Model):
@@ -12,6 +13,7 @@ class OrderProduct(db.Model):
 
     id = Column(Integer, primary_key=True)
     order_id = Column(String(16), ForeignKey('orders.id'))
+    order = relationship('Order', foreign_keys=[order_id])
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
     price = Column(Integer)
@@ -22,7 +24,7 @@ class OrderProduct(db.Model):
     status = Column(String(16))
     status_history = relationship('OrderProductStatusEntry', backref="order_product",
                                   lazy='dynamic')
-    changed_at = Column(DateTime, index=True)
+    when_changed = Column(DateTime, index=True)
 
     def __repr__(self):
         return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
