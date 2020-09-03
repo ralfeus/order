@@ -328,7 +328,7 @@ def get_invoice_order_products(invoice, usd_rate):
             op.product_id,
             op.product.name_english if op.product.name_english \
                 else op.product.name,
-            op.price * usd_rate),
+            round(op.price * usd_rate, 2)),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
