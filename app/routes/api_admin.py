@@ -345,6 +345,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
     invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
     invoice_dict = reference_invoice.to_dict()
     order_products = get_invoice_order_products(reference_invoice, usd_rate)
+    total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0) * usd_rate
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
 
@@ -367,8 +368,8 @@ def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
     pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer
-    ws.cell(305, 5, invoice_dict['total'] * usd_rate)
-    ws.cell(311, 4, f"{round(invoice_dict['total'] * usd_rate, 2)} USD")
+    ws.cell(305, 5, total)
+    ws.cell(311, 4, f"{total} USD")
     ws.cell(312, 2, invoice_dict['weight'] / 1000)
 
     # Set packing list footer
