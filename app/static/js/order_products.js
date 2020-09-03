@@ -6,7 +6,7 @@ $.fn.dataTable.ext.buttons.status = {
 
 $(document).ready( function () {
     var editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
+        ajax: (_method, _url, data, success_callback, error) => {
             for (var order_product_id in data.data) {
                 $.ajax({
                     url: '/api/v1/admin/order_product/' + order_product_id,
@@ -14,7 +14,7 @@ $(document).ready( function () {
                     dataType: 'json',
                     contentType: 'application/json',
                     data: JSON.stringify(data.data[order_product_id]),
-                    success: success,
+                    success: server_data => success_callback(({data: [server_data]})),
                     error: error
                 });     
             }    
@@ -22,6 +22,7 @@ $(document).ready( function () {
         table: '#order_products',
         idSrc: 'id',
         fields: [
+            {label: 'Order product ID', name: 'id'},
             // {label: 'Customer', name: 'customer'},
             {label: 'Subcustomer', name: 'subcustomer'},
             {label: 'Product ID', name: 'product_id'},
@@ -32,14 +33,14 @@ $(document).ready( function () {
             {label: 'Private Comment', name: 'private_comment'},
             {label: 'Public Comment', name: 'public_comment'},
         ],
-        formOptions: {
-            inline: {
-                onBlur: 'submit'
-            }
-        }
+        // formOptions: {
+        //     inline: {
+        //         onBlur: 'submit'
+        //     }
+        // }
     });
-    $('#order_products').on( 'click', 'tbody td:not(:first-child)', function (e) {
-        editor.inline( this );
+    $('#order_products').on( 'click', 'tbody td.editable', function (e) {
+        editor.inline( this);
     } );
     var table = $('#order_products').DataTable({
         dom: 'lfrBtip',
@@ -69,18 +70,18 @@ $(document).ready( function () {
                 "data":           null,
                 "defaultContent": ''
             },
-            {data: 'order_id', editField: null},
-            {data: 'order_product_id', editField: null},
-            {data: 'customer', editField: null},
-            {data: 'subcustomer'},
-            {data: 'product_id'},
-            {data: 'product', editField: null},
-            {data: 'price'},
-            {data: 'quantity'},
-            {data: 'status', editField: null}
+            {data: 'order_id'},
+            {data: 'order_product_id'},
+            {data: 'customer'},
+            {data: 'subcustomer', className: 'editable'},
+            {data: 'product_id', className: 'editable'},
+            {data: 'product'},
+            {data: 'price', className: 'editable'},
+            {data: 'quantity', className: 'editable'},
+            {data: 'status'}
         ],
         keys: {
-            columns: ':not(:first-child)',
+            columns: '.editable',
             keys: [ 9 ],
             editor: editor,
             editOnFocus: true
