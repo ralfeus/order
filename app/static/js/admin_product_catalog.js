@@ -1,4 +1,4 @@
-$.fn.dataTable.ext.buttons.create = {
+u$.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
         window.location = '/admin/product/new';
     }
@@ -11,7 +11,7 @@ $.fn.dataTable.ext.buttons.delete = {
 
 $(document).ready( function () {
     var table = $('#products').DataTable({
-        dom: 'lfrBtip', 
+        dom: 'lrBtip', 
         ajax: {
             url: '/api/v1/admin/product',
             dataType: 'json',
@@ -20,8 +20,15 @@ $(document).ready( function () {
         },
         buttons: [
             {extend: 'create', text: 'Create'},
-            {extend: 'delete', text: 'Delete'}
+            {extend: 'delete', text: 'Delete'},
+            'searchPanes'
         ],
+        language: {
+            searchPanes: {
+                clearMessage: 'Filter products',
+                collapse: {0: 'Filter products', _: 'Filter products (%d)'}
+            }
+        },
         columns: [
             {
                 "className":      'details-control',
@@ -33,7 +40,22 @@ $(document).ready( function () {
             {data: 'name'},
             {data: 'weight'},
             {data: 'price'},
-            {data: 'points'}
+            {data: 'points'},
+            {data: 'available'}
+        ],
+        columnDefs: [
+            {
+                searchPanes: {
+                    show: true
+                },
+                targets: [1, 6]
+            }, 
+            {
+                searchPanes: {
+                    show: false
+                },
+                targets: [0, 2, 3, 4, 5]
+            }
         ],
         select: true,
         createdRow: (row, data) => {
