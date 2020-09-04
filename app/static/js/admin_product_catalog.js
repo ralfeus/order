@@ -1,4 +1,4 @@
-u$.fn.dataTable.ext.buttons.create = {
+$.fn.dataTable.ext.buttons.create = {
     action: function(e, dt, node, config) {
         window.location = '/admin/product/new';
     }
@@ -48,13 +48,13 @@ $(document).ready( function () {
                 searchPanes: {
                     show: true
                 },
-                targets: [1, 6]
+                targets: [1, 2, 6]
             }, 
             {
                 searchPanes: {
                     show: false
                 },
-                targets: [0, 2, 3, 4, 5]
+                targets: [0, 3, 4, 5]
             }
         ],
         select: true,
