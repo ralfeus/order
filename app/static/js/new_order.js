@@ -284,7 +284,7 @@ function submit_order() {
                 window.alert(
                     "The request is posted. The request ID is " + data.order_id +
                     "\nDuring request creation following issues have occurred:\n" +
-                    message.join("\n")
+                    data.message.join("\n")
                 );
             } else if (data.status === 'error') {
                 if (data.message) {
