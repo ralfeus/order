@@ -117,7 +117,7 @@ def create_order():
     try:
         db.session.commit()
         result = {
-            'status': 'warning' if len(errors) else 'success',
+            'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
             'message': errors
         }
@@ -202,17 +202,20 @@ def get_product(product_id):
     Returns list of products in JSON
     '''
     product_query = None
+    error_message = None
     if product_id:
+        error_message = f"No product with code <{product_id}> was found"
         stripped_id = product_id.lstrip('0')
         product_query = Product.query.filter_by(available=True). \
             filter(Product.id.endswith(stripped_id)).all()
         product_query = [product for product in product_query
                         if product.id.lstrip('0') == stripped_id]
     else:
+        error_message = "There are no available products in store now"
         product_query = Product.query.filter_by(available=True).all()
     if len(product_query) != 0:
         return jsonify(Product.get_products(product_query))
-    abort(Response("No products were found", status=404))
+    abort(Response(error_message, status=404))
 
 @api.route('/product/search/<term>')
 def get_product_by_term(term):
