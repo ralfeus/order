@@ -7,11 +7,11 @@ bp_client_user = Blueprint('invoices_client_user', __name__, url_prefix='/invoic
 bp_client_admin = Blueprint('invoices_client_admin', __name__, url_prefix='/admin/invoice',
                             template_folder='templates')
 
-def register_blueprints(app):
-    app.register_blueprint(bp_api_admin)
-    app.register_blueprint(bp_api_user)
-    app.register_blueprint(bp_client_admin)
-    app.register_blueprint(bp_client_user)
+def register_blueprints(flask_app):
+    flask_app.register_blueprint(bp_api_admin)
+    flask_app.register_blueprint(bp_api_user)
+    flask_app.register_blueprint(bp_client_admin)
+    flask_app.register_blueprint(bp_client_user)
 
 import app.invoices.routes.api
 import app.invoices.routes.client

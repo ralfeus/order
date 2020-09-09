@@ -29,32 +29,35 @@ class TestClientApi(unittest.TestCase):
         self._ctx = self.app.test_request_context()
         self._ctx.push()
         db.create_all()
-        entities = [
-            Country(id='c1', name='country1'),
-            Country(id='c2', name='country2'),
-            Currency(code='USD', name='US Dollar', rate=1),
-            Currency(code='RUR', name='Russian rouble', rate=1),
-            Shipping(id=1, name='Shipping1'),
-            Shipping(id=2, name='Shipping2'),
-            Shipping(id=3, name='Shipping3'),
-            ShippingRate(id=1, shipping_method_id=1, destination='c1', weight=100, rate=100),
-            ShippingRate(id=5, shipping_method_id=2, destination='c1', weight=200, rate=110),
-            ShippingRate(id=2, shipping_method_id=2, destination='c2', weight=100, rate=100),
-            ShippingRate(id=3, shipping_method_id=2, destination='c2', weight=1000, rate=150),
-            ShippingRate(id=4, shipping_method_id=3, destination='c2', weight=2000, rate=160),
-            Order(id='ORD-2020-00-0001', shipping_method_id=1),
-            OrderProduct(id=1, order_id='ORD-2020-00-0001'),
-            OrderProduct(id=2, order_id='ORD-2020-00-0001'),
-            OrderProductStatusEntry(order_product_id=1, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
-            OrderProductStatusEntry(order_product_id=2, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
-            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True),
-            Product(id='0002', name='Korean name 2'),
-            User(id=1, username='user1', email='user@name.com', 
-                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
-                enabled=True)
-        ]
-        db.session.add_all(entities)
-        db.session.commit()
+        try:
+            entities = [
+                Country(id='c1', name='country1'),
+                Currency(code='USD', name='US Dollar', rate=1),
+                Currency(code='RUR', name='Russian rouble', rate=1),
+                Country(id='c2', name='country2'),
+                Shipping(id=1, name='Shipping1'),
+                Shipping(id=2, name='Shipping2'),
+                Shipping(id=3, name='Shipping3'),
+                ShippingRate(id=1, shipping_method_id=1, destination='c1', weight=100, rate=100),
+                ShippingRate(id=5, shipping_method_id=2, destination='c1', weight=200, rate=110),
+                ShippingRate(id=2, shipping_method_id=2, destination='c2', weight=100, rate=100),
+                ShippingRate(id=3, shipping_method_id=2, destination='c2', weight=1000, rate=150),
+                ShippingRate(id=4, shipping_method_id=3, destination='c2', weight=2000, rate=160),
+                Order(id='ORD-2020-00-0001', shipping_method_id=1),
+                OrderProduct(id=1, order_id='ORD-2020-00-0001'),
+                OrderProduct(id=2, order_id='ORD-2020-00-0001'),
+                OrderProductStatusEntry(order_product_id=1, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
+                OrderProductStatusEntry(order_product_id=2, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
+                Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True),
+                Product(id='0002', name='Korean name 2'),
+                User(id=100, username='user1', email='user@name.com', 
+                    password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
+                    enabled=True)
+            ]
+            db.session.add_all(entities)
+            db.session.commit()
+        except:
+            db.session.rollback()
         login(self.client, 'user1', '1')
 
     def tearDown(self):
@@ -99,16 +102,6 @@ class TestClientApi(unittest.TestCase):
             'USD': '1.00000',
             'RUR': '1.00000'
         })
-
-    def test_get_order_products_status_history(self):
-        res = test_target.get_order_product_status_history(1)
-        self.assertEqual(res.json, [{
-            'set_at': '2020-01-01 01:00:00',
-            'set_by': 'user1',
-            'status': 'Pending'
-        }])
-        res = test_target.get_order_product_status_history(3)
-        self.assertEqual(res.status_code, 404)
 
     def test_get_products(self):
         '''

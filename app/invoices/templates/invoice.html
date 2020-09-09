@@ -1,2 +1,84 @@
-<html>
-</html>
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_invoices.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Invoice {{ id }}</h1>
+<div class="container-fluid">
+    <table id="orders" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 2em;">Order&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">Creator</th>
+            <th scope="col" style="width: max-content;">Customer</th>
+            <th scope="col" style="width: 2em;">Total (KRW)</th>
+            <th scope="col" style="width: 2em;">Status</th>
+            <th scope="col" style="width: 8em;">When created</th>
+            <th scope="col" style="width: 8em;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+<div class="row order-details container-fluid" style="display: none;">
+    <div class="container row col-10">
+        <div class="col-8">
+            <table id="order-products" class="table" style="width: 100%;">
+                <thead>
+                    <th scope="col">Subcustomer</th>
+                    <th scope="col">Product Code</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Quantity</th>
+                    <th scope="col">Status</th>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="container col-4">
+            <div id='status-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="status">Invoice</label>
+                </div>
+                <select id="status" class="form-control" aria-label="Small" aria-describedby="label">
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="done">Done</option>
+                </select>
+            </div>
+            <div id='invoice-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="invoice-id">Invoice</label>
+                </div>
+                <input id="invoice-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+            <div id='shipping-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="shipping">Shipping</label>
+                </div>
+                <input id="shipping" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+            <div id='tracking-id-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="tracking-id">Tracking ID</label>
+                </div>
+                <input id="tracking-id" class="form-control" aria-label="Small" aria-describedby="label" />
+            </div>
+            <div id='tracking-url-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="tracking-url">Tracking URL</label>
+                </div>
+                <input id="tracking-url" class="form-control" aria-label="Small" aria-describedby="label" />
+            </div>
+        </div>
+    </div>
+    <div class="col-2 container-fluid">
+        <button class="btn btn-primary btn-block btn-save">Save</button>
+    </div>
+</div>
+{% endblock %}

@@ -33,11 +33,6 @@ security = Security()
 
 import app.jobs
 
-from app.routes.admin import admin
-from app.routes.api import api
-from app.routes.client import client
-from app.routes.api_admin import admin_api
-
 def create_app(config=Config, import_name=None):
     '''
     Application factory
@@ -56,11 +51,21 @@ def create_app(config=Config, import_name=None):
     from app.models.role import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
+    register_components(flask_app)
+    flask_app.logger.info('Blueprints are registered')
+
+    return flask_app
+
+def register_components(flask_app):
+    from app.routes.admin import admin
+    from app.routes.api import api
+    from app.routes.client import client
+    from app.routes.api_admin import admin_api
+    import app.invoices
+
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
     flask_app.register_blueprint(admin)
     flask_app.register_blueprint(client)
+    app.invoices.register_blueprints(flask_app)
 
-    flask_app.logger.info('Routes are registered')
-
-    return flask_app

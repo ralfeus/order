@@ -69,7 +69,7 @@ def admin_set_order_product_status(order_product_id, order_product_status):
         order_product=order_product,
         status=order_product_status,
         # set_by=current_user,
-        user_id=1,
+        user_id=current_user.id,
         set_at=datetime.now()
     ))
 
@@ -85,19 +85,14 @@ def admin_set_order_product_status(order_product_id, order_product_status):
 @roles_required('admin')
 def admin_get_order_product_status_history(order_product_id):
     history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
-    if history:
+    if history.count():
         return jsonify(list(map(lambda entry: {
             'set_by': entry.set_by.username,
-            'set_at': entry.set_at,
+            'set_at': entry.set_at.strftime('%Y-%m-%d %H:%M:%S') if entry.set_at else '',
             'status': entry.status
         }, history)))
     else:
-        result = jsonify({
-            'status': 'error',
-            'message': f'No order product ID={order_product_id} found'
-        })
-        result.status_code = 404
-        return result
+        abort(Response(f'No order product ID={order_product_id} found', status=404))
 
 @admin_api.route('/product', defaults={'product_id': None})
 @admin_api.route('/product/<product_id>')

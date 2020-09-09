@@ -15,3 +15,4 @@ from app.models.role import Role
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionStatus
 from app.models.user import User
+from app.invoices.models.invoice_item import InvoiceItem

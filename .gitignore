@@ -53,7 +53,7 @@ coverage.xml
 docs/_build/
 
 
-invoices/
+static/invoices/
 app/upload
 app/upload/**
 
