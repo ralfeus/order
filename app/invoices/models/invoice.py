@@ -51,7 +51,7 @@ class Invoice(db.Model):
         Dirty hack of getting count of elements for backward compatibility
         '''
         ii = self.invoice_items
-        if isinstance(ii, type(list)):
+        if isinstance(ii, list):
             return len(ii)
         else:
             return ii.count()
