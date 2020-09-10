@@ -46,7 +46,8 @@ class BaseTestCase(TestCase):
         try:
             db.session.add(entity)
             db.session.commit()
-        except:
+        except Exception as e:
+            print(e)
             db.session.rollback()
 
     def try_add_entities(self, entities):

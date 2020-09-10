@@ -39,13 +39,13 @@ class TestInvoiceClient(BaseTestCase):
         self.assertEqual(res.json['invoice_id'], 'INV-2020-09-0001')
 
     def test_get_invoices(self):
-        db.session.add_all([
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', weight=10),
             Invoice(id='INV-2020-00-00',
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
             InvoiceItem(invoice_id='INV-2020-00-00', product_id='0001', price=10, quantity=1),
-            Order(id=__name__ + '-1', invoice_id='INV-2020-00-00', country='c1'),
-            Product(id='0001', name='Product 1', weight=10)
+            Order(id=__name__ + '-1', invoice_id='INV-2020-00-00', country='c1')
         ])
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice'))
@@ -76,9 +76,52 @@ class TestInvoiceClient(BaseTestCase):
             'when_created': '2020-01-01 01:00:00'
         })
 
-    def test_get_invoice_excel(self):
+    def test_get_old_invoice(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
-            Invoice(id='0')
+            Product(id=gen_id, name='Product 1', weight=10),
+            Invoice(id=gen_id,
+                    when_created=datetime(2020, 1, 1, 1, 0, 0),
+                    when_changed=datetime(2020, 1, 1, 1, 0, 0)),
+            Order(id=gen_id, invoice_id=gen_id, country='c1'),
+            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=1)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}'))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.json), 1)
+        self.assertEqual(res.json[0], {
+            'address': None,
+            'country': 'c1',
+            'customer': None,
+            'id': gen_id,
+            'invoice_items': [{
+                'id': 1,
+                'invoice_id': gen_id,
+                'product_id': gen_id,
+                'product': 'Product 1',
+                'price': 10,
+                'weight': 10,
+                'quantity': 1,
+                'subtotal': 10,
+                'when_created': None,
+                'when_changed': None
+            }],
+            'orders': [gen_id],
+            'phone': None,
+            'total': 10,
+            'weight': 10,
+            'when_changed': '2020-01-01 01:00:00',
+            'when_created': '2020-01-01 01:00:00'
+        })
+
+
+    def test_get_invoice_excel(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Invoice(id=gen_id),
+            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
+            Product(id=gen_id, weight=1)
         ])
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice/0/excel/0.0'))

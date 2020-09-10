@@ -19,11 +19,31 @@ class Invoice(db.Model):
     id = Column(String(16), primary_key=True)
     seq_num = Column(Integer)
     orders = relationship('Order')
-    invoice_items = relationship('InvoiceItem', lazy='dynamic')
+    _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
 
     when_created = Column(DateTime, index=True)
     when_changed = Column(DateTime)
+
+    @property
+    def invoice_items(self):
+        if self._invoice_items.count() > 0:
+            return self._invoice_items
+        else:
+            from app.invoices.models import InvoiceItem
+            temp_invoice_items = []
+            for order_product in [order_product for order in self.orders
+                                                for order_product in order.order_products]:
+                temp_invoice_items.append(InvoiceItem(
+                    id=len(temp_invoice_items) + 1,
+                    invoice_id=self.id,
+                    invoice=self,
+                    product_id=order_product.product.id,
+                    product=order_product.product,
+                    price=order_product.price,
+                    quantity=order_product.quantity
+                ))
+            return temp_invoice_items
 
     def __init__(self, **kwargs):
         today = datetime.now()
