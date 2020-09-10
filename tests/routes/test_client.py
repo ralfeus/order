@@ -29,8 +29,12 @@ class TestClient(unittest.TestCase):
 
         db.create_all()
 
-        security.datastore.create_user(username='user1', password='1', enabled=True)
-        security.datastore.create_user(username='user2', password='1', active=False)
+        try:
+            security.datastore.create_user(username='user1', password='1', enabled=True)
+            security.datastore.create_user(username='user2', password='1', active=False)
+            db.session.commit()
+        except:
+            db.session.rollback()
 
     def tearDown(self):
         if self._ctx is not None:

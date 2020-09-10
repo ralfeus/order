@@ -2,7 +2,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
-from app.models import Invoice
+from app.invoices.models.invoice import Invoice
 from app.models.base import BaseModel
 
 class InvoiceItem(db.Model, BaseModel):
@@ -19,8 +19,7 @@ class InvoiceItem(db.Model, BaseModel):
     quantity = Column(Integer)
 
     def __repr__(self):
-        return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
-            self.order_id, self.product_id, self.status)
+        return f"<InvoiceItem: {self.id} - Invoice: {self.invoice_id}"
 
     def to_dict(self):
         return {

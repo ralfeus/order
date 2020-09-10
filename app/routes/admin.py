@@ -7,7 +7,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.forms import ProductForm, SignupForm
-from app.models import Currency, Invoice, Product, User
+from app.invoices.models import Invoice
+from app.models import Currency, Product, User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -78,16 +79,6 @@ def admin_transactions():
     Transactions management
     '''
     return render_template('transactions.html')
-
-@admin.route('/invoices')
-@roles_required('admin')
-def admin_invoices():
-    '''
-    Invoice management
-    '''
-    usd_rate = Currency.query.get('USD').rate
-    
-    return render_template('invoices.html', usd_rate=usd_rate)
 
 @admin.route('/orders')
 @roles_required('admin')

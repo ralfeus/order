@@ -53,7 +53,14 @@ table {
     font-size: 11px;
 }
 
-td { white-space: nowrap;}
+td { 
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
 
 td.details-control {
     background: url('/static/images/details_open.png') no-repeat center center;

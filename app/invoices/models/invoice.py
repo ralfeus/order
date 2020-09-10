@@ -19,7 +19,7 @@ class Invoice(db.Model):
     id = Column(String(16), primary_key=True)
     seq_num = Column(Integer)
     orders = relationship('Order')
-    #weight = Column(Integer)
+    invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
 
     when_created = Column(DateTime, index=True)
@@ -30,7 +30,7 @@ class Invoice(db.Model):
         today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
         last_invoice = db.session.query(Invoice.seq_num). \
             filter(Invoice.id.like(today_prefix + '%')). \
-            order_by(Invoice.when_created.desc()). \
+            order_by(Invoice.id.desc()). \
             first()
         self.seq_num = last_invoice[0] + 1 if last_invoice else 1
         self.id = today_prefix + '{:04d}'.format(self.seq_num)
@@ -45,25 +45,24 @@ class Invoice(db.Model):
         '''
         Returns dictionary of the invoice ready to be jsonified
         '''
-        order_products_dict = {}
+        invoice_items_dict = {}
         total = 0
         weight = 0
-        for order_product in [order_product for order in self.orders
-                              for order_product in order.order_products]:
-            total += order_product.price * order_product.quantity
-            weight += order_product.product.weight * order_product.quantity
-            if order_products_dict.get(order_product.product_id):
-                order_products_dict[order_product.product_id]['quantity'] += order_product.quantity
-                order_products_dict[order_product.product_id]['subtotal'] += \
-                    order_product.price * order_product.quantity * \
-                        order_products_dict[order_product.product_id]['quantity']
+        for invoice_item in self.invoice_items:
+            total += invoice_item.price * invoice_item.quantity
+            weight += invoice_item.product.weight * invoice_item.quantity
+            if invoice_items_dict.get(invoice_item.product_id):
+                invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
+                invoice_items_dict[invoice_item.product_id]['subtotal'] += \
+                    invoice_item.price * invoice_item.quantity * \
+                        invoice_items_dict[invoice_item.product_id]['quantity']
             else:
-                order_products_dict[order_product.product_id] = {
-                    'product_id': order_product.product_id,
-                    'name': order_product.product.name,
-                    'price': order_product.price,
-                    'quantity': order_product.quantity,
-                    'subtotal': order_product.price * order_product.quantity
+                invoice_items_dict[invoice_item.product_id] = {
+                    'product_id': invoice_item.product_id,
+                    'name': invoice_item.product.name,
+                    'price': invoice_item.price,
+                    'quantity': invoice_item.quantity,
+                    'subtotal': invoice_item.price * invoice_item.quantity
                 }
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
 
@@ -78,5 +77,5 @@ class Invoice(db.Model):
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
             'orders': [order.id for order in self.orders],
-            'order_products': list(order_products_dict.values())
+            'invoice_items': list(invoice_items_dict.values())
         }
