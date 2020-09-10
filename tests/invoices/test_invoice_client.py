@@ -1,5 +1,5 @@
 from app.models import Order, Role, User
-# from app.invoices.models import Invoice, InvoiceItem
+from app.invoices.models import Invoice
 
 from tests import BaseTestCase, db
 
@@ -27,6 +27,7 @@ class TestInvoiceClient(BaseTestCase):
         return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
     
     def test_get_invoice(self):
+        self.try_add_entity(Invoice(id=1))
         self.try_admin_operation(
-            lambda: self.client.get('/admin/invoice/1'))
+            lambda: self.client.get('/admin/invoices/1'))
 

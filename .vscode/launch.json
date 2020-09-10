@@ -9,9 +9,10 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
             // "host": "sandlet",
             // "port": 5678
+            "justMyCode": true
         },
         {
             "type": "firefox",
@@ -25,8 +26,8 @@
                     "path": "${workspaceFolder}/app"
                 },
                 {
-                    "url": "http://sandlet:5000/admin/invoices",
-                    "path": "${workspaceFolder}/app/invoices"
+                    "url": "http://sandlet:5000/admin/invoices/",
+                    "path": "${workspaceFolder}/app/invoices/"
                 },
                 {
                     "url": "http://sandlet:5000/invoices",

@@ -16,7 +16,9 @@ def get_invoice(invoice_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
-    return render_template('invoice.html', context=invoice.to_dict())
+
+    usd_rate = Currency.query.get('USD').rate
+    return render_template('invoice.html', context=invoice.to_dict(), usd_rate=usd_rate)
 
 @bp_client_admin.route('/')
 @roles_required('admin')

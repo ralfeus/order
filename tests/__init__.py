@@ -25,10 +25,10 @@ class BaseTestCase(TestCase):
 
     def try_admin_operation(self, operation, user_name, user_password, admin_name, admin_password):
         res = operation()
-        self.assertTrue(res.status_code, 302)
-        self.login(user_name, user_password)
+        self.assertEqual(res.status_code, 302)
+        res = self.login(user_name, user_password)
         res = operation()
-        self.assertTrue(res.status_code, 403)
+        self.assertEqual(res.status_code, 302)
         self.logout()
         self.login(admin_name, admin_password)
         return operation()

@@ -45,7 +45,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
             InvoiceItem(invoice_id='INV-2020-00-00', product_id='0001', price=10, quantity=1),
             Order(id=__name__ + '-1', invoice_id='INV-2020-00-00', country='c1'),
-            Product(id='0001', name='Product 1')
+            Product(id='0001', name='Product 1', weight=10)
         ])
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice'))
@@ -57,26 +57,83 @@ class TestInvoiceClient(BaseTestCase):
             'customer': None,
             'id': 'INV-2020-00-00',
             'invoice_items': [{
+                'id': 1,
+                'invoice_id': 'INV-2020-00-00',
                 'product_id': '0001',
-                'name': 'Product 1',
+                'product': 'Product 1',
                 'price': 10,
+                'weight': 10,
                 'quantity': 1,
-                'subtotal': 10
+                'subtotal': 10,
+                'when_created': None,
+                'when_changed': None
             }],
             'orders': [__name__ + '-1'],
             'phone': None,
             'total': 10,
-            'weight': 0,
+            'weight': 10,
             'when_changed': '2020-01-01 01:00:00',
             'when_created': '2020-01-01 01:00:00'
         })
 
     def test_get_invoice_excel(self):
+        self.try_add_entities([
+            Invoice(id='0')
+        ])
         self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/invoice/0/excel/0'))
+            lambda: self.client.get('/api/v1/admin/invoice/0/excel/0.0'))
 
     def test_get_invoice_cumulative_excel(self):
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00'))
         res = self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00')
         self.assertTrue(res.status_code, 200)
+
+    def test_create_invoice_item(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id),
+            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            Product(id=gen_id, name='Product 1'),
+            Invoice(id=gen_id, order_id=gen_id)
+        ])
+        self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/new')
+        )
+        res = self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/new',
+            json={'invoice_id': gen_id, 'product_id': gen_id, 'price': 10, 'quantity': 10})
+        self.assertTrue(res.status_code, 200)
+    
+    def test_save_invoice_item(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id),
+            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            Product(id=gen_id, name='Product 1'),
+            Invoice(id=gen_id, order_id=gen_id),
+            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
+        ])
+        self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/10')
+        )
+        res = self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/10', 
+            json={'price': 20})
+        self.assertEqual(res.status_code, 200)
+        invoice_item = InvoiceItem.query.get(10)
+        self.assertEqual(invoice_item.price, 20)
+    
+    def test_delete_invoice_item(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id),
+            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            Product(id=gen_id, name='Product 1'),
+            Invoice(id=gen_id, order_id=gen_id),
+            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.delete(f'/api/v1/admin/invoice/{gen_id}/item/10')
+        )
+        self.assertEqual(res.status_code, 200)
+        invoice_item = InvoiceItem.query.get(10)
+        self.assertEqual(invoice_item, None)

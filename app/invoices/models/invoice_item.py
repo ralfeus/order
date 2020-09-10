@@ -24,11 +24,13 @@ class InvoiceItem(db.Model, BaseModel):
     def to_dict(self):
         return {
             'id': self.id,
-            'invoice_id': self.order_id,
+            'invoice_id': self.invoice_id,
             'product_id': self.product_id,
-            'product': self.product.name_english,
+            'product': self.product.name,
+            'weight': self.product.weight,
             'price': self.price,
             'quantity': self.quantity,
+            'subtotal': self.price * self.quantity,
             'when_created': self.when_created,
             'when_changed': self.when_changed
         }

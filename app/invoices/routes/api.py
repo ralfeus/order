@@ -41,7 +41,7 @@ def create_invoice():
         'invoice_id': invoice.id
     })
 
-@bp_api_admin.route('/', defaults={'invoice_id': None})
+@bp_api_admin.route('/', defaults={'invoice_id': None}, strict_slashes=False)
 @bp_api_admin.route('/<invoice_id>')
 @roles_required('admin')
 def get_invoices(invoice_id):
@@ -64,14 +64,12 @@ def get_invoices(invoice_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
 def get_invoice_order_products(invoice, usd_rate):
-    order_products = map_reduce(
-        [order_product for order in invoice.orders
-            for order_product in order.order_products],
-        keyfunc=lambda op: (
-            op.product_id,
-            op.product.name_english if op.product.name_english \
-                else op.product.name,
-            round(op.price * usd_rate, 2)),
+    invoice_items = map_reduce(invoice.invoice_items,
+        keyfunc=lambda ii: (
+            ii.product_id,
+            ii.product.name_english if ii.product.name_english \
+                else ii.product.name,
+            round(ii.price * usd_rate, 2)),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
@@ -81,7 +79,7 @@ def get_invoice_order_products(invoice, usd_rate):
         'price': op[0][2],
         'quantity': op[1],
         'subtotal': op[0][2] * op[1]
-    }, order_products.items()))
+    }, invoice_items.items()))
     return result
 
 def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
@@ -149,7 +147,9 @@ def get_invoice_excel(invoice_id, usd_rate):
     '''
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
-        abort(404)
+        abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
+    if invoice.invoice_items.count() == 0:
+        abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
     create_invoice_excel(
         reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx', 
         usd_rate=usd_rate)
@@ -176,3 +176,50 @@ def get_invoice_cumulative_excel(usd_rate):
         invoice_file_name=invoice_file_name, usd_rate=usd_rate)
     return send_file(f'static/invoices/{invoice_file_name}',
         as_attachment=True, attachment_filename=invoice_file_name)
+
+@bp_api_admin.route('/<invoice_id>/item/<invoice_item_id>', methods=['POST'])
+@roles_required('admin')
+def save_invoice_item(invoice_id, invoice_item_id):
+    '''
+    Creates or modifies existing invoice item
+    '''
+    payload = request.get_json()
+    if not payload:
+        abort(Response('No data was provided', status=400))
+    invoice = Invoice.query.get(invoice_id)
+    invoice_item = None
+    if not invoice:
+        abort(Response(f'No invoice <{invoice_id}> was found', status=404))
+    if invoice_item_id != 'new':
+        invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
+        if not invoice_item:
+            abort(Response(f'No invoice item <{invoice_item_id}> was found', status=404))
+    else:
+        invoice_item = InvoiceItem(invoice=invoice, when_created=datetime.now())
+    
+    for key, value in payload.items():
+        if getattr(invoice_item, key) != value:
+            setattr(invoice_item, key, value)
+            invoice_item.when_changed = datetime.now()
+    if invoice_item_id == 'new':
+        db.session.add(invoice_item)
+    db.session.commit()
+    return jsonify(invoice_item.to_dict())
+
+@bp_api_admin.route('/<invoice_id>/item/<invoice_item_id>', methods=['DELETE'])
+@roles_required('admin')
+def delete_invoice_item(invoice_id, invoice_item_id):
+    '''
+    Deletes existing invoice item
+    '''
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(Response(f'No invoice <{invoice_id}> was found', status=404))
+    invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
+    if not invoice_item:
+        abort(Response(f'No invoice item<{invoice_item_id}> was found', status=404))
+    db.session.delete(invoice_item)
+    db.session.commit()
+    return jsonify({
+        'status': 'success'
+    })

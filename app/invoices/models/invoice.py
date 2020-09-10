@@ -57,13 +57,7 @@ class Invoice(db.Model):
                     invoice_item.price * invoice_item.quantity * \
                         invoice_items_dict[invoice_item.product_id]['quantity']
             else:
-                invoice_items_dict[invoice_item.product_id] = {
-                    'product_id': invoice_item.product_id,
-                    'name': invoice_item.product.name,
-                    'price': invoice_item.price,
-                    'quantity': invoice_item.quantity,
-                    'subtotal': invoice_item.price * invoice_item.quantity
-                }
+                invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
 
         return {
