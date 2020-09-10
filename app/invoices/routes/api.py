@@ -148,7 +148,7 @@ def get_invoice_excel(invoice_id, usd_rate):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
-    if invoice.invoice_items.count() == 0:
+    if invoice.invoice_items_count == 0:
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
     create_invoice_excel(
         reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx', 

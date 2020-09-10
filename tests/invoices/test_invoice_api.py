@@ -119,12 +119,13 @@ class TestInvoiceClient(BaseTestCase):
     def test_get_invoice_excel(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
+            Product(id=gen_id, weight=1),
             Invoice(id=gen_id),
-            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
-            Product(id=gen_id, weight=1)
+            Order(id=gen_id, invoice_id=gen_id, country='c1'),
+            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
         ])
         self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/invoice/0/excel/0.0'))
+            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}/excel/0.0'))
 
     def test_get_invoice_cumulative_excel(self):
         self.try_admin_operation(

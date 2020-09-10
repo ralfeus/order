@@ -44,6 +44,18 @@ class Invoice(db.Model):
                     quantity=order_product.quantity
                 ))
             return temp_invoice_items
+    
+    @property
+    def invoice_items_count(self):
+        '''
+        Dirty hack of getting count of elements for backward compatibility
+        '''
+        ii = self.invoice_items
+        if isinstance(ii, type(list)):
+            return len(ii)
+        else:
+            return ii.count()
+
 
     def __init__(self, **kwargs):
         today = datetime.now()
