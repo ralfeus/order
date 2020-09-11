@@ -42,7 +42,7 @@ class TestInvoiceClient(BaseTestCase):
 
     def test_get_invoices(self):
         self.try_add_entities([
-            Product(id='0001', name='Product 1', weight=10),
+            Product(id='0001', name='Product 1', name_english='P1', weight=10),
             Invoice(id='INV-2020-00-00',
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
@@ -62,7 +62,7 @@ class TestInvoiceClient(BaseTestCase):
                 'id': 1,
                 'invoice_id': 'INV-2020-00-00',
                 'product_id': '0001',
-                'product': 'Product 1',
+                'product': 'P1',
                 'price': 10,
                 'weight': 10,
                 'quantity': 1,

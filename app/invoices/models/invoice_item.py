@@ -26,7 +26,8 @@ class InvoiceItem(db.Model, BaseModel):
             'id': self.id,
             'invoice_id': self.invoice_id,
             'product_id': self.product_id,
-            'product': self.product.name,
+            'product': self.product.name_english \
+                if self.product.name_english else self.product.name,
             'weight': self.product.weight,
             'price': float(self.price),
             'quantity': self.quantity,

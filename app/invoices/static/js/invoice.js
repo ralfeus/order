@@ -102,7 +102,7 @@ function get_products() {
                     'value': product.id,
                     'label': product.name_english == null
                                 ? product.name
-                                : product.name_english + " | " + product.name_russian,
+                                : product.name_english,
                     'price': product.price * g_usd_rate,
                     'points': product.points,
                     'weight': product.weight
