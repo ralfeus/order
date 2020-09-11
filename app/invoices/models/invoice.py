@@ -30,8 +30,10 @@ class Invoice(db.Model):
         if self._invoice_items.count() > 0:
             return self._invoice_items
         else:
+            from app.models import Currency
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
+            usd_rate = Currency.query.get('USD').rate
             for order_product in [order_product for order in self.orders
                                                 for order_product in order.order_products]:
                 temp_invoice_items.append(InvoiceItem(
@@ -40,7 +42,7 @@ class Invoice(db.Model):
                     invoice=self,
                     product_id=order_product.product.id,
                     product=order_product.product,
-                    price=order_product.price,
+                    price=round(order_product.price * usd_rate, 2),
                     quantity=order_product.quantity
                 ))
             return temp_invoice_items
@@ -72,6 +74,8 @@ class Invoice(db.Model):
             if arg in attributes:
                 setattr(self, arg, kwargs[arg])
 
+    def __repr__(self):
+        return f"<Invoice: {self.id}>"
 
     def to_dict(self):
         '''
@@ -99,7 +103,7 @@ class Invoice(db.Model):
             'country': self.orders[0].country if self.orders else '',
             'phone': self.orders[0].phone if self.orders else '',
             'weight': weight,
-            'total': total,
+            'total': float(total),
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
             'orders': [order.id for order in self.orders],

@@ -11,9 +11,9 @@ from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models import Invoice, InvoiceItem
 from app.models import Order
 
-@bp_api_admin.route('/new', methods=['POST'])
+@bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
-def create_invoice():
+def create_invoice(usd_rate):
     '''
     Creates invoice for provided orders
     '''
@@ -29,8 +29,9 @@ def create_invoice():
     for order in orders:
         order.invoice = invoice
         invoice_items += [
-            InvoiceItem(invoice=invoice, product=order_product.product, 
-                    price=order_product.price, quantity=order_product.quantity)
+            InvoiceItem(invoice=invoice, product=order_product.product,
+                    price=round(order_product.price * usd_rate, 2),
+                    quantity=order_product.quantity)
             for order_product in order.order_products]
 
     db.session.add(invoice)
@@ -63,13 +64,13 @@ def get_invoices(invoice_id):
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
-def get_invoice_order_products(invoice, usd_rate):
+def get_invoice_order_products(invoice):
     invoice_items = map_reduce(invoice.invoice_items,
         keyfunc=lambda ii: (
             ii.product_id,
             ii.product.name_english if ii.product.name_english \
                 else ii.product.name,
-            round(ii.price * usd_rate, 2)),
+            ii.price),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
@@ -82,10 +83,10 @@ def get_invoice_order_products(invoice, usd_rate):
     }, invoice_items.items()))
     return result
 
-def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
+def create_invoice_excel(reference_invoice, invoice_file_name):
     invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
     invoice_dict = reference_invoice.to_dict()
-    order_products = get_invoice_order_products(reference_invoice, usd_rate)
+    order_products = get_invoice_order_products(reference_invoice)
     total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
@@ -139,9 +140,9 @@ def create_invoice_excel(reference_invoice, invoice_file_name, usd_rate):
     pl.delete_rows(row, last_row - row + 1)
     invoice_wb.save(f'app/static/invoices/{invoice_file_name}')
 
-@bp_api_admin.route('/<invoice_id>/excel/<float:usd_rate>')
+@bp_api_admin.route('/<invoice_id>/excel')
 @roles_required('admin')
-def get_invoice_excel(invoice_id, usd_rate):
+def get_invoice_excel(invoice_id):
     '''
     Generates an Excel file for an invoice
     '''
@@ -151,15 +152,14 @@ def get_invoice_excel(invoice_id, usd_rate):
     if invoice.invoice_items_count == 0:
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
     create_invoice_excel(
-        reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx', 
-        usd_rate=usd_rate)
+        reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx')
 
     return send_file(f'static/invoices/{invoice_id}.xlsx',
                      as_attachment=True, attachment_filename=invoice_id + '.xlsx')
 
-@bp_api_admin.route('/excel/<float:usd_rate>')
+@bp_api_admin.route('/excel')
 @roles_required('admin')
-def get_invoice_cumulative_excel(usd_rate):
+def get_invoice_cumulative_excel():
     '''
     Returns cumulative Excel of several invoices
     invoice IDs are provides as URL arguments
@@ -173,7 +173,7 @@ def get_invoice_cumulative_excel(usd_rate):
     invoice_file_name = 'cumulative_invoice.xlsx'
     create_invoice_excel(
         reference_invoice=cumulative_invoice,
-        invoice_file_name=invoice_file_name, usd_rate=usd_rate)
+        invoice_file_name=invoice_file_name)
     return send_file(f'static/invoices/{invoice_file_name}',
         as_attachment=True, attachment_filename=invoice_file_name)
 

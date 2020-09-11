@@ -117,7 +117,7 @@ function create_invoice(rows) {
     $('.wait').show();
     var orders = rows.data().map(row => row.id).toArray();
     $.ajax({
-        url: '/api/v1/admin/invoice/new',
+        url: '/api/v1/admin/invoice/new/' + $('#usd_rate').val(),
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',

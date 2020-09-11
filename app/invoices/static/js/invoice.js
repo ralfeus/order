@@ -1,10 +1,12 @@
 var g_invoice_id = window.location.href.slice(-16);
 var g_invoice_items_table;
 var g_products;
+var g_usd_rate;
 
 $(document).ready(() => {
     var editor;
-    get_products()
+    get_usd()
+        .then(() => get_products()
         .then(() => {
             editor = new $.fn.dataTable.Editor({
                 ajax: (_method, _url, data, success, error) => {
@@ -78,7 +80,7 @@ $(document).ready(() => {
                 select: true,
                 initComplete: update_totals
             });
-        });
+        }));
 });
 
 function update_totals() {
@@ -101,7 +103,7 @@ function get_products() {
                     'label': product.name_english == null
                                 ? product.name
                                 : product.name_english + " | " + product.name_russian,
-                    'price': product.price,
+                    'price': product.price * g_usd_rate,
                     'points': product.points,
                     'weight': product.weight
                 }));
@@ -113,5 +115,19 @@ function get_products() {
 }
 
 function get_excel() {
-    window.open('/api/v1/admin/invoice/' + g_invoice_id + '/excel/' + $('#usd_rate').val());
+    window.open('/api/v1/admin/invoice/' + g_invoice_id + '/excel');
+}
+
+function get_usd() {
+    var promise = $.Deferred()
+    $.ajax({
+        url: '/api/v1/currency',
+        success: function(data) {
+            if (data) {
+                g_usd_rate = data.USD
+            }
+            promise.resolve();
+        }
+    })
+    return promise;
 }

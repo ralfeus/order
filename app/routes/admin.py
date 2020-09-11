@@ -86,4 +86,5 @@ def admin_orders():
     '''
     Order management
     '''
-    return render_template('orders.html')
+    usd_rate = Currency.query.get('USD').rate
+    return render_template('orders.html', usd_rate=usd_rate)

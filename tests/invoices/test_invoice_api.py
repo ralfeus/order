@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.models import Country, Order, OrderProduct, Product, Role, User
+from app.models import Country, Currency, Order, OrderProduct, Product, Role, User
 from app.invoices.models import Invoice, InvoiceItem
 from tests import BaseTestCase, db
 
@@ -19,6 +19,7 @@ class TestInvoiceClient(BaseTestCase):
                 enabled=True),
             admin_role,
             Country(id='c1', name='country1'),
+            Currency(code='USD', rate=0.5),
             Order(id='test-invoice-api-1')
         ])
 
@@ -31,11 +32,12 @@ class TestInvoiceClient(BaseTestCase):
             'user1_test_invoice_api', '1', 'root_test_invoice_api', '1')
     
     def test_create_invoice(self):
-        self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/invoice/new'))
-        res = self.client.post('/api/v1/admin/invoice/new', json={
-            'order_ids': ['test-invoice-api-1']
-        })
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/invoice/new/0.5',
+            json={
+                'order_ids': ['test-invoice-api-1']
+            })
+        )
         self.assertEqual(res.json['invoice_id'], 'INV-2020-09-0001')
 
     def test_get_invoices(self):
@@ -100,16 +102,16 @@ class TestInvoiceClient(BaseTestCase):
                 'invoice_id': gen_id,
                 'product_id': gen_id,
                 'product': 'Product 1',
-                'price': 10,
+                'price': 5,
                 'weight': 10,
                 'quantity': 1,
-                'subtotal': 10,
+                'subtotal': 5,
                 'when_created': None,
                 'when_changed': None
             }],
             'orders': [gen_id],
             'phone': None,
-            'total': 10,
+            'total': 5,
             'weight': 10,
             'when_changed': '2020-01-01 01:00:00',
             'when_created': '2020-01-01 01:00:00'
@@ -125,20 +127,26 @@ class TestInvoiceClient(BaseTestCase):
             InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
         ])
         self.try_admin_operation(
-            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}/excel/0.0'))
+            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}/excel'))
 
     def test_get_invoice_cumulative_excel(self):
-        self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00'))
-        res = self.client.get('/api/v1/admin/invoice/excel?invoices[0]=INV-2020-00-00&invoices[0]=INV-2020-00-00')
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id=gen_id, weight=1),
+            Invoice(id=gen_id),
+            Order(id=gen_id, invoice_id=gen_id, country='c1'),
+            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.get(f'/api/v1/admin/invoice/excel?invoices={gen_id}&invoices={gen_id}'))
         self.assertTrue(res.status_code, 200)
 
     def test_create_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
+            Product(id=gen_id, name='Product 1'),
             Order(id=gen_id),
             OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Product(id=gen_id, name='Product 1'),
             Invoice(id=gen_id, order_id=gen_id)
         ])
         self.try_admin_operation(
@@ -151,9 +159,9 @@ class TestInvoiceClient(BaseTestCase):
     def test_save_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
+            Product(id=gen_id, name='Product 1'),
             Order(id=gen_id),
             OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Product(id=gen_id, name='Product 1'),
             Invoice(id=gen_id, order_id=gen_id),
             InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
         ])
@@ -169,9 +177,9 @@ class TestInvoiceClient(BaseTestCase):
     def test_delete_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
+            Product(id=gen_id, name='Product 1'),
             Order(id=gen_id),
             OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Product(id=gen_id, name='Product 1'),
             Invoice(id=gen_id, order_id=gen_id),
             InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
         ])

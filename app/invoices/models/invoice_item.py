@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -15,11 +15,11 @@ class InvoiceItem(db.Model, BaseModel):
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
-    price = Column(Integer)
+    price = Column(Numeric(scale=2))
     quantity = Column(Integer)
 
     def __repr__(self):
-        return f"<InvoiceItem: {self.id} - Invoice: {self.invoice_id}"
+        return f"<InvoiceItem: {self.id} - Invoice: {self.invoice_id}>"
 
     def to_dict(self):
         return {
@@ -28,9 +28,9 @@ class InvoiceItem(db.Model, BaseModel):
             'product_id': self.product_id,
             'product': self.product.name,
             'weight': self.product.weight,
-            'price': self.price,
+            'price': float(self.price),
             'quantity': self.quantity,
-            'subtotal': self.price * self.quantity,
+            'subtotal': float(self.price * self.quantity),
             'when_created': self.when_created,
             'when_changed': self.when_changed
         }

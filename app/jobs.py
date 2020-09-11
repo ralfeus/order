@@ -14,7 +14,8 @@ def import_products():
     same = new = modified = 0
     for atomy_product in atomy():
         try:
-            product = next(p for p in products if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))
+            product = next(p for p in products 
+                           if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))
             is_dirty = False
             if product.name != atomy_product['name']:
                 product.name = atomy_product['name']

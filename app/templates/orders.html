@@ -8,6 +8,15 @@
 {% block content %}
 {{ super() }}
 <div class="container-fluid">
+    <div class="container-fluid row">
+        <div class="col-9">&nbsp;</div>
+        <div class="input-group col-3">
+            <div class="input-group-prepend">
+                <label class="input-group-text" for="usd_rate">USD rate</label>
+            </div>
+            <input id="usd_rate" class="form-control" value="{{ usd_rate }}" />
+        </div>
+    </div>
     <table id="orders" class="table">
         <thead>
             <th></th>
