@@ -90,8 +90,8 @@ class Invoice(db.Model):
             if invoice_items_dict.get(invoice_item.product_id):
                 invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
                 invoice_items_dict[invoice_item.product_id]['subtotal'] += \
-                    invoice_item.price * invoice_item.quantity * \
-                        invoice_items_dict[invoice_item.product_id]['quantity']
+                    float(invoice_item.price * invoice_item.quantity *
+                        invoice_items_dict[invoice_item.product_id]['quantity'])
             else:
                 invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
