@@ -31,7 +31,7 @@ class InvoiceItem(db.Model, BaseModel):
             'weight': self.product.weight,
             'price': float(self.price),
             'quantity': self.quantity,
-            'subtotal': float(self.price * self.quantity),
+            'subtotal': round(float(self.price * self.quantity), 2),
             'when_created': self.when_created,
             'when_changed': self.when_changed
         }
