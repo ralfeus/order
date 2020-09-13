@@ -87,8 +87,9 @@ function update_totals() {
     var total_weight = g_invoice_items_table.data().reduce((acc, row) => 
         acc + row.weight * row.quantity, 0);
     $('#total-weight').val(total_weight);
-    var total = g_invoice_items_table.data().reduce((acc, row) => 
-        acc + row.price * row.quantity, 0);
+    var total = round_up(
+        g_invoice_items_table.data().reduce((acc, row) => acc + row.price * row.quantity, 0), 
+        2);
     $('#total').val(total);
 }
 
@@ -130,4 +131,8 @@ function get_usd() {
         }
     })
     return promise;
+}
+
+function round_up(number, signs) {
+    return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
