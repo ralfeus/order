@@ -85,13 +85,13 @@ class Invoice(db.Model):
         total = 0
         weight = 0
         for invoice_item in self.invoice_items:
-            subtotal = invoice_item.price * invoice_item.quantity
-            total += subtotal
+            total += invoice_item.price * invoice_item.quantity
             weight += invoice_item.product.weight * invoice_item.quantity
             if invoice_items_dict.get(invoice_item.product_id):
                 invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
-                invoice_items_dict[invoice_item.product_id]['subtotal'] += \
-                    round(float(invoice_item.price * invoice_item.quantity), 2)
+                invoice_items_dict[invoice_item.product_id]['subtotal'] = \
+                    round(invoice_items_dict[invoice_item.product_id]['subtotal'] +
+                          float(invoice_item.price * invoice_item.quantity), 2)
             else:
                 invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
@@ -103,7 +103,7 @@ class Invoice(db.Model):
             'country': self.orders[0].country if self.orders else '',
             'phone': self.orders[0].phone if self.orders else '',
             'weight': weight,
-            'total': float(total),
+            'total': round(float(total), 2),
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
             'orders': [order.id for order in self.orders],
