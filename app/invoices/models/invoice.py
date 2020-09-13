@@ -85,13 +85,13 @@ class Invoice(db.Model):
         total = 0
         weight = 0
         for invoice_item in self.invoice_items:
-            total += invoice_item.price * invoice_item.quantity
+            subtotal = invoice_item.price * invoice_item.quantity
+            total += subtotal
             weight += invoice_item.product.weight * invoice_item.quantity
             if invoice_items_dict.get(invoice_item.product_id):
                 invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
                 invoice_items_dict[invoice_item.product_id]['subtotal'] += \
-                    float(invoice_item.price * invoice_item.quantity *
-                        invoice_items_dict[invoice_item.product_id]['quantity'])
+                    float(invoice_item.price * invoice_item.quantity)
             else:
                 invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
