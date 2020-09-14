@@ -11,9 +11,10 @@ from flask import Blueprint, Response, abort, jsonify, request, send_file
 from flask_security import current_user, login_required, roles_required
 
 from app import db
+from app.currencies.models import Currency
 from app.invoices.models import Invoice
 from app.models import \
-    Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    Order, OrderProduct, OrderProductStatusEntry, Product, \
     User, Transaction, TransactionStatus
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')

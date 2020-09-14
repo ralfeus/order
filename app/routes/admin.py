@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.forms import ProductForm, SignupForm
 from app.invoices.models import Invoice
-from app.models import Currency, Product, User
+from app.currencies.models import Currency
+from app.models import Product, User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 

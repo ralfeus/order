@@ -3,7 +3,7 @@ from flask_wtf.file import FileAllowed
 from wtforms import DecimalField, FileField, RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
-from app.models import Currency
+from app.currencies.models import Currency
 
 class TransactionForm(FlaskForm):
     '''

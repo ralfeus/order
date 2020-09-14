@@ -13,8 +13,9 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db, shipping
+from app.currencies.models import Currency
 from app.models import \
-    Country, Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    Country, Order, OrderProduct, OrderProductStatusEntry, Product, \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 

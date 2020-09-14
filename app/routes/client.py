@@ -7,7 +7,8 @@ from flask import Blueprint, current_app, request, redirect, render_template, se
 from flask_security import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
-from app.models import Currency, Order, Transaction, TransactionStatus, User
+from app.currencies.models import Currency
+from app.models import Order, Transaction, TransactionStatus, User
 from app import db, security
 from app.tools import write_to_file
 

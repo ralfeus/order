@@ -30,7 +30,7 @@ class Invoice(db.Model):
         if self._invoice_items.count() > 0:
             return self._invoice_items
         else:
-            from app.models import Currency
+            from app.currencies.models import Currency
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
             usd_rate = Currency.query.get('USD').rate

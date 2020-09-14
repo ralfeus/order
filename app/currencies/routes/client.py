@@ -2,8 +2,8 @@ from flask import Response, abort, render_template, send_file
 from flask_security import roles_required
 
 from app.currencies.models import Currency
-from app.invoices import bp_client_admin, bp_client_user
-from app.invoices.models import Invoice
+from app.currencies import bp_client_admin, bp_client_user
+# from app.invoices.models import Invoice
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
