@@ -10,22 +10,22 @@ from app.currencies import bp_client_admin, bp_client_user
 def get_static(file):
     return send_file(f"invoices/static/{file}")
 
-@bp_client_admin.route('/<invoice_id>')
+@bp_client_admin.route('/<currency_id>')
 @roles_required('admin')
-def get_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
-    if not invoice:
-        abort(Response(f"No invoice {invoice_id} was found", status=404))
+def get_currency(currency_id):
+    currency = Currency.query.get(currency_id)
+    if not currency:
+        abort(Response(f"No currency {currency_id} was found", status=404))
 
     usd_rate = Currency.query.get('USD').rate
-    return render_template('invoice.html', context=invoice.to_dict(), usd_rate=usd_rate)
+    return render_template('currency.html', context=currency.to_dict(), usd_rate=usd_rate)
 
 @bp_client_admin.route('/')
 @roles_required('admin')
-def get_invoices():
+def get_currencies():
     '''
-    Invoice management
+    Currency management
     '''
     usd_rate = Currency.query.get('USD').rate
     
-    return render_template('invoices.html', usd_rate=usd_rate)
+    return render_template('currency.html', usd_rate=usd_rate)

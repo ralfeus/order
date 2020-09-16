@@ -13,5 +13,4 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
 
-import app.curencies.routes.api
-import app.curencies.routes.client
+

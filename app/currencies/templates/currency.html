@@ -7,16 +7,16 @@
 
 {% block content %}
 {{ super() }}
-<h1>Invoice {{ id }}</h1>
+<h1>Currency {{ id }}</h1>
 <div class="container row col-12">
     <div class="col-8">
         <table id="invoice-items" class="table" style="width: 100%;">
             <thead>
                 <th scope="col">Product Code</th>
                 <th scope="col">Name</th>
+                <th scope="col">Country</th>
                 <th scope="col">Price</th>
                 <th scope="col">Quantity</th>
-                <th scope="col">Subtotal</th>
             </thead>
             <tbody></tbody>
         </table>
