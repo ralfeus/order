@@ -9,8 +9,9 @@ app = create_app(TestConfig)
 app.app_context().push()
 
 from app.invoices.models import Invoice
-from app.models import Country, Currency, Order, OrderProduct, \
-    OrderProductStatusEntry, Product, Role, Shipping, ShippingRate, User
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
+from app.models import Country, Currency,  \
+    Product, Role, Shipping, ShippingRate, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -91,33 +92,62 @@ class TestAdminApi(unittest.TestCase):
             'id': 'test-api-admin-1',
             'customer': None,
             'invoice_id': None,
+            'address': None,
+            'country': '',
+            'phone': None,
             'total': 100,
             'total_krw': 100,
-            'total_rur': 100,
-            'total_usd': 100,
-            'shipping': 'shipping1',
+            'total_rur': 100.0,
+            'total_usd': 100.0,
+            'shipping': {'id': 10, 'name': 'shipping1'},
             'tracking_id': 'T00',
             'tracking_url': 'https://tracking.fake/T00',
             'user': 'user2',
             'status': 'pending',
             'when_created': '',
-            'when_changed': ''
+            'when_changed': '',
+            'order_products': [
+                {
+                    'id': 10,
+                    'order_id': 'test-api-admin-1',
+                    'order_product_id': 10,
+                    'customer': None,
+                    'subcustomer': None,
+                    'comment': None,
+                    'private_comment': None,
+                    'public_comment': None,
+                    'product_id': '0010',
+                    'product': None,
+                    'name': 'Test product',
+                    'name_english': None,
+                    'name_russian': None,
+                    'price': 10,
+                    'points': None,
+                    'quantity': 10,
+                    'status': None,
+                    'weight': 0
+                }
+            ]
         })
         self.assertEqual(res.json[1], {
             'id': 'test-api-admin-2',
             'customer': None,
+            'address': None,
+            'country': '',
+            'phone': None,
             'invoice_id': None,
             'total': 0,
             'total_krw': 0,
-            'total_rur': 0,
-            'total_usd': 0,
-            'shipping': 'No shipping',
+            'total_rur': 0.0,
+            'total_usd': 0.0,
+            'shipping': {'id': None, 'name': 'No shipping'},
             'user': 'user2',
             'tracking_id': '',
             'tracking_url': '',
             'status': 'shipped',
             'when_created': '',
-            'when_changed': ''
+            'when_changed': '',
+            'order_products': []
         })
 
     def test_save_order(self):
@@ -158,11 +188,16 @@ class TestAdminApi(unittest.TestCase):
             'order_id': 'test-api-admin-1', 
             'order_product_id': 10, 
             'price': 10, 
-            'private_comment': None, 
+            'points': None,
+            'private_comment': None,
             'product': None, 
+            'name': 'Test product',
+            'name_english': None,
+            'name_russian': None,
             'product_id': '0010', 
             'public_comment': None, 
-            'quantity': 100, 
+            'quantity': 100,
+            'weight': 0,
             'status': None, 
             'subcustomer': None
         })

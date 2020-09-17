@@ -30,8 +30,16 @@
                     "path": "${workspaceFolder}/app/invoices/"
                 },
                 {
-                    "url": "http://sandlet:5000/invoices",
-                    "path": "${workspaceFolder}/app/invoices"
+                    "url": "http://sandlet:5000/invoices/",
+                    "path": "${workspaceFolder}/app/invoices/"
+                },
+                {
+                    "url": "http://sandlet:5000/admin/orders/",
+                    "path": "${workspaceFolder}/app/orders/"
+                },
+                {
+                    "url": "http://sandlet:5000/orders/",
+                    "path": "${workspaceFolder}/app/orders/"
                 }
             ],
             "skipFiles": [

@@ -30,7 +30,7 @@ class Shipping(db.Model, BaseModel):
         for rate in ShippingRate.query \
                     .filter_by(shipping_method_id=self.id, destination=destination) \
                     .order_by(ShippingRate.weight):
-            if weight < rate.weight:
+            if weight <= rate.weight:
                 return rate.rate
         raise Exception("No rates found")
 

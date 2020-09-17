@@ -106,7 +106,7 @@ function format ( row, data ) {
     });
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
-    $('#shipping', order_details).val(data.shipping);
+    $('#shipping', order_details).val(data.shipping.name);
     $('#status', order_details).val(data.status);
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);

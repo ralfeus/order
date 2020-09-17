@@ -111,7 +111,7 @@ function add_product(current_node, item, product_id, quantity) {
     item_code_node.val(product_id);
     $('.item-quantity', current_node).last().val(quantity);
     order_product_number++;
-    product_line_fill(item_code_node[0])
+    get_product(item_code_node[0])
         .then(() => {
             order_product_number--;
             if (!order_product_number) {

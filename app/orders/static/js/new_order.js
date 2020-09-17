@@ -1,6 +1,7 @@
 var g_selected_shipping_method;
 var g_products;
 var g_cart = {};
+const g_dictionaries_loaded = $.Deferred();
 var box_weights = {
     30000: 2200,
     20000: 1900,
@@ -19,10 +20,6 @@ var totalWeight = 0;
 var subcustomerTemplate;
 var itemTemplate;
 
-function roundUp(number, signs) {
-    return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
-}
-
 $(document).ready(function() {
     itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
@@ -31,9 +28,8 @@ $(document).ready(function() {
     $('#add_user').on('click', add_subcustomer);
     $('#submit').on('click', submit_order)
 
-    get_countries();
-    get_currencies();
-    get_products()
+    load_dictionaries();
+    g_dictionaries_loaded
         .then(() => product_code_autocomplete($('.item-code')));
     product_quantity_change($('.item-quantity'));
 });
@@ -103,23 +99,46 @@ function delete_product(target) {
     }
 }
 
+function fill_product_row(product_row, product) {
+    if (product.product_id) {
+        $('.item-code', product_row).val(product.product_id);
+    }
+    if (!isNaN(product.quantity)) {
+        $('.item-quantity', product_row).val(product.quantity);
+    }
+    $('.item-name', product_row).html(
+        product.name_english == null
+            ? product.name
+            : product.name_english + " | " + product.name_russian);
+    $('.item-price', product_row).html(product.price);
+    $('.item-points', product_row).html(product.points);
+    g_cart[product_row.id] = product;
+    update_item_subtotal($('.item-quantity', product_row));
+}
+
 function get_countries() {
+    var promise = $.Deferred();
     $.ajax({
         url: '/api/v1/country',
         success: function(data) {
             $('#country').html(data.map(c => '<option value="' + c.id + '">' + c.name + '</option>'))
             get_shipping_methods($('#country').val(), 0);
+            promise.resolve();
         }
-    })
+    });
+    return promise;
 }
 
 function get_currencies() {
+    var promise = $.Deferred();
     $.ajax({
         url: '/api/v1/currency',
         success: function(data, _status, _xhr) {
             currencyRates = data;
+            promise.resolve();
         }
-    })
+    });
+    return promise;
 }
 
 function get_products() {
@@ -176,9 +195,16 @@ function get_shipping_methods(country, weight) {
                     get_shipping_cost($('#shipping').val(), weight);
                 },
                 error: xhr => {
-                    $('.modal-title').text('Something went wrong...');
-                    $('.modal-body').text(xhr.responseText);
-                    $('.modal').modal();
+                    if (xhr.status == 409) {
+                        // if input params are wrong we set shipping method to 
+                        // "No shipping"
+                        $('#shipping').val(NO_SHIPPING_ID);
+                        get_shipping_cost(NO_SHIPPING_ID, weight);
+                    } else {
+                        $('.modal-title').text('Something went wrong...');
+                        $('.modal-body').text(xhr.responseText);
+                        $('.modal').modal();
+                    }
                 }
             })
         },
@@ -202,25 +228,16 @@ function product_code_autocomplete(target) {
         },
         minLength: 2
     });
-    target.on('change', () => product_line_fill(event.target));
+    target.on('change', () => get_product(event.target));
 }
 
-function product_line_fill(line_input) {
+function get_product(line_input) {
     var promise = $.Deferred()
     var product_line = $(line_input).closest('tr')[0];
     if (line_input.value) {
         $.ajax({
             url: '/api/v1/product/' + line_input.value,
-            success: data => {
-                $('.item-name', product_line).html(
-                    data[0].name_english == null
-                        ? data[0].name
-                        : data[0].name_english + " | " + data[0].name_russian);
-                $('.item-price', product_line).html(data[0].price);
-                $('.item-points', product_line).html(data[0].points);
-                g_cart[product_line.id] = data[0];
-                update_item_subtotal($('.item-quantity', product_line));
-            },
+            success: data => fill_product_row(product_line, data[0]),
             error: (data) => {
                 $('.modal-body').text(data.responseText);
                 $('#modal').modal();
@@ -236,6 +253,16 @@ function product_line_fill(line_input) {
         promise.resolve();
     }
     return promise;
+}
+
+function load_dictionaries() {
+    var dict_left = 3;
+    get_countries()
+        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
+    get_currencies()
+        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });    
+    get_products()
+        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
 }
 
 function product_quantity_change(target) {
@@ -254,7 +281,7 @@ function shipping_changed() {
 function submit_order() {
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/order',
+        url: '/api/v1/order' + (g_order_id ? '/' + g_order_id : ''),
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
@@ -280,6 +307,10 @@ function submit_order() {
             if (data.status === 'success') {
                 window.alert("The request is posted. The request ID is " + data.order_id);
                 clear_form();
+            } else if (data.status === 'updated') {
+                $('.modal-title').text('Order update');
+                $('.modal-body').text("The request is updated. The request ID is " + data.order_id);
+                $('.modal').modal();
             } else if (data.status === 'warning') {
                 window.alert(
                     "The request is posted. The request ID is " + data.order_id +
@@ -323,11 +354,11 @@ function update_all_totals() {
  * Updates grand totals of the cart
  */
 function update_grand_totals() {
-    $('#totalGrandTotalKRW').html(roundUp(
+    $('#totalGrandTotalKRW').html(round_up(
         parseFloat($('#totalItemsCostKRW').html()) + parseFloat($('#totalShippingCostKRW').html()), 2));
-    $('#totalGrandTotalRUR').html(roundUp(
+    $('#totalGrandTotalRUR').html(round_up(
         parseFloat($('#totalItemsCostRUR').html()) + parseFloat($('#totalShippingCostRUR').html()), 2));
-    $('#totalGrandTotalUSD').html(roundUp(
+    $('#totalGrandTotalUSD').html(round_up(
         parseFloat($('#totalItemsCostUSD').html()) + parseFloat($('#totalShippingCostUSD').html()), 2));
 }
 
@@ -359,14 +390,14 @@ function update_item_total() {
     });
     $('.total-rur').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(roundUp(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
+            $(this).html(round_up(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.RUR, 2));
         } else {
             $(this).html('');
         }
     });
     $('.total-usd').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(roundUp(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+            $(this).html(round_up(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
         } else {
             $(this).html('');
         }
@@ -380,14 +411,14 @@ function update_item_total() {
  */
 function update_shipping_cost(cost, totalWeight) {
     $('#totalShippingCostKRW').html(cost);
-    $('#totalShippingCostRUR').html(roundUp(cost * currencyRates.RUR, 2));
-    $('#totalShippingCostUSD').html(roundUp(cost * currencyRates.USD, 2));
+    $('#totalShippingCostRUR').html(round_up(cost * currencyRates.RUR, 2));
+    $('#totalShippingCostUSD').html(round_up(cost * currencyRates.USD, 2));
     var product_weight = totalWeight - parseInt($('#box-weight').text())
 
     // Distribute shipping cost among items
     for (product in g_cart) {
         g_cart[product].shippingCostKRW = 
-            roundUp(cost / product_weight * g_cart[product].weight * g_cart[product].quantity, 0);
+            round_up(cost / product_weight * g_cart[product].weight * g_cart[product].quantity, 0);
         g_cart[product].totalKRW = g_cart[product].costKRW + g_cart[product].shippingCostKRW;
     }
     $('.shipping-cost-krw').each(function() {
@@ -419,10 +450,10 @@ function update_subcustomer_totals() {
         $('#subtotalTotalKRW', $(this)).html(
             userProducts.reduce((acc, product) => acc + product[1].totalKRW, 0));
         $('#subtotalTotalRUR', $(this)).html(
-            roundUp(userProducts.reduce((acc, product) => 
+            round_up(userProducts.reduce((acc, product) => 
                 acc + product[1].totalKRW, 0) * currencyRates.RUR, 2));
         $('#subtotalTotalUSD', $(this)).html(
-            roundUp(userProducts.reduce((acc, product) => 
+            round_up(userProducts.reduce((acc, product) => 
                 acc + product[1].totalKRW, 0) * currencyRates.USD, 2));
         $('#subtotalTotalPoints', $(this)).html(
             userProducts.reduce((acc, product) => 
@@ -439,8 +470,8 @@ function update_grand_subtotal() {
         .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
     set_total_weight(total_weight + box_weight);
     $('#totalItemsCostKRW').html(subtotalKRW);
-    $('#totalItemsCostRUR').html(roundUp(subtotalKRW * currencyRates.RUR, 2));
-    $('#totalItemsCostUSD').html(roundUp(subtotalKRW * currencyRates.USD, 2));
+    $('#totalItemsCostRUR').html(round_up(subtotalKRW * currencyRates.RUR, 2));
+    $('#totalItemsCostUSD').html(round_up(subtotalKRW * currencyRates.USD, 2));
     $('[id^=totalItemsWeight]').html(totalWeight);
     if (box_weight) {
         $('.box-weight').show();

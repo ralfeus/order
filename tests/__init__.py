@@ -33,6 +33,12 @@ class BaseTestCase(TestCase):
         self.login(admin_name, admin_password)
         return operation()
 
+    def try_user_operation(self, operation, user_name, user_password):
+        res = operation()
+        self.assertEqual(res.status_code, 302)
+        res = self.login(user_name, user_password)
+        return operation()
+
     def login(self, username, password):
         return self.client.post('/login', data=dict(
             username=username,

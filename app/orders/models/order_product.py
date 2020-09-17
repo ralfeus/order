@@ -2,7 +2,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
-from app.models import Order
+from app.orders.models import Order
 
 
 class OrderProduct(db.Model):
@@ -39,10 +39,15 @@ class OrderProduct(db.Model):
             'subcustomer': self.subcustomer,
             'product_id': self.product_id,
             'product': self.product.name_english,
+            'name': self.product.name,
+            'name_english': self.product.name_english,
+            'name_russian': self.product.name_russian,
             'private_comment': self.private_comment,
             'public_comment': self.public_comment,
             'price': self.price,
+            'points': self.product.points,
             'comment': self.order.comment,
             'quantity': self.quantity,
-            'status': self.status
+            'status': self.status,
+            'weight': self.product.weight
         }

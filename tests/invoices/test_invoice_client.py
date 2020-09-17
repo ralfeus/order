@@ -1,5 +1,6 @@
-from app.models import Currency, Order, Role, User
+from app.models import Currency, Role, User
 from app.invoices.models import Invoice
+from app.orders.models import Order
 
 from tests import BaseTestCase, db
 

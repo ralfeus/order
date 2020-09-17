@@ -9,7 +9,7 @@ from flask_security import roles_required
 from app import db
 from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models import Invoice, InvoiceItem
-from app.models import Order
+from app.orders.models import Order
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')

@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db, shipping
-from app.models import Currency, Shipping, NoShipping
+from app.models import Country, Currency, Shipping, NoShipping
 
 class Order(db.Model):
     ''' System's order '''
@@ -25,7 +25,8 @@ class Order(db.Model):
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
     name = Column(String(64))
     address = Column(String(256))
-    country = Column(String(128))
+    country_id = Column(String(2), ForeignKey('countries.id'))
+    country = relationship('Country', foreign_keys=[country_id])
     phone = Column(String(64))
     comment = Column(String(128))
     shipping_box_weight = Column(Integer())
@@ -89,15 +90,19 @@ class Order(db.Model):
             'id': self.id,
             'user': self.user.username if self.user else None,
             'customer': self.name,
+            'address': self.address,
+            'phone': self.phone,
             'invoice_id': self.invoice_id,
             'total': self.total_krw,
             'total_krw': self.total_krw,
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
-            'shipping': self.shipping.name if self.shipping else '',
+            'country': self.country.to_dict() if self.country else None,
+            'shipping': self.shipping.to_dict() if self.shipping else '',
             'status': self.status if self.status else '',
             'tracking_id': self.tracking_id if self.tracking_id else '',
             'tracking_url': self.tracking_url if self.tracking_url else '',
+            'order_products': [order_product.to_dict() for order_product in self.order_products],
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
         }
