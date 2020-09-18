@@ -100,8 +100,9 @@ class TestAdminApi(unittest.TestCase):
             'tracking_url': 'https://tracking.fake/T00',
             'user': 'user2',
             'status': 'pending',
-            'when_created': '',
-            'when_changed': ''
+            'buyout_date': None,
+            'when_created': None,
+            'when_changed': None
         })
         self.assertEqual(res.json[1], {
             'id': 'test-api-admin-2',
@@ -113,11 +114,12 @@ class TestAdminApi(unittest.TestCase):
             'total_usd': 0,
             'shipping': 'No shipping',
             'user': 'user2',
-            'tracking_id': '',
-            'tracking_url': '',
+            'tracking_id': None,
+            'tracking_url': None,
             'status': 'shipped',
-            'when_created': '',
-            'when_changed': ''
+            'buyout_date': None,
+            'when_created': None,
+            'when_changed': None
         })
 
     def test_save_order(self):

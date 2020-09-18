@@ -30,6 +30,11 @@ $(document).ready(function() {
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer);
     $('#submit').on('click', submit_order)
+    $('#buyout-date').datepicker({
+	format: 'dd.mm.yyyy',
+	todayHighlight: true,
+        autoclose: true
+    });
 
     get_countries();
     get_currencies();
@@ -260,6 +265,7 @@ function submit_order() {
         contentType: 'application/json',
         data: JSON.stringify({
             name: $('#name').val(),
+	    buyout_date: $('#buyout-date').val(),
             address: $('#address').val(),
             country: $('#country').val(),
             shipping: $('#shipping').val(),

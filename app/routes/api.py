@@ -73,6 +73,7 @@ def create_order():
     order = Order(
         user=current_user,
         name=request_data['name'],
+        buyout_date=datetime.strptime(request_data['buyout_date'], '%d.%m.%Y') if request_data.get('buyout_date') else None,
         address=request_data['address'],
         country=request_data['country'],
         shipping_method_id=request_data['shipping'],

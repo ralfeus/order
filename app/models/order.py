@@ -28,6 +28,7 @@ class Order(db.Model):
     country = Column(String(128))
     phone = Column(String(64))
     comment = Column(String(128))
+    buyout_date = Column(DateTime, index=True)
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
@@ -90,16 +91,17 @@ class Order(db.Model):
             'user': self.user.username if self.user else None,
             'customer': self.name,
             'invoice_id': self.invoice_id,
+            'buyout_date': self.buyout_date.strftime('%Y-%m-%d') if self.buyout_date else None,
             'total': self.total_krw,
             'total_krw': self.total_krw,
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
-            'shipping': self.shipping.name if self.shipping else '',
-            'status': self.status if self.status else '',
-            'tracking_id': self.tracking_id if self.tracking_id else '',
-            'tracking_url': self.tracking_url if self.tracking_url else '',
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
+            'shipping': self.shipping.name if self.shipping else None,
+            'status': self.status if self.status else None,
+            'tracking_id': self.tracking_id if self.tracking_id else None,
+            'tracking_url': self.tracking_url if self.tracking_url else None,
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }
 
     def update_total(self):

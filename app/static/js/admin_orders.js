@@ -22,6 +22,7 @@ $(document).ready( function () {
                 "defaultContent": ''
             },
             {data: 'id'},
+	    {data: 'buyout_date'},
             {data: 'user'},
             {data: 'customer'},
             {data: 'total'},
@@ -29,7 +30,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[5, 'desc']],
+        order: [[2, 'desc'], [8, 'desc']],
         select: true
     });
 
