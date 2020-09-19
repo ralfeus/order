@@ -70,10 +70,11 @@ $(document).ready( function () {
                 "data":           null,
                 "defaultContent": ''
             },
-            {data: 'order_id'},
             {data: 'order_product_id'},
+            {data: 'order_id'},
             {data: 'customer'},
             {data: 'subcustomer', className: 'editable'},
+            {data: 'buyout_date'},
             {data: 'product_id', className: 'editable'},
             {data: 'product'},
             {data: 'price', className: 'editable'},

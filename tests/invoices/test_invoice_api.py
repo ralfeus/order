@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from app.models import Country, Currency, Order, OrderProduct, Product, Role, User
+from app.models import Country, Currency, Order, OrderProduct, Product, Role, \
+                       Suborder, User
 from app.invoices.models import Invoice, InvoiceItem
 from tests import BaseTestCase, db
 
@@ -85,8 +86,12 @@ class TestInvoiceClient(BaseTestCase):
             Invoice(id=gen_id,
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
-            Order(id=gen_id, invoice_id=gen_id, country='c1'),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=1)
+            Order(id=gen_id, invoice_id=gen_id, country='c1')
+        ])
+        suborder = Suborder(order_id=gen_id)
+        self.try_add_entities([
+            suborder, 
+            OrderProduct(suborder=suborder, product_id=gen_id, price=10, quantity=1)
         ])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}'))

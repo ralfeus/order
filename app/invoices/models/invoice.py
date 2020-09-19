@@ -35,7 +35,8 @@ class Invoice(db.Model):
             temp_invoice_items = []
             usd_rate = Currency.query.get('USD').rate
             for order_product in [order_product for order in self.orders
-                                                for order_product in order.order_products]:
+                                                for suborder in order.suborders
+                                                for order_product in suborder.order_products]:
                 temp_invoice_items.append(InvoiceItem(
                     id=len(temp_invoice_items) + 1,
                     invoice_id=self.id,

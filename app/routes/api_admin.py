@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from flask import Blueprint, Response, abort, jsonify, request, send_file
@@ -14,7 +15,7 @@ from app import db
 from app.invoices.models import Invoice
 from app.models import \
     Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    User, Transaction, TransactionStatus
+    User, Suborder, Transaction, TransactionStatus
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 
@@ -27,7 +28,9 @@ def get_order_products():
     '''
     order_products_query = OrderProduct.query
     if request.values.get('order_id'):
-        order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
+        order_products_query = order_products_query.filter(or_(
+            OrderProduct.order_id == request.values['order_id'],
+            OrderProduct.suborder.has(Suborder.order_id == request.values['order_id'])))
 
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
 
@@ -52,7 +55,7 @@ def save_order_product(order_product_id):
             setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
             order_product.when_changed = datetime.now()
     try:
-        order_product.order.update_total()
+        order_product.suborder.order.update_total()
         db.session.commit()
         return jsonify(order_product.to_dict())
     except Exception as e:
@@ -246,6 +249,9 @@ def delete_user(user_id):
 @roles_required('admin')
 def save_user(user_id):    
     user_input = request.get_json()
+    if not user_input:
+        abort(Response(f"Can't update user <{user_id}> - no data provided",
+                       status=400))
     user = User.query.get(user_id)
     if not user:
         user = User()
@@ -277,15 +283,6 @@ def save_user(user_id):
 def get_orders(order_id):
     '''
     Returns all or selected orders in JSON:
-    {
-        id: invoice ID,
-        [
-            user: username of order creator,
-            name: name of the customer,
-            total: total amount in KRW,
-            when_created: time of the order creation
-        ]
-    }
     '''
     orders = Order.query.all() \
         if order_id is None \

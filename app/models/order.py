@@ -47,7 +47,7 @@ class Order(db.Model):
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
-    order_products = relationship('OrderProduct', lazy='dynamic')
+    suborders = relationship('Suborder', lazy='dynamic')
 
     @property
     def shipping(self):
@@ -81,7 +81,7 @@ class Order(db.Model):
 
     def to_dict(self):
         if not self.total_krw:
-            self.total_krw = reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0)
+            self.update_total()
         if not self.total_rur:
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
         if not self.total_usd:
@@ -111,12 +111,12 @@ class Order(db.Model):
         if self.shipping is None and self.shipping_method_id is not None:
             self.shipping = Shipping.query.get(self.shipping_method_id)
 
-        self.total_weight = reduce(lambda acc, op: acc + op.product.weight * op.quantity,
-                                   self.order_products, 0)
+        self.total_weight = reduce(lambda acc, suborder: acc + suborder.total_weight,
+                                   self.suborders, 0)
         self.shipping_box_weight = shipping.get_box_weight(self.total_weight)
 
-        self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
-                                   self.order_products, 0)
+        self.subtotal_krw = reduce(lambda acc, suborder: acc + suborder.total_krw,
+                                   self.suborders, 0)
         self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 

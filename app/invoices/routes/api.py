@@ -32,7 +32,8 @@ def create_invoice(usd_rate):
             InvoiceItem(invoice=invoice, product=order_product.product,
                     price=round(order_product.price * usd_rate, 2),
                     quantity=order_product.quantity)
-            for order_product in order.order_products]
+            for suborder in order.suborders
+            for order_product in suborder.order_products]
 
     db.session.add(invoice)
     db.session.add_all(invoice_items)

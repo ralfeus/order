@@ -22,7 +22,6 @@ $(document).ready( function () {
                 "defaultContent": ''
             },
             {data: 'id'},
-	    {data: 'buyout_date'},
             {data: 'user'},
             {data: 'customer'},
             {data: 'total'},
@@ -30,7 +29,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[2, 'desc'], [8, 'desc']],
+        order: [[6, 'desc']],
         select: true
     });
 
@@ -98,6 +97,7 @@ function format ( row, data ) {
         },
         columns: [
             {data: 'subcustomer'},
+	    {data: 'buyout_date'},
             {data: 'id'},
             {data: 'product', class: 'wrapok'},
             {data: 'price'},

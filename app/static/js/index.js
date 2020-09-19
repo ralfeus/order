@@ -30,6 +30,7 @@ $(document).ready( function () {
                 "defaultContent": ''
             },
             {data: 'order_id'},
+            {data: 'suborder_id'},
             {data: 'order_product_id'},
             {data: 'subcustomer'},
             {data: 'product_id'},

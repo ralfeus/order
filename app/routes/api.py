@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import db, shipping
 from app.models import \
     Country, Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    Shipping, ShippingRate, Transaction, TransactionStatus, User
+    Shipping, ShippingRate, Subcustomer, Suborder, Transaction, TransactionStatus, User
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -73,7 +73,6 @@ def create_order():
     order = Order(
         user=current_user,
         name=request_data['name'],
-        buyout_date=datetime.strptime(request_data['buyout_date'], '%d.%m.%Y') if request_data.get('buyout_date') else None,
         address=request_data['address'],
         country=request_data['country'],
         shipping_method_id=request_data['shipping'],
@@ -82,20 +81,37 @@ def create_order():
         subtotal_krw=0,
         when_created=datetime.now()
     )
+    suborders = []
     order_products = []
     errors = []
     # ordertotal_weight = 0
-    for suborder in request_data['products']:
-        for item in suborder['items']:
+    for suborder_data in request_data['suborders']:
+        try:
+            suborder = Suborder(
+                order=order,
+                subcustomer=parse_subcustomer(suborder_data['subcustomer']),
+                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
+                    if suborder_data.get('buyout_date') else None,
+                when_created=datetime.now()
+            )
+        except Exception as e:
+            print(e, type(e))
+            abort(Response(f"""Couldn't find subcustomer and provided data 
+                               doesn't allow to create new one. Please provide
+                               new subcustomer data in format: 
+                               <ID>, <Name>, <Password>
+                               Erroneous data is: {suborder_data['subcustomer']}""",
+                           status=400))
+        for item in suborder_data['items']:
             product = Product.query.get(item['item_code'])
             if product:
                 order_product = OrderProduct(
-                    order=order,
-                    subcustomer=suborder['subcustomer'],
+                    suborder=suborder,
                     product_id=product.id,
                     price=product.price,
                     quantity=int(item['quantity']),
-                    status='Pending')
+                    status='Pending',
+                    when_created=datetime.now())
                 db.session.add(order_product)
                 order_products.append(order_product)
                 order.total_weight += product.weight * order_product.quantity
@@ -129,6 +145,22 @@ def create_order():
         }
     return jsonify(result)
 
+def parse_subcustomer(subcustomer_data):
+    parts = subcustomer_data.split(',')
+    for part in parts:
+        subcustomer = Subcustomer.query.filter(or_(
+            Subcustomer.name == part, Subcustomer.username == part)).first()
+        if subcustomer:
+            return subcustomer
+    subcustomer = Subcustomer(
+        username=parts[0].strip(), 
+        name=parts[1].strip(), 
+        password=parts[2].strip(),
+        when_created=datetime.now()) 
+    db.session.add(subcustomer)
+    return subcustomer
+
+
 @api.route('/order_product')
 @login_required
 def get_order_products():
@@ -140,20 +172,9 @@ def get_order_products():
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
-            OrderProduct.order.has(Order.user == current_user))
-    return jsonify(list(map(lambda order_product: {
-        'order_id': order_product.order_id,
-        'order_product_id': order_product.id,
-        'customer': order_product.order.name,
-        'subcustomer': order_product.subcustomer,
-        'product_id': order_product.product_id,
-        'product': order_product.product.name_english,
-        'private_comment': order_product.private_comment,
-        'public_comment': order_product.public_comment,
-        'comment': order_product.order.comment,
-        'quantity': order_product.quantity,
-        'status': order_product.status
-        }, order_products)))
+            OrderProduct.suborder.has(Suborder.order.has(Order.user == current_user)))
+    return jsonify(list(map(lambda order_product: order_product.to_dict(),
+                            order_products)))
 
 @api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):

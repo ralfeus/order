@@ -30,7 +30,7 @@ $(document).ready(function() {
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer);
     $('#submit').on('click', submit_order)
-    $('#buyout-date').datepicker({
+    $('.subcustomer-buyout-date').datepicker({
 	format: 'dd.mm.yyyy',
 	todayHighlight: true,
         autoclose: true
@@ -64,6 +64,11 @@ function add_subcustomer() {
         .replace(/(\w)\[0\]/g, '$1[' + users + ']');
     var node = $(html)
     $('div#accordion').append(node);
+    $('.subcustomer-buyout-date').datepicker({
+	format: 'dd.mm.yyyy',
+	todayHighlight: true,
+        autoclose: true
+    });
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
     users++;
@@ -79,9 +84,10 @@ function clear_form() {
     totalWeight = 0;
 
     $('.subcustomer-card').remove();
-    $('div#accordion').append(subcustomerTemplate);
-    product_code_autocomplete($('.item-code'));
-    product_quantity_change($('.item-quantity'));
+    add_subcustomer();
+    //$('div#accordion').append(subcustomerTemplate);
+    //product_code_autocomplete($('.item-code'));
+    //product_quantity_change($('.item-quantity'));
 }
 
 function country_changed() {
@@ -265,14 +271,14 @@ function submit_order() {
         contentType: 'application/json',
         data: JSON.stringify({
             name: $('#name').val(),
-	    buyout_date: $('#buyout-date').val(),
             address: $('#address').val(),
             country: $('#country').val(),
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
             comment: $('#comment').val(),
-            products: $('div.subcustomer-card').toArray().map(user => ({
+            suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
+	        buyout_date: $('.subcustomer-buyout-date', user).val(),
                 items: $('.item', user).toArray().map(item => ({
                     item_code: $('.item-code', item).val(),
                     quantity: $('.item-quantity', item).val()
