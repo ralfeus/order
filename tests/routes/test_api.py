@@ -77,15 +77,15 @@ class TestClientApi(unittest.TestCase):
                 "shipping":"1",
                 "phone":"",
                 "comment":"",
-                "products": [
+                "suborders": [
                     {
-                        "subcustomer":"Subcustomer1",
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
                         "items": [{"item_code":"0001", "quantity":"1"}]
                     }
                 ]
             })
-            created_order_id = res.json['order_id']
             self.assertEqual(res.status_code, 200)
+            created_order_id = res.json['order_id']
         order = Order.query.get(created_order_id)
         self.assertEqual(order.total_krw, 101)
         self.assertEqual(order.shipping.name, 'Shipping1')

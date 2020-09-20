@@ -14,7 +14,8 @@ from app import db
 from app.models import \
     Country, Currency, Product, \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -47,20 +48,9 @@ def get_order_products():
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
-            OrderProduct.order.has(Order.user == current_user))
-    return jsonify(list(map(lambda order_product: {
-        'order_id': order_product.order_id,
-        'order_product_id': order_product.id,
-        'customer': order_product.order.name,
-        'subcustomer': order_product.subcustomer,
-        'product_id': order_product.product_id,
-        'product': order_product.product.name_english,
-        'private_comment': order_product.private_comment,
-        'public_comment': order_product.public_comment,
-        'comment': order_product.order.comment,
-        'quantity': order_product.quantity,
-        'status': order_product.status
-        }, order_products)))
+            OrderProduct.suborder.has(Suborder.order.has(Order.user == current_user)))
+    return jsonify(list(map(lambda order_product: order_product.to_dict(),
+                            order_products)))
 
 @api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):

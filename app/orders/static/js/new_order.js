@@ -27,6 +27,11 @@ $(document).ready(function() {
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer);
     $('#submit').on('click', submit_order)
+    $('.subcustomer-buyout-date').datepicker({
+	format: 'dd.mm.yyyy',
+	todayHighlight: true,
+        autoclose: true
+    });
 
     load_dictionaries();
     g_dictionaries_loaded
@@ -55,6 +60,11 @@ function add_subcustomer() {
         .replace(/(\w)\[0\]/g, '$1[' + users + ']');
     var node = $(html)
     $('div#accordion').append(node);
+    $('.subcustomer-buyout-date').datepicker({
+	format: 'dd.mm.yyyy',
+	todayHighlight: true,
+        autoclose: true
+    });
     product_code_autocomplete($('.item-code'));
     product_quantity_change($('.item-quantity'));
     users++;
@@ -70,9 +80,10 @@ function clear_form() {
     totalWeight = 0;
 
     $('.subcustomer-card').remove();
-    $('div#accordion').append(subcustomerTemplate);
-    product_code_autocomplete($('.item-code'));
-    product_quantity_change($('.item-quantity'));
+    add_subcustomer();
+    //$('div#accordion').append(subcustomerTemplate);
+    //product_code_autocomplete($('.item-code'));
+    //product_quantity_change($('.item-quantity'));
 }
 
 function country_changed() {
@@ -292,8 +303,9 @@ function submit_order() {
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
             comment: $('#comment').val(),
-            products: $('div.subcustomer-card').toArray().map(user => ({
+            suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
+	        buyout_date: $('.subcustomer-buyout-date', user).val(),
                 items: $('.item', user).toArray().map(item => ({
                     item_code: $('.item-code', item).val(),
                     quantity: $('.item-quantity', item).val()
@@ -305,18 +317,21 @@ function submit_order() {
         },
         success: function(data, _status, _xhr) {
             if (data.status === 'success') {
-                window.alert("The request is posted. The request ID is " + data.order_id);
+                $('.modal-title').text('Success!');
+                $('.modal-body').text("The request is posted. The request ID is " + data.order_id);
+                $('.modal').modal();                
                 clear_form();
             } else if (data.status === 'updated') {
                 $('.modal-title').text('Order update');
                 $('.modal-body').text("The request is updated. The request ID is " + data.order_id);
                 $('.modal').modal();
             } else if (data.status === 'warning') {
-                window.alert(
+                $('.modal-title').text('Almost good...');
+                $('.modal-body').text(
                     "The request is posted. The request ID is " + data.order_id +
                     "\nDuring request creation following issues have occurred:\n" +
-                    data.message.join("\n")
-                );
+                    data.message.join("\n"));
+                $('.modal').modal();                
             } else if (data.status === 'error') {
                 if (data.message) {
                     window.alert(data.message);
@@ -325,8 +340,16 @@ function submit_order() {
                 }
             }
         },
-        error: function(data, status, xhr) {
-            window.alert("Unknown error has occurred. Contact administrator");
+        error: xhr => {
+            var message;
+            if (xhr.status == 500) {
+                message = "Unknown error has occurred. Contact administrator"
+            } else {
+                message = xhr.responseText;
+            }
+            $('.modal-title').text('Failure!');
+            $('.modal-body').text(message);
+            $('.modal').modal();                
         }
     });
 }

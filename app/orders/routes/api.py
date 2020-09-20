@@ -4,12 +4,13 @@ from decimal import Decimal
 from flask import Response, abort, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db, shipping
 from app.models import Country, Currency, Product
 from app.orders import bp_api_admin, bp_api_user
-from app.orders.models import Order, OrderProduct
+from app.orders.models import Order, OrderProduct, Suborder, Subcustomer
 
 @bp_api_user.route('/', defaults={'order_id': None})
 @bp_api_user.route('/<order_id>')
@@ -55,19 +56,54 @@ def create_order():
         subtotal_krw=0,
         when_created=datetime.now()
     )
+    suborders = []
     order_products = []
     errors = []
     # ordertotal_weight = 0
-    for suborder in request_data['products']:
-        for item in suborder['items']:
-            try:
-                order_products.append(add_order_product(order, suborder, item, errors))
-            except:
-                pass
+    for suborder_data in request_data['suborders']:
+        try:
+            suborder = Suborder(
+                order=order,
+                subcustomer=parse_subcustomer(suborder_data['subcustomer']),
+                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
+                    if suborder_data.get('buyout_date') else None,
+                when_created=datetime.now()
+            )
+        except IndexError as e:
+            abort(Response(f"""Couldn't find subcustomer and provided data 
+                               doesn't allow to create new one. Please provide
+                               new subcustomer data in format: 
+                               <ID>, <Name>, <Password>
+                               Erroneous data is: {suborder_data['subcustomer']}""",
+                           status=400))
+        for item in suborder_data['items']:
+            product = Product.query.get(item['item_code'])
+            if product:
+                order_product = OrderProduct(
+                    suborder=suborder,
+                    product_id=product.id,
+                    price=product.price,
+                    quantity=int(item['quantity']),
+                    status='Pending',
+                    when_created=datetime.now())
+                db.session.add(order_product)
+                order_products.append(order_product)
+                order.total_weight += product.weight * order_product.quantity
+                order.subtotal_krw += product.price * order_product.quantity
+            else:
+                errors.append(f'{item["item_code"]}: no such product')
 
-    order.order_products = order_products
-    update_order_totals(order)
-
+    # order.order_products = order_products
+    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
+    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
+    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
+    order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
+        order.country, order.total_weight + order.shipping_box_weight)))
+    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
+    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
+    order.total_krw = order.subtotal_krw + order.shipping_krw
+    order.total_rur = order.subtotal_rur + order.shipping_rur
+    order.total_usd = order.subtotal_usd + order.shipping_usd
     db.session.add(order)
     try:
         db.session.commit()
@@ -82,6 +118,21 @@ def create_order():
             'message': "Couldn't add order due to input error. Check your form and try again."
         }
     return jsonify(result)
+
+def parse_subcustomer(subcustomer_data):
+    parts = subcustomer_data.split(',')
+    for part in parts:
+        subcustomer = Subcustomer.query.filter(or_(
+            Subcustomer.name == part, Subcustomer.username == part)).first()
+        if subcustomer:
+            return subcustomer
+    subcustomer = Subcustomer(
+        username=parts[0].strip(), 
+        name=parts[1].strip(), 
+        password=parts[2].strip(),
+        when_created=datetime.now()) 
+    db.session.add(subcustomer)
+    return subcustomer
 
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required

@@ -1,14 +1,15 @@
 '''
 Contains admin routes of the application
 '''
-from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template
+from flask import Blueprint, Response, abort, current_app, flash, redirect, \
+                  render_template, request
 from flask_security import current_user, login_required, login_user, roles_required
 from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.forms import ProductForm, SignupForm
 from app.invoices.models import Invoice
-from app.models import Currency, Product, User
+from app.models import Currency, Order, Product, User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -88,3 +89,13 @@ def admin_orders():
     '''
     usd_rate = Currency.query.get('USD').rate
     return render_template('orders.html', usd_rate=usd_rate)
+
+@admin.route('/orders/<order_id>')
+@roles_required('admin')
+def get_order(order_id):
+    order = Order.query.get(order_id)
+    if not order:
+        abort(Response("The order <{order_id}> was not found", status=404))
+    if request.values.get('view') == 'print':
+        return render_template('order_print_view.html', order=order)
+    abort(501)

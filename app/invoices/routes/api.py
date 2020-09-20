@@ -26,16 +26,24 @@ def create_invoice(usd_rate):
     invoice = Invoice()
     invoice_items = []
     invoice.when_created = datetime.now()
-    for order in orders:
-        order.invoice = invoice
-        invoice_items += [
-            InvoiceItem(invoice=invoice, product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity)
-            for order_product in order.order_products]
+    cumulative_order_products = map_reduce(
+        [order_product for order in orders
+                       for order_product in order.order_products],
+        keyfunc=lambda ii: (
+            ii.product_id,
+            ii.product.name_english if ii.product.name_english \
+                else ii.product.name,
+            ii.price),
+        valuefunc=lambda op: op.quantity,
+        reducefunc=sum
+    )
 
     db.session.add(invoice)
-    db.session.add_all(invoice_items)
+    db.session.add_all([
+        InvoiceItem(invoice=invoice, product=order_product.product,
+                    price=round(order_product.price * usd_rate, 2),
+                    quantity=order_product.quantity)
+        for order_product in cumulative_order_products])
     db.session.commit()
     return jsonify({
         'status': 'success',
@@ -48,15 +56,6 @@ def create_invoice(usd_rate):
 def get_invoices(invoice_id):
     '''
     Returns all or selected invoices in JSON:
-    {
-        id: invoice ID,
-        [
-            order_product_id: ID of the order product,
-            name: name of the order product,
-            quantity: quantity of order product,
-            amount_krw: amount in KRW
-        ]
-    }
     '''
     invoices = Invoice.query.all() \
         if invoice_id is None \
@@ -65,7 +64,8 @@ def get_invoices(invoice_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
 def get_invoice_order_products(invoice):
-    invoice_items = map_reduce(invoice.invoice_items,
+    cumulative_order_products = map_reduce(
+        invoice.invoice_items,
         keyfunc=lambda ii: (
             ii.product_id,
             ii.product.name_english if ii.product.name_english \
@@ -74,13 +74,14 @@ def get_invoice_order_products(invoice):
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
-    result = list(map(lambda op: {
-        'id': op[0][0],
-        'name': op[0][1],
-        'price': op[0][2],
-        'quantity': op[1],
-        'subtotal': op[0][2] * op[1]
-    }, invoice_items.items()))
+
+    result = list(map(lambda ii: {
+        'id': ii[0][0],
+        'name': ii[0][1],
+        'price': ii[0][2],
+        'quantity': ii[1],
+        'subtotal': ii[0][2] * ii[1]
+    }, cumulative_order_products.items()))
     return result
 
 def create_invoice_excel(reference_invoice, invoice_file_name):

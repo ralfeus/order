@@ -8,6 +8,13 @@ $(document).ready( function () {
     var table = $('#orders').DataTable({
         dom: 'lfrBtip',
         buttons: [
+	    {
+		extend: 'print',
+		text: 'Print order',
+		customize: window => {
+		    window.location = 'orders/' + table.rows({selected: true}).data()[0].id + '?view=print'
+		}
+	    },
             {extend: 'invoice', text: 'Create invoice'}
         ],
         ajax: {
@@ -29,8 +36,8 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[5, 'desc']],
-        select: true
+        order: [[6, 'desc']],
+        select: 'single'
     });
 
     $('#orders tbody').on('click', 'td.details-control', function () {
@@ -97,6 +104,7 @@ function format ( row, data ) {
         },
         columns: [
             {data: 'subcustomer'},
+	    {data: 'buyout_date'},
             {data: 'id'},
             {data: 'product', class: 'wrapok'},
             {data: 'price'},

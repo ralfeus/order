@@ -29,6 +29,7 @@ class Order(db.Model):
     country = relationship('Country', foreign_keys=[country_id])
     phone = Column(String(64))
     comment = Column(String(128))
+    buyout_date = Column(DateTime, index=True)
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
@@ -47,7 +48,8 @@ class Order(db.Model):
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
-    order_products = relationship('OrderProduct', lazy='dynamic')
+    suborders = relationship('Suborder', lazy='dynamic')
+    __order_products = relationship('OrderProduct', lazy='dynamic')
 
     @property
     def shipping(self):
@@ -58,6 +60,14 @@ class Order(db.Model):
     @shipping.setter
     def shipping(self, value):
         self.__shipping = value
+
+    @property
+    def order_products(self):
+        if self.suborders.count() > 0:
+            return [order_product for suborder in self.suborders
+                                  for order_product in suborder.order_products]
+        else:
+            return list(self.__order_products)
 
     def __init__(self, **kwargs):
         today = datetime.now()
@@ -81,7 +91,7 @@ class Order(db.Model):
 
     def to_dict(self):
         if not self.total_krw:
-            self.total_krw = reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0)
+            self.update_total()
         if not self.total_rur:
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
         if not self.total_usd:
@@ -93,6 +103,7 @@ class Order(db.Model):
             'address': self.address,
             'phone': self.phone,
             'invoice_id': self.invoice_id,
+            'buyout_date': self.buyout_date.strftime('%Y-%m-%d') if self.buyout_date else None,
             'total': self.total_krw,
             'total_krw': self.total_krw,
             'total_rur': float(self.total_rur),
@@ -114,12 +125,12 @@ class Order(db.Model):
         if self.shipping is None and self.shipping_method_id is not None:
             self.shipping = Shipping.query.get(self.shipping_method_id)
 
-        self.total_weight = reduce(lambda acc, op: acc + op.product.weight * op.quantity,
-                                   self.order_products, 0)
+        self.total_weight = reduce(lambda acc, suborder: acc + suborder.total_weight,
+                                   self.suborders, 0)
         self.shipping_box_weight = shipping.get_box_weight(self.total_weight)
 
-        self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
-                                   self.order_products, 0)
+        self.subtotal_krw = reduce(lambda acc, suborder: acc + suborder.total_krw,
+                                   self.suborders, 0)
         self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 

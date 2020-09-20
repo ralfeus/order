@@ -1,17 +1,14 @@
 from flask import Response
 from datetime import datetime
-import unittest
 
-from app import create_app, db
+from tests import BaseTestCase, db
+
 from app.config import TestConfig
-
-app = create_app(TestConfig)
-app.app_context().push()
-
 from app.invoices.models import Invoice
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder, Subcustomer
 from app.models import Country, Currency,  \
-    Product, Role, Shipping, ShippingRate, User
+    Product, Role, Shipping, ShippingRate, Transaction, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -22,28 +19,18 @@ def login(client, username, password):
 def logout(client):
     return client.get('/logout')
 
-def try_add_entity(entity):
-    try:
-        db.session.add(entity)
-        db.session.commit()
-    except:
-        db.session.rollback()
-
-class TestAdminApi(unittest.TestCase):
+class TestAdminApi(BaseTestCase):
     @classmethod
     def setUpClass(cls):
         db.session.execute('pragma foreign_keys=on')
 
     def setUp(self):
-        self.app = app
-        self.client = self.app.test_client()
-        self._ctx = self.app.test_request_context()
-        self._ctx.push()
+        super().setUp()
         self.maxDiff = None
 
         db.create_all()
         admin_role = Role(id=10, name='admin')
-        entities = [
+        self.try_add_entities([
             admin_role,
             User(id=0, username='root', email='user@name.com',
                 password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
@@ -63,27 +50,24 @@ class TestAdminApi(unittest.TestCase):
             Order(id='test-api-admin-1', user_id=20, status='pending', country='c1',
                   shipping_method_id=10,
                   tracking_id='T00', tracking_url='https://tracking.fake/T00'),
-            Order(id='test-api-admin-2', user_id=20, status='shipped', country='c1'),
-            OrderProduct(id=10, order_id='test-api-admin-1', product_id='0010', price=10, quantity=10),
+            Order(id='test-api-admin-2', user_id=20, status='shipped', country='c1')
+        ])
+        subcustomer = Subcustomer()
+        suborder = Suborder(order_id='test-api-admin-1', subcustomer=subcustomer)
+        self.try_add_entities([
+            subcustomer,
+            suborder,
+            OrderProduct(id=10, suborder=suborder, product_id='0010', price=10, quantity=10),
             OrderProductStatusEntry(order_product_id=10, user_id=10,
                 set_at=datetime(2020, 1, 1, 1, 0, 0), status="Pending")
-        ]
-        for entity in entities:
-            try_add_entity(entity)
+        ])
 
     def tearDown(self):
         db.session.remove()
         db.drop_all()
 
     def try_admin_operation(self, operation):
-        res = operation()
-        self.assertTrue(res.status_code, 302)
-        login(self.client, 'user1', '1')
-        res = operation()
-        self.assertTrue(res.status_code, 403)
-        logout(self.client)
-        login(self.client, 'root', '1')
-        return operation()
+        return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
 
     def test_get_orders(self):
         res = self.try_admin_operation(
@@ -95,10 +79,10 @@ class TestAdminApi(unittest.TestCase):
             'address': None,
             'country': '',
             'phone': None,
-            'total': 100,
-            'total_krw': 100,
-            'total_rur': 100.0,
-            'total_usd': 100.0,
+            'total': 110,
+            'total_krw': 110,
+            'total_rur': 110.0,
+            'total_usd': 110.0,
             'shipping': {'id': 10, 'name': 'shipping1'},
             'tracking_id': 'T00',
             'tracking_url': 'https://tracking.fake/T00',
@@ -125,7 +109,8 @@ class TestAdminApi(unittest.TestCase):
                     'points': None,
                     'quantity': 10,
                     'status': None,
-                    'weight': 0
+                    'weight': 0,
+                    'buyout_date': None
                 }
             ]
         })
@@ -142,8 +127,8 @@ class TestAdminApi(unittest.TestCase):
             'total_usd': 0.0,
             'shipping': {'id': None, 'name': 'No shipping'},
             'user': 'user2',
-            'tracking_id': '',
-            'tracking_url': '',
+            'tracking_id': None,
+            'tracking_url': None,
             'status': 'shipped',
             'when_created': '',
             'when_changed': '',
@@ -181,11 +166,13 @@ class TestAdminApi(unittest.TestCase):
         res = self.client.post('/api/v1/admin/order_product/10', json={
             'quantity': 100
         })
+        self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json, {
-            'comment': None, 
             'customer': None, 
             'id': 10, 
             'order_id': 'test-api-admin-1', 
+            'suborder_id': 1,
+            'buyout_date': None,
             'order_product_id': 10, 
             'price': 10, 
             'points': None,
@@ -241,8 +228,11 @@ class TestAdminApi(unittest.TestCase):
             lambda: self.client.get('/api/v1/admin/transaction'))
 
     def test_save_transaction(self):
+        self.try_add_entities([
+            Transaction(id=0)
+        ])
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/transaction'))
+            lambda: self.client.post('/api/v1/admin/transaction/0'))
 
     def test_delete_user(self):
         self.try_admin_operation(
@@ -252,4 +242,5 @@ class TestAdminApi(unittest.TestCase):
 
     def test_save_user(self):
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/user'))
+            lambda: self.client.post('/api/v1/admin/user/0'))
+        self.assertEqual(res.status_code, 400)
