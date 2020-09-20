@@ -94,8 +94,7 @@ def create_order():
                     if suborder_data.get('buyout_date') else None,
                 when_created=datetime.now()
             )
-        except Exception as e:
-            print(e, type(e))
+        except IndexError as e:
             abort(Response(f"""Couldn't find subcustomer and provided data 
                                doesn't allow to create new one. Please provide
                                new subcustomer data in format: 
