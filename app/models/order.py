@@ -48,6 +48,7 @@ class Order(db.Model):
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
     suborders = relationship('Suborder', lazy='dynamic')
+    __order_products = relationship('OrderProduct', lazy='dynamic')
 
     @property
     def shipping(self):
@@ -58,6 +59,14 @@ class Order(db.Model):
     @shipping.setter
     def shipping(self, value):
         self.__shipping = value
+
+    @property
+    def order_products(self):
+        if self.suborders.count() > 0:
+            return [order_product for suborder in order.suborders
+                                  for order_product in suborder.order_products]
+        else:
+            return list(self.__order_products)
 
     def __init__(self, **kwargs):
         today = datetime.now()

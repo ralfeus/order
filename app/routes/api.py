@@ -118,7 +118,7 @@ def create_order():
             else:
                 errors.append(f'{item["item_code"]}: no such product')
 
-    order.order_products = order_products
+    # order.order_products = order_products
     order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
     order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
     order.shipping_box_weight = shipping.get_box_weight(order.total_weight)

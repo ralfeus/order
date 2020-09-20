@@ -34,18 +34,23 @@ class Invoice(db.Model):
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
             usd_rate = Currency.query.get('USD').rate
-            for order_product in [order_product for order in self.orders
-                                                for suborder in order.suborders
-                                                for order_product in suborder.order_products]:
-                temp_invoice_items.append(InvoiceItem(
-                    id=len(temp_invoice_items) + 1,
-                    invoice_id=self.id,
-                    invoice=self,
-                    product_id=order_product.product.id,
-                    product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity
-                ))
+            for order in self.orders:
+                order_products = None
+                if order.suborders.count() > 0:
+                    order_products = [order_product for suborder in order.suborders
+                                                    for order_product in suborder.order_products]
+                else:
+                    order_products = order.order_products 
+                for order_product in order_products:
+                    temp_invoice_items.append(InvoiceItem(
+                        id=len(temp_invoice_items) + 1,
+                        invoice_id=self.id,
+                        invoice=self,
+                        product_id=order_product.product.id,
+                        product=order_product.product,
+                        price=round(order_product.price * usd_rate, 2),
+                        quantity=order_product.quantity
+                    ))
             return temp_invoice_items
     
     @property
