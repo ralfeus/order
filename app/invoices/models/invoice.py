@@ -113,5 +113,5 @@ class Invoice(db.Model):
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
             'orders': [order.id for order in self.orders],
-            'invoice_items': list(invoice_items_dict.values())
+            'invoice_items': list([ii.to_dict() for ii in self.invoice_items])
         }

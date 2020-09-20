@@ -56,15 +56,6 @@ def create_invoice(usd_rate):
 def get_invoices(invoice_id):
     '''
     Returns all or selected invoices in JSON:
-    {
-        id: invoice ID,
-        [
-            order_product_id: ID of the order product,
-            name: name of the order product,
-            quantity: quantity of order product,
-            amount_krw: amount in KRW
-        ]
-    }
     '''
     invoices = Invoice.query.all() \
         if invoice_id is None \
@@ -73,14 +64,24 @@ def get_invoices(invoice_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
 def get_invoice_order_products(invoice):
-    result = list(map(lambda ii: {
-        'id': ii.product_id,
-        'name': ii.product.name_english if ii.product.name_english \
+    cumulative_order_products = map_reduce(
+        invoice.invoice_items,
+        keyfunc=lambda ii: (
+            ii.product_id,
+            ii.product.name_english if ii.product.name_english \
                 else ii.product.name,
-        'price': ii.price,
-        'quantity': ii.quantity,
-        'subtotal': ii.price * ii.quantity
-    }, invoice.invoice_items))
+            ii.price),
+        valuefunc=lambda op: op.quantity,
+        reducefunc=sum
+    )
+
+    result = list(map(lambda ii: {
+        'id': ii[0][0],
+        'name': ii[0][1],
+        'price': ii[0][2],
+        'quantity': ii[1],
+        'subtotal': ii[0][2] * ii[1]
+    }, cumulative_order_products.items()))
     return result
 
 def create_invoice_excel(reference_invoice, invoice_file_name):
