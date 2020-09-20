@@ -290,14 +290,17 @@ function submit_order() {
         },
         success: function(data, _status, _xhr) {
             if (data.status === 'success') {
-                window.alert("The request is posted. The request ID is " + data.order_id);
+                $('.modal-title').text('Success!');
+                $('.modal-body').text("The request is posted. The request ID is " + data.order_id);
+                $('.modal').modal();                
                 clear_form();
             } else if (data.status === 'warning') {
-                window.alert(
+                $('.modal-title').text('Almost good...');
+                $('.modal-body').text(
                     "The request is posted. The request ID is " + data.order_id +
                     "\nDuring request creation following issues have occurred:\n" +
-                    data.message.join("\n")
-                );
+                    data.message.join("\n"));
+                $('.modal').modal();                
             } else if (data.status === 'error') {
                 if (data.message) {
                     window.alert(data.message);
@@ -306,8 +309,16 @@ function submit_order() {
                 }
             }
         },
-        error: function(data, status, xhr) {
-            window.alert("Unknown error has occurred. Contact administrator");
+        error: xhr => {
+            var message;
+            if (xhr.status == 500) {
+                message = "Unknown error has occurred. Contact administrator"
+            } else {
+                message = xhr.responseText;
+            }
+            $('.modal-title').text('Failure!');
+            $('.modal-body').text(message);
+            $('.modal').modal();                
         }
     });
 }
