@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Currency, Product, Role, User
+from app.models import Country, Currency, Product, Role, Shipping, ShippingRate, User
 from app.orders.models import Order, OrderProduct
 
 class TestOrdersApi(BaseTestCase):
@@ -35,7 +35,36 @@ class TestOrdersApi(BaseTestCase):
         '''
         return super().try_user_operation(operation,
             self.user.username, '1')
-    
+        
+    def test_create_order(self):
+        created_order_id = None
+        self.try_add_entities([
+            Country(id='c1', name='country1'),
+            Shipping(id=1, name='Shipping1'),
+            ShippingRate(id=1, shipping_method_id=1, destination='c1', weight=100, rate=100),
+            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                "shipping":"1",
+                "phone":"",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [{"item_code":"0001", "quantity":"1"}]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        created_order_id = res.json['order_id']
+        order = Order.query.get(created_order_id)
+        self.assertEqual(order.total_krw, 101)
+        self.assertEqual(order.shipping.name, 'Shipping1')
+
     def test_save_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
@@ -62,8 +91,8 @@ class TestOrdersApi(BaseTestCase):
             'phone': None,
             'customer': None,
             'invoice_id': None,
-            'shipping': {'id': None, 'name': 'No shipping'},
-            'country': '',
+            'shipping': {'id': 1, 'name': 'No shipping'},
+            'country': None,
             'status': '',
             'total': 100,
             'total_krw': 100,
@@ -78,10 +107,10 @@ class TestOrdersApi(BaseTestCase):
                 {
                     'id': 1,
                     'order_id': gen_id,
+                    'suborder_id': None,
                     'order_product_id': 1,
                     'customer': None,
                     'subcustomer': None,
-                    'comment': None,
                     'private_comment': None,
                     'public_comment': None,
                     'product_id': gen_id,
@@ -93,7 +122,8 @@ class TestOrdersApi(BaseTestCase):
                     'points': None,
                     'quantity': 10,
                     'status': None,
-                    'weight': 10
+                    'weight': 10,
+                    'buyout_date': None
                 }
             ]
         })

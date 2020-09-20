@@ -49,7 +49,7 @@ def create_order():
         user=current_user,
         name=request_data['name'],
         address=request_data['address'],
-        country=request_data['country'],
+        country_id=request_data['country'],
         shipping_method_id=request_data['shipping'],
         phone=request_data['phone'],
         comment=request_data['comment'],
@@ -98,7 +98,7 @@ def create_order():
     order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
     order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
     order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
-        order.country, order.total_weight + order.shipping_box_weight)))
+        order.country.id, order.total_weight + order.shipping_box_weight)))
     order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
     order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
     order.total_krw = order.subtotal_krw + order.shipping_krw
@@ -149,35 +149,41 @@ def save_order(order_id):
         abort(Response("No order data was provided", status=400))
     
     errors = []
-    country = Country.query.get(payload['country'])
-    if order.name != payload['name']: order.name = payload['name']
-    if order.address != payload['address']: order.customer = payload['address']
-    if order.country_id != payload['country']: order.country_id = payload['country']
-    if order.shipping_method_id != payload['shipping']: order.shipping_method_id = payload['shipping']
-    if order.phone != payload['phone']: order.phone = payload['phone']
-    if order.comment != payload['comment']: order.comment = payload['comment']
+    if payload.get('name') and order.name != payload['name']:
+        order.name = payload['name']
+    if payload.get('address') and order.address != payload['address']:
+        order.customer = payload['address']
+    if payload.get('country') and order.country_id != payload['country']:
+        order.country_id = payload['country']
+    if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
+        order.shipping_method_id = payload['shipping']
+    if payload.get('phone') and order.phone != payload['phone']:
+        order.phone = payload['phone']
+    if payload.get('comment') and order.comment != payload['comment']:
+        order.comment = payload['comment']
 
     # Edit or add order products
     order_products = list(order.order_products)
-    for suborder in payload['products']:
-        for item in suborder['items']:
-            order_product = [op for op in order_products if
-                                op.subcustomer == suborder['subcustomer'] and
-                                op.product_id == item['item_code']]
-            if len(order_product):
-                update_order_product(order, order_product[0], item)
-                order_products.remove(order_product[0])
-            else:
-                try:
-                    add_order_product(order, suborder, item, errors)
-                except:
-                    pass
+    if payload.get('suborders'):
+        for suborder in payload['suborders']:
+            for item in suborder['items']:
+                order_product = [op for op in order_products if
+                                    op.subcustomer == suborder['subcustomer'] and
+                                    op.product_id == item['item_code']]
+                if len(order_product):
+                    update_order_product(order, order_product[0], item)
+                    order_products.remove(order_product[0])
+                else:
+                    try:
+                        add_order_product(order, suborder, item, errors)
+                    except:
+                        pass
     
     # Remove order products
     for order_product in order_products:
         delete_order_product(order, order_product)
 
-    update_order_totals(order)
+    order.update_total()
 
     result = None
     try:
@@ -227,17 +233,3 @@ def delete_order_product(order, order_product):
     order.total_weight -= order_product.product.weight * order_product.quantity
     order.subtotal_krw -= order_product.price * order_product.quantity
     order.when_changed = datetime.now()
-
-def update_order_totals(order):
-    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
-    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
-    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
-    # order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
-    #     order.country, order.total_weight + order.shipping_box_weight)))
-    order.shipping_krw = order.shipping.get_shipment_cost(
-        order.country.id, order.total_weight + order.shipping_box_weight)
-    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
-    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
-    order.total_krw = order.subtotal_krw + order.shipping_krw
-    order.total_rur = order.subtotal_rur + order.shipping_rur
-    order.total_usd = order.subtotal_usd + order.shipping_usd
