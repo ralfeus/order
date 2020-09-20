@@ -75,7 +75,7 @@ def get_invoices(invoice_id):
 def get_invoice_order_products(invoice):
     result = list(map(lambda ii: {
         'id': ii.product_id,
-        'name': product.name_english if ii.product.name_english \
+        'name': ii.product.name_english if ii.product.name_english \
                 else ii.product.name,
         'price': ii.price,
         'quantity': ii.quantity,
