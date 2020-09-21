@@ -37,6 +37,8 @@ def create_invoice(usd_rate):
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
+    for order in orders:
+        order.invoice = invoice
 
     db.session.add(invoice)
     db.session.add_all([
