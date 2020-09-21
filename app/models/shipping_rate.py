@@ -14,7 +14,7 @@ class ShippingRate(db.Model):
     shipping_method = relationship('Shipping', foreign_keys=[shipping_method_id])
     destination = Column(String(2), ForeignKey('countries.id'))
     weight = Column(Integer, index=True)
-    rate = Column(Float)
+    rate = Column(Integer)
 
     def __repr__(self):
         return f"<{type(self)}: {self.shipping_method.name}/{self.destination}/{self.weight}/{self.rate}>"

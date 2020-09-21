@@ -104,14 +104,16 @@ class Invoice(db.Model):
 
         return {
             'id': self.id,
-            'customer': self.orders[0].name if self.orders else '',
-            'address': self.orders[0].address if self.orders else '',
-            'country': self.orders[0].country if self.orders else '',
-            'phone': self.orders[0].phone if self.orders else '',
+            'customer': self.orders[0].name if self.orders else None,
+            'address': self.orders[0].address if self.orders else None,
+            'country': self.orders[0].country.name if self.orders else None,
+            'phone': self.orders[0].phone if self.orders else None,
             'weight': weight,
             'total': round(float(total), 2),
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
+                            if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') 
+                            if self.when_changed else None,
             'orders': [order.id for order in self.orders],
             'invoice_items': list([ii.to_dict() for ii in self.invoice_items])
         }

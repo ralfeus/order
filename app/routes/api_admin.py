@@ -13,9 +13,9 @@ from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.invoices.models import Invoice
-from app.models import \
-    Currency, Order, OrderProduct, OrderProductStatusEntry, Product, \
-    User, Suborder, Transaction, TransactionStatus
+from app.models import Currency, Product, User, Transaction, TransactionStatus
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 
@@ -33,57 +33,6 @@ def get_order_products():
             OrderProduct.suborder.has(Suborder.order_id == request.values['order_id'])))
 
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
-
-@admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
-@roles_required('admin')
-def save_order_product(order_product_id):
-    '''
-    Modifies order products
-    Order product payload is received as JSON
-    '''
-    payload = request.get_json()
-    if not payload:
-        return Response(status=304)
-    order_product = OrderProduct.query.get(order_product_id)
-    if not order_product:
-        abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
-
-    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer', 
-                           'private_comment', 'public_comment', 'status']
-    for attr in editable_attributes:
-        if payload.get(attr):
-            setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
-            order_product.when_changed = datetime.now()
-    try:
-        order_product.suborder.order.update_total()
-        db.session.commit()
-        return jsonify(order_product.to_dict())
-    except Exception as e:
-        abort(Response(str(e), status=500))
-
-@admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
-@roles_required('admin')
-def admin_set_order_product_status(order_product_id, order_product_status):
-    '''
-    Sets new status of the selected order product
-    '''
-    order_product = OrderProduct.query.get(order_product_id)
-    order_product.status = order_product_status
-    db.session.add(OrderProductStatusEntry(
-        order_product=order_product,
-        status=order_product_status,
-        # set_by=current_user,
-        user_id=current_user.id,
-        set_at=datetime.now()
-    ))
-
-    db.session.commit()
-
-    return jsonify({
-        'order_product_id': order_product_id,
-        'order_product_status': order_product_status,
-        'status': 'success'
-    })
 
 @admin_api.route('/order_product/<int:order_product_id>/status/history')
 @roles_required('admin')

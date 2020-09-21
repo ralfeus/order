@@ -28,6 +28,7 @@
 <script type="text/javascript" src="/static/js/dataTables.editor.min.js"></script>
 <script type="text/javascript" src="/static/js/editor.autoComplete.js"></script>
 <!-- <script type="text/javascript" src="/static/js/editor.bootstrap4.min.js"></script> -->
+<script type="text/javascript" src="/static/js/utils.js"></script>
 {% endblock %}
 
 {% block navbar %}
@@ -54,8 +55,14 @@
           </div>
         </li>
         {% endif %}
-        <li class="nav-item">
-          <a class="nav-link" href="/new_order">New order</a>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbardrop" data-toggle="dropdown">
+            Orders
+          </a>
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="/orders">List orders</a>
+            <a class="dropdown-item" href="/orders/new">New order</a>
+          </div>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="/wallet">Wallet</a>

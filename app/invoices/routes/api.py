@@ -9,7 +9,7 @@ from flask_security import roles_required
 from app import db
 from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models import Invoice, InvoiceItem
-from app.models import Order
+from app.orders.models import Order
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
@@ -100,7 +100,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     ws.cell(13, 4, reference_invoice.orders[0].name)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
-    ws.cell(23, 5, reference_invoice.orders[0].country)
+    ws.cell(23, 5, reference_invoice.orders[0].country.name)
     ws.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set packing list header
@@ -109,7 +109,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     pl.cell(13, 4, reference_invoice.orders[0].name)
     pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
-    pl.cell(23, 5, reference_invoice.orders[0].country)
+    pl.cell(23, 5, reference_invoice.orders[0].country.name)
     pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer

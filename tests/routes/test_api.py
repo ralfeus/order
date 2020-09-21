@@ -8,7 +8,8 @@ import app.routes.api as test_target
 
 app = create_app(TestConfig)
 app.app_context().push()
-from app.models import Country, Currency, Order, OrderProduct, OrderProductStatusEntry, \
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
+from app.models import Country, Currency, \
     Product, Shipping, ShippingRate, User
 
 def login(client, username, password):
@@ -65,29 +66,6 @@ class TestClientApi(unittest.TestCase):
             self._ctx.pop()
         db.session.remove()
         db.drop_all()
-
-    def test_create_order(self):
-        created_order_id = None
-        with db.session.no_autoflush:
-            res = self.client.post('/api/v1/order', json={
-                "name":"User1",
-                "address":"Address1",
-                "country":"c1",
-                "shipping":"1",
-                "phone":"",
-                "comment":"",
-                "suborders": [
-                    {
-                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
-                        "items": [{"item_code":"0001", "quantity":"1"}]
-                    }
-                ]
-            })
-            self.assertEqual(res.status_code, 200)
-            created_order_id = res.json['order_id']
-        order = Order.query.get(created_order_id)
-        self.assertEqual(order.total_krw, 101)
-        self.assertEqual(order.shipping.name, 'Shipping1')
 
     def test_get_countries(self):
         res = self.client.get(url_for('api.get_countries'))

@@ -5,9 +5,10 @@ from tests import BaseTestCase, db
 
 from app.config import TestConfig
 from app.invoices.models import Invoice
-from app.models import Country, Currency, Order, OrderProduct, \
-    OrderProductStatusEntry, Product, Role, Shipping, ShippingRate, \
-    Suborder, Subcustomer, Transaction, User
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder, Subcustomer
+from app.models import Country, Currency,  \
+    Product, Role, Shipping, ShippingRate, Transaction, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -46,19 +47,10 @@ class TestAdminApi(BaseTestCase):
             Product(id='0010', name='Test product'),
             Shipping(id=10, name='shipping1'),
             ShippingRate(id=10, shipping_method_id=10, destination='c1', weight=1000, rate=10),
-            Order(id='test-api-admin-1', user_id=20, status='pending', country='c1',
+            Order(id='test-api-admin-1', user_id=20, status='pending', country_id='c1',
                   shipping_method_id=10,
                   tracking_id='T00', tracking_url='https://tracking.fake/T00'),
-            Order(id='test-api-admin-2', user_id=20, status='shipped', country='c1')
-        ])
-        subcustomer = Subcustomer()
-        suborder = Suborder(order_id='test-api-admin-1', subcustomer=subcustomer)
-        self.try_add_entities([
-            subcustomer,
-            suborder,
-            OrderProduct(id=10, suborder=suborder, product_id='0010', price=10, quantity=10),
-            OrderProductStatusEntry(order_product_id=10, user_id=10,
-                set_at=datetime(2020, 1, 1, 1, 0, 0), status="Pending")
+            Order(id='test-api-admin-2', user_id=20, status='shipped', country_id='c1')
         ])
 
     def tearDown(self):
@@ -67,111 +59,6 @@ class TestAdminApi(BaseTestCase):
 
     def try_admin_operation(self, operation):
         return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
-
-    def test_get_orders(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order'))
-        self.assertEqual(res.json[0], {
-            'id': 'test-api-admin-1',
-            'customer': None,
-            'invoice_id': None,
-            'total': 110,
-            'total_krw': 110,
-            'total_rur': 110,
-            'total_usd': 110,
-            'shipping': 'shipping1',
-            'tracking_id': 'T00',
-            'tracking_url': 'https://tracking.fake/T00',
-            'user': 'user2',
-            'status': 'pending',
-            'buyout_date': None,
-            'when_created': None,
-            'when_changed': None
-        })
-        self.assertEqual(res.json[1], {
-            'id': 'test-api-admin-2',
-            'customer': None,
-            'invoice_id': None,
-            'total': 0,
-            'total_krw': 0,
-            'total_rur': 0,
-            'total_usd': 0,
-            'shipping': 'No shipping',
-            'user': 'user2',
-            'tracking_id': None,
-            'tracking_url': None,
-            'status': 'shipped',
-            'buyout_date': None,
-            'when_created': None,
-            'when_changed': None
-        })
-
-    def test_save_order(self):
-        self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/order/test-api-admin-1',
-                json={'tracking_id': 'T00', 'tracking_url': 'https://tracking.fake/T00'}
-            )
-        )
-        res = self.client.post(
-            '/api/v1/admin/order/test-api-admin-1',
-            json={
-                'id':'test-api-admin-1', 
-                'tracking_id': 'T00', 
-                'tracking_url': 'https://tracking.fake/T00',
-                'status': 'done'
-            }
-        )
-        self.assertEqual(res.status_code, 200)
-        res = self.client.get('/api/v1/admin/order/test-api-admin-1')
-        self.assertEqual(res.get_json()[0]['tracking_id'], 'T00')
-        self.assertEqual(res.get_json()[0]['tracking_url'], 'https://tracking.fake/T00')
-        self.assertEqual(res.get_json()[0]['status'], 'done')
-
-    def test_get_order_products(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order_product'))
-
-    def test_save_order_product(self):
-        self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/order_product/10'))
-        res = self.client.post('/api/v1/admin/order_product/10', json={
-            'quantity': 100
-        })
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json, {
-            'customer': None, 
-            'id': 10, 
-            'order_id': 'test-api-admin-1', 
-            'suborder_id': 1,
-            'buyout_date': None,
-            'order_product_id': 10, 
-            'price': 10, 
-            'private_comment': None, 
-            'product': None, 
-            'product_id': '0010', 
-            'public_comment': None, 
-            'quantity': 100, 
-            'status': None, 
-            'subcustomer': None
-        })
-        res = self.client.get('/api/v1/admin/order/test-api-admin-1')
-        self.assertTrue(res.json[0]['total_krw'], 1010)
-
-    def test_set_order_product_status(self):
-        res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/order_product/10/status/0'))
-
-    def test_get_order_product_status_history(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order_product/10/status/history'))
-        res = self.client.get('/api/v1/admin/order_product/10/status/history')
-        self.assertEqual(res.json, [{
-            'set_at': '2020-01-01 01:00:00',
-            'set_by': 'user1',
-            'status': 'Pending'
-        }])
-        res = self.client.get('/api/v1/admin/order_product/30/status/history')
-        self.assertEqual(res.status_code, 404)
 
     def test_get_product(self):
         res = self.try_admin_operation(
@@ -201,9 +88,8 @@ class TestAdminApi(BaseTestCase):
             lambda: self.client.post('/api/v1/admin/transaction/0'))
 
     def test_delete_user(self):
-        self.try_admin_operation(
-            lambda: self.client.delete('/api/v1/admin/user/10'))
-        res = self.client.delete('/api/v1/admin/user/20')
+        res = self.try_admin_operation(
+            lambda: self.client.delete('/api/v1/admin/user/20'))
         self.assertEqual(res.status_code, 409)
 
     def test_save_user(self):
