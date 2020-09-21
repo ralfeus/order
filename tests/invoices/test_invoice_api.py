@@ -20,8 +20,7 @@ class TestInvoiceClient(BaseTestCase):
                 enabled=True),
             admin_role,
             Country(id='c1', name='country1'),
-            Currency(code='USD', rate=0.5),
-            Order(id='test-invoice-api-1')
+            Currency(code='USD', rate=0.5)
         ])
 
     def try_admin_operation(self, operation):
@@ -33,13 +32,22 @@ class TestInvoiceClient(BaseTestCase):
             'user1_test_invoice_api', '1', 'root_test_invoice_api', '1')
     
     def test_create_invoice(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id),
+            Product(id=gen_id, name='Product 1', price=1),
+            OrderProduct(order_id=gen_id, product_id=gen_id, quantity=1, price=1)
+        ])
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/invoice/new/0.5',
             json={
-                'order_ids': ['test-invoice-api-1']
+                'order_ids': [gen_id]
             })
         )
         self.assertEqual(res.json['invoice_id'], 'INV-2020-09-0001')
+        invoice = Invoice.query.get(res.json['invoice_id'])
+        self.assertEqual(len(invoice.orders), 1)
+        self.assertEqual(invoice.invoice_items.count(), 1)
 
     def test_get_invoices(self):
         self.try_add_entities([

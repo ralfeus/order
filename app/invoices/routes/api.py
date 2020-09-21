@@ -37,13 +37,15 @@ def create_invoice(usd_rate):
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
+    for order in orders:
+        order.invoice = invoice
 
     db.session.add(invoice)
     db.session.add_all([
-        InvoiceItem(invoice=invoice, product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity)
-        for order_product in cumulative_order_products])
+        InvoiceItem(invoice=invoice, product_id=op[0][0],
+                    price=round(op[0][2] * usd_rate, 2),
+                    quantity=op[1])
+        for op in cumulative_order_products.items()])
     db.session.commit()
     return jsonify({
         'status': 'success',
