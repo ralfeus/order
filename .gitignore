@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 **/__pycache__/
+**/__pycache__/**
 *.py[cod]
 
 # C extensions
@@ -59,6 +60,3 @@ app/upload/**
 
 .vscode/**
 config.py
-
-migrations.old
-migrations.old/**

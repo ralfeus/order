@@ -9,8 +9,7 @@ $(document).ready( function () {
     invoice_table = $('#invoices').DataTable({
         dom: 'lfrBtip',
         ajax: {
-            url: '/api/v1/admin/invoice',
-            dataSrc: ''
+            url: '/api/v1/admin/invoice'
         },
         buttons: [
             { extend: 'xls', text: 'Download' }
@@ -33,7 +32,9 @@ $(document).ready( function () {
             {data: 'when_changed'}
         ],
         order: [[4, 'desc']],
-        select: true
+        select: true,
+        serverSide: true,
+        processing: true
     });
 
     // $('#invoices tbody').on('click', 'td.details-control', function () {
