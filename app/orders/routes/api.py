@@ -8,9 +8,10 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db, shipping
-from app.models import Country, Currency, Product
+from app.models import Currency, Product
 from app.orders import bp_api_admin, bp_api_user
-from app.orders.models import Order, OrderProduct, Suborder, Subcustomer
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+    Suborder, Subcustomer
 
 @bp_api_user.route('/', defaults={'order_id': None})
 @bp_api_user.route('/<order_id>')
@@ -35,11 +36,7 @@ def create_order():
     '''
     Creates order.
     Accepts order details in payload
-    Returns JSON:
-        {   
-            'status': operation status
-            'order_id': ID of the created order
-        }
+    Returns JSON
     '''
     request_data = request.get_json()
     if not request_data:
@@ -56,7 +53,6 @@ def create_order():
         subtotal_krw=0,
         when_created=datetime.now()
     )
-    suborders = []
     order_products = []
     errors = []
     # ordertotal_weight = 0
@@ -199,6 +195,58 @@ def save_order(order_id):
             'message': "Couldn't modify order due to input error. Check your form and try again."
         }
     return jsonify(result)
+
+@bp_api_admin.route('/product/<int:order_product_id>', methods=['POST'])
+@roles_required('admin')
+def save_order_product(order_product_id):
+    '''
+    Modifies order products
+    Order product payload is received as JSON
+    '''
+    payload = request.get_json()
+    if not payload:
+        return Response(status=304)
+    order_product = OrderProduct.query.get(order_product_id)
+    if not order_product:
+        abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
+
+    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer', 
+                           'private_comment', 'public_comment', 'status']
+    for attr in editable_attributes:
+        if payload.get(attr):
+            setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
+            order_product.when_changed = datetime.now()
+    try:
+        order_product.suborder.order.update_total()
+        db.session.commit()
+        return jsonify(order_product.to_dict())
+    except Exception as e:
+        abort(Response(str(e), status=500))
+
+@bp_api_admin.route('/product/<int:order_product_id>/status/<order_product_status>',
+                    methods=['POST'])
+@roles_required('admin')
+def admin_set_order_product_status(order_product_id, order_product_status):
+    '''
+    Sets new status of the selected order product
+    '''
+    order_product = OrderProduct.query.get(order_product_id)
+    order_product.status = order_product_status
+    db.session.add(OrderProductStatusEntry(
+        order_product=order_product,
+        status=order_product_status,
+        # set_by=current_user,
+        user_id=current_user.id,
+        set_at=datetime.now()
+    ))
+
+    db.session.commit()
+
+    return jsonify({
+        'order_product_id': order_product_id,
+        'order_product_status': order_product_status,
+        'status': 'success'
+    })
 
 def add_order_product(order, suborder, item, errors):
     product = Product.query.get(item['item_code'])

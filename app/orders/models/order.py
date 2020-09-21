@@ -107,13 +107,13 @@ class Order(db.Model):
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
             'country': self.country.to_dict() if self.country else None,
-            'shipping': self.shipping.to_dict() if self.shipping else '',
-            'status': self.status if self.status else '',
-            'tracking_id': self.tracking_id if self.tracking_id else '',
-            'tracking_url': self.tracking_url if self.tracking_url else '',
+            'shipping': self.shipping.to_dict() if self.shipping else None,
+            'status': self.status if self.status else None,
+            'tracking_id': self.tracking_id if self.tracking_id else None,
+            'tracking_url': self.tracking_url if self.tracking_url else None,
             'order_products': [order_product.to_dict() for order_product in self.order_products],
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }
 
     def update_total(self):
@@ -133,7 +133,8 @@ class Order(db.Model):
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipment_cost(
-            self.country, self.total_weight + self.shipping_box_weight)))
+            self.country.id if self.country else None, 
+            self.total_weight + self.shipping_box_weight)))
         self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate
         self.shipping_usd = self.shipping_krw * Currency.query.get('USD').rate
 
