@@ -11,72 +11,45 @@ from app.currencies import bp_api_admin, bp_api_user
 from app.currencies.models import Currency
 from app.models import Order
 
-@bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
+@bp_api_admin.route('/', defaults={'currency_id': None}, strict_slashes=False)
+@bp_api_admin.route('/<currency_id>')
 @roles_required('admin')
-def create_currency(usd_rate):
+def get_currencies(currency_id):
     '''
-    Creates currency
-    '''
-    currency = Currency()
-    currency_items = []
-    currency.when_created = datetime.now()
-    for currency in currencies:
-        currency = currency
-        invoice_items += [
-            InvoiceItem(invoice=invoice, product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity)
-            for order_product in order.order_products]
-
-    db.session.add(currency)
-    db.session.add_all(currency_items)
-    db.session.commit()
-    return jsonify({
-        'status': 'success',
-        'invoice_id': invoice.id
-    })
-
-@bp_api_admin.route('/', defaults={'invoice_id': None}, strict_slashes=False)
-@bp_api_admin.route('/<invoice_id>')
-@roles_required('admin')
-def get_invoices(invoice_id):
-    '''
-    Returns all or selected invoices in JSON:
+    Returns all or selected currencies in JSON:
     {
-        id: invoice ID,
+        id: currency ID,
         [
-            order_product_id: ID of the order product,
-            name: name of the order product,
-            quantity: quantity of order product,
-            amount_krw: amount in KRW
+            code: currency code
+            name: name of currency,
+            rate: default KRW
         ]
     }
     '''
-    invoices = Invoice.query.all() \
-        if invoice_id is None \
-        else Invoice.query.filter_by(id=invoice_id)
+    currencies = Currency.query.all() \
+        if currency_id is None \
+        else Currency.query.filter_by(id=currency_id)
 
-    return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
+    return jsonify(list(map(lambda entry: entry.to_dict(), currencies)))
 
-@bp_api_admin.route('/<invoice_id>/item/<invoice_item_id>', methods=['POST'])
+@bp_api_admin.route('/<currency_id>', methods=['POST'])
 @roles_required('admin')
-def save_invoice_item(invoice_id, invoice_item_id):
+def save_invoice_item(currency_id):
     '''
-    Creates or modifies existing invoice item
+    Creates or modifies existing currency
     '''
     payload = request.get_json()
     if not payload:
         abort(Response('No data was provided', status=400))
-    invoice = Invoice.query.get(invoice_id)
-    invoice_item = None
-    if not invoice:
-        abort(Response(f'No invoice <{invoice_id}> was found', status=404))
-    if invoice_item_id != 'new':
-        invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
+    currency = Currency.query.get(currency_id)
+    if not currency:
+        abort(Response(f'No currency <{currency_id}> was found', status=404))
+    if currency_id != 'new':
+        currency_id = invoice.invoice_items.filter_by(id=invoice_item_id).first()
         if not invoice_item:
             abort(Response(f'No invoice item <{invoice_item_id}> was found', status=404))
     else:
-        invoice_item = InvoiceItem(invoice=invoice, when_created=datetime.now())
+        invoice_item = CurrencyItem(currency=currency, when_created=datetime.now())
     
     for key, value in payload.items():
         if getattr(invoice_item, key) != value:
@@ -93,7 +66,7 @@ def delete_invoice_item(invoice_id, invoice_item_id):
     '''
     Deletes existing invoice item
     '''
-    invoice = Invoice.query.get(invoice_id)
+    invoice = Currency.query.get(invoice_id)
     if not invoice:
         abort(Response(f'No invoice <{invoice_id}> was found', status=404))
     invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
