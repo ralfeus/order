@@ -187,6 +187,7 @@ function get_shipping_cost(shipping_method, weight) {
 }
 
 function get_shipping_methods(country, weight) {
+    console.log(country);
     var promise = $.Deferred()
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
@@ -292,7 +293,7 @@ function shipping_changed() {
 function submit_order() {
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/order' + (g_order_id ? '/' + g_order_id : ''),
+        url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',

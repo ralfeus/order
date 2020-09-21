@@ -7,8 +7,8 @@ from flask_security import current_user, login_required, roles_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import db, shipping
-from app.models import Currency, Product
+from app import db
+from app.models import Currency, Product, Shipping
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     Suborder, Subcustomer
@@ -42,12 +42,13 @@ def create_order():
     if not request_data:
         abort(Response("No data is provided", status=400))
     result = {}
+    shipping = Shipping.query.get(request_data['shipping'])
     order = Order(
         user=current_user,
         name=request_data['name'],
         address=request_data['address'],
         country_id=request_data['country'],
-        shipping_method_id=request_data['shipping'],
+        shipping=shipping,
         phone=request_data['phone'],
         comment=request_data['comment'],
         subtotal_krw=0,
@@ -164,9 +165,9 @@ def save_order(order_id):
         for suborder in payload['suborders']:
             for item in suborder['items']:
                 order_product = [op for op in order_products if
-                                    op.subcustomer == suborder['subcustomer'] and
+                                    op.suborder.subcustomer.name == suborder['subcustomer'] and
                                     op.product_id == item['item_code']]
-                if len(order_product):
+                if len(order_product) > 0:
                     update_order_product(order, order_product[0], item)
                     order_products.remove(order_product[0])
                 else:

@@ -1,12 +1,23 @@
 '''
 Shipping method model
 '''
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from functools import reduce
+
+from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
 
 from app import db
 from app.models import ShippingRate
 from app.models.base import BaseModel
+
+box_weights = {
+    30000: 2200,
+    20000: 1900,
+    15000: 1400,
+    10000: 1000,
+    5000: 500,
+    2000: 250
+}
 
 class Shipping(db.Model, BaseModel):
     '''
@@ -39,6 +50,14 @@ class Shipping(db.Model, BaseModel):
             'id': self.id,
             'name': self.name
         }
+
+    @staticmethod
+    def get_box_weight(package_weight):
+        return reduce(
+            lambda acc, box: box[1] if package_weight < box[0] else acc,
+            box_weights.items(), 0
+        ) if package_weight > 0 \
+        else 0
 
 class NoShipping(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'noshipping'}

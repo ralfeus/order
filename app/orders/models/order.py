@@ -9,7 +9,7 @@ from sqlalchemy import Column, DateTime, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app import db, shipping
+from app import db
 from app.models import Country, Currency, Shipping, NoShipping
 
 class Order(db.Model):
@@ -80,10 +80,13 @@ class Order(db.Model):
 
         self.total_weight = 0
 
-        attributes = [a[0] for a in type(self).__dict__.items() if isinstance(a[1], InstrumentedAttribute)]
+        attributes = [a[0] for a in type(self).__dict__.items()
+                           if isinstance(a[1], InstrumentedAttribute)]
         for arg in kwargs:
             if arg in attributes:
                 setattr(self, arg, kwargs[arg])
+        if kwargs.get('shipping'):
+            self.shipping = kwargs['shipping']
 
     def __repr__(self):
         return "<Order: {}>".format(self.id)
@@ -125,7 +128,7 @@ class Order(db.Model):
 
         self.total_weight = reduce(lambda acc, op: acc + op.product.weight * op.quantity,
                                    self.order_products, 0)
-        self.shipping_box_weight = shipping.get_box_weight(self.total_weight)
+        self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
 
         self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
                                    self.order_products, 0)
