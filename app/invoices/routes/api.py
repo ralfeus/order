@@ -6,6 +6,8 @@ import openpyxl
 from flask import Response, abort, jsonify, request, send_file
 from flask_security import roles_required
 
+from sqlalchemy import or_
+
 from app import db
 from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models import Invoice, InvoiceItem
@@ -59,9 +61,32 @@ def get_invoices(invoice_id):
     '''
     Returns all or selected invoices in JSON:
     '''
-    invoices = Invoice.query.all() \
-        if invoice_id is None \
-        else Invoice.query.filter_by(id=invoice_id)
+
+    invoices = Invoice.query
+
+    if invoice_id is not None:
+        invoices = invoices.filter_by(id=invoice_id)
+    else: # here we check whether request is filtered by DataTables
+        if len(request.values) > 0:
+            records_total = invoices.count()
+            # Filtering .....
+            if request.values.get('search[value]'):
+                invoices = invoices.filter(or_(
+                    Invoice.id.like(f"%{request.values['search[value]']}%"),
+                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%"))))
+            records_filtered = invoices.count()
+            # Limiting to page
+            invoices = invoices.offset(request.values['start']). \
+                                limit(request.values['length'])
+            return jsonify({
+                'draw': request.values['draw'],
+                'recordsTotal': records_total,
+                'recordsFiltered': records_filtered,
+                'data': list(map(lambda entry: entry.to_dict(), invoices))
+            })
+        else:
+            invoices = invoices.all()
+    
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
