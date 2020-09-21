@@ -63,7 +63,7 @@ class Order(db.Model):
     @property
     def order_products(self):
         if self.suborders.count() > 0:
-            return [order_product for suborder in order.suborders
+            return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
         else:
             return list(self.__order_products)
