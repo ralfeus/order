@@ -2,6 +2,7 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+import re
 
 from flask import Response, abort, jsonify, request, send_file
 from flask_security import roles_required
@@ -70,11 +71,31 @@ def get_invoices(invoice_id):
         if len(request.values) > 0:
             records_total = invoices.count()
             # Filtering .....
-            if request.values.get('search[value]'):
+            if len(request.values) > 0:
+                arg = {}
+                for param in request.values.items():
+                    match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
+                    if match:
+                        (array, index, attr) = match.groups()
+                        if not arg.get(array):
+                            arg[array] = {}
+                        if not arg[array].get(index):
+                            arg[array][index] = {}
+                        arg[array][index][attr] = param[1]
+                    else:
+                        arg[param[0]] = param[1]
                 invoices = invoices.filter(or_(
                     Invoice.id.like(f"%{request.values['search[value]']}%"),
-                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%"))))
+                    Invoice.orders.any(Order.id.like(f"%{arg['search[value]']}%"))))
             records_filtered = invoices.count()
+            # Sorting
+            columns = arg['columns']
+            sort_column_input = arg['order']['0']
+            sort_column_name = columns[sort_column_input['column']]['data']
+            sort_column = Invoice.__table__.columns[sort_column_name]
+            if sort_column_input['dir'] == 'desc':
+                sort_column = sort_column.desc()
+            invoices = invoices.order_by(sort_column)
             # Limiting to page
             invoices = invoices.offset(request.values['start']). \
                                 limit(request.values['length'])
