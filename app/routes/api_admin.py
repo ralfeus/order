@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from flask import Blueprint, Response, abort, jsonify, request, send_file
@@ -13,9 +14,9 @@ from flask_security import current_user, login_required, roles_required
 from app import db
 from app.currencies.models import Currency
 from app.invoices.models import Invoice
-from app.models import \
-    Order, OrderProduct, OrderProductStatusEntry, Product, \
-    User, Transaction, TransactionStatus
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder
+from app.models import Product, User, Transaction, TransactionStatus
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 
@@ -28,60 +29,11 @@ def get_order_products():
     '''
     order_products_query = OrderProduct.query
     if request.values.get('order_id'):
-        order_products_query = order_products_query.filter_by(order_id=request.values['order_id'])
+        order_products_query = order_products_query.filter(or_(
+            OrderProduct.order_id == request.values['order_id'],
+            OrderProduct.suborder.has(Suborder.order_id == request.values['order_id'])))
 
     return jsonify(list(map(lambda order_product: order_product.to_dict(), order_products_query.all())))
-
-@admin_api.route('/order_product/<int:order_product_id>', methods=['POST'])
-@roles_required('admin')
-def save_order_product(order_product_id):
-    '''
-    Modifies order products
-    Order product payload is received as JSON
-    '''
-    payload = request.get_json()
-    if not payload:
-        return Response(status=304)
-    order_product = OrderProduct.query.get(order_product_id)
-    if not order_product:
-        abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
-
-    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer', 
-                           'private_comment', 'public_comment', 'status']
-    for attr in editable_attributes:
-        if payload.get(attr):
-            setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
-            order_product.when_changed = datetime.now()
-    try:
-        order_product.order.update_total()
-        db.session.commit()
-        return jsonify(order_product.to_dict())
-    except Exception as e:
-        abort(Response(str(e), status=500))
-
-@admin_api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
-@roles_required('admin')
-def admin_set_order_product_status(order_product_id, order_product_status):
-    '''
-    Sets new status of the selected order product
-    '''
-    order_product = OrderProduct.query.get(order_product_id)
-    order_product.status = order_product_status
-    db.session.add(OrderProductStatusEntry(
-        order_product=order_product,
-        status=order_product_status,
-        # set_by=current_user,
-        user_id=current_user.id,
-        set_at=datetime.now()
-    ))
-
-    db.session.commit()
-
-    return jsonify({
-        'order_product_id': order_product_id,
-        'order_product_status': order_product_status,
-        'status': 'success'
-    })
 
 @admin_api.route('/order_product/<int:order_product_id>/status/history')
 @roles_required('admin')
@@ -247,6 +199,9 @@ def delete_user(user_id):
 @roles_required('admin')
 def save_user(user_id):    
     user_input = request.get_json()
+    if not user_input:
+        abort(Response(f"Can't update user <{user_id}> - no data provided",
+                       status=400))
     user = User.query.get(user_id)
     if not user:
         user = User()
@@ -278,15 +233,6 @@ def save_user(user_id):
 def get_orders(order_id):
     '''
     Returns all or selected orders in JSON:
-    {
-        id: invoice ID,
-        [
-            user: username of order creator,
-            name: name of the customer,
-            total: total amount in KRW,
-            when_created: time of the order creation
-        ]
-    }
     '''
     orders = Order.query.all() \
         if order_id is None \

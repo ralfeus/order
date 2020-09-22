@@ -1,5 +1,6 @@
 from unittest import TestCase
-
+import unittest
+#unittest.TestCase.run = lambda self,*args,**kw: unittest.TestCase.debug(self)
 from app import create_app, db
 from app.config import TestConfig
 
@@ -31,6 +32,12 @@ class BaseTestCase(TestCase):
         self.assertEqual(res.status_code, 302)
         self.logout()
         self.login(admin_name, admin_password)
+        return operation()
+
+    def try_user_operation(self, operation, user_name, user_password):
+        res = operation()
+        self.assertEqual(res.status_code, 302)
+        res = self.login(user_name, user_password)
         return operation()
 
     def login(self, username, password):

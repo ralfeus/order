@@ -34,17 +34,23 @@ class Invoice(db.Model):
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
             usd_rate = Currency.query.get('USD').rate
-            for order_product in [order_product for order in self.orders
-                                                for order_product in order.order_products]:
-                temp_invoice_items.append(InvoiceItem(
-                    id=len(temp_invoice_items) + 1,
-                    invoice_id=self.id,
-                    invoice=self,
-                    product_id=order_product.product.id,
-                    product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity
-                ))
+            for order in self.orders:
+                order_products = None
+                if order.suborders.count() > 0:
+                    order_products = [order_product for suborder in order.suborders
+                                                    for order_product in suborder.order_products]
+                else:
+                    order_products = order.order_products 
+                for order_product in order_products:
+                    temp_invoice_items.append(InvoiceItem(
+                        id=len(temp_invoice_items) + 1,
+                        invoice_id=self.id,
+                        invoice=self,
+                        product_id=order_product.product.id,
+                        product=order_product.product,
+                        price=round(order_product.price * usd_rate, 2),
+                        quantity=order_product.quantity
+                    ))
             return temp_invoice_items
     
     @property
@@ -98,14 +104,16 @@ class Invoice(db.Model):
 
         return {
             'id': self.id,
-            'customer': self.orders[0].name if self.orders else '',
-            'address': self.orders[0].address if self.orders else '',
-            'country': self.orders[0].country if self.orders else '',
-            'phone': self.orders[0].phone if self.orders else '',
+            'customer': self.orders[0].name if self.orders else None,
+            'address': self.orders[0].address if self.orders else None,
+            'country': self.orders[0].country.name if self.orders else None,
+            'phone': self.orders[0].phone if self.orders else None,
             'weight': weight,
             'total': round(float(total), 2),
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else '',
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
+                            if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') 
+                            if self.when_changed else None,
             'orders': [order.id for order in self.orders],
-            'invoice_items': list(invoice_items_dict.values())
+            'invoice_items': list([ii.to_dict() for ii in self.invoice_items])
         }

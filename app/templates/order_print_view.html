@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block navbar %}
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Order {{ order.id }}</h1>
+<h2>{{ order.customer }}</h2>
+{% for suborder in order.suborders %}
+<h3>{{ order.id }}-{{ suborder.subcustomer.id }}: {{ suborder.subcustomer.name }}</h3>
+<table class="table">
+  <thead>
+    <th scope="col" style="width: 1em;">Product ID</th>
+    <th scope="col">Product Name</th>
+    <th scope="col" style="width:1em;">Qty</th>
+    <th scope="col">Public comment</th>
+    <th scope="col">Private comment</th>
+  </thead>
+  <tbody>
+    {% for order_product in suborder.order_products %}
+    <tr>
+      <td>{{ order_product.product.id }}</td>
+      <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
+      <td>{{ order_product.quantity }}</td>
+      <td>{{ order_product.public_comment }}</td>
+      <td>{{ order_product.private_comment }}</td>
+    {% endfor %}
+    </tr>
+  </tbody>
+</table>
+{% endfor %}
+{% endblock %}

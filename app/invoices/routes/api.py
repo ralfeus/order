@@ -2,14 +2,17 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
+import re
 
 from flask import Response, abort, jsonify, request, send_file
 from flask_security import roles_required
 
+from sqlalchemy import or_
+
 from app import db
 from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models import Invoice, InvoiceItem
-from app.models import Order
+from app.orders.models import Order
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
@@ -26,16 +29,26 @@ def create_invoice(usd_rate):
     invoice = Invoice()
     invoice_items = []
     invoice.when_created = datetime.now()
+    cumulative_order_products = map_reduce(
+        [order_product for order in orders
+                       for order_product in order.order_products],
+        keyfunc=lambda ii: (
+            ii.product_id,
+            ii.product.name_english if ii.product.name_english \
+                else ii.product.name,
+            ii.price),
+        valuefunc=lambda op: op.quantity,
+        reducefunc=sum
+    )
     for order in orders:
         order.invoice = invoice
-        invoice_items += [
-            InvoiceItem(invoice=invoice, product=order_product.product,
-                    price=round(order_product.price * usd_rate, 2),
-                    quantity=order_product.quantity)
-            for order_product in order.order_products]
 
     db.session.add(invoice)
-    db.session.add_all(invoice_items)
+    db.session.add_all([
+        InvoiceItem(invoice=invoice, product_id=op[0][0],
+                    price=round(op[0][2] * usd_rate, 2),
+                    quantity=op[1])
+        for op in cumulative_order_products.items()])
     db.session.commit()
     return jsonify({
         'status': 'success',
@@ -48,24 +61,59 @@ def create_invoice(usd_rate):
 def get_invoices(invoice_id):
     '''
     Returns all or selected invoices in JSON:
-    {
-        id: invoice ID,
-        [
-            order_product_id: ID of the order product,
-            name: name of the order product,
-            quantity: quantity of order product,
-            amount_krw: amount in KRW
-        ]
-    }
     '''
-    invoices = Invoice.query.all() \
-        if invoice_id is None \
-        else Invoice.query.filter_by(id=invoice_id)
+
+    invoices = Invoice.query
+
+    if invoice_id is not None:
+        invoices = invoices.filter_by(id=invoice_id)
+    else: # here we check whether request is filtered by DataTables
+        if len(request.values) > 0:
+            records_total = invoices.count()
+            # Filtering .....
+            if len(request.values) > 0:
+                arg = {}
+                for param in request.values.items():
+                    match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
+                    if match:
+                        (array, index, attr) = match.groups()
+                        if not arg.get(array):
+                            arg[array] = {}
+                        if not arg[array].get(index):
+                            arg[array][index] = {}
+                        arg[array][index][attr] = param[1]
+                    else:
+                        arg[param[0]] = param[1]
+                invoices = invoices.filter(or_(
+                    Invoice.id.like(f"%{request.values['search[value]']}%"),
+                    Invoice.orders.any(Order.id.like(f"%{arg['search[value]']}%"))))
+            records_filtered = invoices.count()
+            # Sorting
+            columns = arg['columns']
+            sort_column_input = arg['order']['0']
+            sort_column_name = columns[sort_column_input['column']]['data']
+            sort_column = Invoice.__table__.columns[sort_column_name]
+            if sort_column_input['dir'] == 'desc':
+                sort_column = sort_column.desc()
+            invoices = invoices.order_by(sort_column)
+            # Limiting to page
+            invoices = invoices.offset(request.values['start']). \
+                                limit(request.values['length'])
+            return jsonify({
+                'draw': request.values['draw'],
+                'recordsTotal': records_total,
+                'recordsFiltered': records_filtered,
+                'data': list(map(lambda entry: entry.to_dict(), invoices))
+            })
+        else:
+            invoices = invoices.all()
+    
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
 
 def get_invoice_order_products(invoice):
-    invoice_items = map_reduce(invoice.invoice_items,
+    cumulative_order_products = map_reduce(
+        invoice.invoice_items,
         keyfunc=lambda ii: (
             ii.product_id,
             ii.product.name_english if ii.product.name_english \
@@ -74,13 +122,14 @@ def get_invoice_order_products(invoice):
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
     )
-    result = list(map(lambda op: {
-        'id': op[0][0],
-        'name': op[0][1],
-        'price': op[0][2],
-        'quantity': op[1],
-        'subtotal': op[0][2] * op[1]
-    }, invoice_items.items()))
+
+    result = list(map(lambda ii: {
+        'id': ii[0][0],
+        'name': ii[0][1],
+        'price': ii[0][2],
+        'quantity': ii[1],
+        'subtotal': ii[0][2] * ii[1]
+    }, cumulative_order_products.items()))
     return result
 
 def create_invoice_excel(reference_invoice, invoice_file_name):
@@ -97,7 +146,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     ws.cell(13, 4, reference_invoice.orders[0].name)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
-    ws.cell(23, 5, reference_invoice.orders[0].country)
+    ws.cell(23, 5, reference_invoice.orders[0].country.name)
     ws.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set packing list header
@@ -106,7 +155,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     pl.cell(13, 4, reference_invoice.orders[0].name)
     pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
-    pl.cell(23, 5, reference_invoice.orders[0].country)
+    pl.cell(23, 5, reference_invoice.orders[0].country.name)
     pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer

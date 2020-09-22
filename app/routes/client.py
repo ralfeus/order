@@ -7,8 +7,9 @@ from flask import Blueprint, current_app, request, redirect, render_template, se
 from flask_security import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm, TransactionForm
+from app.models import Transaction, TransactionStatus, User
 from app.currencies.models import Currency
-from app.models import Order, Transaction, TransactionStatus, User
+from app.orders.models import Order
 from app import db, security
 from app.tools import write_to_file
 
@@ -26,15 +27,6 @@ def index():
     Takes no arguments
     '''
     return render_template('index.html')
-
-@client.route('/new_order')
-@login_required
-def new_order():
-    '''
-    New order form
-    '''
-
-    return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
 @client.route('/signup', methods=['GET', 'POST'])
 def user_signup():

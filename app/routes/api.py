@@ -1,7 +1,6 @@
 '''
 Contains api endpoint routes of the application
 '''
-from decimal import Decimal
 from datetime import datetime
 import os.path
 
@@ -10,13 +9,14 @@ from more_itertools import map_reduce
 from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import db, shipping
-from app.currencies.models import Currency
+from app import db
 from app.models import \
-    Country, Order, OrderProduct, OrderProductStatusEntry, Product, \
+    Country, Product, \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
+from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+                              Suborder
+from app.currencies.models import Currency
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -38,97 +38,6 @@ def get_currency_rate():
     currencies = {c.code: str(c.rate) for c in Currency.query.all()}
     return jsonify(currencies)
 
-@api.route('/order', defaults={'order_id': None})
-@api.route('/order/<order_id>')
-@login_required
-def get_orders(order_id):
-    '''
-    Returns all or selected orders in JSON
-    '''
-    orders = Order.query.filter_by(user=current_user) \
-        if order_id is None \
-        else Order.query.filter_by(id=order_id, user=current_user)
-    if orders.count() == 0:
-        abort(Response("No orders were found", status=404))
-    elif orders.count() == 1:
-        return jsonify(orders.first().to_dict())
-    else:
-        return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
-
-@api.route('/order', methods=['POST'])
-@login_required
-def create_order():
-    '''
-    Creates order.
-    Accepts order details in payload
-    Returns JSON:
-        {   
-            'status': operation status
-            'order_id': ID of the created order
-        }
-    '''
-    request_data = request.get_json()
-    if not request_data:
-        abort(Response("No data is provided", status=400))
-    result = {}
-    order = Order(
-        user=current_user,
-        name=request_data['name'],
-        address=request_data['address'],
-        country=request_data['country'],
-        shipping_method_id=request_data['shipping'],
-        phone=request_data['phone'],
-        comment=request_data['comment'],
-        subtotal_krw=0,
-        when_created=datetime.now()
-    )
-    order_products = []
-    errors = []
-    # ordertotal_weight = 0
-    for suborder in request_data['products']:
-        for item in suborder['items']:
-            product = Product.query.get(item['item_code'])
-            if product:
-                order_product = OrderProduct(
-                    order=order,
-                    subcustomer=suborder['subcustomer'],
-                    product_id=product.id,
-                    price=product.price,
-                    quantity=int(item['quantity']),
-                    status='Pending')
-                db.session.add(order_product)
-                order_products.append(order_product)
-                order.total_weight += product.weight * order_product.quantity
-                order.subtotal_krw += product.price * order_product.quantity
-            else:
-                errors.append(f'{item["item_code"]}: no such product')
-
-    order.order_products = order_products
-    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
-    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
-    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
-    order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
-        order.country, order.total_weight + order.shipping_box_weight)))
-    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
-    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
-    order.total_krw = order.subtotal_krw + order.shipping_krw
-    order.total_rur = order.subtotal_rur + order.shipping_rur
-    order.total_usd = order.subtotal_usd + order.shipping_usd
-    db.session.add(order)
-    try:
-        db.session.commit()
-        result = {
-            'status': 'warning' if len(errors) > 0 else 'success',
-            'order_id': order.id,
-            'message': errors
-        }
-    except (IntegrityError, OperationalError) as e:
-        result = {
-            'status': 'error',
-            'message': "Couldn't add order due to input error. Check your form and try again."
-        }
-    return jsonify(result)
-
 @api.route('/order_product')
 @login_required
 def get_order_products():
@@ -140,20 +49,9 @@ def get_order_products():
         order_products = order_products.all()
     else:
         order_products = order_products.filter(
-            OrderProduct.order.has(Order.user == current_user))
-    return jsonify(list(map(lambda order_product: {
-        'order_id': order_product.order_id,
-        'order_product_id': order_product.id,
-        'customer': order_product.order.name,
-        'subcustomer': order_product.subcustomer,
-        'product_id': order_product.product_id,
-        'product': order_product.product.name_english,
-        'private_comment': order_product.private_comment,
-        'public_comment': order_product.public_comment,
-        'comment': order_product.order.comment,
-        'quantity': order_product.quantity,
-        'status': order_product.status
-        }, order_products)))
+            OrderProduct.suborder.has(Suborder.order.has(Order.user == current_user)))
+    return jsonify(list(map(lambda order_product: order_product.to_dict(),
+                            order_products)))
 
 @api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
 def set_order_product_status(order_product_id, order_product_status):
