@@ -13,7 +13,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     Suborder, Subcustomer
 
-@bp_api_user.route('/', defaults={'order_id': None})
+@bp_api_user.route('/', defaults={'order_id': None}, strict_slashes=False)
 @bp_api_user.route('/<order_id>')
 @login_required
 def get_orders(order_id):

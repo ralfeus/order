@@ -1,4 +1,6 @@
+from datetime import datetime
 from app.models import Currency, Role, User
+from app.orders.models import Order
 
 from tests import BaseTestCase, db
 
@@ -37,4 +39,18 @@ class TestOrdersClient(BaseTestCase):
     def test_new_order(self):
         res = self.try_user_operation(
             lambda: self.client.get('/orders/new'))
+        self.assertEqual(res.status_code, 200)
+
+    def test_print_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order()
+        ])
+        self.try_admin_operation(
+            lambda: self.client.get(f'/admin/orders/{gen_id}'))
+
+    def test_user_orders_list(self):
+        res = self.try_user_operation(
+            lambda: self.client.get('/orders/')
+        )
         self.assertEqual(res.status_code, 200)

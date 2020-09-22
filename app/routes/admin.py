@@ -81,22 +81,3 @@ def admin_transactions():
     Transactions management
     '''
     return render_template('transactions.html')
-
-@admin.route('/orders')
-@roles_required('admin')
-def admin_orders():
-    '''
-    Order management
-    '''
-    usd_rate = Currency.query.get('USD').rate
-    return render_template('orders.html', usd_rate=usd_rate)
-
-@admin.route('/orders/<order_id>')
-@roles_required('admin')
-def get_order(order_id):
-    order = Order.query.get(order_id)
-    if not order:
-        abort(Response("The order <{order_id}> was not found", status=404))
-    if request.values.get('view') == 'print':
-        return render_template('order_print_view.html', order=order)
-    abort(501)
