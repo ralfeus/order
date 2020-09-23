@@ -12,10 +12,11 @@ from sqlalchemy import or_
 
 from app import db
 from app.models import \
-    Country, Currency, Product, \
+    Country, Currency, \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
+from app.products.models import Product
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')

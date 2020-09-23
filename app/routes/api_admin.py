@@ -13,9 +13,10 @@ from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.invoices.models import Invoice
-from app.models import Currency, Product, User, Transaction, TransactionStatus
+from app.models import Currency, User, Transaction, TransactionStatus
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
+from app.products.models import Product
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 

@@ -7,10 +7,12 @@ from flask_security import current_user, login_required, login_user, roles_requi
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.forms import ProductForm, SignupForm
+from app.forms import SignupForm
+from app.products.forms.product import ProductForm
+from app.products.models import Product
 from app.invoices.models import Invoice
 from app.orders.models import Order
-from app.models import Currency, Product, User
+from app.models import Currency, User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 

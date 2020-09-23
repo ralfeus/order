@@ -4,8 +4,9 @@ Product model
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from app import db
+from app.models.base import BaseModel
 
-class Product(db.Model):
+class Product(db.Model, BaseModel):
     '''
     Represents a product
     '''
@@ -20,8 +21,6 @@ class Product(db.Model):
     price = Column(Integer)
     points = Column(Integer)
     available = Column(Boolean, default=True)
-    when_created = Column(DateTime)
-    when_changed = Column(DateTime)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)

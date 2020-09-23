@@ -3,7 +3,7 @@ from flask import current_app
 
 from app import db
 from app.import_products import atomy
-from app.models import Product
+from app.products.models import Product
 
 
 def import_products():
