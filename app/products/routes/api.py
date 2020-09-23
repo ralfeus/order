@@ -66,8 +66,8 @@ def admin_get_product(product_id):
         product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@bp_api_admin.route('/<product_id>', defaults={'product_id': None},
-                    methods=['POST'], strict_slashes=False)
+@bp_api_admin.route('/', defaults={'product_id': None}, methods=['POST'], strict_slashes=False)
+@bp_api_admin.route('/<product_id>', methods=['POST'])
 @roles_required('admin')
 def save_product(product_id):
     '''

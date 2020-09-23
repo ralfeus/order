@@ -1,12 +1,13 @@
 $(document).ready( function () {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
-            var product_id = Object.entries(data.data)[0][1].id;
+            var product_id = Object.entries(data.data)[0][0];
+            var target = Object.entries(data.data)[0][1];
             var method = 'post';
             var url = '/api/v1/admin/product/' + product_id;
-            var target = data.data[product_id];
             if (data.action === 'create') {
-                target = data.data[0];
+                var url = '/api/v1/admin/product';
+                product_id = target.id;
             } else if (data.action === 'remove') {
                 method = 'delete';
             }
