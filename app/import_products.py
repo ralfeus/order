@@ -34,9 +34,10 @@ def atomy():
         product_line = item.getparent().getparent()
         item_code = sel_item_code(product_line)[0].text.strip()
         item_name = sel_item_name(product_line)[0].text.strip()
-        item_sold_out_name = sel_item_name_sold_out(product_line)[0].text.strip() \
-            if sel_item_name_sold_out(product_line) \
-            else None
+        item_sold_out_name_node = sel_item_name_sold_out(product_line)
+        item_sold_out_name = item_sold_out_name_node[0].text.strip() \
+                if item_sold_out_name_node and item_sold_out_name_node[0].text \
+                else None
         item_price = re.sub('\D', '', sel_item_price(product_line)[0].text)
         item_points = re.sub('\D', '', sel_item_points(product_line)[0].text)
         if item_sold_out_name:

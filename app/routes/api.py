@@ -8,7 +8,6 @@ from more_itertools import map_reduce
 
 from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import or_
 
 from app import db
 from app.models import \
@@ -16,7 +15,6 @@ from app.models import \
     Shipping, ShippingRate, Transaction, TransactionStatus, User
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
-from app.products.models import Product
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -92,50 +90,6 @@ def get_order_product_status_history(order_product_id):
         })
         result.status_code = 404
         return result
-
-@api.route('/product', defaults={'product_id': None})
-@api.route('/product/<product_id>')
-@login_required
-def get_product(product_id):
-    '''
-    Returns list of products in JSON
-    '''
-    product_query = None
-    error_message = None
-    if product_id:
-        error_message = f"No product with code <{product_id}> was found"
-        stripped_id = product_id.lstrip('0')
-        product_query = Product.query.filter_by(available=True). \
-            filter(Product.id.endswith(stripped_id)).all()
-        product_query = [product for product in product_query
-                        if product.id.lstrip('0') == stripped_id]
-    else:
-        error_message = "There are no available products in store now"
-        product_query = Product.query.filter_by(available=True).all()
-    if len(product_query) != 0:
-        return jsonify(Product.get_products(product_query))
-    abort(Response(error_message, status=404))
-
-@api.route('/product/search/<term>')
-def get_product_by_term(term):
-    '''
-    Returns list of products where product ID or name starts with provided value in JSON:
-        {
-            'id': product ID,
-            'name': product original name,
-            'name_english': product english name,
-            'name_russian': product russian name,
-            'price': product price in KRW,
-            'weight': product weight,
-            'points': product points
-        }
-    '''
-    product_query = Product.query.filter_by(available=True).filter(or_(
-        Product.id.like(term + '%'),
-        Product.name.like(term + '%'),
-        Product.name_english.like(term + '%'),
-        Product.name_russian.like(term + '%')))
-    return jsonify(Product.get_products(product_query))
 
 @api.route('/shipping', defaults={'country_id': None, 'weight': None})
 @api.route('/shipping/<country_id>', defaults={'weight': None})

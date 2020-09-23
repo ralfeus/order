@@ -7,8 +7,9 @@ from app.config import TestConfig
 from app.invoices.models import Invoice
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder, Subcustomer
+from app.products.models import Product
 from app.models import Country, Currency,  \
-    Product, Role, Shipping, ShippingRate, Transaction, User
+    Role, Shipping, ShippingRate, Transaction, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(

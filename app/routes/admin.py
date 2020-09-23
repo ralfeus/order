@@ -1,18 +1,12 @@
 '''
 Contains admin routes of the application
 '''
-from flask import Blueprint, Response, abort, current_app, flash, redirect, \
-                  render_template, request
-from flask_security import current_user, login_required, login_user, roles_required
-from sqlalchemy.exc import IntegrityError
+from flask import Blueprint, redirect, render_template
+from flask_security import roles_required
 
 from app import db
 from app.forms import SignupForm
-from app.products.forms.product import ProductForm
-from app.products.models import Product
-from app.invoices.models import Invoice
-from app.orders.models import Order
-from app.models import Currency, User
+from app.models import User
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -24,35 +18,6 @@ def order_products():
     '''
     return render_template('order_products.html')
 
-
-@admin.route('/product/new', methods=['GET', 'POST'])
-@roles_required('admin')
-def product():
-    '''
-    Creates and edits product
-    '''
-    form = ProductForm()
-    if form.validate_on_submit():
-        new_product = Product()
-        form.populate_obj(new_product)
-
-        db.session.add(new_product)
-        try:
-            db.session.commit()
-            flash("The product is created", category='info')
-            return redirect('/admin/products')
-        except IntegrityError as e:
-            flash(f"The product couldn't be created. {e}", category="error")
-    return render_template('product.html', title="Create product", form=form)
-
-@admin.route('/products')
-@roles_required('admin')
-def products():
-    '''
-    Product catalog management
-    '''
-    return render_template('products.html')
-
 @admin.route('/users/new', methods=['GET', 'POST'])
 @roles_required('admin')
 def new_user():
@@ -61,10 +26,10 @@ def new_user():
     '''
     userform = SignupForm()
     if userform.validate_on_submit():
-        new_user = User()
-        userform.populate_obj(new_user)
-        
-        db.session.add(new_user)
+        user = User()
+        userform.populate_obj(user)
+
+        db.session.add(user)
         return redirect('/admin/users')
     return render_template('signup.html', title="Create user", form=userform)
 
@@ -75,7 +40,7 @@ def users():
     Edits the user settings
     '''
     return render_template('users.html')
-    
+
 @admin.route('/transactions')
 @roles_required('admin')
 def admin_transactions():

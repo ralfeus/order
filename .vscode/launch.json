@@ -10,8 +10,6 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            // "host": "sandlet",
-            // "port": 5678
             "justMyCode": true
         },
         {
@@ -21,6 +19,14 @@
             "url": "http://sandlet:5000/",
             "webRoot": "${workspaceFolder}",
             "pathMappings": [
+                {
+                    "url": "http://sandlet:5000/admin",
+                    "path": "${workspaceFolder}/app"
+                },
+                {
+                    "url": "http://sandlet:5000/admin",
+                    "path": "${workspaceFolder}/app"
+                },
                 {
                     "url": "http://sandlet:5000",
                     "path": "${workspaceFolder}/app"
@@ -40,6 +46,14 @@
                 {
                     "url": "http://sandlet:5000/orders/",
                     "path": "${workspaceFolder}/app/orders/"
+                },
+                {
+                    "url": "http://sandlet:5000/admin/products/",
+                    "path": "${workspaceFolder}/app/products/"
+                },
+                {
+                    "url": "http://sandlet:5000/products/",
+                    "path": "${workspaceFolder}/app/products/"
                 }
             ],
             "skipFiles": [

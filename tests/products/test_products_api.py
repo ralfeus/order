@@ -1,8 +1,9 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Currency, Product, Role, Shipping, ShippingRate, User
+from app.models import Country, Currency, Role, Shipping, ShippingRate, User
 from app.orders.models import Order, OrderProduct
+from app.products.models import Product
 
 class TestProductsApi(BaseTestCase):
     def setUp(self):
@@ -25,10 +26,11 @@ class TestProductsApi(BaseTestCase):
         ])
 
     def test_get_products(self):
-        res = self.client.get('/api/v1/product')
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/product'))
         self.assertEqual(res.json, [
             {
-                'available': False,
+                'available': True,
                 'id': '0000',
                 'name': 'Test product',
                 'name_english': None,
@@ -51,7 +53,8 @@ class TestProductsApi(BaseTestCase):
         self.try_add_entities([
             Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
         ])
-        res = self.client.get('/api/v1/product/search/0001')
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/product/search/0001'))
         self.assertEqual(res.json, [
             {
                 'id': '0001',
@@ -64,3 +67,31 @@ class TestProductsApi(BaseTestCase):
                 'available': True
             }
         ])
+
+    def test_create_product(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/product/{gen_id}', json={
+                'id': gen_id,
+                'name': 'Test product'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        product = Product.query.get(gen_id)
+        self.assertIsNotNone(product)
+
+    def test_edit_product(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/product/{gen_id}', json={
+                'id': gen_id,
+                'name': 'Test product'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        product = Product.query.get(gen_id)
+        self.assertIsNotNone(product)
+        self.assertEqual(product.name, 'Test product')

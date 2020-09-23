@@ -11,29 +11,32 @@ def import_products():
     create_app().app_context().push()
     current_app.logger.info('Starting products import')
     products = Product.query.all()
-    same = new = modified = 0
+    same = new = modified = ignored = 0
     for atomy_product in atomy():
         try:
-            product = next(p for p in products 
+            product = next(p for p in products
                            if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))
-            is_dirty = False
-            if product.name != atomy_product['name']:
-                product.name = atomy_product['name']
-                is_dirty = True
-            if product.price != int(atomy_product['price']):
-                product.price = int(atomy_product['price'])
-                is_dirty = True
-            if product.points != int(atomy_product['points']):
-                product.points = int(atomy_product['points'])
-                is_dirty = True
-            if product.available != atomy_product['available']:
-                product.available = atomy_product['available']
-                is_dirty = True
-            if is_dirty:
-                product.when_changed = datetime.now()
-                modified += 1
+            if product.synchronize:
+                is_dirty = False
+                if product.name != atomy_product['name']:
+                    product.name = atomy_product['name']
+                    is_dirty = True
+                if product.price != int(atomy_product['price']):
+                    product.price = int(atomy_product['price'])
+                    is_dirty = True
+                if product.points != int(atomy_product['points']):
+                    product.points = int(atomy_product['points'])
+                    is_dirty = True
+                if product.available != atomy_product['available']:
+                    product.available = atomy_product['available']
+                    is_dirty = True
+                if is_dirty:
+                    product.when_changed = datetime.now()
+                    modified += 1
+                else:
+                    same += 1
             else:
-                same += 1
+                ignored += 1
 
             products.remove(product)
         except StopIteration:
@@ -49,7 +52,7 @@ def import_products():
             new += 1
             db.session.add(product)
     for product in products:
-        if product.available:
+        if product.synchronize and product.available:
             product.available = False
             modified += 1
         else:

@@ -13,5 +13,3 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
 
-import app.invoices.routes.api
-import app.invoices.routes.client

@@ -21,6 +21,7 @@ class Product(db.Model, BaseModel):
     price = Column(Integer)
     points = Column(Integer)
     available = Column(Boolean, default=True)
+    synchronize = Column(Boolean, default=True)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
@@ -38,8 +39,9 @@ class Product(db.Model, BaseModel):
             'name': self.name,
             'name_english': self.name_english,
             'name_russian': self.name_russian,
-            'price': self.price,
-            'weight': self.weight,
-            'points': self.points,
-            'available': self.available
+            'price': self.price if self.price else 0,
+            'weight': self.weight if self.weight else 0,
+            'points': self.points if self.points else 0,
+            'available': self.available,
+            'synchronize': self.synchronize
         }

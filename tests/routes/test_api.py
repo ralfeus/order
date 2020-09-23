@@ -9,8 +9,8 @@ import app.routes.api as test_target
 app = create_app(TestConfig)
 app.app_context().push()
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
-from app.models import Country, Currency, \
-    Product, Shipping, ShippingRate, User
+from app.products.models import Product
+from app.models import Country, Currency, Shipping, ShippingRate, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(

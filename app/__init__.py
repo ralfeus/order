@@ -61,7 +61,7 @@ def register_components(flask_app):
     from app.routes.api import api
     from app.routes.client import client
     from app.routes.api_admin import admin_api
-    import app.invoices
+    import app.invoices, app.invoices.routes
     import app.orders, app.orders.routes
     import app.products, app.products.routes
 
