@@ -65,14 +65,6 @@ class TestAdminApi(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/product'))
 
-    def test_save_product(self):
-        res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/product', json={
-                'name': 'Product1',
-                'name_english': '',
-                'name_russian': ''
-            }))
-
     def test_delete_product(self):
         res = self.try_admin_operation(
             lambda: self.client.delete('/api/v1/admin/product/0'))

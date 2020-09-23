@@ -31,11 +31,12 @@ class TestProductsApi(BaseTestCase):
         self.assertEqual(res.json, [
             {
                 'available': True,
+                'synchronize': True,
                 'id': '0000',
                 'name': 'Test product',
                 'name_english': None,
                 'name_russian': None,
-                'points': None,
+                'points': 0,
                 'price': 10,
                 'weight': 10
             }
@@ -61,10 +62,11 @@ class TestProductsApi(BaseTestCase):
                 'name': 'Korean name 1',
                 'name_english': 'English name',
                 'name_russian': 'Russian name',
-                'points': None,
+                'points': 0,
                 'price': 1,
                 'weight': 0,
-                'available': True
+                'available': True,
+                'synchronize': True
             }
         ])
 
