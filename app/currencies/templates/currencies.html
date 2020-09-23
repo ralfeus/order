@@ -2,21 +2,20 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="static/js/invoice.js"></script>
+<script src="static/js/currencies.js"></script>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
-<h1>Currency {{ id }}</h1>
+<h1>Currencies {{ id }}</h1>
 <div class="container row col-12">
     <div class="col-8">
-        <table id="invoice-items" class="table" style="width: 100%;">
+        <table id="currency-items" class="table" style="width: 100%;">
             <thead>
-                <th scope="col">Product Code</th>
+                <th scope="col">Currency Code</th>
                 <th scope="col">Name</th>
-                <th scope="col">Country</th>
-                <th scope="col">Price</th>
-                <th scope="col">Quantity</th>
+                <th scope="col">Rate</th>
+
             </thead>
             <tbody></tbody>
         </table>
