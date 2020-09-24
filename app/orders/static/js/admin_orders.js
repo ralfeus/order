@@ -12,7 +12,7 @@ $(document).ready( function () {
 		extend: 'print',
 		text: 'Print order',
 		customize: window => {
-		    window.location = 'orders/' + table.rows({selected: true}).data()[0].id + '?view=print'
+		    window.location = table.rows({selected: true}).data()[0].id + '?view=print'
 		}
 	    },
             {extend: 'invoice', text: 'Create invoice'}
