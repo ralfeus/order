@@ -35,8 +35,8 @@ class TestCurrencyClient(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/currency'))
         self.assertEqual(res.json[0], {
-            'code': '0001', 
-            'name': 'Currency_1', 
+            'code': '0001',
+            'name': 'Currency_1',
             'rate': 1.0
         })
     def test_save_currency(self):
@@ -51,6 +51,13 @@ class TestCurrencyClient(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         currency = Currency.query.get(gen_id)
         self.assertEqual(currency.rate, 2)
+
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/currency/{gen_id}',
+            json={'rate': '2@'})
+        )
+        self.assertEqual(res.status_code, 400)
+
     
     def test_delete_currency(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
