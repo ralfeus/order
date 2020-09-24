@@ -1,5 +1,6 @@
 from datetime import datetime
-from app.models import Currency, Role, User
+from app.models import Role, User
+from app.currencies.models import Currency
 from app.orders.models import Order
 
 from tests import BaseTestCase, db

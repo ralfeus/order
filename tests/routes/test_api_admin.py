@@ -4,11 +4,12 @@ from datetime import datetime
 from tests import BaseTestCase, db
 
 from app.config import TestConfig
+from app.currencies.models import Currency
 from app.invoices.models import Invoice
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder, Subcustomer
 from app.products.models import Product
-from app.models import Country, Currency,  \
+from app.models import Country, \
     Role, Shipping, ShippingRate, Transaction, User
 
 def login(client, username, password):
@@ -60,14 +61,6 @@ class TestAdminApi(BaseTestCase):
 
     def try_admin_operation(self, operation):
         return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
-
-    def test_get_product(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/product'))
-
-    def test_delete_product(self):
-        res = self.try_admin_operation(
-            lambda: self.client.delete('/api/v1/admin/product/0'))
 
     def test_get_transactions(self):
         res = self.try_admin_operation(

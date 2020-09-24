@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from app.models import Country, Currency, Role, User
+from app.models import Country, Role, User
+from app.currencies.models import Currency
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order, OrderProduct, Suborder
 from app.products.models import Product

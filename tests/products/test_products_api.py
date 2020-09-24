@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Currency, Role, Shipping, ShippingRate, User
+from app.models import Country, Role, Shipping, ShippingRate, User
+from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct
 from app.products.models import Product
 
@@ -41,6 +42,8 @@ class TestProductsApi(BaseTestCase):
                 'weight': 10
             }
         ])
+        res = self.client.get('/api/v1/product')
+        self.assertGreater(len(res.json), 0)
         res = self.client.get('/api/v1/product/0000')
         self.assertEqual(len(res.json), 1)
         res = self.client.get('/api/v1/product/0')
@@ -97,3 +100,11 @@ class TestProductsApi(BaseTestCase):
         product = Product.query.get(gen_id)
         self.assertIsNotNone(product)
         self.assertEqual(product.name, 'Test product')
+
+    def test_delete_product(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id=gen_id, name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
+        ])        
+        res = self.try_admin_operation(
+            lambda: self.client.delete(f'/api/v1/admin/product/{gen_id}'))

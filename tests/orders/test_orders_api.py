@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Currency, Role, Shipping, ShippingRate, User
+from app.models import Country, Role, Shipping, ShippingRate, User
+from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     Subcustomer, Suborder
 from app.products.models import Product
