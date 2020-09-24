@@ -151,10 +151,10 @@ class TestOrdersApi(BaseTestCase):
     def test_get_order_products(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         subcustomer = Subcustomer()
-        suborder = Suborder(order_id='test-api-admin-1', subcustomer=subcustomer)
+        suborder = Suborder(order_id=gen_id, subcustomer=subcustomer)
         self.try_add_entities([
-            Order(id=gen_id, user_id=20, status='pending', country_id='c1',
-                  shipping_method_id=10,
+            Order(id=gen_id, user_id=self.user.id, status='pending', country_id='c1',
+                  shipping_method_id=1,
                   tracking_id='T00', tracking_url='https://tracking.fake/T00'),
             subcustomer,
             suborder
