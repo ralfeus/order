@@ -9,8 +9,8 @@ import app.routes.api as test_target
 app = create_app(TestConfig)
 app.app_context().push()
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry
-from app.models import Country, Currency, \
-    Product, Shipping, ShippingRate, User
+from app.products.models import Product
+from app.models import Country, Currency, Shipping, ShippingRate, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -51,7 +51,7 @@ class TestClientApi(unittest.TestCase):
                 OrderProductStatusEntry(order_product_id=2, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
                 Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True),
                 Product(id='0002', name='Korean name 2'),
-                User(id=100, username='user1', email='user@name.com', 
+                User(id=100, username='user1', email='user@name.com',
                     password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
                     enabled=True)
             ]
@@ -81,38 +81,6 @@ class TestClientApi(unittest.TestCase):
             'RUR': '1.00000'
         })
 
-    def test_get_products(self):
-        res = self.client.get('/api/v1/product')
-        self.assertEqual(res.json, [
-            {
-                'available': True,
-                'id': '0001',
-                'name': 'Korean name 1',
-                'name_english': 'English name',
-                'name_russian': 'Russian name',
-                'points': None,
-                'price': 1,
-                'weight': 0
-            },
-            {
-                'available': True,
-                'id': '0002',
-                'name': 'Korean name 2',
-                'name_english': None,
-                'name_russian': None,
-                'points': None,
-                'price': None,
-                'weight': 0
-            }
-        ])
-        res = self.client.get('/api/v1/product/0001')
-        self.assertEqual(len(res.json), 1)
-        res = self.client.get('/api/v1/product/1')
-        self.assertEqual(len(res.json), 1)
-        self.assertEqual(res.json[0]['id'], '0001')
-        res = self.client.get('/api/v1/product/999')
-        self.assertEqual(res.status_code, 404)
-        self.assertEqual(res.data, b'No product with code <999> was found')
 
     def test_get_shipping(self):
         res = self.client.get('/api/v1/shipping')
@@ -133,22 +101,6 @@ class TestClientApi(unittest.TestCase):
         self.assertEqual(res.json['shipping_cost'], 150)
         res = self.client.get('/api/v1/shipping/rate/c2/200')
         self.assertEqual(res.json, {'2': 150, '3': 160})
-
-    def test_search_product(self):
-        res = self.client.get('/api/v1/product/search/0001')
-        self.assertEqual(res.json, [
-            {
-                'id': '0001',
-                'name': 'Korean name 1',
-                'name_english': 'English name',
-                'name_russian': 'Russian name',
-                'points': None,
-                'price': 1,
-                'weight': 0,
-                'available': True
-            }
-        ])
-
 
 if __name__ == '__main__':
     unittest.main()

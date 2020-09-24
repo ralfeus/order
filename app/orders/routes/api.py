@@ -8,13 +8,14 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db
-from app.models import Product, Shipping
+from app.models import Shipping
+from app.currencies.models import Currency
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     Suborder, Subcustomer
-from app.currencies.models import Currency    
+from app.products.models import Product
 
-@bp_api_user.route('/', defaults={'order_id': None})
+@bp_api_user.route('/', defaults={'order_id': None}, strict_slashes=False)
 @bp_api_user.route('/<order_id>')
 @login_required
 def get_orders(order_id):

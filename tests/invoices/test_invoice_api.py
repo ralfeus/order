@@ -1,8 +1,9 @@
 from datetime import datetime
 
-from app.models import Country, Currency, Product, Role, User
+from app.models import Country, Currency, Role, User
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order, OrderProduct, Suborder
+from app.products.models import Product
 from tests import BaseTestCase, db
 
 class TestInvoiceClient(BaseTestCase):

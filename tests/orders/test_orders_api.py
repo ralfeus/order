@@ -1,9 +1,10 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Currency, Product, Role, Shipping, ShippingRate, User
+from app.models import Country, Currency, Role, Shipping, ShippingRate, User
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     Subcustomer, Suborder
+from app.products.models import Product
 
 class TestOrdersApi(BaseTestCase):
     def setUp(self):

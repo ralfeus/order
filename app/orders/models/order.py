@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.models import Country, Shipping, NoShipping
+from app.models import Shipping, NoShipping
 from app.currencies.models import Currency
 
 class Order(db.Model):

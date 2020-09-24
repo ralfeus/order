@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/orders.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="orders" class="table">
+        <thead>
+            <th></th>
+            <th scope="col" style="width: 2em;">Order ID</th>
+            <th scope="col" style="width: 100%;">Customer name</th>
+            <th scope="col" style="width: 2em;">Total (KRW)</th>
+            <th scope="col" style="width: 2em;">Total (RUR)</th>
+            <th scope="col" style="width: 2em;">Total (USD)</th>
+            <th scope="col" style="width: 2em;">When created</th>
+            <th scope="col" style="width: 2em;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+{% endblock %}

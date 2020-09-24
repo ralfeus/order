@@ -4,8 +4,9 @@ Product model
 from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from app import db
+from app.models.base import BaseModel
 
-class Product(db.Model):
+class Product(db.Model, BaseModel):
     '''
     Represents a product
     '''
@@ -20,8 +21,7 @@ class Product(db.Model):
     price = Column(Integer)
     points = Column(Integer)
     available = Column(Boolean, default=True)
-    when_created = Column(DateTime)
-    when_changed = Column(DateTime)
+    synchronize = Column(Boolean, default=True)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
@@ -39,8 +39,9 @@ class Product(db.Model):
             'name': self.name,
             'name_english': self.name_english,
             'name_russian': self.name_russian,
-            'price': self.price,
-            'weight': self.weight,
-            'points': self.points,
-            'available': self.available
+            'price': self.price if self.price else 0,
+            'weight': self.weight if self.weight else 0,
+            'points': self.points if self.points else 0,
+            'available': self.available,
+            'synchronize': self.synchronize
         }

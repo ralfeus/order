@@ -7,8 +7,9 @@ from app.config import TestConfig
 from app.invoices.models import Invoice
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder, Subcustomer
+from app.products.models import Product
 from app.models import Country, Currency,  \
-    Product, Role, Shipping, ShippingRate, Transaction, User
+    Role, Shipping, ShippingRate, Transaction, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -63,14 +64,6 @@ class TestAdminApi(BaseTestCase):
     def test_get_product(self):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/product'))
-
-    def test_save_product(self):
-        res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/product', json={
-                'name': 'Product1',
-                'name_english': '',
-                'name_russian': ''
-            }))
 
     def test_delete_product(self):
         res = self.try_admin_operation(

@@ -8,15 +8,14 @@ import openpyxl
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from flask import Blueprint, Response, abort, jsonify, request, send_file
+from flask import Blueprint, Response, abort, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.currencies.models import Currency
-from app.invoices.models import Invoice
+from app.models import User, Transaction, TransactionStatus
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
-from app.models import Product, User, Transaction, TransactionStatus
 
 admin_api = Blueprint('admin_api', __name__, url_prefix='/api/v1/admin')
 
@@ -47,79 +46,6 @@ def admin_get_order_product_status_history(order_product_id):
         }, history)))
     else:
         abort(Response(f'No order product ID={order_product_id} found', status=404))
-
-@admin_api.route('/product', defaults={'product_id': None})
-@admin_api.route('/product/<product_id>')
-@roles_required('admin')
-def admin_get_product(product_id):
-    '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'name': product original name,
-            'name_english': product english name,
-            'name_russian': product russian name,
-            'price': product price in KRW,
-            'weight': product weight,
-            'points': product points
-        }
-    '''
-    product_query = None
-    if product_id:
-        product_query = Product.query.filter_by(id=product_id)
-    else:
-        product_query = Product.query.all()
-    return jsonify(Product.get_products(product_query))
-
-@admin_api.route('/product', methods=['POST'])
-@roles_required('admin')
-def save_product():
-    '''
-    Saves updates in product or creates new product
-    '''
-    payload = request.get_json()
-    if not payload.get('id'):
-        abort(Response('No product ID is provided', status=400))
-
-    product = Product.query.get(payload['id'])
-    if not product:
-        product = Product()
-        product.id = payload['id']
-        db.session.add(product)
-
-    editable_attributes = ['name', 'name_english', 'name_russian', 'price',
-                           'points', 'weight', 'available']
-    for attr in editable_attributes:
-        if payload.get(attr):
-            setattr(product, attr, payload[attr])
-            product.when_changed = datetime.now()
-
-    db.session.commit()
-
-    return jsonify({
-        'status': 'success'
-    })
-
-@admin_api.route('/product/<product_id>', methods=['DELETE'])
-@roles_required('admin')
-def delete_product(product_id):
-    '''
-    Deletes a product by its product code
-    '''
-    result = None
-    try:
-        Product.query.filter_by(id=product_id).delete()
-        db.session.commit()
-        result = jsonify({
-            'status': 'success'
-        })
-    except IntegrityError:
-        result = jsonify({
-            'message': f"Can't delete product {product_id} as it's used in some orders"
-        })
-        result.status_code = 409
-
-    return result
 
 @admin_api.route('/transaction', defaults={'transaction_id': None})
 @admin_api.route('/transaction/<int:transaction_id>')

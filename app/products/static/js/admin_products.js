@@ -1,15 +1,63 @@
-$.fn.dataTable.ext.buttons.create = {
-    action: function(e, dt, node, config) {
-        window.location = '/admin/product/new';
-    }
-};
-$.fn.dataTable.ext.buttons.delete = {
-    action: function(e, dt, node, config) {
-        delete_product(dt.rows({selected: true}));
-    }
-}
-
 $(document).ready( function () {
+    var editor = new $.fn.dataTable.Editor({
+        ajax: (_method, _url, data, success, error) => {
+            var product_id = Object.entries(data.data)[0][0];
+            var target = Object.entries(data.data)[0][1];
+            var method = 'post';
+            var url = '/api/v1/admin/product/' + product_id;
+            if (data.action === 'create') {
+                var url = '/api/v1/admin/product';
+                product_id = target.id;
+            } else if (data.action === 'remove') {
+                method = 'delete';
+            }
+            target.available = target.available[0]
+            target.synchronize = target.synchronize[0]
+            $.ajax({
+                url: url,
+                method: method,
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(target),
+                success: data => {success(({data: [data]}))},
+                error: error
+            });
+        },
+        table: '#products',
+        idSrc: 'id',
+        fields: [
+            {label: 'Product ID', name: 'id'},
+            {label: 'Name', name: 'name'},
+            {label: 'Name english', name: 'name_english'},
+            {label: 'Name russian', name: 'name_russian'},
+            {label: 'Weight (g)', name: 'weight', def: 0},
+            {label: 'Price', name: 'price', def: 0},
+            {label: 'Points', name: 'points', def: 0},
+            {
+                label: 'Available', 
+                name: 'available', 
+                type: 'checkbox', 
+                options: [{label:'', value:true}],
+                def: true,
+                unselectedValue: false
+            },
+            {
+                label: 'Synchronize', 
+                name: 'synchronize', 
+                type: 'checkbox', 
+                options: [{label:'', value:true}],
+                def: true,
+                unselectedValue: false
+            }
+        ]
+    });
+    editor.on('open', () => {
+        if (editor.field('id').val()) {
+            editor.field('id').disable();
+        } else {
+            editor.field('id').enable();
+        }
+    });
     var table = $('#products').DataTable({
         dom: 'lrBtip', 
         ajax: {
@@ -19,8 +67,9 @@ $(document).ready( function () {
             dataSrc: ''
         },
         buttons: [
-            {extend: 'create', text: 'Create'},
-            {extend: 'delete', text: 'Delete'},
+            {extend: 'create', editor: editor, text: "Create"},
+            {extend: 'edit', editor: editor, text: "Edit"},
+            {extend: 'remove', editor: editor, text: "Delete"},
             'searchPanes'
         ],
         language: {

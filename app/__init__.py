@@ -31,7 +31,7 @@ security = Security()
 
 
 
-import app.jobs
+# import app.jobs
 
 def create_app(config=Config, import_name=None):
     '''
@@ -62,14 +62,16 @@ def register_components(flask_app):
     from app.routes.client import client
     from app.routes.api_admin import admin_api
     import app.currencies, app.currencies.routes
+    import app.invoices, app.invoices.routes
     import app.orders, app.orders.routes
-    import app.invoices
+    import app.products, app.products.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
     flask_app.register_blueprint(admin)
     flask_app.register_blueprint(client)
+    app.currencies.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
-    app.currencies.register_blueprints(flask_app)
+    app.products.register_blueprints(flask_app)
 
