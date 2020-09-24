@@ -6,7 +6,7 @@ from app import db
 class Currency(db.Model):
     __tablename__ = 'currencies'
 
-    code = Column(String(3), primary_key=True)
+    code = Column(String(3), primary_key=True, )
     name = Column(String(64))
     rate = Column(Numeric(scale=5))
 
@@ -15,3 +15,10 @@ class Currency(db.Model):
 
     def format(self, amount):
         return f'{amount} {self.code}'
+        
+    def to_dict(self):
+        return {
+            'code': self.code,
+            'name': self.name,
+            'rate': float(self.rate)
+        }

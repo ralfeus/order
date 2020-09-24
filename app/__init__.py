@@ -71,4 +71,5 @@ def register_components(flask_app):
     flask_app.register_blueprint(client)
     app.invoices.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
+    app.currencies.register_blueprints(flask_app)
 
