@@ -37,7 +37,7 @@ $(document).ready( function () {
             {data: 'when_changed'},
         ],
         order: [[6, 'desc']],
-        select: 'single'
+        select: true
     });
 
     $('#orders tbody').on('click', 'td.details-control', function () {
