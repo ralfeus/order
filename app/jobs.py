@@ -57,5 +57,7 @@ def import_products():
             modified += 1
         else:
             same += 1
-    current_app.logger.info(f"Product synchronization result: same: {same}, new: {new}, modified: {modified}")
+    current_app.logger.info(f"""Product synchronization result:
+                                same: {same}, new: {new},
+                                modified: {modified}, ignored: {ignored}""")
     db.session.commit()
