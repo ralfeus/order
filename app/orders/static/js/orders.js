@@ -10,6 +10,7 @@ $(document).ready( function () {
         dom: 'lfrBtip',
         ajax: {
             url: '/api/v1/order',
+            error: xhr => { modal('No orders', xhr.responseText) },
             dataSrc: ''
         },
         buttons: [
