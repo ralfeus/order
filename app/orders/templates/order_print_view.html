@@ -6,7 +6,19 @@
 {% block content %}
 {{ super() }}
 <h1>Order {{ order.id }}</h1>
-<h2>{{ order.customer }}</h2>
+<h2>{{ order.name }}</h2>
+<table class="table">
+  <thead>
+    <th scope="col">Shipping method</th>
+    <th scope="col">Parcel weight</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ order.shipping.name }}</td>
+      <td>{{ order.total_weight }}</td>
+    </tr>
+  </tbody>
+</table>
 {% for suborder in order.suborders %}
 <h3>{{ order.id }}-{{ suborder.subcustomer.id }}: {{ suborder.subcustomer.name }}</h3>
 <table class="table">
