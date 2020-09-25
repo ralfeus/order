@@ -29,7 +29,7 @@ def get_order(order_id):
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     return render_template('new_order.html', order_id=order_id)
 
-@bp_client_user.route('/', strict_slashes=False)
+@bp_client_user.route('/')
 @login_required
 def get_orders():
     '''

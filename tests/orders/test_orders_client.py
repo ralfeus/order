@@ -22,20 +22,6 @@ class TestOrdersClient(BaseTestCase):
             Currency(code='USD', rate=0.5),
             Currency(code='RUR', rate=0.5)
         ])
-
-    def try_admin_operation(self, operation):
-        '''
-        Superseeds base method to add class-specific user and admin credentials
-        '''
-        return super().try_admin_operation(operation,
-            self.user.username, '1', self.admin.username, '1')
-    
-    def try_user_operation(self, operation):
-        '''
-        Superseeds base method to add class-specific user credentials
-        '''
-        return super().try_user_operation(operation,
-            self.user.username, '1')
     
     def test_new_order(self):
         res = self.try_user_operation(
