@@ -8,7 +8,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db
-from app.models import Shipping
+from app.models import Country, Shipping
 from app.currencies.models import Currency
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
@@ -45,11 +45,15 @@ def create_order():
         abort(Response("No data is provided", status=400))
     result = {}
     shipping = Shipping.query.get(request_data['shipping'])
+    country = Country.query.get(request_data['country'])
+    if not country:
+        abort(Response(f"The country <{request_data['country']}> was not found", status=400))
     order = Order(
         user=current_user,
         name=request_data['name'],
         address=request_data['address'],
         country_id=request_data['country'],
+        country=country,
         shipping=shipping,
         phone=request_data['phone'],
         comment=request_data['comment'],
