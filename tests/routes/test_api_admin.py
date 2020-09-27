@@ -10,7 +10,7 @@ from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder, Subcustomer
 from app.products.models import Product
 from app.models import Country, \
-    Role, Shipping, ShippingRate, Transaction, User
+    Role, Shipping, ShippingRate, Transaction, TransactionStatus, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(
@@ -32,14 +32,14 @@ class TestAdminApi(BaseTestCase):
 
         db.create_all()
         admin_role = Role(id=10, name='admin')
+        self.admin = User(id=0, username='root', email='user@name.com',
+            password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
+            enabled=True, roles=[admin_role])
+        self.user = User(id=10, username='user1', email='user@name.com',
+                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
+                enabled=True)
         self.try_add_entities([
-            admin_role,
-            User(id=0, username='root', email='user@name.com',
-                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
-                enabled=True, roles=[admin_role]),
-            User(id=10, username='user1', email='user@name.com',
-                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
-                enabled=True),
+            admin_role, self.user, self.admin,
             User(id=20, username='user2', email='user@name.com',
                 password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
                 enabled=True),
@@ -59,9 +59,6 @@ class TestAdminApi(BaseTestCase):
         db.session.remove()
         db.drop_all()
 
-    def try_admin_operation(self, operation):
-        return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
-
     def test_get_transactions(self):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/transaction'))
@@ -72,6 +69,21 @@ class TestAdminApi(BaseTestCase):
         ])
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/transaction/0'))
+    
+    def test_pay_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        currency = Currency(code='KRW', rate=1)
+        order = Order(id=gen_id, total_krw=90, user=self.user)
+        transaction = Transaction(amount_sent_original=100, currency=currency, amount_received_krw=100,
+                                  user=self.user, status=TransactionStatus.pending, orders=[order])
+        self.try_add_entities([ order, transaction, currency ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/transaction/{transaction.id}', json={
+                'status': 'approved'
+            }))
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.status, 'Paid')
 
     def test_delete_user(self):
         res = self.try_admin_operation(

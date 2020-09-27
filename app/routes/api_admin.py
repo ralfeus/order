@@ -77,28 +77,41 @@ def admin_save_transaction(transaction_id):
     payload = request.get_json()
     transaction = Transaction.query.get(transaction_id)
     if not transaction:
-        abort(404)
+        abort(Response(f"No transaction <{transaction_id}> was found", status=404))
     if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
         abort(Response(f"Can't update transaction in state <{transaction.status}>", status=409))
-    if payload:
-        if payload.get('amount_original'):
-            transaction.amount_sent_original = payload['amount_original']
-        if payload.get('currency_code'):
-            transaction.currency = Currency.query.get(payload['currency_code'])
-        if payload.get('amount_krw'):
-            transaction.amount_sent_krw = payload['amount_krw']
-        if payload.get('amount_received_krw'):
-            transaction.amount_received_krw = payload['amount_received_krw']
-        if payload.get('status') and transaction.status != TransactionStatus.approved:
-            transaction.status = payload['status'].lower()
-    else:
-        abort(400)
+    if not payload:
+        abort(Response(f"No transaction data was provided", status=400))
+
+    if payload.get('amount_original'):
+        transaction.amount_sent_original = payload['amount_original']
+    if payload.get('currency_code'):
+        transaction.currency = Currency.query.get(payload['currency_code'])
+    if payload.get('amount_krw'):
+        transaction.amount_sent_krw = payload['amount_krw']
+    if payload.get('amount_received_krw'):
+        transaction.amount_received_krw = payload['amount_received_krw']
+    if payload.get('status') and transaction.status != TransactionStatus.approved:
+        transaction.status = payload['status'].lower()
+
     transaction.when_changed = datetime.now()
     transaction.changed_by = current_user
 
+    messages = []
+    if transaction.status == TransactionStatus.approved:
+        update_money(transaction, messages)
+
     db.session.commit()
 
-    return jsonify(transaction.to_dict())
+    return jsonify({'transaction': transaction.to_dict(), 'message': messages})
+
+def update_money(transaction, messages):
+    transaction.user.balance += transaction.amount_received_krw
+    for order in transaction.orders:
+        if order.total_krw <= transaction.user.balance:
+            transaction.user.balance -= order.total_krw
+            order.status = 'Paid'
+            messages.append(f"Order <{order.id}> is PAID")
 
 @admin_api.route('/user/<user_id>', methods=['DELETE'])
 @roles_required('admin')

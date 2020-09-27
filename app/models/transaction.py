@@ -3,6 +3,11 @@ from sqlalchemy import Column, DateTime, Enum, Numeric, ForeignKey, Integer, Str
 from sqlalchemy.orm import relationship
 
 from app import db
+from app.models.base import BaseModel
+
+transactions_orders = db.Table('transactions_orders',
+        db.Column('transaction_id', db.Integer(), db.ForeignKey('transactions.id')),
+        db.Column('order_id', db.Integer(), db.ForeignKey('orders.id')))
 
 class TransactionStatus(enum.Enum):
     pending = 1
@@ -10,16 +15,16 @@ class TransactionStatus(enum.Enum):
     rejected = 3
     cancelled = 4
 
-class Transaction(db.Model):
+class Transaction(db.Model, BaseModel):
     '''
     Customer wallet's transaction
     '''
     __tablename__ = 'transactions'
 
-    id = Column(Integer, primary_key=True)
-    order_id = Column(String(16), ForeignKey('orders.id'))
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
+    orders = db.relationship('Order', secondary=transactions_orders,
+                             backref=db.backref('transactions', lazy='dynamic'))
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
     amount_sent_original = Column(Numeric(scale=2))
@@ -28,8 +33,6 @@ class Transaction(db.Model):
     payment_method = Column(String(16))
     proof_image = Column(String(256))
     __status = Column('status', Enum(TransactionStatus))
-    when_created = Column(DateTime)
-    when_changed = Column(DateTime)
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
 
@@ -54,7 +57,7 @@ class Transaction(db.Model):
         '''
         return {
             'id': self.id,
-            'order_id': self.order_id,
+            'orders': [order.id for order in self.orders],
             'user_id': self.user_id,
             'user_name': self.user.username,
             'amount_original': float(self.amount_sent_original),
