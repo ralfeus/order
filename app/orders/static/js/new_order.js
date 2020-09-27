@@ -213,9 +213,7 @@ function get_shipping_methods(country, weight) {
                         $('#shipping').val(NO_SHIPPING_ID);
                         get_shipping_cost(NO_SHIPPING_ID, weight);
                     } else {
-                        $('.modal-title').text('Something went wrong...');
-                        $('.modal-body').text(xhr.responseText);
-                        $('.modal').modal();
+                        modal('Something went wrong...', xhr.responseText);
                     }
                 }
             })
@@ -318,26 +316,22 @@ function submit_order() {
         },
         success: function(data, _status, _xhr) {
             if (data.status === 'success') {
-                $('.modal-title').text('Success!');
-                $('.modal-body').text("The request is posted. The request ID is " + data.order_id);
-                $('.modal').modal();                
+                modal('Success!', "The request is posted. The request ID is " + data.order_id);
                 clear_form();
             } else if (data.status === 'updated') {
                 $('.modal-title').text('Order update');
                 $('.modal-body').text("The request is updated. The request ID is " + data.order_id);
                 $('.modal').modal();
             } else if (data.status === 'warning') {
-                $('.modal-title').text('Almost good...');
-                $('.modal-body').text(
+               modal('Almost good...',
                     "The request is posted. The request ID is " + data.order_id +
                     "\nDuring request creation following issues have occurred:\n" +
                     data.message.join("\n"));
-                $('.modal').modal();                
             } else if (data.status === 'error') {
                 if (data.message) {
-                    window.alert(data.message);
+                    modal('Something went wrong...', data.message);
                 } else {
-                    window.alert("Unknown error has occurred. Contact administrator");
+                    modal('Failure', "Unknown error has occurred. Contact administrator");
                 }
             }
         },
@@ -348,9 +342,7 @@ function submit_order() {
             } else {
                 message = xhr.responseText;
             }
-            $('.modal-title').text('Failure!');
-            $('.modal-body').text(message);
-            $('.modal').modal();                
+            modal('Failure!', message);
         }
     });
 }
