@@ -40,11 +40,3 @@ def users():
     Edits the user settings
     '''
     return render_template('users.html')
-
-@admin.route('/transactions')
-@roles_required('admin')
-def admin_transactions():
-    '''
-    Transactions management
-    '''
-    return render_template('transactions.html')

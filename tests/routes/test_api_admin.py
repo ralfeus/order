@@ -9,8 +9,9 @@ from app.invoices.models import Invoice
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder, Subcustomer
 from app.products.models import Product
+from app.transactions.models import Transaction, TransactionStatus
 from app.models import Country, \
-    Role, Shipping, ShippingRate, Transaction, TransactionStatus, User
+    Role, Shipping, ShippingRate, User
 
 def login(client, username, password):
     return client.post('/login', data=dict(

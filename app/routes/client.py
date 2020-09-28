@@ -1,17 +1,13 @@
 '''
 Contains client routes of the application
 '''
-import os.path
 from datetime import datetime
-from flask import Blueprint, current_app, request, redirect, render_template, send_from_directory, flash, url_for
+from flask import Blueprint, current_app, redirect, render_template, send_from_directory, flash, url_for
 from flask_security import login_required, current_user, login_user, logout_user
 
-from app.forms import LoginForm, SignupForm, TransactionForm
-from app.models import Transaction, TransactionStatus, User
-from app.currencies.models import Currency
-from app.orders.models import Order
+from app.forms import LoginForm, SignupForm
+from app.models import User
 from app import db, security
-from app.tools import write_to_file
 
 client = Blueprint('client', __name__, url_prefix='/')
 
@@ -54,7 +50,7 @@ def user_signup():
             # )
             # user.set_password(form.password.data)
             # user.when_created = datetime.now()
-            # db.session.add(user)
+            db.session.add(user)
             db.session.commit()  # Create new user
             if not current_user.is_authenticated:
                 #login_user(user)  # Log in as newly created user
@@ -101,52 +97,3 @@ def user_logout():
 @client.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
-
-@client.route('/wallet')
-@login_required
-def get_wallet():
-    return render_template('wallet.html')
-
-@client.route('/wallet/new', methods=['GET', 'POST'])
-@login_required
-def create_transaction():
-    '''
-    Creates new transaction request
-    '''
-    form = TransactionForm()
-    form.currency_code.choices=[
-        (currency.code, currency.name) for currency in Currency.query.all()]
-    form.order_id.choices = [('None', '-- None --')] + \
-        [(order.id,order.id) for order in Order.query.filter_by(user=current_user)]
-    file_name = ''
-    if form.validate_on_submit():
-        if form.evidence.data:
-            image_data = request.files[form.evidence.name].read()
-            file_name = os.path.join(
-                current_app.config['UPLOAD_PATH'],
-                str(current_user.id),
-                datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
-                ''.join(os.path.splitext(form.evidence.data.filename)[1:])
-            write_to_file(file_name, image_data)
-
-        currency = Currency.query.get(form.currency_code.data)
-        new_transaction = Transaction(
-            user=current_user,
-            amount_sent_original=form.amount_original.data,
-            currency=currency,
-            amount_sent_krw=form.amount_original.data / currency.rate,
-            amount_received_krw=form.amount_original.data / currency.rate,
-            payment_method=form.payment_method.data,
-            order_id=form.order_id.data if form.order_id.data != 'None' else None,
-            proof_image=file_name,
-            status=TransactionStatus.pending,
-            when_created=datetime.now())
-
-        db.session.add(new_transaction)
-        try:
-            db.session.commit()
-            flash("The transaction is created", category='info')
-            return redirect('/wallet')
-        except Exception as e:
-            flash(f"The transaction couldn't be created. {e}", category="error")
-    return render_template('transaction.html', title="Create transaction", form=form)

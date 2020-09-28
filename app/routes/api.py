@@ -10,11 +10,11 @@ from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 from app import db
-from app.models import Country, Shipping, ShippingRate, Transaction, \
-    TransactionStatus, User
+from app.models import Country, Shipping, ShippingRate, User
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
 from app.currencies.models import Currency
+from app.transactions.models import Transaction, TransactionStatus
 from app.tools import rm, write_to_file
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
