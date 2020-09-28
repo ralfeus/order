@@ -18,7 +18,7 @@ from app.products.models import Product
 @bp_api_user.route('/', defaults={'order_id': None}, strict_slashes=False)
 @bp_api_user.route('/<order_id>')
 @login_required
-def get_orders(order_id):
+def user_get_orders(order_id):
     '''
     Returns all or selected orders in JSON
     '''
@@ -139,7 +139,7 @@ def parse_subcustomer(subcustomer_data):
 
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required
-def save_order(order_id):
+def user_save_order(order_id):
     '''
     Updates existing order
     '''
@@ -288,3 +288,42 @@ def delete_order_product(order, order_product):
     order.total_weight -= order_product.product.weight * order_product.quantity
     order.subtotal_krw -= order_product.price * order_product.quantity
     order.when_changed = datetime.now()
+
+@bp_api_admin.route('/', defaults={'order_id': None}, strict_slashes=False)
+@bp_api_admin.route('/<order_id>')
+@roles_required('admin')
+def admin_get_orders(order_id):
+    '''
+    Returns all or selected orders in JSON:
+    '''
+    orders = Order.query.all() \
+        if order_id is None \
+        else Order.query.filter_by(id=order_id)
+
+    return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
+
+@bp_api_admin.route('/<order_id>', methods=['POST'])
+@roles_required('admin')
+def admin_save_order(order_id):
+    '''
+    Updates existing order
+    Payload is provided in JSON
+    '''
+    order_input = request.get_json()
+    order = Order.query.get(order_id)
+    if not order:
+        abort(Response(f'No order {order_id} was found', status=404))
+
+    if order_input.get('status') is not None:
+        order.status = order_input['status']
+
+    if order_input.get('tracking_id') is not None:
+        order.tracking_id = order_input['tracking_id']
+
+    if order_input.get('tracking_url') is not None:
+        order.tracking_url = order_input['tracking_url']
+
+    order.when_changed = datetime.now()
+
+    db.session.commit()
+    return jsonify(order.to_dict())

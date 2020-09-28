@@ -1,8 +1,7 @@
 from datetime import datetime
 import os.path
 
-from flask import current_app, flash, redirect, request, \
-    render_template, write_to_file
+from flask import current_app, flash, redirect, request, render_template
 from flask_security import current_user, login_required, roles_required
 
 from app import db
@@ -11,6 +10,8 @@ from app.orders.models import Order
 from app.transactions import bp_client_admin, bp_client_user
 from app.transactions.models import Transaction, TransactionStatus
 from app.transactions.forms.transaction import TransactionForm
+
+from app.tools import write_to_file
 
 @bp_client_admin.route('/')
 @roles_required('admin')

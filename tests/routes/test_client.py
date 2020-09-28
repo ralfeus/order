@@ -1,11 +1,7 @@
 from flask_security import current_user
-import unittest
+from tests import BaseTestCase, db
 
-from app import create_app, db, security
-from app.config import TestConfig
-
-app = create_app(TestConfig)
-app.app_context().push()
+from app.models import User
 
 def login(client, username='user1', password='1'):
     return client.post('/login', data={
@@ -16,29 +12,21 @@ def login(client, username='user1', password='1'):
 def logout(client):
     return client.get('/logout')
 
-class TestClient(unittest.TestCase):
-    @classmethod
-    # def setUpClass(cls):
-    #     db.session.execute('pragma foreign_keys=on')
-
+class TestClient(BaseTestCase):
     def setUp(self):
-        self.app = app
-        self.client = self.app.test_client()
-        self._ctx = self.app.test_request_context()
-        self._ctx.push()
-
+        super().setUp()
         db.create_all()
-
-        try:
-            security.datastore.create_user(username='user1', password='1', enabled=True)
-            security.datastore.create_user(username='user2', password='1', active=False)
-            db.session.commit()
-        except:
-            db.session.rollback()
+        self.user = User(username='user1', email='user@name.com',
+                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
+                enabled=True)
+        self.try_add_entities([
+            self.user,
+            User(username='user2', email='user2@name.com',
+                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
+                enabled=False)
+        ])
 
     def tearDown(self):
-        if self._ctx is not None:
-            self._ctx.pop()
         db.session.remove()
         db.drop_all()
 
@@ -61,10 +49,8 @@ class TestClient(unittest.TestCase):
             })
             res = login(self.client, 'user3', '1')
             self.assertEqual(res.status_code, 200)
-            user3 = security.datastore.user_model.query.filter_by(username='user3').first()
-            security.datastore.activate_user(user3)
+            user3 = User.query.filter_by(username='user3').first()
+            user3.enabled = True
+            db.session.commit()
             res = login(self.client, 'user3', '1')
             self.assertEqual(current_user.username, 'user3')
-
-if __name__ == '__main__':
-    unittest.main()
