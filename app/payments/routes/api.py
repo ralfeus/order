@@ -9,8 +9,8 @@ from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.currencies.models import Currency
-from app.transactions import bp_api_admin, bp_api_user
-from app.transactions.models import Transaction, TransactionStatus
+from app.payments import bp_api_admin, bp_api_user
+from app.payments.models import PaymentMethod, Transaction, TransactionStatus
 
 from app.tools import rm, write_to_file
 
@@ -19,15 +19,7 @@ from app.tools import rm, write_to_file
 @roles_required('admin')
 def admin_get_transactions(transaction_id):
     '''
-    Returns all or selected transactions in JSON:
-    {
-        id: transaction ID,
-        user_id: ID of the transaction owner,
-        currency: transaction original currency,
-        amount_original: amount in original currency,
-        amount_krw: amount in KRW at the time of transaction,
-        status: transaction status ('pending', 'approved', 'rejected', 'cancelled')
-    }
+    Returns all or selected transactions in JSON
     '''
     transactions = Transaction.query.all() \
         if transaction_id is None \
@@ -79,6 +71,12 @@ def update_money(transaction, messages):
             transaction.user.balance -= order.total_krw
             order.status = 'Paid'
             messages.append(f"Order <{order.id}> is PAID")
+            db.session.add(Transaction(
+                user=transaction.user,
+                orders=[order],
+                amount_received_krw=-order.total_krw,
+                status=TransactionStatus.approved
+            ))
 
 
 
@@ -158,3 +156,9 @@ def user_upload_transaction_evidence(transaction_id):
     else:
         abort(Response("No file is uploaded", status=400))
     return jsonify({})
+
+@bp_api_user.route('/method')
+@login_required
+def get_payment_methods():
+    payment_methods = PaymentMethod.query
+    return jsonify(list(map(lambda pm: pm.to_dict(), payment_methods)))

@@ -3,7 +3,7 @@ from datetime import datetime
 from tests import BaseTestCase, db
 from app.currencies.models import Currency
 from app.orders.models import Order
-from app.transactions.models import Transaction, TransactionStatus
+from app.payments.models import PaymentMethod, Transaction, TransactionStatus
 from app.models import Role, User
 
 class TestTransactionApi(BaseTestCase):
@@ -46,3 +46,12 @@ class TestTransactionApi(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.status, 'Paid')
 
+    def test_get_payment_methods(self):
+        self.try_add_entities([
+            PaymentMethod(name='Payment method 1')
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/transaction/method'))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.json), 1)
+        self.assertEqual(res.json[0]['name'], 'Payment method 1')

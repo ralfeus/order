@@ -4,21 +4,21 @@ from wtforms.validators import DataRequired, ValidationError
 
 from app.products.models import Product
 
-class ProductForm(FlaskForm):
-    '''
-    Product creation and editing form
-    '''
-    id = StringField('Product code', validators=[DataRequired()])
-    name = StringField('Original name')
-    name_english = StringField('English name')
-    name_russian = StringField('Russian name')
-    weight = IntegerField('Unit weight in grams', validators=[DataRequired()])
-    price = IntegerField('Unit price', validators=[DataRequired()])
-    points = IntegerField('Unit points', validators=[DataRequired()])
-    available = BooleanField('Product is available', default=True)
-    submit = SubmitField('Create product')
+# class ProductForm(FlaskForm):
+#     '''
+#     Product creation and editing form
+#     '''
+#     id = StringField('Product code', validators=[DataRequired()])
+#     name = StringField('Original name')
+#     name_english = StringField('English name')
+#     name_russian = StringField('Russian name')
+#     weight = IntegerField('Unit weight in grams', validators=[DataRequired()])
+#     price = IntegerField('Unit price', validators=[DataRequired()])
+#     points = IntegerField('Unit points', validators=[DataRequired()])
+#     available = BooleanField('Product is available', default=True)
+#     submit = SubmitField('Create product')
 
-    def validate_id(form, field):
-        product = Product.query.get(field.data)
-        if product:
-            raise ValidationError("Such product code exists")
+#     def validate_id(form, field):
+#         product = Product.query.get(field.data)
+#         if product:
+#             raise ValidationError("Such product code exists")

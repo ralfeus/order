@@ -7,7 +7,7 @@ from app.models.base import BaseModel
 
 transactions_orders = db.Table('transactions_orders',
         db.Column('transaction_id', db.Integer(), db.ForeignKey('transactions.id')),
-        db.Column('order_id', db.Integer(), db.ForeignKey('orders.id')))
+        db.Column('order_id', db.String(16), db.ForeignKey('orders.id')))
 
 class TransactionStatus(enum.Enum):
     pending = 1

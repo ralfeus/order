@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 
 from app.products import bp_client_admin, bp_client_user
-from app.products.forms.product import ProductForm
+# from app.products.forms.product import ProductForm
 from app.products.models import Product
 
 @bp_client_admin.route('/static/<path:file>')
@@ -23,22 +23,22 @@ def get_products():
     '''
     return render_template('products.html')
 
-@bp_client_admin.route('/new', methods=['GET', 'POST'])
-@roles_required('admin')
-def product():
-    '''
-    Creates and edits product
-    '''
-    form = ProductForm()
-    if form.validate_on_submit():
-        new_product = Product()
-        form.populate_obj(new_product)
+# @bp_client_admin.route('/new', methods=['GET', 'POST'])
+# @roles_required('admin')
+# def product():
+#     '''
+#     Creates and edits product
+#     '''
+#     form = ProductForm()
+#     if form.validate_on_submit():
+#         new_product = Product()
+#         form.populate_obj(new_product)
 
-        db.session.add(new_product)
-        try:
-            db.session.commit()
-            flash("The product is created", category='info')
-            return redirect('/admin/products')
-        except IntegrityError as ex:
-            flash(f"The product couldn't be created. {ex}", category="error")
-    return render_template('product.html', title="Create product", form=form)
+#         db.session.add(new_product)
+#         try:
+#             db.session.commit()
+#             flash("The product is created", category='info')
+#             return redirect('/admin/products')
+#         except IntegrityError as ex:
+#             flash(f"The product couldn't be created. {ex}", category="error")
+#     return render_template('product.html', title="Create product", form=form)

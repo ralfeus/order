@@ -1,19 +1,15 @@
 from datetime import datetime
-from functools import reduce
-from more_itertools import map_reduce
-import openpyxl
 
-from flask import Response, abort, jsonify, request, send_file
-from flask_security import roles_required
+from flask import Response, abort, jsonify, request
+from flask_security import login_required, roles_required
 
 from app import db
 from app.currencies import bp_api_admin, bp_api_user
 from app.currencies.models import Currency
-from app.orders.models import Order
 
 @bp_api_admin.route('/', defaults={'currency_id': None}, strict_slashes=False)
 @bp_api_admin.route('/<currency_id>')
-@roles_required('admin')
+@login_required
 def get_currencies(currency_id):
     '''
     Returns all or selected currencies in JSON:

@@ -65,7 +65,7 @@ def register_components(flask_app):
     import app.invoices, app.invoices.routes
     import app.orders, app.orders.routes
     import app.products, app.products.routes
-    import app.transactions, app.transactions.routes
+    import app.payments, app.payments.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
@@ -75,5 +75,5 @@ def register_components(flask_app):
     app.invoices.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
-    app.transactions.register_blueprints(flask_app)
+    app.payments.register_blueprints(flask_app)
 

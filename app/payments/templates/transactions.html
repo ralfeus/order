@@ -2,12 +2,26 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="/static/js/wallet.js"></script>
+<script src="static/js/transactions.js"></script>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
 <div class="container-fluid">
+    <div class="row">
+        <div class="col-8"></div>
+        <div class="col-4">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <label class="input-group-text" for="balance">Your balance</label>
+                </div>
+                <input id="balance" class="form-control" disabled value="{{ balance }}"/>
+                <div class="input-group-append">
+                    <label class="input-group-text" for="balance">₩</label>
+                </div>
+            </div>
+        </div>
+    </div>
     <table id="transactions" class="table">
         <thead>
             <th></th>

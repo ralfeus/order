@@ -138,7 +138,8 @@ class TestOrdersApi(BaseTestCase):
         self.try_add_entities([
             Product(id=gen_id, price=10, weight=10),
             Order(id=gen_id, user=self.user),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10)
+            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            Order(id=gen_id+'1', user=self.user, status='pending')
         ])
         res = self.try_user_operation(
             lambda: self.client.get(f'/api/v1/order/{gen_id}'))
@@ -147,6 +148,10 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.json['total_usd'], 50.0)
         self.assertEqual(res.json['user'], self.user.username)
         self.assertEqual(len(res.json['order_products']), 1)
+        res = self.client.get('/api/v1/order')
+        self.assertEqual(len(res.json), 2)
+        res = self.client.get('/api/v1/order?status=pending')
+        self.assertEqual(res.json['status'], 'pending')
 
     def test_get_order_products(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

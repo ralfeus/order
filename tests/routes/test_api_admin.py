@@ -5,7 +5,7 @@ from tests import BaseTestCase, db
 from app.currencies.models import Currency
 from app.orders.models import Order
 from app.products.models import Product
-from app.transactions.models import Transaction, TransactionStatus
+from app.payments.models import Transaction, TransactionStatus
 from app.models import Country, Role, Shipping, ShippingRate, User
 
 class TestAdminApi(BaseTestCase):

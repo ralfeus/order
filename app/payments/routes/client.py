@@ -1,17 +1,23 @@
 from datetime import datetime
 import os.path
 
-from flask import current_app, flash, redirect, request, render_template
+from flask import current_app, flash, redirect, request, render_template, \
+    send_file
 from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.currencies.models import Currency
 from app.orders.models import Order
-from app.transactions import bp_client_admin, bp_client_user
-from app.transactions.models import Transaction, TransactionStatus
-from app.transactions.forms.transaction import TransactionForm
+from app.payments import bp_client_admin, bp_client_user
+from app.payments.models import Transaction, TransactionStatus
+from app.payments.forms.transaction import TransactionForm
 
 from app.tools import write_to_file
+
+@bp_client_admin.route('/static/<path:file>')
+@bp_client_user.route('/static/<path:file>')
+def get_static(file):
+    return send_file(f"payments/static/{file}")
 
 @bp_client_admin.route('/')
 @roles_required('admin')
@@ -19,21 +25,21 @@ def admin_transactions():
     '''
     Transactions management
     '''
-    return render_template('transactions.html')
+    return render_template('admin_transactions.html')
 
-@bp_client_user.route('/wallet')
+@bp_client_user.route('/')
 @login_required
-def get_wallet():
-    return render_template('wallet.html')
+def user_transactions():
+    return render_template('transactions.html', balance=current_user.balance)
 
-@bp_client_user.route('/wallet/new', methods=['GET', 'POST'])
+@bp_client_user.route('/new', methods=['GET', 'POST'])
 @login_required
 def create_transaction():
     '''
     Creates new transaction request
     '''
     form = TransactionForm()
-    form.currency_code.choices=[
+    form.currency_code.choices = [
         (currency.code, currency.name) for currency in Currency.query.all()]
     form.order_id.choices = [('None', '-- None --')] + \
         [(order.id,order.id) for order in Order.query.filter_by(user=current_user)]

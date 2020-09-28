@@ -1,14 +1,58 @@
-$.fn.dataTable.ext.buttons.create = {
-    action: function(e, dt, node, config) {
-        window.location = '/wallet/new';
-    }
-};
-
+var editor;
 $(document).ready( function () {
+    editor = new $.fn.dataTable.Editor({
+        ajax: (_method, _url, data, success, error) => {
+            var transaction_id = Object.entries(data.data)[0][0];
+            var target = Object.entries(data.data)[0][1];
+            var url = '/api/v1/transaction/' + transaction_id;
+            $.ajax({
+                url: url,
+                method: 'post',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(target),
+                success: data => {success(({data: [data]}))},
+                error: error
+            });
+        },
+        table: '#transactions',
+        idSrc: 'id',
+        fields: [
+            {
+                label: 'Orders', 
+                name: 'orders',
+                type: 'select2',
+                opts: {
+                    multiple: true
+                }
+            },
+            {
+                label: 'Payment method', 
+                name: 'payment_method',
+                type: 'select2'
+            },
+            {label: 'Amount', name: 'amount_original'},
+            {
+                label: 'Currency',
+                name: 'currency_code',
+                type: 'select2'
+            },
+            {
+                label: 'Evidence',
+                name: 'evidences',
+                type: 'uploadMany',
+                ajax: '/api/v1/transaction/evidence'
+            }
+        ]
+    });
+    editor.on("open", get_currencies);
+    editor.on("open", get_orders_to_pay);
+    editor.on("open", get_payment_methods);
+
     var table = $('#transactions').DataTable({
         dom: 'lfrBtip',
         buttons: [
-            { extend: 'create', text: 'Create new transaction' },
+            { extend: 'create', editor: editor, text: 'Create new payment request' },
         ],        
         ajax: {
             url: '/api/v1/transaction',
@@ -22,7 +66,7 @@ $(document).ready( function () {
                 "defaultContent": ''
             },
             {data: 'id'},
-            {data: 'order_id'},
+            {data: 'orders'},
             {data: 'payment_method'},
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
@@ -114,4 +158,33 @@ function cancel(row) {
             row.data(data).draw();
         }
     });
+}
+
+function get_currencies() {
+    $.ajax({
+        url: '/api/v1/currency',
+        success: data => {
+            editor.field('currency_code').update(Object.entries(data).map(c => c[0]));
+        }
+    })}
+
+function get_orders_to_pay() {
+    $.ajax({
+        url: '/api/v1/order?status=pending',
+        success: data => {
+            editor.field('orders').update(data.map(o => o.id));
+        }
+    })
+}
+
+function get_payment_methods() {
+    $.ajax({
+        url: '/api/v1/transaction/method',
+        success: data => {
+            editor.field('payment_method').update(data.map(pm => ({
+                'label': pm.name,
+                'name': pm.id
+            })));
+        }
+    })
 }

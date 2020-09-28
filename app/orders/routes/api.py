@@ -25,6 +25,8 @@ def user_get_orders(order_id):
     orders = Order.query.filter_by(user=current_user) \
         if order_id is None \
         else Order.query.filter_by(id=order_id, user=current_user)
+    if request.args.get('status'):
+        orders = orders.filter_by(status=request.args['status'])
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     elif orders.count() == 1:
