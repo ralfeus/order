@@ -52,11 +52,11 @@ def import_products():
             new += 1
             db.session.add(product)
     for product in products:
-        if product.synchronize and product.available:
+        if product.synchronize:
             product.available = False
             modified += 1
         else:
-            same += 1
+            ignored += 1
     current_app.logger.info(f"""Product synchronization result:
                                 same: {same}, new: {new},
                                 modified: {modified}, ignored: {ignored}""")
