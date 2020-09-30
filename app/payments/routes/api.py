@@ -66,6 +66,9 @@ def admin_save_transaction(transaction_id):
     return jsonify({'transaction': transaction.to_dict(), 'message': messages})
 
 def update_money(transaction, messages):
+    if not transaction.amount_received_krw:
+        abort(Response(f"No amount of received payment is set for transaction <{transaction.id}>",
+                       status=400))
     transaction.user.balance += transaction.amount_received_krw
     for order in transaction.orders:
         if order.total_krw <= transaction.user.balance and \

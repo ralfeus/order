@@ -47,7 +47,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[7, 'desc']],
+        order: [[8, 'desc']],
         select: true,
         footerCallback: function(row, data, start, end, display) {
             var api = this.api(), data;
@@ -298,6 +298,9 @@ function setStatus(target, newStatus) {
                     if (response.message && response.message.length) {
                         modal('Transaction save', response.message.join('<br />'));
                     }
+                },
+                error: xhr => {
+                    modal("Transaction set status", xhr.responseText);
                 }
             });     
         }
