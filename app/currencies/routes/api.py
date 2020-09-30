@@ -8,7 +8,9 @@ from app.currencies import bp_api_admin, bp_api_user
 from app.currencies.models import Currency
 
 @bp_api_admin.route('/', defaults={'currency_id': None}, strict_slashes=False)
+@bp_api_user.route('', defaults={'currency_id': None})
 @bp_api_admin.route('/<currency_id>')
+@bp_api_user.route('/<currency_id>')
 @login_required
 def get_currencies(currency_id):
     '''

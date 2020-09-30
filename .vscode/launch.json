@@ -20,6 +20,10 @@
             "webRoot": "${workspaceFolder}",
             "pathMappings": [
                 {
+                    "url": "http://sandlet:5000/admin/transactions",
+                    "path": "${workspaceFolder}/app/payments"
+                },
+                {
                     "url": "http://sandlet:5000/admin",
                     "path": "${workspaceFolder}/app"
                 },
@@ -54,6 +58,14 @@
                 {
                     "url": "http://sandlet:5000/products/",
                     "path": "${workspaceFolder}/app/products/"
+                },
+                {
+                    "url": "http://sandlet:5000/admin/transactions/",
+                    "path": "${workspaceFolder}/app/payments/"
+                },
+                {
+                    "url": "http://sandlet:5000/transactions/",
+                    "path": "${workspaceFolder}/app/payments/"
                 }
             ],
             "skipFiles": [

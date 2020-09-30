@@ -1,17 +1,25 @@
 '''
 Order model
 '''
+import enum
 from datetime import datetime
 from decimal import Decimal
 from functools import reduce
 
-from sqlalchemy import Column, DateTime, Numeric, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models import Shipping, NoShipping
 from app.currencies.models import Currency
+
+class OrderStatus(enum.Enum):
+    pending = 1
+    paid = 2
+    sent = 3
+    complete = 4
 
 class Order(db.Model):
     ''' System's order '''
@@ -43,13 +51,26 @@ class Order(db.Model):
     total_krw = Column(Integer(), default=0)
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
-    status = Column(String(16))
+    __status = Column('status', Enum(OrderStatus))
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
     suborders = relationship('Suborder', lazy='dynamic')
     __order_products = relationship('OrderProduct', lazy='dynamic')
+
+    @hybrid_property
+    def status(self):
+        return self.__status
+
+    @status.setter
+    def status(self, value):
+        if isinstance(value, str):
+            value = OrderStatus[value.lower()]
+        elif isinstance(value, int):
+            value = OrderStatus(value)
+
+        self.__status = value
 
     @property
     def shipping(self):
@@ -80,14 +101,18 @@ class Order(db.Model):
         self.id = today_prefix + '{:04d}'.format(self.seq_num)
 
         self.total_weight = 0
+        self.total_krw = 0
 
         attributes = [a[0] for a in type(self).__dict__.items()
                            if isinstance(a[1], InstrumentedAttribute)]
         for arg in kwargs:
             if arg in attributes:
                 setattr(self, arg, kwargs[arg])
+        # Here properties are set (attributes start with '__')
         if kwargs.get('shipping'):
             self.shipping = kwargs['shipping']
+        if kwargs.get('status'):
+            self.status = kwargs['status']
 
     def __repr__(self):
         return "<Order: {}>".format(self.id)
@@ -112,7 +137,7 @@ class Order(db.Model):
             'total_usd': float(self.total_usd),
             'country': self.country.to_dict() if self.country else None,
             'shipping': self.shipping.to_dict() if self.shipping else None,
-            'status': self.status if self.status else None,
+            'status': self.status.name if self.status else None,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
             'order_products': [order_product.to_dict() for order_product in self.order_products],

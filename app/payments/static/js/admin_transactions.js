@@ -39,6 +39,7 @@ $(document).ready( function () {
             },
             {data: 'id'},
             {data: 'user_name'},
+            {data: 'orders'},
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
             {data: 'amount_received_krw'},
@@ -72,22 +73,22 @@ $(document).ready( function () {
             totalSentOriginalString = Object.entries(totalSentOriginal)
                 .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
             totalSentKRW = api
-                .column( 4 )
+                .column( 5 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;
                 }, 0 );
             totalReceivedKRW = api
-                .column( 5 )
+                .column( 6 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;
                 }, 0 );
  
             // Update footer
-            $(api.column(3).footer()).html(totalSentOriginalString);
-            $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
-            $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+            $(api.column(4).footer()).html(totalSentOriginalString);
+            $( api.column(5).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+            $( api.column(6).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         }
     });
 
@@ -243,7 +244,10 @@ function save_transaction(row) {
             $('.wait').hide();
         },
         success: function(data) {
-            row.data(data).draw();
+            row.data(data.transaction).draw();
+            if (data.message && data.message.length) {
+                modal('Transaction save', data.message.join('<br />'));
+            }
         }
     });
 
@@ -289,8 +293,11 @@ function setStatus(target, newStatus) {
                 success: function(response, _status, _xhr) {
                     target.cell(
                         (_idx, data, _node) => 
-                            data.id === parseInt(response.id), 
-                        5).data(response.status).draw();
+                            data.id === parseInt(response.transaction.id), 
+                        5).data(response.transaction.status).draw();
+                    if (response.message && response.message.length) {
+                        modal('Transaction save', response.message.join('<br />'));
+                    }
                 }
             });     
         }

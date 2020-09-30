@@ -12,7 +12,7 @@ from app.models import Country, Shipping
 from app.currencies.models import Currency
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
-    Suborder, Subcustomer
+    OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
 
 @bp_api_user.route('/', defaults={'order_id': None}, strict_slashes=False)
@@ -26,7 +26,7 @@ def user_get_orders(order_id):
         if order_id is None \
         else Order.query.filter_by(id=order_id, user=current_user)
     if request.args.get('status'):
-        orders = orders.filter_by(status=request.args['status'])
+        orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     elif orders.count() == 1:

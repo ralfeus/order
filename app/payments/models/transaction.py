@@ -46,8 +46,7 @@ class Transaction(db.Model, BaseModel):
             value = TransactionStatus[value]
         elif isinstance(value, int):
             value = TransactionStatus(value)
-        if value == TransactionStatus.approved:
-            self.user.balance += self.amount_received_krw
+
         self.__status = value
 
 
@@ -55,6 +54,9 @@ class Transaction(db.Model, BaseModel):
         '''
         Get representation of the transaction as dictionary for JSON conversion
         '''
+        if not self.amount_sent_original:
+            self.amount_sent_original = 0
+            db.session.commit()
         return {
             'id': self.id,
             'orders': [order.id for order in self.orders],

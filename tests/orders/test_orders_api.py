@@ -4,7 +4,7 @@ from tests import BaseTestCase, db
 from app.models import Country, Role, Shipping, ShippingRate, User
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
-    Subcustomer, Suborder
+    OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
 
 class TestOrdersApi(BaseTestCase):
@@ -30,20 +30,6 @@ class TestOrdersApi(BaseTestCase):
             ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=200),
         ])
 
-    def try_admin_operation(self, operation):
-        '''
-        Superseeds base method to add class-specific user and admin credentials
-        '''
-        return super().try_admin_operation(operation,
-            self.user.username, '1', self.admin.username, '1')
-    
-    def try_user_operation(self, operation):
-        '''
-        Superseeds base method to add class-specific user credentials
-        '''
-        return super().try_user_operation(operation,
-            self.user.username, '1')
-        
     def test_create_order(self):
         created_order_id = None
         self.try_add_entities([
@@ -139,7 +125,7 @@ class TestOrdersApi(BaseTestCase):
             Product(id=gen_id, price=10, weight=10),
             Order(id=gen_id, user=self.user),
             OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Order(id=gen_id+'1', user=self.user, status='pending')
+            Order(id=gen_id+'1', user=self.user, status=OrderStatus.pending)
         ])
         res = self.try_user_operation(
             lambda: self.client.get(f'/api/v1/order/{gen_id}'))
@@ -158,7 +144,7 @@ class TestOrdersApi(BaseTestCase):
         subcustomer = Subcustomer()
         suborder = Suborder(order_id=gen_id, subcustomer=subcustomer)
         self.try_add_entities([
-            Order(id=gen_id, user_id=self.user.id, status='pending', country_id='c1',
+            Order(id=gen_id, user_id=self.user.id, status=OrderStatus.pending, country_id='c1',
                   shipping_method_id=1,
                   tracking_id='T00', tracking_url='https://tracking.fake/T00'),
             subcustomer,
