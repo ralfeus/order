@@ -18,7 +18,7 @@ from app.currencies.models import Currency
 class OrderStatus(enum.Enum):
     pending = 1
     paid = 2
-    sent = 3
+    shipped = 3
     complete = 4
 
 class Order(db.Model):
