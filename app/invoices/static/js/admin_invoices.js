@@ -1,4 +1,4 @@
-var invoice_table;
+var g_invoice_table;
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
@@ -6,7 +6,30 @@ $.fn.dataTable.ext.buttons.xls = {
 };
 
 $(document).ready( function () {
-    invoice_table = $('#invoices').DataTable({
+    var editor = new $.fn.dataTable.Editor({
+        table: '#invoices',
+        idSrc: 'id',
+        fields: [
+            {label: "Customer name", name: 'customer'}
+        ],
+        ajax: (_method, _url, data, success, error) => {
+            var invoice_id = Object.entries(data.data)[0][0];
+            $.ajax({
+                url: '/api/v1/admin/invoice/' + invoice_id,
+                method: 'post',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(data.data[invoice_id]),
+                success: data => {
+                    success(({data: [data]}));
+                }
+            })
+        }
+    });
+    $('#invoices').on( 'click', 'td.editable', function (e) {
+        editor.inline(this);
+    });  
+    g_invoice_table = $('#invoices').DataTable({
         dom: 'lfrBtip',
         ajax: {
             url: '/api/v1/admin/invoice'
@@ -26,80 +49,18 @@ $(document).ready( function () {
                         onclick="open_invoice(this);">Open</button>'
             },
             {data: 'id'},
+            {data: 'customer', className: 'editable'},
             {data: row => row.orders.join()},
             {data: 'total'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[4, 'desc']],
+        order: [[5, 'desc']],
         select: true,
         serverSide: true,
         processing: true
     });
-
-    // $('#invoices tbody').on('click', 'td.details-control', function () {
-    //     var tr = $(this).closest('tr');
-    //     var row = table.row( tr );
- 
-    //     if ( row.child.isShown() ) {
-    //         // This row is already open - close it
-    //         row.child.hide();
-    //         tr.removeClass('shown');
-    //     }
-    //     else {
-    //         // First close all open rows
-    //         $('tr.shown').each(function() {
-    //             table.row(this).child.hide();
-    //             $(this).removeClass('shown');
-    //         })
-    //         // Open this row
-    //         var invoice_details = format(row, row.data());
-    //         row.child( invoice_details ).show();
-
-    //         tr.addClass('shown');
-    //     }
-    // } );
 });
-
-/**
- * Draws invoice details
- * @param {object} row - row object 
- * @param {object} data - data object for the row
- */
-// function format ( row, data ) {
-//     var invoice_details = $('.invoice-details')
-//         .clone()
-//         .show();
-    // var editor = new $.fn.dataTable.Editor({
-    //     table: '#invoice-items',
-    //     idSrc: 'product_id',
-    //     fields: [
-    //         {label: 'Product ID', name: 'product_id'},
-    //         {label: 'Price', name: 'price'},
-    //         {label: 'Quantity', name: 'quantity'}
-    //     ]
-    // });
-    // $('#invoice-items', invoice_details).on( 'click', 'td.editable', function (e) {
-    //     editor.inline(this);
-    // } );
-    // $('#invoice-items', invoice_details).DataTable({
-    //     dom: 'tp',
-    //     ajax: {
-    //         url: '/api/v1/admin/invoice/' + data.id,
-    //         dataSrc: json => json[0].invoice_items
-    //     },
-    //     columns: [
-    //         {data: 'product_id', className: 'editable'},
-    //         {data: 'name', class: 'wrapok'},
-    //         {data: 'price', className: 'editable'},
-    //         {data: 'quantity', className: 'editable'},
-    //         {data: 'subtotal'}
-    //     ],
-    //     select: true
-    // });
-    // $('#total', invoice_details).val(data.total);
-    // return invoice_details;
-// }
 
 function get_excel(rows) {
     $('.wait').show();
@@ -116,5 +77,5 @@ function get_excel(rows) {
 }
 
 function open_invoice(target) {
-    window.location = invoice_table.row($(target).parents('tr')).data().id;
+    window.location = g_invoice_table.row($(target).parents('tr')).data().id;
 }

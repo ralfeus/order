@@ -189,6 +189,24 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     pl.delete_rows(row, last_row - row + 1)
     invoice_wb.save(f'app/static/invoices/{invoice_file_name}')
 
+@bp_api_admin.route('/<invoice_id>', methods=['POST'])
+@roles_required('admin')
+def save_invoice(invoice_id):
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
+    payload = request.get_json()
+    if not payload:
+        abort(Response("No invoice data was provided", status=400))
+    editable_attributes = ['customer']
+    for attr in editable_attributes:
+        if payload.get(attr) and getattr(invoice, attr) != payload[attr]:
+            setattr(invoice, attr, type(getattr(invoice, attr))(payload[attr]))
+            invoice.when_changed = datetime.now()
+    db.session.commit()
+    return jsonify(invoice.to_dict())
+
+
 @bp_api_admin.route('/<invoice_id>/excel')
 @roles_required('admin')
 def get_invoice_excel(invoice_id):
