@@ -52,10 +52,8 @@ class TestCurrencyClient(BaseTestCase):
         currency = Currency.query.get(gen_id)
         self.assertEqual(currency.rate, 2)
 
-        res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/currency/{gen_id}',
+        res = self.client.post(f'/api/v1/admin/currency/{gen_id}',
             json={'rate': '2@'})
-        )
         self.assertEqual(res.status_code, 400)
 
     

@@ -34,6 +34,13 @@ def save_currency_item(currency_id):
     payload = request.get_json()
     if not payload:
         abort(Response('No data was provided', status=400))
+
+    if payload.get('rate'):
+        try:
+            float(payload['rate'])
+        except: 
+            abort(Response('Not number', status=400))
+
     currency = None
     if currency_id is None:
         currency = Currency()
@@ -42,13 +49,14 @@ def save_currency_item(currency_id):
     else:
         currency = Currency.query.get(currency_id)
         if not currency:
-            abort(Response(f'No currency <{currency_id}> was found', status=404))
+            abort(Response(f'No currency <{currency_id}> was found', status=400))
 
     for key, value in payload.items():
+
         if getattr(currency, key) != value:
             setattr(currency, key, value)
             currency.when_changed = datetime.now()
-            
+
     db.session.commit()
     return jsonify(currency.to_dict())
 
