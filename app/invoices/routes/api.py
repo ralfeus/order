@@ -143,7 +143,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     # Set invoice header
     ws.cell(7, 2, reference_invoice.id)
     ws.cell(7, 5, reference_invoice.when_created)
-    ws.cell(13, 4, reference_invoice.orders[0].name)
+    ws.cell(13, 4, reference_invoice.customer)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
     ws.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -152,7 +152,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     # Set packing list header
     pl.cell(7, 2, reference_invoice.id)
     pl.cell(7, 5, reference_invoice.when_created)
-    pl.cell(13, 4, reference_invoice.orders[0].name)
+    pl.cell(13, 4, reference_invoice.customer)
     pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
     pl.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -235,6 +235,8 @@ def get_invoice_cumulative_excel():
     cumulative_invoice = Invoice()
     for invoice_id in request.args.getlist('invoices'):
         invoice = Invoice.query.get(invoice_id)
+        if not cumulative_invoice.customer:
+            cumulative_invoice.customer = invoice.customer
         cumulative_invoice.orders += invoice.orders
 
     invoice_file_name = 'cumulative_invoice.xlsx'

@@ -53,7 +53,7 @@ def create_app(config=Config, import_name=None):
 
     register_components(flask_app)
     flask_app.logger.info('Blueprints are registered')
-    init_data(flask_app)
+    # init_data(flask_app)
 
     return flask_app
 
@@ -77,8 +77,3 @@ def register_components(flask_app):
     app.orders.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
     app.payments.register_blueprints(flask_app)
-
-def init_data(flask_app):
-    flask_app.app_context().push()
-
-    db.session.commit()
