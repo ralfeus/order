@@ -134,6 +134,7 @@ def user_create_order():
             'message': errors
         }
     except (IntegrityError, OperationalError):
+        db.session.rollback()
         result = {
             'status': 'error',
             'message': "Couldn't add order due to input error. Check your form and try again."
