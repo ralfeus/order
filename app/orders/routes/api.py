@@ -76,6 +76,7 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
+    db.session.rollback()
     request_data = request.get_json()
     if not request_data:
         abort(Response("No data is provided", status=400))
