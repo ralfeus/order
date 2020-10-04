@@ -1,6 +1,10 @@
 ''' Handful tools '''
 import os
 import os.path
+import re
+from werkzeug.datastructures import MultiDict
+
+from sqlalchemy import or_
 
 __app_abs_dir_name = os.path.abspath(os.path.dirname(__file__))
 
@@ -28,3 +32,41 @@ def write_to_file(path, data):
         file.write(data)
         file.close()
 
+def prepare_datatables_query(query, args, filter_clause):
+    if not isinstance(args, MultiDict):
+        raise AttributeError("Arguments aren't of MultiDict type")
+    args = convert_datatables_args(args)
+    records_total = query.count()
+    # Filtering .....
+    if isinstance(args['search[value]'], str) and args['search[value]'] != '':
+        query = query.filter(filter_clause)
+    records_filtered = query.count()
+    # Sorting
+    columns = args['columns']
+    sort_column_input = args['order']['0']
+    sort_column_name = columns[sort_column_input['column']]['data']
+    if sort_column_name != '':
+        sort_column = query.column_descriptions[0]['expr'].columns[sort_column_name]
+        if sort_column_input['dir'] == 'desc':
+            sort_column = sort_column.desc()
+        query = query.order_by(sort_column)
+    # Limiting to page
+    query = query.offset(args['start']). \
+                  limit(args['length'])
+
+    return (query, records_total, records_filtered)
+
+def convert_datatables_args(raw_args):
+    args = {}
+    for param in raw_args.items():
+        match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
+        if match:
+            (array, index, attr) = match.groups()
+            if not args.get(array):
+                args[array] = {}
+            if not args[array].get(index):
+                args[array][index] = {}
+            args[array][index][attr] = param[1]
+        else:
+            args[param[0]] = param[1]
+    return args

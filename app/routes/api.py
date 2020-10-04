@@ -22,71 +22,16 @@ def get_countries():
     countries = Country.query.join(ShippingRate)
     return jsonify(list(map(lambda c: c.to_dict(), countries)))
 
-@api.route('/currency')
-def get_currency_rate():
-    '''
-    Returns currency rates related to KRW in JSON:
-        {
-            currency code: currency rate to KRW
-        }
-    '''
-    currencies = {c.code: str(c.rate) for c in Currency.query.all()}
-    return jsonify(currencies)
-
-@api.route('/order_product')
-@login_required
-def get_order_products():
-    '''
-    Returns list of ordered items.
-    '''
-    order_products = OrderProduct.query
-    if request.args.get('context') and current_user.username == 'admin':
-        order_products = order_products.all()
-    else:
-        order_products = order_products.filter(
-            OrderProduct.suborder.has(Suborder.order.has(Order.user == current_user)))
-    return jsonify(list(map(lambda order_product: order_product.to_dict(),
-                            order_products)))
-
-@api.route('/order_product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
-def set_order_product_status(order_product_id, order_product_status):
-    '''
-    Sets new status of the selected order product
-    '''
-    order_product = OrderProduct.query.get(order_product_id)
-    order_product.status = order_product_status
-    db.session.add(OrderProductStatusEntry(
-        order_product=order_product,
-        status=order_product_status,
-        # set_by=current_user,
-        user_id=1,
-        set_at=datetime.now()
-    ))
-
-    db.session.commit()
-
-    return jsonify({
-        'order_product_id': order_product_id,
-        'order_product_status': order_product_status,
-        'status': 'success'
-    })
-
-@api.route('/order_product/<int:order_product_id>/status/history')
-def get_order_product_status_history(order_product_id):
-    history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
-    if history.count():
-        return jsonify(list(map(lambda entry: {
-            'set_by': entry.set_by.username,
-            'set_at': entry.set_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'status': entry.status
-        }, history)))
-    else:
-        result = jsonify({
-            'status': 'error',
-            'message': f'No order product ID={order_product_id} found'
-        })
-        result.status_code = 404
-        return result
+# @api.route('/currency')
+# def get_currency_rate():
+#     '''
+#     Returns currency rates related to KRW in JSON:
+#         {
+#             currency code: currency rate to KRW
+#         }
+#     '''
+#     currencies = {c.code: str(c.rate) for c in Currency.query.all()}
+#     return jsonify(currencies)
 
 @api.route('/shipping', defaults={'country_id': None, 'weight': None})
 @api.route('/shipping/<country_id>', defaults={'weight': None})

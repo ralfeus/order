@@ -10,6 +10,16 @@ from app.orders.models import Order
 def get_static(file):
     return send_file(f"orders/static/{file}")
 
+@bp_client_admin.route('/products')
+@roles_required('admin')
+def admin_order_products():
+    return render_template('admin_order_products.html')
+
+@bp_client_user.route('/products')
+@login_required
+def user_order_products():
+    return render_template('order_products.html')
+
 @bp_client_user.route('/new')
 @login_required
 def new_order():

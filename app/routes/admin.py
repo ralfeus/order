@@ -12,11 +12,12 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 
 @admin.route('/')
 @roles_required('admin')
-def order_products():
+def admin_dashboard():
     '''
-    Shows list of ordered products
+    Shows admin dashboard
+    Currently it's a list of order products
     '''
-    return render_template('order_products.html')
+    return redirect('orders/products')
 
 @admin.route('/users/new', methods=['GET', 'POST'])
 @roles_required('admin')

@@ -19,7 +19,7 @@ $(document).ready( function () {
         ],
         ajax: {
             url: '/api/v1/admin/order',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {
@@ -39,7 +39,9 @@ $(document).ready( function () {
             {data: 'when_changed'},
         ],
         order: [[8, 'desc']],
-        select: true
+        select: true,
+        serverSide: true,
+        processing: true
     });
 
     $('#orders tbody').on('click', 'td.details-control', function () {
@@ -101,7 +103,7 @@ function format ( row, data ) {
         .show();
     $('#order-products', order_details).DataTable({
         ajax: {
-            url: '/api/v1/admin/order_product?order_id=' + data.id,
+            url: '/api/v1/admin/order/product?order_id=' + data.id,
             dataSrc: ''
         },
         columns: [

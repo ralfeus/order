@@ -22,7 +22,7 @@ def index():
     Entry point to the application.
     Takes no arguments
     '''
-    return render_template('index.html')
+    return redirect('/orders/products')
 
 @client.route('/signup', methods=['GET', 'POST'])
 def user_signup():

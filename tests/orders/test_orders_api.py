@@ -97,7 +97,7 @@ class TestOrdersApi(BaseTestCase):
             OrderProduct(id=10, suborder=suborder, product_id='0000', price=10, quantity=10)
         ])
         
-        res = self.try_admin_operation(
+        res = self.try_user_operation(
             lambda: self.client.get('/api/v1/admin/order'))
         self.assertEqual(res.json[0], {
             'id': gen_id,
@@ -164,7 +164,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.get('/api/v1/order')
         self.assertEqual(len(res.json), 2)
         res = self.client.get('/api/v1/order?status=pending')
-        self.assertEqual(res.json['status'], 'pending')
+        self.assertEqual(res.json[0]['status'], 'pending')
 
     def test_get_order_products(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -179,7 +179,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         
         res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order_product'))
+            lambda: self.client.get('/api/v1/admin/order/product'))
 
     def test_save_order_product(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -216,7 +216,7 @@ class TestOrdersApi(BaseTestCase):
             'subcustomer': None
         })
         res = self.client.get(f'/api/v1/admin/order/{gen_id}')
-        self.assertTrue(res.json[0]['total_krw'], 1010)
+        self.assertTrue(res.json['total_krw'], 1010)
 
     def test_set_order_product_status(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -243,12 +243,12 @@ class TestOrdersApi(BaseTestCase):
                 set_at=datetime(2020, 1, 1, 1, 0, 0), status="Pending")
         ])
         res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order_product/10/status/history'))
-        res = self.client.get('/api/v1/admin/order_product/10/status/history')
+            lambda: self.client.get('/api/v1/admin/order/product/10/status/history'))
+        res = self.client.get('/api/v1/admin/order/product/10/status/history')
         self.assertEqual(res.json, [{
             'set_at': '2020-01-01 01:00:00',
             'set_by': 'root_test_orders_api',
             'status': 'Pending'
         }])
-        res = self.client.get('/api/v1/admin/order_product/30/status/history')
+        res = self.client.get('/api/v1/admin/order/product/30/status/history')
         self.assertEqual(res.status_code, 404)

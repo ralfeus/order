@@ -1,25 +1,11 @@
-// $.fn.dataTable.ext.buttons.status = {
-//     action: function(e, dt, node, config) {
-//         setStatus(dt.rows({selected: true}), this.text());
-//     }
-// };
-
 $(document).ready( function () {
     var table = $('#order_products').DataTable({
         dom: 'lfrBtip',
         buttons: [
-	        'print'//,
-            // { 
-            //     extend: 'collection', 
-            //     text: 'Set status',
-            //     buttons: [
-            //         { extend: 'status', text: 'Pending' },
-            //         { extend: 'status', text: 'Complete'}
-            //     ]
-            // }
+	        'print'
         ],        
         ajax: {
-            url: '/api/v1/order_product',
+            url: '/api/v1/order/product',
             dataSrc: ''
         },
         columns: [
@@ -69,7 +55,7 @@ $(document).ready( function () {
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/v1/order_product/' + update.id,
+                    url: '/api/v1/order/product/' + update.id,
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -102,42 +88,3 @@ function format ( row, data ) {
         '</div>'+
     '</div>';
 }
-
-// /**
-//  * Sets status of the order
-//  * @param {*} target - table rows representing orders whose status is to be changed
-//  * @param {string} status - new status
-//  */
-// function setStatus(target, newStatus) {
-//     if (target.count()) {
-//         var order_products = [];
-//         for (var i = 0; i < target.count(); i++) {
-//             order_products.push(target.data()[i].order_product_id);
-//             $.ajax({
-//                 url: '/api/v1/order_product/' + 
-//                     target.data()[i].order_product_id + '/status/' + newStatus,
-//                 method: 'POST',
-//                 success: function(response, status, xhr) {
-//                     target.cell(
-//                         (idx, data, node) => 
-//                             data.order_product_id === parseInt(response.order_product_id), 
-//                         8).data(response.order_product_status).draw();
-//                     for (var ii = 0; ii < target.count(); ii++) {
-//                         if (target.data()[ii].order_product_id == response.order_product_id) {
-//                             if ($(target.nodes()[ii]).hasClass('shown')) {
-//                                 get_history(response.order_product_id, function(history_data) {
-//                                     $('#status_history', $(target.nodes()[ii]).next()).html(history_data.map(entry =>
-//                                         '<option>' + entry.set_at + " : " + entry.set_by + " : " + entry.status + "</option>"
-//                                     ).join("\n"));
-//                                 });
-//                             };                            
-//                             break;
-//                         }
-//                     }
-//                 }
-//             });     
-//         }
-//     } else {
-//         alert('Nothing selected');
-//     }
-// }

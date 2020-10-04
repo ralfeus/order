@@ -10,7 +10,7 @@ from flask_security import roles_required
 from sqlalchemy import or_
 
 from app import db
-from app.invoices import bp_api_admin, bp_api_user
+from app.invoices import bp_api_admin
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order
 
@@ -27,7 +27,7 @@ def create_invoice(usd_rate):
     if not orders:
         abort(Response("No orders with provided IDs were found ", status=400))
     invoice = Invoice()
-    invoice_items = []
+    # invoice_items = []
     invoice.when_created = datetime.now()
     cumulative_order_products = map_reduce(
         [order_product for order in orders
