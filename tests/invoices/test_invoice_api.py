@@ -46,7 +46,7 @@ class TestInvoiceClient(BaseTestCase):
                 'order_ids': [gen_id]
             })
         )
-        self.assertEqual(res.json['invoice_id'], 'INV-2020-09-0001')
+        self.assertEqual(res.json['invoice_id'], 'INV-2020-10-0001')
         invoice = Invoice.query.get(res.json['invoice_id'])
         self.assertEqual(len(invoice.orders), 1)
         self.assertEqual(invoice.invoice_items.count(), 1)

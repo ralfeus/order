@@ -5,6 +5,8 @@ Part of the order for single subcustomer
 from datetime import datetime
 from functools import reduce
 
+from flask import current_app
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
@@ -20,10 +22,11 @@ class Suborder(db.Model, BaseModel):
     order_id = Column(String(16), ForeignKey('orders.id'))
     order = relationship('Order', foreign_keys=[order_id])
     buyout_date = Column(DateTime, index=True)
-    #subtotal_krw = Column(Integer(), default=0)
+    # subtotal_krw = Column(Integer(), default=0)
     #subtotal_rur = Column(Numeric(10, 2), default=0)
     #subtotal_usd = Column(Numeric(10, 2), default=0)
     order_products = relationship('OrderProduct', lazy='dynamic')
+    local_shipping = Column(Integer(), default=0)
 
     @property
     def total_weight(self):
@@ -31,7 +34,9 @@ class Suborder(db.Model, BaseModel):
 
     @property
     def total_krw(self):
-        return reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0)
+        return reduce(
+            lambda acc, op: acc + op.price * op.quantity, 
+            self.order_products, 0) + self.local_shipping
 
     def __repr__(self):
         return "<Suborder: {} Order: {}>".format(self.id, self.order_id)
@@ -51,4 +56,20 @@ class Suborder(db.Model, BaseModel):
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }
+
+    def update_total(self):
+        def calc_op_total(acc, op):
+            return acc + op.price * op.quantity
+
+        free_local_shipment_eligibility_amount = reduce(
+            calc_op_total, filter(
+                lambda op: not op.product.separate_shipping,
+                self.order_products
+            ), 0)
+        self.local_shipping = \
+            current_app.config['LOCAL_SHIPPING_COST'] \
+                if free_local_shipment_eligibility_amount < \
+                    current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \
+                else 0
+        db.session.commit()
 

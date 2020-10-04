@@ -31,12 +31,14 @@ $(document).ready( function () {
             {data: 'id'},
             {data: 'user'},
             {data: 'customer'},
-            {data: 'total'},
+            {data: 'subtotal_krw'},
+            {data: 'shipping_krw'},
+            {data: 'total_krw'},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[6, 'desc']],
+        order: [[8, 'desc']],
         select: true
     });
 
@@ -104,8 +106,8 @@ function format ( row, data ) {
         },
         columns: [
             {data: 'subcustomer'},
-	    {data: 'buyout_date'},
-            {data: 'id'},
+	        {data: 'buyout_date'},
+            {data: 'product_id'},
             {data: 'product', class: 'wrapok'},
             {data: 'price'},
             {data: 'quantity'},
@@ -115,6 +117,7 @@ function format ( row, data ) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping.name);
+    $('#shipping-cost', order_details).val(data.shipping_krw);
     $('#status', order_details).val(data.status);
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);

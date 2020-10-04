@@ -131,6 +131,8 @@ class Order(db.Model):
             'address': self.address,
             'phone': self.phone,
             'invoice_id': self.invoice_id,
+            'subtotal_krw': self.subtotal_krw,
+            'shipping_krw': self.shipping_krw,
             'total': self.total_krw,
             'total_krw': self.total_krw,
             'total_rur': float(self.total_rur),
@@ -149,15 +151,20 @@ class Order(db.Model):
         '''
         Updates totals of the order
         '''
+        for suborder in self.suborders:
+            suborder.update_total()
+
         if self.shipping is None and self.shipping_method_id is not None:
             self.shipping = Shipping.query.get(self.shipping_method_id)
 
-        self.total_weight = reduce(lambda acc, op: acc + op.product.weight * op.quantity,
-                                   self.order_products, 0)
+        self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
+                                   self.suborders, 0)
         self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
 
-        self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
-                                   self.order_products, 0)
+        # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
+        #                            self.order_products, 0)
+        self.subtotal_krw = reduce(
+            lambda acc, sub: acc + sub.total_krw, self.suborders, 0)
         self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 

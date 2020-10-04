@@ -26,15 +26,11 @@ class TestOrdersApi(BaseTestCase):
             Country(id='c1', name='country1'),
             Product(id='0000', name='Test product', price=10, weight=10),
             Shipping(id=1, name='Shipping1'),
-            ShippingRate(shipping_method_id=1, destination='c1', weight=100, rate=100),
-            ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=200),
+            ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=100),
+            ShippingRate(shipping_method_id=1, destination='c1', weight=10000, rate=200),
         ])
 
     def test_create_order(self):
-        created_order_id = None
-        self.try_add_entities([
-            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
-        ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
                 "name":"User1",
@@ -46,14 +42,14 @@ class TestOrdersApi(BaseTestCase):
                 "suborders": [
                     {
                         "subcustomer":"A000, Subcustomer1, P@ssw0rd",
-                        "items": [{"item_code":"0001", "quantity":"1"}]
+                        "items": [{"item_code":"0000", "quantity":"1"}]
                     }
                 ]
         }))
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json['order_id']
         order = Order.query.get(created_order_id)
-        self.assertEqual(order.total_krw, 101)
+        self.assertEqual(order.total_krw, 2610)
         self.assertEqual(order.shipping.name, 'Shipping1')
 
     def test_save_order(self):
@@ -67,11 +63,38 @@ class TestOrdersApi(BaseTestCase):
             }))
         self.assertEqual(res.status_code, 200)
 
+    def test_increase_order_amount_over_free_shipping_threshold(self):
+        order = Order(user=self.user)
+        subcustomer = Subcustomer(name='A000')
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        self.try_add_entities([
+            order, suborder, subcustomer,
+            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post(f'/api/v1/order/{order.id}', json={
+                'suborders': [
+                    {
+                        'subcustomer': 'A000',
+                        'items': [
+                            {
+                                'item_code': '0000',
+                                'quantity': 3000
+                            }
+                        ]
+                    }
+                ]
+            }))
+        order = Order.query.get(order.id)
+        self.assertEqual(order.total_krw, 30000)
+
     def test_get_orders(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id, user=self.user, country_id='c1', shipping_method_id=1)
+        suborder = Suborder(order=order)
         self.try_add_entities([
-            Order(id=gen_id, user=self.user, country_id='c1', shipping_method_id=1),
-            OrderProduct(id=10, order_id=gen_id, product_id='0000', price=10, quantity=10)
+            order, suborder,
+            OrderProduct(id=10, suborder=suborder, product_id='0000', price=10, quantity=10)
         ])
         
         res = self.try_admin_operation(
@@ -83,10 +106,12 @@ class TestOrdersApi(BaseTestCase):
             'address': None,
             'country': {'id': 'c1', 'name': 'country1'},
             'phone': None,
-            'total': 300,
-            'total_krw': 300,
-            'total_rur': 150.0,
-            'total_usd': 150.0,
+            'subtotal_krw': 2600,
+            'shipping_krw': 100,
+            'total': 2700,
+            'total_krw': 2700,
+            'total_rur': 1350.0,
+            'total_usd': 1350.0,
             'shipping': {'id': 1, 'name': 'Shipping1'},
             'tracking_id': None,
             'tracking_url': None,
@@ -98,7 +123,7 @@ class TestOrdersApi(BaseTestCase):
                 {
                     'id': 10,
                     'order_id': gen_id,
-                    'suborder_id': None,
+                    'suborder_id': suborder.id,
                     'order_product_id': 10,
                     'customer': None,
                     'subcustomer': None,
@@ -121,17 +146,19 @@ class TestOrdersApi(BaseTestCase):
 
     def test_get_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id, user=self.user)
+        suborder = Suborder(order=order)
         self.try_add_entities([
+            order, suborder,
             Product(id=gen_id, price=10, weight=10),
-            Order(id=gen_id, user=self.user),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            OrderProduct(suborder=suborder, product_id=gen_id, price=10, quantity=10),
             Order(id=gen_id+'1', user=self.user, status=OrderStatus.pending)
         ])
         res = self.try_user_operation(
             lambda: self.client.get(f'/api/v1/order/{gen_id}'))
-        self.assertEqual(res.json['total'], 100)
-        self.assertEqual(res.json['total_rur'], 50.0)
-        self.assertEqual(res.json['total_usd'], 50.0)
+        self.assertEqual(res.json['total'], 2600)
+        self.assertEqual(res.json['total_rur'], 1300.0)
+        self.assertEqual(res.json['total_usd'], 1300.0)
         self.assertEqual(res.json['user'], self.user.username)
         self.assertEqual(len(res.json['order_products']), 1)
         res = self.client.get('/api/v1/order')

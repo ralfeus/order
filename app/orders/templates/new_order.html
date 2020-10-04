@@ -43,7 +43,7 @@
             <div class="card subcustomer-card">
                 <div class="input-group card-header" id="userItemsHeader0">
                     <input class="form-control subcustomer-identity" placeholder="Number, name, password"/>
-		    <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Buyout date" />
+		            <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Buyout date" />
                     <button class="btn btn-primary" type="button" 
                         data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
                         aria-controls="userItems0">Toggle</button>
@@ -99,7 +99,10 @@
                                 <td></td>
                                 <td id="subtotalCostKRW"></td>
                                 <td id="subtotalWeight"></td>
-                                <td id="subtotalShippingCostKRW"></td>
+                                <td>
+                                    <div class="local-shipping"></div>
+                                    <div id="subtotalShippingCostKRW"></div>
+                                </td>
                                 <td id="subtotalTotalKRW"></td>
                                 <td id="subtotalTotalRUR"></td>
                                 <td id="subtotalTotalUSD"></td>
@@ -113,7 +116,7 @@
             </div>
         </div>
     <!-- </form> -->
-    <div class="position-fixed" style="top:0; right:0">
+    <div class="position-fixed cart" style="top:0; right:0">
         <table class="table-sm table-bordered table-light">
             <thead>
                 <th></th>
@@ -154,24 +157,4 @@
             <input type="file" id="excel" class="custom-file-input" />
         </div>
     </div>
-<!-- Modal -->
-<div class="modal fade" id="modal" tabindex="-1" aria-labelledby="modal-label" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title" id="modal-label">Message</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-        <div class="modal-body">
-            ...
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        </div>
-        </div>
-    </div>
-</div>
-<!-- End modal -->
 {% endblock %}

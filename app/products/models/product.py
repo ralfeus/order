@@ -1,7 +1,7 @@
 '''
 Product model
 '''
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 
 from app import db
 from app.models.base import BaseModel
@@ -20,6 +20,7 @@ class Product(db.Model, BaseModel):
     weight = Column(Integer, default=0)
     price = Column(Integer)
     points = Column(Integer)
+    separate_shipping = Column(Boolean, default=False)
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)
 
@@ -42,6 +43,7 @@ class Product(db.Model, BaseModel):
             'price': self.price if self.price else 0,
             'weight': self.weight if self.weight else 0,
             'points': self.points if self.points else 0,
+            'separate_shipping': self.separate_shipping if self.separate_shipping else 0,
             'available': self.available,
             'synchronize': self.synchronize
         }

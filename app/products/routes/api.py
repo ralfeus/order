@@ -88,7 +88,8 @@ def save_product(product_id):
         db.session.add(product)
 
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
-                           'points', 'weight', 'available', 'synchronize']
+                           'points', 'weight', 'available', 'separate_shipping',
+                           'synchronize']
     for attr in editable_attributes:
         if payload.get(attr) is not None:
             setattr(product, attr, payload[attr])

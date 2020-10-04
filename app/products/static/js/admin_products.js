@@ -139,6 +139,7 @@ $(document).ready( function () {
                     name_english: $('#name_english', product_node).val(),
                     name_russian: $('#name_russian', product_node).val(),
                     points: $('#points', product_node).val(),
+                    separate_shipping: $('#separate-shipping', product_node).is(':checked'),
                     price: $('#price', product_node).val(),
                     weight: $('#weight', product_node).val(),
                     available: $('#available', product_node).is(':checked')
@@ -173,12 +174,22 @@ function format ( d ) {
     $('#weight', product_details).val(d.weight);
     $('#price', product_details).val(d.price);
     $('#points', product_details).val(d.points);
+    if (d.separate_shipping) {
+        $('#separate-shipping', product_details)[0].checked = true;
+        $('#separate-shipping', product_details).parent().addClass('active');
+        $('#separate-shipping', product_details)[0].nextSibling.textContent = 'Ships separately';
+    }
+    $('#separate-shipping', product_details).on('click', event => {
+        event.target.nextSibling.textContent = event.target.checked 
+            ? 'Ships separately' 
+            : 'Ships in package';
+    });
+    
     if (d.available) {
         $('#available', product_details)[0].checked = true;
         $('#available', product_details).parent().addClass('active');
         $('#available', product_details)[0].nextSibling.textContent = 'Available';
     }
-
     $('#available', product_details).on('click', event => {
         event.target.nextSibling.textContent = event.target.checked ? 'Available' : 'Unavailable';
     });

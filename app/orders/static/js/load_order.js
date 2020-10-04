@@ -35,10 +35,10 @@ function populate_order(order_data) {
     $('#country').val(order_data.country.id);
     get_shipping_methods(order_data.country.id, 0)
         .then(() => { 
-            console.log($('#shipping').val());
-            console.log($('#shipping')[0].options);
+            // console.log($('#shipping').val());
+            // console.log($('#shipping')[0].options);
             $('#shipping').val(order_data.shipping.id);
-            console.log($('#shipping').val());
+            // console.log($('#shipping').val());
         });
     var current_subcustomer;
     var current_node;

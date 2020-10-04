@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from flask import Response, abort, jsonify, request
+from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
@@ -36,7 +36,7 @@ def user_get_orders(order_id):
 
 @bp_api_user.route('/', methods=['POST'], strict_slashes=False)
 @login_required
-def create_order():
+def user_create_order():
     '''
     Creates order.
     Accepts order details in payload
@@ -60,6 +60,7 @@ def create_order():
         phone=request_data['phone'],
         comment=request_data['comment'],
         subtotal_krw=0,
+        status=OrderStatus.pending,
         when_created=datetime.now()
     )
     order_products = []
@@ -72,43 +73,59 @@ def create_order():
                 subcustomer=parse_subcustomer(suborder_data['subcustomer']),
                 buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
                     if suborder_data.get('buyout_date') else None,
+                local_shipping=0,
                 when_created=datetime.now()
             )
         except IndexError as e:
-            abort(Response(f"""Couldn't find subcustomer and provided data 
+            abort(Response(f"""Couldn't find subcustomer and provided data
                                doesn't allow to create new one. Please provide
                                new subcustomer data in format: 
                                <ID>, <Name>, <Password>
                                Erroneous data is: {suborder_data['subcustomer']}""",
                            status=400))
+        # free_local_shipping_amount = 0
         for item in suborder_data['items']:
-            product = Product.query.get(item['item_code'])
-            if product:
-                order_product = OrderProduct(
-                    suborder=suborder,
-                    product_id=product.id,
-                    price=product.price,
-                    quantity=int(item['quantity']),
-                    status='Pending',
-                    when_created=datetime.now())
-                db.session.add(order_product)
-                order_products.append(order_product)
-                order.total_weight += product.weight * order_product.quantity
-                order.subtotal_krw += product.price * order_product.quantity
-            else:
-                errors.append(f'{item["item_code"]}: no such product')
+            try:
+                order_product = add_order_product(suborder, item, errors)
+            # product = Product.query.get(item['item_code'])
+            # if product:
+            #     order_product = OrderProduct(
+            #         suborder=suborder,
+            #         product_id=product.id,
+            #         price=product.price,
+            #         quantity=int(item['quantity']),
+            #         status='Pending',
+            #         when_created=datetime.now())
+            #     order_products.append(order_product)
+                # db.session.add(order_product)
+                # order.total_weight += product.weight * order_product.quantity
+                # order.subtotal_krw += product.price * order_product.quantity
+                # Calculate cost of order products shipped in one package
+                # Needed to defined whether local shipping is free
+                # if not order_product.product.separate_shipping:
+                #     free_local_shipping_amount += \
+                #         order_product.price * order_product.quantity
+            except:
+                pass
+            # else:
+            #     errors.append(f'{item["item_code"]}: no such product')
+        # Add local shipping cost if necessary
+        # if free_local_shipping_amount < current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']:
+        #     suborder.local_shipping = current_app.config['LOCAL_SHIPPING_COST']
+        # suborder.update_total()
 
     # order.order_products = order_products
-    order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
-    order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
-    order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
-    order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
-        order.country.id, order.total_weight + order.shipping_box_weight)))
-    order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
-    order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
-    order.total_krw = order.subtotal_krw + order.shipping_krw
-    order.total_rur = order.subtotal_rur + order.shipping_rur
-    order.total_usd = order.subtotal_usd + order.shipping_usd
+    order.update_total()
+    # order.subtotal_rur = order.subtotal_krw * Currency.query.get('RUR').rate
+    # order.subtotal_usd = order.subtotal_krw * Currency.query.get('USD').rate
+    # order.shipping_box_weight = shipping.get_box_weight(order.total_weight)
+    # order.shipping_krw = int(Decimal(shipping.get_shipment_cost(
+    #     order.country.id, order.total_weight + order.shipping_box_weight)))
+    # order.shipping_rur = order.shipping_krw * Currency.query.get('RUR').rate
+    # order.shipping_usd = order.shipping_krw * Currency.query.get('USD').rate
+    # order.total_krw = order.subtotal_krw + order.shipping_krw
+    # order.total_rur = order.subtotal_rur + order.shipping_rur
+    # order.total_usd = order.subtotal_usd + order.shipping_usd
     db.session.add(order)
     try:
         db.session.commit()
@@ -170,17 +187,21 @@ def user_save_order(order_id):
     # Edit or add order products
     order_products = list(order.order_products)
     if payload.get('suborders'):
-        for suborder in payload['suborders']:
-            for item in suborder['items']:
-                order_product = [op for op in order_products if
-                                    op.suborder.subcustomer.name == suborder['subcustomer'] and
-                                    op.product_id == item['item_code']]
+        for suborder_data in payload['suborders']:
+            #TODO: some shit is written here
+            suborder = order.suborders.filter(
+                Suborder.subcustomer.has(
+                    Subcustomer.name == suborder_data['subcustomer'])
+                ).first()
+            for item in suborder_data['items']:
+                order_product = [op for op in suborder.order_products
+                                    if op.product_id == item['item_code']]
                 if len(order_product) > 0:
                     update_order_product(order, order_product[0], item)
                     order_products.remove(order_product[0])
                 else:
                     try:
-                        add_order_product(order, suborder, item, errors)
+                        add_order_product(suborder, item, errors)
                     except:
                         pass
     
@@ -257,19 +278,18 @@ def admin_set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
-def add_order_product(order, suborder, item, errors):
+def add_order_product(suborder, item, errors):
     product = Product.query.get(item['item_code'])
     if product:
         order_product = OrderProduct(
-            order=order,
-            subcustomer=suborder['subcustomer'],
-            product_id=product.id,
+            suborder=suborder,
+            product=product,
             price=product.price,
             quantity=int(item['quantity']),
             status='Pending')
         db.session.add(order_product)
-        order.total_weight += product.weight * order_product.quantity
-        order.subtotal_krw += product.price * order_product.quantity
+        suborder.order.total_weight += product.weight * order_product.quantity
+        suborder.order.subtotal_krw += product.price * order_product.quantity
         return order_product
     else:
         errors.append(f'{item["item_code"]}: no such product')
@@ -277,12 +297,12 @@ def add_order_product(order, suborder, item, errors):
 
 def update_order_product(order, order_product, item):
     if order_product.quantity != int(item['quantity']):
-        order.total_weight -= order_product.product.weight * order_product.quantity
-        order.subtotal_krw -= order_product.price * order_product.quantity
+        # order.total_weight -= order_product.product.weight * order_product.quantity
+        # order.subtotal_krw -= order_product.price * order_product.quantity
         order_product.quantity = int(item['quantity'])
         order_product.when_changed = datetime.now()
-        order.total_weight += order_product.product.weight * order_product.quantity
-        order.subtotal_krw += order_product.price * order_product.quantity
+        # order.total_weight += order_product.product.weight * order_product.quantity
+        # order.subtotal_krw += order_product.price * order_product.quantity
         order.when_changed = datetime.now()
 
 def delete_order_product(order, order_product):
