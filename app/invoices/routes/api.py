@@ -105,8 +105,8 @@ def get_invoices(invoice_id):
                 'recordsFiltered': records_filtered,
                 'data': list(map(lambda entry: entry.to_dict(), invoices))
             })
-        else:
-            invoices = invoices.all()
+        else: # By default we return only 100 invoices
+            invoices = invoices.limit(100)
     
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
