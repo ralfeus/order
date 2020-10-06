@@ -134,10 +134,10 @@ def parse_subcustomer(subcustomer_data):
         if subcustomer:
             return subcustomer
     subcustomer = Subcustomer(
-        username=parts[0].strip(), 
-        name=parts[1].strip(), 
+        username=parts[0].strip(),
+        name=parts[1].strip(),
         password=parts[2].strip(),
-        when_created=datetime.now()) 
+        when_created=datetime.now())
     db.session.add(subcustomer)
     return subcustomer
 
@@ -403,30 +403,6 @@ def user_get_order_products():
     return jsonify(list(map(lambda order_product: order_product.to_dict(),
                             order_products)))
 
-# @bp_api_user.route('/product/<int:order_product_id>/status/<order_product_status>', methods=['POST'])
-# @login_required
-# def user_set_order_product_status(order_product_id, order_product_status):
-#     '''
-#     Sets new status of the selected order product
-#     '''
-#     order_product = OrderProduct.query.get(order_product_id)
-#     order_product.status = order_product_status
-#     db.session.add(OrderProductStatusEntry(
-#         order_product=order_product,
-#         status=order_product_status,
-#         # set_by=current_user,
-#         user_id=1,
-#         set_at=datetime.now()
-#     ))
-
-#     db.session.commit()
-
-#     return jsonify({
-#         'order_product_id': order_product_id,
-#         'order_product_status': order_product_status,
-#         'status': 'success'
-#     })
-
 @bp_api_user.route('/order_product/<int:order_product_id>/status/history')
 @login_required
 def user_get_order_product_status_history(order_product_id):
@@ -444,3 +420,17 @@ def user_get_order_product_status_history(order_product_id):
         })
         result.status_code = 404
         return result
+
+@bp_api_user.route('/subcustomer/validate')
+@login_required
+def validate_subcustomer():
+    payload = request.get_json()
+    if not payload or not payload.get('subcustomer'):
+        abort(Response('No subcustomer data was provided', status=400))
+    
+    subcustomer = parse_subcustomer(payload['subcustomer'])
+    try:
+        atomy_login(subcustomer)
+        return jsonify({'result': 'success'})
+    except:
+        return jsonify({'result': 'failure'})
