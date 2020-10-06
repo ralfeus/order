@@ -12,7 +12,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
-from app.atomy import atomy_login
+# from app.atomy import atomy_login
 from app.tools import prepare_datatables_query
 
 @bp_api_user.route('', defaults={'order_id': None})
@@ -282,12 +282,8 @@ def add_order_product(suborder, item, errors):
 
 def update_order_product(order, order_product, item):
     if order_product.quantity != int(item['quantity']):
-        # order.total_weight -= order_product.product.weight * order_product.quantity
-        # order.subtotal_krw -= order_product.price * order_product.quantity
         order_product.quantity = int(item['quantity'])
         order_product.when_changed = datetime.now()
-        # order.total_weight += order_product.product.weight * order_product.quantity
-        # order.subtotal_krw += order_product.price * order_product.quantity
         order.when_changed = datetime.now()
 
 def delete_order_product(order, order_product):
@@ -295,19 +291,6 @@ def delete_order_product(order, order_product):
     order.total_weight -= order_product.product.weight * order_product.quantity
     order.subtotal_krw -= order_product.price * order_product.quantity
     order.when_changed = datetime.now()
-
-# @bp_api_admin.route('/', defaults={'order_id': None}, strict_slashes=False)
-# @bp_api_admin.route('/<order_id>')
-# @roles_required('admin')
-# def admin_get_orders(order_id):
-#     '''
-#     Returns all or selected orders in JSON:
-#     '''
-#     orders = Order.query.all() \
-#         if order_id is None \
-#         else Order.query.filter_by(id=order_id)
-
-#     return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
 @bp_api_admin.route('/<order_id>', methods=['POST'])
 @roles_required('admin')
@@ -335,22 +318,28 @@ def admin_save_order(order_id):
     db.session.commit()
     return jsonify(order.to_dict())
 
+@bp_api_user.route('/product')
 @bp_api_admin.route('/product')
-@roles_required('admin')
-def admin_get_order_products():
+@login_required
+def get_order_products():
     '''
     Returns list of ordered items. So far implemented only for admins
     '''
-    order_products_query = OrderProduct.query
+    order_products = OrderProduct.query
+    if not current_user.has_role('admin'):
+        order_products = order_products.filter(
+            OrderProduct.suborder.has(
+                Suborder.order.has(Order.user == current_user)))
+
     if request.values.get('order_id'):
-        order_products_query = order_products_query.filter(or_(
+        order_products = order_products.filter(or_(
             OrderProduct.order_id == request.values['order_id'],
             OrderProduct.suborder.has(Suborder.order_id == request.values['order_id'])))
 
     if request.values.get('draw') is not None: # Args were provided by DataTables
         filter_clause = f"%{request.values['search[value]']}%"
         order_products, records_total, records_filtered = prepare_datatables_query(
-            order_products_query, request.values,
+            order_products, request.values,
             or_(
                 OrderProduct.suborder.has(Suborder.order_id.like(filter_clause)),
                 OrderProduct.suborder.has(
@@ -365,16 +354,26 @@ def admin_get_order_products():
                 OrderProduct.product.has(Product.name_russian.like(filter_clause))
             )
         )
+        outcome = list(map(lambda entry: entry.to_dict(), order_products))
+        if not current_user.has_role('admin'):
+            for entry in outcome:
+                entry.pop('private_comment', None)
         return jsonify({
             'draw': request.values['draw'],
             'recordsTotal': records_total,
             'recordsFiltered': records_filtered,
-            'data': list(map(lambda entry: entry.to_dict(), order_products))
+            'data': outcome
         })
+    order_products = order_products.limit(100)
+    if order_products.count() == 0:
+        abort(Response("No order products were fond", status=404))
 
-    return jsonify(list(map(
-        lambda order_product: order_product.to_dict(), 
-        order_products_query.all())))
+    outcome = list(map(lambda entry: entry.to_dict(), order_products))
+    if not current_user.has_role('admin'):
+        for entry in outcome:
+            entry.pop('private_comment', None)
+
+    return jsonify(outcome)
 
 @bp_api_admin.route('/product/<int:order_product_id>/status/history')
 @roles_required('admin')
@@ -388,21 +387,6 @@ def admin_get_order_product_status_history(order_product_id):
         }, history)))
     else:
         abort(Response(f'No order product ID={order_product_id} found', status=404))
-
-@bp_api_user.route('/product')
-@login_required
-def user_get_order_products():
-    '''
-    Returns list of ordered items.
-    '''
-    order_products = OrderProduct.query
-    if request.args.get('context') and current_user.username == 'admin':
-        order_products = order_products.all()
-    else:
-        order_products = order_products.filter(
-            OrderProduct.suborder.has(Suborder.order.has(Order.user == current_user)))
-    return jsonify(list(map(lambda order_product: order_product.to_dict(),
-                            order_products)))
 
 @bp_api_user.route('/order_product/<int:order_product_id>/status/history')
 @login_required

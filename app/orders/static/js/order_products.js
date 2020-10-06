@@ -6,7 +6,7 @@ $(document).ready( function () {
         ],        
         ajax: {
             url: '/api/v1/order/product',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {
@@ -26,7 +26,9 @@ $(document).ready( function () {
             {data: 'public_comment', visible: false}
         ],
 
-        select: true
+        select: true,
+        serverSide: true,
+        processing: true
     });
 
     $('#order_products tbody').on('click', 'td.details-control', function () {
