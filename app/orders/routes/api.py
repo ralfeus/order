@@ -12,6 +12,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
+from app.atomy import atomy_login
 from app.tools import prepare_datatables_query
 
 @bp_api_user.route('', defaults={'order_id': None})
@@ -421,7 +422,7 @@ def user_get_order_product_status_history(order_product_id):
         result.status_code = 404
         return result
 
-@bp_api_user.route('/subcustomer/validate')
+@bp_api_user.route('/subcustomer/validate', methods=['POST'])
 @login_required
 def validate_subcustomer():
     payload = request.get_json()
@@ -430,7 +431,7 @@ def validate_subcustomer():
     
     subcustomer = parse_subcustomer(payload['subcustomer'])
     try:
-        atomy_login(subcustomer)
+        atomy_login(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
     except:
         return jsonify({'result': 'failure'})
