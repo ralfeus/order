@@ -1,5 +1,4 @@
 from datetime import datetime
-import re
 
 from flask import Response, abort, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -53,22 +52,7 @@ def get_orders(order_id):
     else:
         return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
 
-def convert_datatables_args(raw_args):
-    args = {}
-    for param in raw_args.items():
-        match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
-        if match:
-            (array, index, attr) = match.groups()
-            if not args.get(array):
-                args[array] = {}
-            if not args[array].get(index):
-                args[array][index] = {}
-            args[array][index][attr] = param[1]
-        else:
-            args[param[0]] = param[1]
-    return args
-
-@bp_api_user.route('/', methods=['POST'], strict_slashes=False)
+@bp_api_user.route('', methods=['POST'])
 @login_required
 def user_create_order():
     '''

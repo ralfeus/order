@@ -2,7 +2,6 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
-import re
 
 from flask import Response, abort, jsonify, request, send_file
 from flask_security import roles_required
@@ -13,6 +12,7 @@ from app import db
 from app.invoices import bp_api_admin
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order
+from app.tools import prepare_datatables_query
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
@@ -68,37 +68,13 @@ def get_invoices(invoice_id):
     if invoice_id is not None:
         invoices = invoices.filter_by(id=invoice_id)
     else: # here we check whether request is filtered by DataTables
-        if len(request.values) > 0:
-            records_total = invoices.count()
-            # Filtering .....
-            if len(request.values) > 0:
-                arg = {}
-                for param in request.values.items():
-                    match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
-                    if match:
-                        (array, index, attr) = match.groups()
-                        if not arg.get(array):
-                            arg[array] = {}
-                        if not arg[array].get(index):
-                            arg[array][index] = {}
-                        arg[array][index][attr] = param[1]
-                    else:
-                        arg[param[0]] = param[1]
-                invoices = invoices.filter(or_(
+        if request.values.get('draw') is not None:
+            invoices, records_total, records_filtered = prepare_datatables_query(
+                invoices, request.values,
+                or_(                
                     Invoice.id.like(f"%{request.values['search[value]']}%"),
-                    Invoice.orders.any(Order.id.like(f"%{arg['search[value]']}%"))))
-            records_filtered = invoices.count()
-            # Sorting
-            columns = arg['columns']
-            sort_column_input = arg['order']['0']
-            sort_column_name = columns[sort_column_input['column']]['data']
-            sort_column = Invoice.__table__.columns[sort_column_name]
-            if sort_column_input['dir'] == 'desc':
-                sort_column = sort_column.desc()
-            invoices = invoices.order_by(sort_column)
-            # Limiting to page
-            invoices = invoices.offset(request.values['start']). \
-                                limit(request.values['length'])
+                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%")))
+            )
             return jsonify({
                 'draw': request.values['draw'],
                 'recordsTotal': records_total,
@@ -106,7 +82,7 @@ def get_invoices(invoice_id):
                 'data': list(map(lambda entry: entry.to_dict(), invoices))
             })
         else: # By default we return only 100 invoices
-            invoices = invoices.limit(100)
+            invoices = invoices.limit(10)
     
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
