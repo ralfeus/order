@@ -26,7 +26,7 @@ $(document).ready( function () {
                     name: 'currency_code',
                     type: 'select2',
                     def: 'USD',
-                    options: Object.entries(g_currencies).map(c => c[0])
+                    options: g_currencies.map(c => c.code)
                 },
                 {
                     label: 'Orders', 
