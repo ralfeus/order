@@ -252,3 +252,16 @@ class TestOrdersApi(BaseTestCase):
         }])
         res = self.client.get('/api/v1/admin/order/product/30/status/history')
         self.assertEqual(res.status_code, 404)
+
+    def test_validate_subcustomer(self):
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order/subcustomer/validate', json={
+                'subcustomer': 'test, test, test'
+            }))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['result'], 'failure')
+        res = self.client.post('/api/v1/order/subcustomer/validate', json={
+                'subcustomer': '23426444, Mike, atomy#01'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['result'], 'success')
