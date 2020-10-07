@@ -149,7 +149,9 @@ function get_currencies() {
     $.ajax({
         url: '/api/v1/currency',
         success: function(data, _status, _xhr) {
-            currencyRates = data;
+            for (var currency in data) {
+                currencyRates[data[currency].code] = data[currency].rate;
+            }
             promise.resolve();
         }
     });
@@ -542,12 +544,17 @@ function validate_subcustomer(sender) {
         contentType: 'application/json',
         data: JSON.stringify({subcustomer: sender.value}),
         success: data => {
-            if (data.result && data.result === 'failure') {
-                modal(
-                    'Subcustomer verification',
-                    "Couldn't verify the subcustomer's credenticals. \n" +
-                    "Problem subcustomer is: \n" + sender.value
-                );
+            if (data.result) {
+                if (data.result == 'success') {
+                    $(sender).addClass('is-valid').removeClass('is-invalid');
+                } else if (data.result === 'failure') {
+                    modal(
+                        'Subcustomer verification',
+                        "Couldn't verify the subcustomer's credenticals. \n" +
+                        "Problem subcustomer is: \n" + sender.value
+                    );
+                    $(sender).addClass('is-invalid').removeClass('is-valid');
+                }
             }
         }
     })

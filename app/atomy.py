@@ -1,13 +1,10 @@
-from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.options import Options
 
-options = Options()
-options.set_headless(headless=True)
-browser = webdriver.Firefox(firefox_options=options)
+from app.utils.browser import Browser
 
 def atomy_login(username, password):
+    browser = Browser()
     browser.get('https://www.atomy.kr/v2/Home/Account/Login')
     user_field = browser.find_element_by_id('userId')
     password_field = browser.find_element_by_id('userPw')
@@ -20,3 +17,5 @@ def atomy_login(username, password):
         )
     except:
         raise AttributeError('Login failed')
+    finally:
+        browser.close()

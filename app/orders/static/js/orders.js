@@ -11,7 +11,7 @@ $(document).ready( function () {
         ajax: {
             url: '/api/v1/order',
             error: xhr => { modal('No orders', xhr.responseText) },
-            dataSrc: ''
+            dataSrc: 'data'
         },
         buttons: [
             // { extend: 'xls', text: 'Download' }
@@ -36,7 +36,9 @@ $(document).ready( function () {
             {data: 'when_changed'}
         ],
         order: [[6, 'desc']],
-        select: true
+        select: true,
+        serverSide: true,
+        processing: true
     });
 
     // $('#orders tbody').on('click', 'td.details-control', function () {

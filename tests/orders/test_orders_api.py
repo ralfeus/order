@@ -178,7 +178,7 @@ class TestOrdersApi(BaseTestCase):
             suborder
         ])
         
-        res = self.try_admin_operation(
+        res = self.try_user_operation(
             lambda: self.client.get('/api/v1/admin/order/product'))
 
     def test_save_order_product(self):
