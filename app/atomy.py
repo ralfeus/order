@@ -1,11 +1,11 @@
-from selenium import webdriver
+from selenium.webdriver import Chrome
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
 
 options = Options()
 options.set_headless(headless=True)
-browser = webdriver.Firefox(firefox_options=options)
+browser = Chrome(chrome_options=options)
 
 def atomy_login(username, password):
     browser.get('https://www.atomy.kr/v2/Home/Account/Login')

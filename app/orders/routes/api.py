@@ -415,6 +415,7 @@ def validate_subcustomer():
     
     subcustomer = parse_subcustomer(payload['subcustomer'])
     try:
+        from app.atomy import atomy_login
         atomy_login(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
     except:

@@ -537,20 +537,25 @@ function update_grand_subtotal() {
 }
 
 function validate_subcustomer(sender) {
-    // $.ajax({
-    //     url: '/api/v1/order/subcustomer/validate',
-    //     method: 'post',
-    //     dataType: 'json',
-    //     contentType: 'application/json',
-    //     data: JSON.stringify({subcustomer: sender.value}),
-    //     success: data => {
-    //         if (data.result && data.result === 'failure') {
-    //             modal(
-    //                 'Subcustomer verification',
-    //                 "Couldn't verify the subcustomer's credenticals. \n" +
-    //                 "Problem subcustomer is: \n" + sender.value
-    //             );
-    //         }
-    //     }
-    // })
+    $.ajax({
+        url: '/api/v1/order/subcustomer/validate',
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({subcustomer: sender.value}),
+        success: data => {
+            if (data.result) {
+                if (data.result == 'success') {
+                    $(sender).addClass('is-valid').removeClass('is-invalid');
+                } else if (data.result === 'failure') {
+                    modal(
+                        'Subcustomer verification',
+                        "Couldn't verify the subcustomer's credenticals. \n" +
+                        "Problem subcustomer is: \n" + sender.value
+                    );
+                    $(sender).addClass('is-invalid').removeClass('is-valid');
+                }
+            }
+        }
+    })
 }
