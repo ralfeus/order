@@ -149,7 +149,9 @@ function get_currencies() {
     $.ajax({
         url: '/api/v1/currency',
         success: function(data, _status, _xhr) {
-            currencyRates = data;
+            for (var currency in data) {
+                currencyRates[data[currency].code] = data[currency].rate;
+            }
             promise.resolve();
         }
     });
