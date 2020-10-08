@@ -11,27 +11,20 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
+import flask_debugtoolbar
+from flask_debugtoolbar import DebugToolbarExtension
+from flask_debugtoolbar_lineprofilerpanel.profile import line_profile
+from flask_debug_api import DebugAPIExtension
+toolbar = DebugToolbarExtension()
+
+
 from app.config import Config
 import app.tools
 
 db = SQLAlchemy()
 migrate = Migrate()
-# login = LoginManager()
 from app.forms import LoginForm
 security = Security()
-# security.login_view = "client.user_login"
-# security.logout_view = "client.user_logout"
-
-# import app.jobs
-# cron = BackgroundScheduler(daemon=True)
-# cron.add_job(
-#     func=app.jobs.import_products,
-#     trigger="interval", seconds=Config.PRODUCT_IMPORT_PERIOD)
-# cron.start()
-
-
-
-# import app.jobs
 
 def create_app(config=Config, import_name=None):
     '''
@@ -54,6 +47,24 @@ def create_app(config=Config, import_name=None):
     register_components(flask_app)
     flask_app.logger.info('Blueprints are registered')
     # init_data(flask_app)
+    if flask_app.config.get('PROFILER'):
+        DebugAPIExtension(flask_app)
+        flask_app.config['DEBUG_TB_PANELS'] = [
+            'flask_debugtoolbar.panels.versions.VersionDebugPanel',
+            'flask_debugtoolbar.panels.timer.TimerDebugPanel',
+            'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
+            'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
+            'flask_debugtoolbar.panels.template.TemplateDebugPanel',
+            'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
+            'flask_debugtoolbar.panels.logger.LoggingPanel',
+            'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
+            # Add the line profiling
+            'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
+            'flask_debug_api.BrowseAPIPanel'
+        ]    
+    if flask_app.config.get('DEBUG'):
+        toolbar.init_app(flask_app)
+
 
     return flask_app
 
