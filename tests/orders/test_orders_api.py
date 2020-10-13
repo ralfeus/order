@@ -98,7 +98,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         
         res = self.try_user_operation(
-            lambda: self.client.get('/api/v1/admin/order'))
+            lambda: self.client.get('/api/v1/order'))
         self.assertEqual(res.json[0], {
             'id': gen_id,
             'customer': None,
