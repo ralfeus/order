@@ -37,7 +37,7 @@ class PurchaseOrder(db.Model, BaseModel):
 
 
     def __init__(self, suborder: Suborder, **kwargs):
-        self.id = '{}-{:06d}'.format(suborder.order_id, suborder.subcustomer_id)
+        self.id = '{}-{:06d}'.format(suborder.order_id, suborder.id)
         self.suborder = suborder
 
         attributes = [a[0] for a in type(self).__dict__.items()
