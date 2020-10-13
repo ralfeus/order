@@ -93,7 +93,7 @@ function get_companies() {
 
 function get_orders_to_purchase() {
     $.ajax({
-        url: '/api/v1/order?status=paid',
+        url: '/api/v1/admin/order?status=paid',
         success: data => {
             // g_orders = data;
             g_editor.field('order_id').update(data.map(o => o.id));
