@@ -11,13 +11,6 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-import flask_debugtoolbar
-from flask_debugtoolbar import DebugToolbarExtension
-from flask_debugtoolbar_lineprofilerpanel.profile import line_profile
-from flask_debug_api import DebugAPIExtension
-toolbar = DebugToolbarExtension()
-
-
 from app.config import Config
 import app.tools
 
@@ -47,24 +40,8 @@ def create_app(config=Config, import_name=None):
     register_components(flask_app)
     flask_app.logger.info('Blueprints are registered')
     # init_data(flask_app)
-    if flask_app.config.get('PROFILER'):
-        DebugAPIExtension(flask_app)
-        flask_app.config['DEBUG_TB_PANELS'] = [
-            'flask_debugtoolbar.panels.versions.VersionDebugPanel',
-            'flask_debugtoolbar.panels.timer.TimerDebugPanel',
-            'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
-            'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
-            'flask_debugtoolbar.panels.template.TemplateDebugPanel',
-            'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
-            'flask_debugtoolbar.panels.logger.LoggingPanel',
-            'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
-            # Add the line profiling
-            'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
-            'flask_debug_api.BrowseAPIPanel'
-        ]    
     if flask_app.config.get('DEBUG'):
-        toolbar.init_app(flask_app)
-
+        init_debug(flask_app)
 
     return flask_app
 
@@ -76,8 +53,9 @@ def register_components(flask_app):
     import app.currencies, app.currencies.routes
     import app.invoices, app.invoices.routes
     import app.orders, app.orders.routes
-    import app.products, app.products.routes
     import app.payments, app.payments.routes
+    import app.products, app.products.routes
+    import app.purchase, app.purchase.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
@@ -86,5 +64,29 @@ def register_components(flask_app):
     app.currencies.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
-    app.products.register_blueprints(flask_app)
     app.payments.register_blueprints(flask_app)
+    app.products.register_blueprints(flask_app)
+    app.purchase.register_blueprints(flask_app)
+
+def init_debug(flask_app):
+    import flask_debugtoolbar
+    from flask_debugtoolbar import DebugToolbarExtension
+    # from flask_debugtoolbar_lineprofilerpanel.profile import line_profile
+    from flask_debug_api import DebugAPIExtension
+    DebugToolbarExtension(flask_app)
+    flask_app.config['DEBUG_TB_PANELS'] = [
+        'flask_debugtoolbar.panels.versions.VersionDebugPanel',
+        'flask_debugtoolbar.panels.timer.TimerDebugPanel',
+        'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
+        'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
+        'flask_debugtoolbar.panels.template.TemplateDebugPanel',
+        'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
+        'flask_debugtoolbar.panels.logger.LoggingPanel',
+        'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel'
+    ]
+
+    if flask_app.config.get('PROFILER'):
+        DebugAPIExtension(flask_app)
+            # Add the line profiling
+            # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
+        flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')

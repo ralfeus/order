@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, DateTime, Enum, Numeric, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -30,7 +30,8 @@ class Transaction(db.Model, BaseModel):
     amount_sent_original = Column(Numeric(scale=2))
     amount_sent_krw = Column(Integer)
     amount_received_krw = Column(Integer)
-    payment_method = Column(String(16))
+    payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
+    payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
     proof_image = Column(String(256))
     __status = Column('status', Enum(TransactionStatus))
     changed_by_id = Column(Integer, ForeignKey('users.id'))
@@ -67,7 +68,9 @@ class Transaction(db.Model, BaseModel):
             'amount_krw': self.amount_sent_krw,
             'amount_received_krw': self.amount_received_krw,
             'currency_code': self.currency.code,
-            'payment_method': self.payment_method,
+            'payment_method': self.payment_method.to_dict() if self.payment_method else None,
+            # 'payee': self.payment_method.payee.to_dict() \
+            #     if self.payment_method and self.payment_method.payee else None,
             'evidence_image': self.proof_image,
             'status': self.status.name,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',

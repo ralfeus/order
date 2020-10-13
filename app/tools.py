@@ -1,7 +1,9 @@
 ''' Handful tools '''
+import logging
 import os
 import os.path
 import re
+from multiprocessing import Process
 from werkzeug.datastructures import MultiDict
 
 from sqlalchemy import or_
@@ -70,3 +72,11 @@ def convert_datatables_args(raw_args):
         else:
             args[param[0]] = param[1]
     return args
+
+def start_process(operation, logger):
+    try:
+        p = Process(target=operation, args=(logger))
+        p.start()
+        logger.info(f"Started process {str(operation)} in process {p.pid}")
+    except Exception as ex:
+        logger.error(ex)

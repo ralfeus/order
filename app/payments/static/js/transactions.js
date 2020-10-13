@@ -74,7 +74,7 @@ $(document).ready( function () {
                 },
                 {data: 'id'},
                 {data: 'orders'},
-                {data: 'payment_method'},
+                {data: 'payment_method.name', defaultContent: ''},
                 {data: 'amount_original_string'},
                 {data: 'amount_krw'},
                 {data: 'status'},
@@ -195,8 +195,8 @@ function get_payment_methods() {
         url: '/api/v1/transaction/method',
         success: data => {
             editor.field('payment_method').update(data.map(pm => ({
-                'label': pm.name,
-                'name': pm.id
+                label: pm.name,
+                value: pm.id
             })));
         }
     })
@@ -224,9 +224,10 @@ function on_orders_change() {
 
 function on_currency_change() {
     if (editor.field('currency_code').val()) {
-        var currency = editor.field('currency_code').val();
+        var currency_code = editor.field('currency_code').val();
+        var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            editor.field('amount_original').val(g_amount * g_currencies[currency]);
+            editor.field('amount_original').val(g_amount * currency.rate);
         }
     }
     return {};

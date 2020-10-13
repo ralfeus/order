@@ -2,7 +2,7 @@ var currencies = [];
 
 $.fn.dataTable.ext.buttons.create = {
     action: function(_e, _dt, _node, _config) {
-        window.location = '/wallet/new';
+        window.location = '/transactions/new';
     }
 };
 $.fn.dataTable.ext.buttons.status = {

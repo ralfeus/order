@@ -36,7 +36,7 @@ class Suborder(db.Model, BaseModel):
     def total_krw(self):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity, 
-            self.order_products, 0) + self.local_shipping
+            self.order_products, 0) + (self.local_shipping if self.local_shipping else 0)
 
     def __repr__(self):
         return "<Suborder: {} Order: {}>".format(self.id, self.order_id)

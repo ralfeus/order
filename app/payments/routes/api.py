@@ -22,9 +22,13 @@ def admin_get_transactions(transaction_id):
     '''
     Returns all or selected transactions in JSON
     '''
-    transactions = Transaction.query.all() \
-        if transaction_id is None \
-        else Transaction.query.filter_by(id=transaction_id)
+    transactions = Transaction.query
+    if transaction_id is not None:
+        transactions = transactions.filter_by(id=transaction_id)
+
+    if request.values.get('order_id'):
+        transactions = transactions.filter(
+            Transaction.orders.has(Order.id == request.values['order_id']))
 
     return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
 
@@ -83,17 +87,22 @@ def update_money(transaction, messages):
             #     status=TransactionStatus.approved
             # ))
 
-@bp_api_user.route('/', defaults={'transaction_id': None}, strict_slashes=False)
+@bp_api_user.route('', defaults={'transaction_id': None})
 @bp_api_user.route('/<int:transaction_id>')
 @login_required
 def user_get_transactions(transaction_id):
     '''
     Returns user's or all transactions in JSON
     '''
-    transactions = Transaction.query \
-        if transaction_id is None \
-        else Transaction.query.filter_by(id=transaction_id)
-    transactions = transactions.filter_by(user=current_user)
+    transactions = Transaction.query
+    if not current_user.has_role('admin'):
+        transactions = transactions.filter_by(user=current_user)
+    if transaction_id is not None:
+        transaction = transaction.filter_by(id=transaction_id)
+    if request.values.get('order_id'):
+        transactions = transactions.filter(
+            Transaction.orders.any(Order.id == request.values['order_id']))
+
     return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
 
 @bp_api_user.route('', methods=['POST'])
@@ -113,7 +122,7 @@ def user_create_payment():
         currency=currency,
         amount_sent_original=payload['amount_original'],
         amount_sent_krw=float(payload['amount_original']) / float(currency.rate),
-        payment_method=payload['payment_method'],
+        payment_method_id=payload['payment_method'],
         status=TransactionStatus.pending,
         when_created=datetime.now()
     )

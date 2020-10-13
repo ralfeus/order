@@ -37,6 +37,7 @@ class OrderProduct(db.Model, BaseModel):
             'suborder_id': self.suborder_id,
             'order_product_id': self.id,
             'customer': self.suborder.order.name if self.suborder and self.suborder.order else None,
+            'subcustomer_id': self.suborder.subcustomer_id if self.suborder else None,
             'subcustomer': self.suborder.subcustomer.name if self.suborder and self.suborder.subcustomer else None,
             'buyout_date': self.suborder.buyout_date.strftime('%Y-%m-%d') if self.suborder and self.suborder.buyout_date else None,
             'product_id': self.product_id,
