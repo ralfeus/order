@@ -76,6 +76,13 @@ class PurchaseOrderManager:
                     product_code_input.send_keys(Keys.RETURN)
                     sleep(1)
                 
+                product_line = self.__browser.find_element_by_xpath(
+                    '//tr[td[span[@class="materialCode"]]][last()]')
+                quantity_input = product_line.find_element_by_css_selector(
+                    'input.numberic')
+                quantity_input.clear()
+                quantity_input.send_keys(op.quantity)
+                
                 self.__log(f"Added product {op.product_id}")
             except Exception as ex:
                 self.__log(f"Couldn't add product {op.product_id}")
