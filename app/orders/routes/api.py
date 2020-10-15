@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db
+from app.exceptions import SubcustomerParseError
 from app.models import Country, Shipping, User
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
@@ -153,13 +154,16 @@ def parse_subcustomer(subcustomer_data):
             Subcustomer.name == part, Subcustomer.username == part)).first()
         if subcustomer:
             return subcustomer
-    subcustomer = Subcustomer(
-        username=parts[0].strip(),
-        name=parts[1].strip(),
-        password=parts[2].strip(),
-        when_created=datetime.now())
-    db.session.add(subcustomer)
-    return subcustomer
+    try:
+        subcustomer = Subcustomer(
+            username=parts[0].strip(),
+            name=parts[1].strip(),
+            password=parts[2].strip(),
+            when_created=datetime.now())
+        db.session.add(subcustomer)
+        return subcustomer
+    except IndexError:
+        raise SubcustomerParseError("The subcustomer string doesn't conform <ID, Name, Password> format")
 
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required
@@ -432,9 +436,11 @@ def validate_subcustomer():
     if not payload or not payload.get('subcustomer'):
         abort(Response('No subcustomer data was provided', status=400))
     
-    subcustomer = parse_subcustomer(payload['subcustomer'])
     try:
+        subcustomer = parse_subcustomer(payload['subcustomer'])
         atomy_login(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
+    except SubcustomerParseError as ex:
+        return jsonify({'result': 'failure', 'message': str(ex)})
     except:
         return jsonify({'result': 'failure'})

@@ -551,7 +551,8 @@ function validate_subcustomer(sender) {
                     modal(
                         'Subcustomer verification',
                         "Couldn't verify the subcustomer's credenticals. \n" +
-                        "Problem subcustomer is: \n" + sender.value
+                        "Problem subcustomer is: \n" + sender.value + "\n" +
+                        data.message
                     );
                     $(sender).addClass('is-invalid').removeClass('is-valid');
                 }

@@ -1,0 +1,2 @@
+class SubcustomerParseError(Exception):
+    pass
