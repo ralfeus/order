@@ -1,7 +1,7 @@
 ''' Represents purchase order '''
 import enum
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -14,7 +14,8 @@ class PurchaseOrderStatus(enum.Enum):
     posted = 2
     paid = 3
     delivered = 4
-    failed = 5
+    failed = 5,
+    cancelled = 6
 
 class PurchaseOrder(db.Model, BaseModel):
     __tablename__ = 'purchase_orders'
@@ -34,6 +35,7 @@ class PurchaseOrder(db.Model, BaseModel):
     address_2 = Column(String(64))
     company_id = Column(Integer, ForeignKey('companies.id'))
     company = relationship('Company', foreign_keys=[company_id])
+    status_details = Column(Text)
 
 
     def __init__(self, suborder: Suborder, **kwargs):
@@ -73,6 +75,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'address': self.address,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
+            'status_details': self.status_details,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }

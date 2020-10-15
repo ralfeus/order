@@ -22,9 +22,9 @@ def atomy_login(username, password, browser=None):
                 if local_browser.get_element_by_id('btnRelayPassword'):
                     __ignore_change_password(local_browser)
                 else:
-                    raise AttributeError('Login failed')
+                    raise AttributeError('Login failed', ex)
             except:
-                raise AttributeError('Login failed')
+                raise AttributeError('Login failed', ex)
         finally:
             if not browser:
                 local_browser.quit()

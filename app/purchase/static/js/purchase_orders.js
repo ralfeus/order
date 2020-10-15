@@ -12,8 +12,12 @@ $.fn.dataTable.ext.buttons.repost = {
 $(document).ready( function () {
     g_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
+            var url = '/api/v1/admin/purchase/order';
+            if (data.action == 'edit') {
+                url += '/' + data.data[0].id;
+            }
             $.ajax({
-                url: '/api/v1/admin/purchase/order',
+                url: url,
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
@@ -40,7 +44,8 @@ $(document).ready( function () {
                 name: 'company_id',
                 type: 'select2'
             },
-            {label: 'Contact phone', name: 'contact_phone'}
+            {label: 'Contact phone', name: 'contact_phone'},
+            {label: 'Status', name: 'status', type: 'select2', visible: false}
         ]
     });
     g_editor.on('open', on_editor_open);
@@ -54,6 +59,7 @@ $(document).ready( function () {
             error: xhr => { modal('No purchase orders', xhr.responseText) },
             dataSrc: 'data'
         },
+        rowId: 'id',
         buttons: [
             { extend: 'create', editor: g_editor, text: 'Create purchase order' },
             { extend: 'repost', text: 'Re-post failed purchase orders'}
@@ -63,16 +69,27 @@ $(document).ready( function () {
                 "className": 'purchase-order-actions',
                 "orderable": false,
                 "data": null,
-                "defaultContent": ' \
-                    <button \
-                        class="btn btn-sm btn-secondary btn-open" \
-                        onclick="open_purchase_order(this);">Open</button>'
+                'defaultContent': ''
+                // "defaultContent": ' \
+                //     <button \
+                //         class="btn btn-sm btn-secondary btn-open" \
+                //         onclick="open_purchase_order(this);">Open</button> \
+                    // <button \
+                    //     class="btn btn-sm btn-secondary btn-cancel" \
+                    //     onclick="cancel_purchase_order(this);">Cancel</button>'
             },
             {data: 'id'},
             {data: 'customer'},
             {data: 'total_krw'},
             {data: 'payment_account'},
-            {data: 'status'},
+            {
+                data: 'status',
+                fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
+                    if (oData.status == 'failed') {
+                        $(nTd).html("<a href='#' onclick='show_po_status(\"" + oData.id + "\")'>" + oData.status + "</a>");
+                    }
+                }
+            },
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
@@ -82,6 +99,13 @@ $(document).ready( function () {
         processing: true
     });
 });
+
+function cancel_purchase_order(target) {
+    g_editor
+        .edit($(target).parents('tr')[0], false)
+        .val('status', 'cancelled')
+        .submit();
+}
 
 function get_companies() {
     $.ajax({
@@ -159,4 +183,8 @@ function repost_failed(target) {
             }
         }
     });
+}
+
+function show_po_status(po_id) {
+    modal('', g_purchase_orders_table.row('#' + po_id).data().status_details);
 }

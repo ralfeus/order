@@ -1,6 +1,7 @@
 ''' Fills and submits purchase order at Atomy '''
 from datetime import datetime, timedelta
 from logging import Logger
+from pytz import timezone
 from time import sleep
 
 from app.utils.atomy import atomy_login
@@ -78,8 +79,8 @@ class PurchaseOrderManager:
                 
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
-                quantity_input = product_line.find_element_by_css_selector(
-                    'input.numberic')
+                quantity_input = product_line.find_element_by_xpath(
+                    './/input[@class="numberic"]')
                 quantity_input.clear()
                 quantity_input.send_keys(op.quantity)
                 
@@ -90,10 +91,12 @@ class PurchaseOrderManager:
 
     def __set_purchase_date(self, purchase_date):
         self.__log("PO: Setting purchase date")
-        min_date = (datetime.now() - timedelta(days=2)).date()
-        max_date = (datetime.now() + timedelta(days=1)).date()
+        tz = timezone('Asia/Seoul')
+        today = datetime.now().astimezone(tz)
+        min_date = (today - timedelta(days=2)).date()
+        max_date = (today + timedelta(days=1)).date()
         if purchase_date:
-            purchase_date = (purchase_date + timedelta(hours=7)).date()
+            purchase_date = purchase_date.date()
             if purchase_date >= min_date and \
                 purchase_date <= max_date:
                 date_str = purchase_date.strftime('%Y-%m-%d')

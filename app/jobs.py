@@ -94,6 +94,7 @@ def post_purchase_orders():
                 logger.exception("Failed to post the purchase order %s.", po.id)
                 # logger.warning(ex)
                 po.status = PurchaseOrderStatus.failed
+                po.status_details = str(ex)
             db.session.commit()
         logger.info('Done posting purchase orders')
     except Exception as ex:
