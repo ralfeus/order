@@ -5,13 +5,13 @@ Initialization of the application
 # from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_bootstrap import Bootstrap
-# from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
 from app.config import Config
+from app.services import get_celery
 import app.tools
 
 db = SQLAlchemy()
@@ -32,17 +32,15 @@ def create_app(config=Config, import_name=None):
     Bootstrap(flask_app)
     db.init_app(flask_app)
     migrate.init_app(flask_app, db, compare_type=True)
-    # login.init_app(flask_app)
+    
     from app.models.user import User
     from app.models.role import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)
-    flask_app.logger.info('Blueprints are registered')
-    # init_data(flask_app)
     if flask_app.config.get('DEBUG'):
         init_debug(flask_app)
-
+   
     return flask_app
 
 def register_components(flask_app):
@@ -67,6 +65,8 @@ def register_components(flask_app):
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
     app.purchase.register_blueprints(flask_app)
+    flask_app.logger.info('Blueprints are registered')
+
 
 def init_debug(flask_app):
     import flask_debugtoolbar
@@ -90,3 +90,5 @@ def init_debug(flask_app):
             # Add the line profiling
             # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
         flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')
+
+celery = get_celery(create_app())

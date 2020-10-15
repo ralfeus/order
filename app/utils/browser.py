@@ -29,6 +29,8 @@ class Browser(Chrome):
             options = Options()
             if headless:
                 options.set_headless(headless=True)
+            else:
+                options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
             super().__init__(chrome_options=options)
     
     @classmethod

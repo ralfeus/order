@@ -1,7 +1,6 @@
 ''' Fills and submits purchase order at Atomy '''
 from datetime import datetime, timedelta
 from logging import Logger
-from os.path import realpath
 from time import sleep
 
 from app.utils.atomy import atomy_login
@@ -12,7 +11,9 @@ class PurchaseOrderManager:
     __browser: Browser = None
     __logger: Logger = None
 
-    def __init__(self, browser, logger=None):
+    def __init__(self, browser=None, logger=None):
+        if browser is None:
+            browser = Browser()
         self.__browser = browser
         self.__logger = logger
 
@@ -21,28 +22,36 @@ class PurchaseOrderManager:
 
     def __log(self, entry):
         if self.__logger:
-            self.__logger.info(entry)        
+            self.__logger.info(entry)   
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
         self.__log("PO: Logging in...")
-        atomy_login(
-            purchase_order.customer.username,
-            purchase_order.customer.password,
-            self.__browser)
-        self.__open_quick_order()
-        self.__add_products(purchase_order.order_products)
-        self.__set_purchase_date(purchase_order.purchase_date)
-        self.__set_sender_name()
-        self.__set_purchase_order_id(purchase_order.id) # Receiver name
-        self.__set_receiver_mobile(purchase_order.contact_phone)
-        self.__set_receiver_address(purchase_order.address)
-        self.__set_payment_method()
-        self.__set_payment_mobile(purchase_order.payment_phone)
-        self.__set_payment_destination()
-        self.__set_tax_info(purchase_order.company.tax_id)
-        purchase_order.payment_account = self.__submit_order()
-        return purchase_order
+        try:
+            atomy_login(
+                purchase_order.customer.username,
+                purchase_order.customer.password,
+                self.__browser)
+            self.__open_quick_order()
+            self.__add_products(purchase_order.order_products)
+            self.__set_purchase_date(purchase_order.purchase_date)
+            self.__set_sender_name()
+            self.__set_purchase_order_id(purchase_order.id) # Receiver name
+            self.__set_receiver_mobile(purchase_order.contact_phone)
+            self.__set_receiver_address(purchase_order.address)
+            self.__set_payment_method()
+            self.__set_payment_mobile(purchase_order.payment_phone)
+            self.__set_payment_destination()
+            self.__set_tax_info(purchase_order.company.tax_id)
+            purchase_order.payment_account = self.__submit_order()
+            return purchase_order
+        except Exception as ex:
+            # Saving page for investigation
+            with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
+                f.write(self.__browser.page_source)
+            self.__log(f"PO: Failed to post an order {purchase_order.id}")
+            self.__log(ex)
+            raise ex
 
     @property
     def browser(self):
@@ -76,12 +85,13 @@ class PurchaseOrderManager:
         self.__log("PO: Setting purchase date")
         min_date = (datetime.now() - timedelta(days=2)).date()
         max_date = (datetime.now() + timedelta(days=1)).date()
-        if purchase_date and (
-                purchase_date >= min_date or
-                purchase_date <= max_date):
-            date_str = purchase_date.strftime('%Y-%m-%d')
-            self.__browser.execute_script(
-                f"document.getElementById('sSaleDate').value = '{date_str}'")
+        if purchase_date:
+            purchase_date = (purchase_date + timedelta(hours=7)).date()
+            if purchase_date >= min_date and \
+                purchase_date <= max_date:
+                date_str = purchase_date.strftime('%Y-%m-%d')
+                self.__browser.execute_script(
+                    f"document.getElementById('sSaleDate').value = '{date_str}'")
         # self.__browser.save_screenshot(realpath('03-purchase-date.png'))
 
     def __set_sender_name(self):
@@ -157,7 +167,7 @@ class PurchaseOrderManager:
     def __submit_order(self):
         self.__log("PO: Submitting the order")
         self.__browser.get_element_by_id('chkAgree').click()
-        self.__browser.get_element_by_id('chkEduAgree').click()
+        # self.__browser.get_element_by_id('chkEduAgree').click()
         self.__browser.get_element_by_id('bPayment').click()
         try:
             self.__log('Waiting for order completion page')
@@ -168,13 +178,21 @@ class PurchaseOrderManager:
             raise Exception(ex, ex.args[1])
             
 
-        self.__log("PO: Storing account number to pay")
+        self.__logger.info("Order completion page is loaded.")
+        self.__logger.info('Looking for account number to pay')
         # self.__browser.save_screenshot(realpath('12-submit.png'))
-        headers = self.__browser.find_elements_by_css_selector('th[scope=row]')
-        print("Got theaders")
-        for header in headers:
-            if header.text == '입금계좌': # line with bank account number
-                print("Found bank account line")
-                bank_account = header.find_element_by_xpath('following-sibling::*')
-                return bank_account.text
-        raise Exception("Couldn't get account number to pay to")
+        # headers = self.__browser.find_elements_by_css_selector('th[scope=row]')
+        for attempt in range(1, 4): # Let's try to get account number several times
+            headers = self.__browser.find_elements_by_xpath("//*[text()='입금계좌']")
+            self.__logger.info("Got theaders")
+            for header in headers:
+                # next sibling contains account number
+                if header.find_element_by_xpath('following-sibling::*').text:
+                    self.__logger.info("Found bank account line")
+                    bank_account = header.find_element_by_xpath('following-sibling::*')
+                    return bank_account.text
+            self.__logger.warning("Couldn't find account number at attempt %d.", attempt)
+            sleep(5)
+        
+        self.__logger.warning("Gave up trying")  
+        raise Exception("Couldn't find account number to pay to")

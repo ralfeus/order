@@ -3,13 +3,9 @@ from datetime import datetime
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
-from sqlalchemy.exc import IntegrityError, OperationalError
-
 from app import db
 from app.purchase import bp_api_admin
-from app.purchase.atomy import PurchaseOrderManager
-from app.tools import prepare_datatables_query, start_process
-from app.utils.browser import Browser
+from app.tools import prepare_datatables_query
 
 from app.orders.models import Order, OrderStatus
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
@@ -84,22 +80,11 @@ def create_purhase_order():
     order.status = OrderStatus.po_created
     db.session.commit()
     
-    # start_process(post_purchase_orders, current_app.logger)
-    post_purchase_orders(current_app.logger)
+    from app.jobs import post_purchase_orders
+    task = post_purchase_orders.delay()
+    current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
-    return jsonify(list(map(lambda po: po.to_dict(), purchase_orders)))
-
-def post_purchase_orders(logger):
-    po_manager = PurchaseOrderManager(Browser(), logger)
-    pending_purchase_orders = PurchaseOrder.query.filter_by(
-        status=PurchaseOrderStatus.pending)
-    for po in pending_purchase_orders:
-        try:
-            po_manager.post_purchase_order(po)
-            po.status = PurchaseOrderStatus.posted
-        except Exception as ex:
-            po.status = PurchaseOrderStatus.failed
-        db.session.commit()
+    return (jsonify(list(map(lambda po: po.to_dict(), purchase_orders))), 202)
 
 @bp_api_admin.route('/order/repost', methods=['POST'])
 @roles_required('admin')
@@ -107,10 +92,14 @@ def repost_failed_purchase_orders():
     failed_po = PurchaseOrder.query.filter_by(status=PurchaseOrderStatus.failed)
     for po in failed_po:
         po.status = PurchaseOrderStatus.pending
-    # start_process(post_purchase_orders, current_app.logger)
-    post_purchase_orders(current_app.logger)
+    db.session.commit()
+    from app.jobs import post_purchase_orders
+    task = post_purchase_orders.delay()
+    # from app.tools import start_job
+    # pid = start_job('test', current_app.logger)
+    current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
-    return jsonify(list(map(lambda po: po.to_dict(), failed_po)))
+    return (jsonify(list(map(lambda po: po.to_dict(), failed_po))), 202)
 
 @bp_api_admin.route('/company')
 @roles_required('admin')

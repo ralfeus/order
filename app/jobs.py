@@ -1,10 +1,11 @@
 from datetime import datetime
+from time import sleep
+
 from flask import current_app
 
-from app import db
+from app import celery, db
 from app.import_products import atomy
 from app.products.models import Product
-
 
 def import_products():
     from app import create_app
@@ -61,3 +62,42 @@ def import_products():
                                 same: {same}, new: {new},
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
+
+@celery.task
+def add_together(a, b):
+    for i in range(100):
+        sleep(1)
+    return a + b
+
+@celery.task
+def post_purchase_orders():
+    from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
+    pending_purchase_orders = PurchaseOrder.query.filter_by(
+        status=PurchaseOrderStatus.pending)
+    try: 
+        # Wrap whole operation in order to 
+        # mark all pending POs as failed in case of any failure
+        from celery.utils.log import get_task_logger
+        logger = get_task_logger(__name__)
+
+        from app.purchase.atomy import PurchaseOrderManager
+        po_manager = PurchaseOrderManager(logger=logger)
+
+        logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
+        for po in pending_purchase_orders:
+            logger.info("Posting a purchase order %s", po.id)
+            try:
+                po_manager.post_purchase_order(po)
+                po.status = PurchaseOrderStatus.posted
+                logger.info("Posted a purchase order %s", po.id)
+            except Exception as ex:
+                logger.exception("Failed to post the purchase order %s.", po.id)
+                # logger.warning(ex)
+                po.status = PurchaseOrderStatus.failed
+            db.session.commit()
+        logger.info('Done posting purchase orders')
+    except Exception as ex:
+        for po in pending_purchase_orders:
+            po.status = PurchaseOrderStatus.failed
+        db.session.commit()
+        raise ex

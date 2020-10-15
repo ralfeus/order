@@ -97,3 +97,22 @@ def user_logout():
 @client.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
+
+@client.route('/test', defaults={'task_id': None})
+@client.route('/test/<task_id>')
+def test(task_id):
+    result = None
+    if task_id is None:
+        from app.jobs import add_together
+        result = {'result': add_together.delay(2, 3).id}
+    else:
+        from app import celery
+        from celery.result import AsyncResult
+        task = AsyncResult(task_id, app=celery)
+        result = {'state': task.state}
+        if task.state == 'SUCCESS' or task.state == 'FAILURE':
+            result['result'] = task.result
+
+    from flask import jsonify
+    
+    return jsonify(result)

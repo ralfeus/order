@@ -18,7 +18,12 @@ $(document).ready( function () {
                 dataType: 'json',
                 contentType: 'application/json',
                 data: JSON.stringify(data.data[0]),
-                success: data => success_callback(({data: [data]})),
+                success: (data, _status, xhr) => {
+                    success_callback(({data: [data]}));
+                    if (xhr.status == 202) {
+                        poll_status();
+                    }
+                },
                 error: error
             });     
         },
@@ -129,12 +134,29 @@ function open_purchase_order(target) {
     window.location = g_purchase_orders_table.row($(target).parents('tr')).data().id;
 }
 
+function poll_status() {
+    var data_reload = setInterval(() => {
+        $.ajax({
+            url: '/api/v1/admin/purchase/order?status=pending',
+            error: () => {
+                clearInterval(data_reload);
+            }
+        });
+        g_purchase_orders_table.ajax.reload();
+    }, 30000);
+}
+
 function repost_failed(target) {
     $.ajax({
         url: '/api/v1/admin/purchase/order/repost',
         method: 'post',
         complete: () => {
             g_purchase_orders_table.ajax.reload();
+        },
+        success: (_data, _status, xhr) => {
+            if (xhr.status == 202) {
+                poll_status();
+            }
         }
     });
 }
