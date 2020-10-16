@@ -116,7 +116,7 @@ def user_create_order():
                 local_shipping=0,
                 when_created=datetime.now()
             )
-        except IndexError:
+        except SubcustomerParseError:
             abort(Response(f"""Couldn't find subcustomer and provided data
                                doesn't allow to create new one. Please provide
                                new subcustomer data in format: 
