@@ -43,7 +43,7 @@ def get_purchase_orders(po_id):
 
 @bp_api_admin.route('/order', methods=['POST'])
 @roles_required('admin')
-def create_purhase_order():
+def create_purchase_order():
     '''
     Creates purchase order.
     Accepts order details in payload
