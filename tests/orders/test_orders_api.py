@@ -140,7 +140,9 @@ class TestOrdersApi(BaseTestCase):
                     'quantity': 10,
                     'status': None,
                     'weight': 10,
-                    'buyout_date': None
+                    'buyout_date': None,
+                    'when_created': None,
+                    'when_changed': None
                 }
             ]
         })
@@ -195,28 +197,8 @@ class TestOrdersApi(BaseTestCase):
             'quantity': 100
         }))
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json, {
-            'customer': None,
-            'id': op_id,
-            'order_id': gen_id,
-            'suborder_id': op_id,
-            'buyout_date': None,
-            'order_product_id': op_id,
-            'price': 10,
-            'points': None,
-            'private_comment': None,
-            'product': None,
-            'name': 'Test product',
-            'name_english': None,
-            'name_russian': None,
-            'product_id': '0000', 
-            'public_comment': None, 
-            'quantity': 100,
-            'weight': 10,
-            'status': None,
-            'subcustomer': None,
-            'subcustomer_id': None
-        })
+        self.assertEqual(res.json['quantity'], 100)
+
         res = self.client.get(f'/api/v1/admin/order/{gen_id}')
         self.assertTrue(res.json['total_krw'], 1010)
 

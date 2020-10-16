@@ -52,5 +52,7 @@ class OrderProduct(db.Model, BaseModel):
             # 'comment': self.order.comment,
             'quantity': self.quantity,
             'status': self.status,
-            'weight': self.product.weight
+            'weight': self.product.weight,
+            'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
         }

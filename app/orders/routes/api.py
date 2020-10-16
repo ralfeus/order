@@ -248,11 +248,11 @@ def save_order_product(order_product_id):
     if not order_product:
         abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
 
-    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer', 
+    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer',
                            'private_comment', 'public_comment', 'status']
     for attr in editable_attributes:
         if payload.get(attr):
-            setattr(order_product, attr, type(getattr(order_product, attr))(payload[attr]))
+            setattr(order_product, attr, payload[attr])
             order_product.when_changed = datetime.now()
     try:
         order_product.suborder.order.update_total()

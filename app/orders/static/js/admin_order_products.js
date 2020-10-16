@@ -79,8 +79,10 @@ $(document).ready( function () {
             {data: 'product'},
             {data: 'price', className: 'editable'},
             {data: 'quantity', className: 'editable'},
-            {data: 'status'}
+            {data: 'status'},
+            {data: 'when_created'}
         ],
+        order: [[11, 'desc']],
         keys: {
             columns: '.editable',
             keys: [ 9 ],
