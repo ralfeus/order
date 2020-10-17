@@ -287,7 +287,7 @@ def admin_set_order_product_status(order_product_id, order_product_status):
     })
 
 def add_order_product(suborder, item, errors):
-    product = Product.query.get(item['item_code'])
+    product = Product.get_product_by_id(item['item_code'])
     if product:
         order_product = OrderProduct(
             suborder=suborder,

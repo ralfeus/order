@@ -47,3 +47,17 @@ class Product(db.Model, BaseModel):
             'available': self.available,
             'synchronize': self.synchronize
         }
+
+    @staticmethod
+    def get_product_by_id(product_id):
+        stripped_id = product_id.lstrip('0')
+        product_query = Product.query.filter_by(available=True). \
+            filter(Product.id.endswith(stripped_id)).all()
+        products = [product for product in product_query
+                        if product.id.lstrip('0') == stripped_id]
+        if len(products) == 1:
+            return products[0]
+        elif len(products) == 0:
+            return None
+        else:
+            raise Exception(f"More than one product was found by ID <{product_id}>")
