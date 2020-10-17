@@ -4,7 +4,7 @@ from flask import Response, abort, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, InvalidRequestError, DataError
 
 from app import db
 from app.exceptions import SubcustomerParseError
@@ -81,87 +81,95 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
-    db.session.rollback()
-    request_data = request.get_json()
-    if not request_data:
-        abort(Response("No data is provided", status=400))
-    result = {}
-    shipping = Shipping.query.get(request_data['shipping'])
-    country = Country.query.get(request_data['country'])
-    if not country:
-        abort(Response(f"The country <{request_data['country']}> was not found", status=400))
-    order = Order(
-        user=current_user,
-        name=request_data['name'],
-        address=request_data['address'],
-        country_id=request_data['country'],
-        country=country,
-        shipping=shipping,
-        phone=request_data['phone'],
-        comment=request_data['comment'],
-        subtotal_krw=0,
-        status=OrderStatus.pending,
-        when_created=datetime.now()
-    )
-    # order_products = []
-    errors = []
-    # ordertotal_weight = 0
-    for suborder_data in request_data['suborders']:
-        try:
-            suborder = Suborder(
-                order=order,
-                subcustomer=parse_subcustomer(suborder_data['subcustomer']),
-                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
-                    if suborder_data.get('buyout_date') else None,
-                local_shipping=0,
-                when_created=datetime.now()
-            )
-        except SubcustomerParseError:
-            abort(Response(f"""Couldn't find subcustomer and provided data
-                               doesn't allow to create new one. Please provide
-                               new subcustomer data in format: 
-                               <ID>, <Name>, <Password>
-                               Erroneous data is: {suborder_data['subcustomer']}""",
-                           status=400))
-
-        for item in suborder_data['items']:
+    with db.session.no_autoflush:
+        request_data = request.get_json()
+        if not request_data:
+            abort(Response("No data is provided", status=400))
+        result = {}
+        shipping = Shipping.query.get(request_data['shipping'])
+        country = Country.query.get(request_data['country'])
+        if not country:
+            abort(Response(f"The country <{request_data['country']}> was not found", status=400))
+        order = Order(
+            user=current_user,
+            name=request_data['name'],
+            address=request_data['address'],
+            country_id=request_data['country'],
+            country=country,
+            shipping=shipping,
+            phone=request_data['phone'],
+            comment=request_data['comment'],
+            subtotal_krw=0,
+            status=OrderStatus.pending,
+            when_created=datetime.now()
+        )
+        # order_products = []
+        errors = []
+        new_subcustomers = []
+        # ordertotal_weight = 0
+        for suborder_data in request_data['suborders']:
             try:
-                add_order_product(suborder, item, errors)
-            except:
-                pass
+                subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
+                if is_new:
+                    new_subcustomers.append(subcustomer)
+                suborder = Suborder(
+                    order=order,
+                    subcustomer=subcustomer,
+                    buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
+                        if suborder_data.get('buyout_date') else None,
+                    local_shipping=0,
+                    when_created=datetime.now()
+                )
+            except SubcustomerParseError:
+                abort(Response(f"""Couldn't find subcustomer and provided data
+                                doesn't allow to create new one. Please provide
+                                new subcustomer data in format: 
+                                <ID>, <Name>, <Password>
+                                Erroneous data is: {suborder_data['subcustomer']}""",
+                            status=400))
 
-    order.update_total()
-    db.session.add(order)
+            for item in suborder_data['items']:
+                try:
+                    add_order_product(suborder, item, errors)
+                except:
+                    pass
+
+        order.update_total()
     try:
+        db.session.add(order)
+        db.session.bulk_save_objects(new_subcustomers)
         db.session.commit()
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
             'message': errors
         }
-    except (IntegrityError, OperationalError):
+    except (IntegrityError, OperationalError, DataError) as ex:
         db.session.rollback()
         result = {
             'status': 'error',
-            'message': "Couldn't add order due to input error. Check your form and try again."
+            'message': f"""Couldn't add order due to input error. Check your form and try again.
+                           {str(ex)}"""
         }
     return jsonify(result)
 
-def parse_subcustomer(subcustomer_data):
+def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
+    '''Returns a tuple of customer from raw data 
+    and indication whether customer is existing one or created'''
     parts = subcustomer_data.split(',')
     for part in parts:
         subcustomer = Subcustomer.query.filter(or_(
             Subcustomer.name == part, Subcustomer.username == part)).first()
         if subcustomer:
-            return subcustomer
+            return subcustomer, False
     try:
         subcustomer = Subcustomer(
             username=parts[0].strip(),
             name=parts[1].strip(),
             password=parts[2].strip(),
             when_created=datetime.now())
-        db.session.add(subcustomer)
-        return subcustomer
+        # db.session.add(subcustomer)
+        return subcustomer, True
     except IndexError:
         raise SubcustomerParseError("The subcustomer string doesn't conform <ID, Name, Password> format")
 
@@ -437,7 +445,7 @@ def validate_subcustomer():
         abort(Response('No subcustomer data was provided', status=400))
     
     try:
-        subcustomer = parse_subcustomer(payload['subcustomer'])
+        subcustomer, is_new = parse_subcustomer(payload['subcustomer'])
         atomy_login(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
