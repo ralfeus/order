@@ -24,7 +24,8 @@ def create_app(config=Config, import_name=None):
     Application factory
     '''
     flask_app = Flask(__name__)
-    flask_app.config.from_object(config)
+    # flask_app.config.from_object(config)
+    flask_app.config.from_envvar('ORDER_CONFIG')
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
     flask_app.logger.info(config)
     flask_app.logger.info(import_name)
