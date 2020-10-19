@@ -31,6 +31,9 @@ class TestOrdersApi(BaseTestCase):
         ])
 
     def test_create_order(self):
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10)
+        ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
                 "name":"User1",
@@ -42,14 +45,17 @@ class TestOrdersApi(BaseTestCase):
                 "suborders": [
                     {
                         "subcustomer":"A000, Subcustomer1, P@ssw0rd",
-                        "items": [{"item_code":"0000", "quantity":"1"}]
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
                     }
                 ]
         }))
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json['order_id']
         order = Order.query.get(created_order_id)
-        self.assertEqual(order.total_krw, 2610)
+        self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.shipping.name, 'Shipping1')
 
     def test_save_order(self):

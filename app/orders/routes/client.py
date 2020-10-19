@@ -29,9 +29,8 @@ def new_order():
     return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
 @bp_client_user.route('/<order_id>')
-@bp_client_admin.route('/<order_id>')
 @login_required
-def get_order(order_id):
+def user_get_order(order_id):
     '''
     Existing order form
     '''
@@ -68,4 +67,6 @@ def admin_get_order(order_id):
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order)
-    abort(501)
+    else:
+        return user_get_order(order_id)
+

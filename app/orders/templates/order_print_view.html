@@ -21,6 +21,7 @@
 </table>
 {% for suborder in order.suborders %}
 <h3>{{ order.id }}-{{ suborder.subcustomer.id }}: {{ suborder.subcustomer.name }}</h3>
+{{ suborder.subcustomer.username }} {{ suborder.subcustomer.password }}
 <table class="table">
   <thead>
     <th scope="col" style="width: 1em;">Product ID</th>
