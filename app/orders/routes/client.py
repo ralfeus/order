@@ -29,12 +29,16 @@ def new_order():
     return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
 @bp_client_user.route('/<order_id>')
+@bp_client_admin.route('/<order_id>')
 @login_required
 def get_order(order_id):
     '''
     Existing order form
     '''
-    order = Order.query.filter_by(id=order_id, user=current_user).first()
+    order = Order.query
+    if not current_user.has_role('admin'):
+        order = order.filter_by(user=current_user)
+    order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     return render_template('new_order.html', order_id=order_id)

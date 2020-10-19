@@ -41,7 +41,9 @@ def get_orders(order_id):
 @bp_api_user.route('/<order_id>')
 @login_required
 def user_get_orders(order_id):
-    orders = Order.query.filter_by(user=current_user)
+    orders = Order.query
+    if not current_user.has_role('admin'):
+        order = order.filter_by(user=current_user)
     if order_id is not None:
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:

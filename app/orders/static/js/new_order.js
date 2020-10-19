@@ -201,11 +201,13 @@ function get_shipping_methods(country, weight) {
     $('#shipping').html('');
     $.ajax({
         url: '/api/v1/shipping/' + country + '/' + weight,
-        success: data => {
+        success: (data, _status, xhr) => {
             $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
             if ($('#shipping option').toArray().map(i => i.value).includes(g_selected_shipping_method)) {
                 $('#shipping').val(g_selected_shipping_method);
             }
+            // console.log("Shipping methods are set:", $('#shipping').html());
+            // console.log(xhr);
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
                 success: data => {
@@ -222,13 +224,14 @@ function get_shipping_methods(country, weight) {
                         modal('Something went wrong...', xhr.responseText);
                     }
                 }
-            })
+            });
+            promise.resolve();
         },
         error: (xhr) => {
             $('.modal-body').text(xhr.responseText);
             $('.modal').modal();
-        },
-        complete: () => {promise.resolve()}
+            promise.resolve();
+        }
     });
     return promise;
 }
