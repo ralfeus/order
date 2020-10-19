@@ -41,7 +41,9 @@ def get_orders(order_id):
 @bp_api_user.route('/<order_id>')
 @login_required
 def user_get_orders(order_id):
-    orders = Order.query.filter_by(user=current_user)
+    orders = Order.query
+    if not current_user.has_role('admin'):
+        orders = orders.filter_by(user=current_user)
     if order_id is not None:
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
@@ -81,63 +83,61 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
-    with db.session.no_autoflush:
-        request_data = request.get_json()
-        if not request_data:
-            abort(Response("No data is provided", status=400))
-        result = {}
-        shipping = Shipping.query.get(request_data['shipping'])
-        country = Country.query.get(request_data['country'])
-        if not country:
-            abort(Response(f"The country <{request_data['country']}> was not found", status=400))
-        order = Order(
-            user=current_user,
-            name=request_data['name'],
-            address=request_data['address'],
-            country_id=request_data['country'],
-            country=country,
-            shipping=shipping,
-            phone=request_data['phone'],
-            comment=request_data['comment'],
-            subtotal_krw=0,
-            status=OrderStatus.pending,
-            when_created=datetime.now()
-        )
-        # order_products = []
-        errors = []
-        new_subcustomers = []
-        # ordertotal_weight = 0
-        for suborder_data in request_data['suborders']:
+    request_data = request.get_json()
+    if not request_data:
+        abort(Response("No data is provided", status=400))
+    result = {}
+    shipping = Shipping.query.get(request_data['shipping'])
+    country = Country.query.get(request_data['country'])
+    if not country:
+        abort(Response(f"The country <{request_data['country']}> was not found", status=400))
+    order = Order(
+        user=current_user,
+        name=request_data['name'],
+        address=request_data['address'],
+        country_id=request_data['country'],
+        country=country,
+        shipping=shipping,
+        phone=request_data['phone'],
+        comment=request_data['comment'],
+        subtotal_krw=0,
+        status=OrderStatus.pending,
+        when_created=datetime.now()
+    )
+    # order_products = []
+    errors = []
+    # ordertotal_weight = 0
+    for suborder_data in request_data['suborders']:
+        try:
+            subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
+            if is_new:
+                db.session.add(subcustomer)
+            suborder = Suborder(
+                order=order,
+                subcustomer=subcustomer,
+                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
+                    if suborder_data.get('buyout_date') else None,
+                local_shipping=0,
+                when_created=datetime.now()
+            )
+            db.session.add(suborder)
+        except SubcustomerParseError:
+            abort(Response(f"""Couldn't find subcustomer and provided data
+                            doesn't allow to create new one. Please provide
+                            new subcustomer data in format: 
+                            <ID>, <Name>, <Password>
+                            Erroneous data is: {suborder_data['subcustomer']}""",
+                        status=400))
+
+        for item in suborder_data['items']:
             try:
-                subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
-                if is_new:
-                    new_subcustomers.append(subcustomer)
-                suborder = Suborder(
-                    order=order,
-                    subcustomer=subcustomer,
-                    buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
-                        if suborder_data.get('buyout_date') else None,
-                    local_shipping=0,
-                    when_created=datetime.now()
-                )
-            except SubcustomerParseError:
-                abort(Response(f"""Couldn't find subcustomer and provided data
-                                doesn't allow to create new one. Please provide
-                                new subcustomer data in format: 
-                                <ID>, <Name>, <Password>
-                                Erroneous data is: {suborder_data['subcustomer']}""",
-                            status=400))
+                add_order_product(suborder, item, errors)
+            except:
+                pass
 
-            for item in suborder_data['items']:
-                try:
-                    add_order_product(suborder, item, errors)
-                except:
-                    pass
-
-        order.update_total()
+    order.update_total()
     try:
         db.session.add(order)
-        db.session.bulk_save_objects(new_subcustomers)
         db.session.commit()
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
@@ -295,21 +295,22 @@ def admin_set_order_product_status(order_product_id, order_product_status):
     })
 
 def add_order_product(suborder, item, errors):
-    product = Product.get_product_by_id(item['item_code'])
-    if product:
-        order_product = OrderProduct(
-            suborder=suborder,
-            product=product,
-            price=product.price,
-            quantity=int(item['quantity']),
-            status='Pending')
-        db.session.add(order_product)
-        suborder.order.total_weight += product.weight * order_product.quantity
-        suborder.order.subtotal_krw += product.price * order_product.quantity
-        return order_product
-    else:
-        errors.append(f'{item["item_code"]}: no such product')
-        raise Exception(f'{item["item_code"]}: no such product')
+    with db.session.no_autoflush:
+        product = Product.get_product_by_id(item['item_code'])
+        if product:
+            order_product = OrderProduct(
+                suborder=suborder,
+                product=product,
+                price=product.price,
+                quantity=int(item['quantity']),
+                status='Pending')
+            db.session.add(order_product)
+            suborder.order.total_weight += product.weight * order_product.quantity
+            suborder.order.subtotal_krw += product.price * order_product.quantity
+            return order_product
+        else:
+            errors.append(f'{item["item_code"]}: no such product')
+            raise Exception(f'{item["item_code"]}: no such product')
 
 def update_order_product(order, order_product, item):
     if order_product.quantity != int(item['quantity']):

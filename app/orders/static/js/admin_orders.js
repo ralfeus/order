@@ -1,3 +1,4 @@
+var g_orders_table;
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
@@ -5,14 +6,14 @@ $.fn.dataTable.ext.buttons.invoice = {
 };
 
 $(document).ready( function () {
-    var table = $('#orders').DataTable({
+    g_orders_table = $('#orders').DataTable({
         dom: 'lfrBtip',
         buttons: [
 	    {
 		extend: 'print',
 		text: 'Print order',
 		customize: window => {
-		    window.location = table.rows({selected: true}).data()[0].id + '?view=print'
+		    window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
 		}
 	    },
             {extend: 'invoice', text: 'Create invoice'}
@@ -28,6 +29,15 @@ $(document).ready( function () {
                 "data":           null,
                 "defaultContent": ''
             },
+            {
+                "className":      'order-actions',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ' \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-open" \
+                        onclick="open_order(this);">Open</button>'
+            },            
             {data: 'id'},
             {data: 'user'},
             {data: 'customer'},
@@ -38,7 +48,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[8, 'desc']],
+        order: [[9, 'desc']],
         select: true,
         serverSide: true,
         processing: true
@@ -46,7 +56,7 @@ $(document).ready( function () {
 
     $('#orders tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
-        var row = table.row( tr );
+        var row = g_orders_table.row( tr );
  
         if ( row.child.isShown() ) {
             // This row is already open - close it
@@ -56,7 +66,7 @@ $(document).ready( function () {
         else {
             // First close all open rows
             $('tr.shown').each(function() {
-                table.row(this).child.hide();
+                g_orders_table.row(this).child.hide();
                 $(this).removeClass('shown');
             })
             // Open this row
@@ -145,4 +155,8 @@ function create_invoice(rows) {
             console.log(ex);
         }
     });  
+}
+
+function open_order(target) {
+    window.location = g_orders_table.row($(target).parents('tr')).data().id;
 }

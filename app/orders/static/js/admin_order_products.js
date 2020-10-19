@@ -217,3 +217,4 @@ function setStatus(target, newStatus) {
         alert('Nothing selected');
     }
 }
+

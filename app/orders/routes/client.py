@@ -30,11 +30,14 @@ def new_order():
 
 @bp_client_user.route('/<order_id>')
 @login_required
-def get_order(order_id):
+def user_get_order(order_id):
     '''
     Existing order form
     '''
-    order = Order.query.filter_by(id=order_id, user=current_user).first()
+    order = Order.query
+    if not current_user.has_role('admin'):
+        order = order.filter_by(user=current_user)
+    order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     return render_template('new_order.html', order_id=order_id)
@@ -64,4 +67,6 @@ def admin_get_order(order_id):
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order)
-    abort(501)
+    else:
+        return user_get_order(order_id)
+
