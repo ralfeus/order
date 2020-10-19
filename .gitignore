@@ -60,3 +60,4 @@ app/upload/**
 
 .vscode/**
 config.py
+pylintrc

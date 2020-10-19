@@ -101,17 +101,19 @@ def send_from_upload(path):
 @client.route('/test', defaults={'task_id': None})
 @client.route('/test/<task_id>')
 def test(task_id):
+    from app import celery
     result = None
     if task_id is None:
         from app.jobs import add_together
-        result = {'result': add_together.delay(2, 3).id}
+        result = {'result': celery.submit(add_together, 2, 3).id}
     else:
-        from app import celery
-        from celery.result import AsyncResult
-        task = AsyncResult(task_id, app=celery)
-        result = {'state': task.state}
-        if task.state == 'SUCCESS' or task.state == 'FAILURE':
-            result['result'] = task.result
+        task = celery.get(task_id)
+        if not task.running():
+            result = {'state': task.state}
+            if task.state == 'SUCCESS' or task.state == 'FAILURE':
+                result['result'] = task.result
+        else:
+            result = {'state': 'RUNNING'}
 
     from flask import jsonify
     

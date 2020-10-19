@@ -5,15 +5,17 @@ Initialization of the application
 # from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_bootstrap import Bootstrap
+from flask_execute import Celery
 from flask_migrate import Migrate
 from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
 from app.config import Config
-from app.services import get_celery
+# from app.services import get_celery
 import app.tools
 
+celery = Celery()
 db = SQLAlchemy()
 migrate = Migrate()
 from app.forms import LoginForm
@@ -24,8 +26,8 @@ def create_app(config=Config, import_name=None):
     Application factory
     '''
     flask_app = Flask(__name__)
-    # flask_app.config.from_object(config)
-    flask_app.config.from_envvar('ORDER_CONFIG')
+    flask_app.config.from_object(config)
+    # flask_app.config.from_envvar('ORDER_CONFIG')
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
     flask_app.logger.info(config)
     flask_app.logger.info(import_name)
@@ -33,6 +35,7 @@ def create_app(config=Config, import_name=None):
     Bootstrap(flask_app)
     db.init_app(flask_app)
     migrate.init_app(flask_app, db, compare_type=True)
+    celery.init_app(flask_app)
     
     from app.models.user import User
     from app.models.role import Role
@@ -91,5 +94,3 @@ def init_debug(flask_app):
             # Add the line profiling
             # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
         flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')
-
-celery = get_celery(create_app())
