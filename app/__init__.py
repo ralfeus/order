@@ -2,40 +2,37 @@
 Initialization of the application
 '''
 
-# from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 from flask_bootstrap import Bootstrap
-from flask_execute import Celery
 from flask_migrate import Migrate
 from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-from app.config import Config
-# from app.services import get_celery
+# from app.config import Config
 import app.tools
+from app.utils.services import get_celery, init_celery
 
-celery = Celery()
+celery = get_celery(__name__)
 db = SQLAlchemy()
 migrate = Migrate()
 from app.forms import LoginForm
 security = Security()
 
-def create_app(config=Config, import_name=None):
+def create_app(config='config.py'):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
-    flask_app.config.from_object(config)
+    # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
+    flask_app.config.from_pyfile(config)
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
-    flask_app.logger.info(config)
-    flask_app.logger.info(import_name)
 
     Bootstrap(flask_app)
     db.init_app(flask_app)
     migrate.init_app(flask_app, db, compare_type=True)
-    celery.init_app(flask_app)
+    init_celery(celery, flask_app)
     
     from app.models.user import User
     from app.models.role import Role

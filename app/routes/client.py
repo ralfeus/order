@@ -105,15 +105,12 @@ def test(task_id):
     result = None
     if task_id is None:
         from app.jobs import add_together
-        result = {'result': celery.submit(add_together, 2, 3).id}
+        result = {'result': add_together.delay(2, 3).id}
     else:
-        task = celery.get(task_id)
-        if not task.running():
-            result = {'state': task.state}
-            if task.state == 'SUCCESS' or task.state == 'FAILURE':
-                result['result'] = task.result
-        else:
-            result = {'state': 'RUNNING'}
+        task = celery.AsyncResult(task_id)
+        result = {'state': task.state}
+        if task.ready():
+            result['result'] = task.result
 
     from flask import jsonify
     
