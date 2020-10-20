@@ -65,7 +65,7 @@ class Order(db.Model):
         return self.__status
 
     @status.setter
-    def status(self, value):
+    def status(self, value) -> Column:
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):

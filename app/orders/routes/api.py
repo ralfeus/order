@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Response, abort, jsonify, request
+from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
@@ -452,4 +452,6 @@ def validate_subcustomer():
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
     except:
+        import sys
+        current_app.logger.warning(sys.exc_info())
         return jsonify({'result': 'failure'})
