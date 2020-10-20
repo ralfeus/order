@@ -11,7 +11,7 @@ class Browser(Chrome):
     __instance = None
     __refs_num = 0
 
-    def __new__(cls, headless=True, driver='chromedriver'):
+    def __new__(cls, headless=True, **kwargs):
         if Browser.__instance is None:
             Browser.__create_instanse()
         else:
@@ -24,14 +24,14 @@ class Browser(Chrome):
         Browser.__refs_num += 1
         return Browser.__instance
 
-    def __init__(self, headless=True, driver='chromedriver'):
+    def __init__(self, headless=True, **kwargs):
         if self.__refs_num == 1:
             options = Options()
             if headless:
                 options.set_headless(headless=True)
             else:
                 options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-            super().__init__(driver, chrome_options=options)
+            super().__init__(chrome_options=options, **kwargs)
     
     @classmethod
     def __create_instanse(cls):
