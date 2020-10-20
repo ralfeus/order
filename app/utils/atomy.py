@@ -6,8 +6,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from app.utils.browser import Browser
 
 def atomy_login(username, password, browser=None):
-    local_browser = browser if browser \
-        else Browser(executable_path=current_app.config['SELENIUM_DRIVER'])
+    local_browser = browser if browser else Browser(
+        executable_path=current_app.config['SELENIUM_DRIVER'],
+        connect_to=current_app.config['SELENIUM_BROWSER'] \
+            if current_app.config.get('SELENIUM_BROWSER') \
+            else None)
     local_browser.get('https://www.atomy.kr/v2/Home/Account/Login')
     user_field = local_browser.find_element_by_id('userId')
     password_field = local_browser.find_element_by_id('userPw')

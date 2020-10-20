@@ -24,13 +24,13 @@ class Browser(Chrome):
         Browser.__refs_num += 1
         return Browser.__instance
 
-    def __init__(self, headless=True, **kwargs):
+    def __init__(self, headless=True, connect_to=None, **kwargs):
         if self.__refs_num == 1:
             options = Options()
             if headless:
                 options.set_headless(headless=True)
-            else:
-                options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+            if connect_to:
+                options.add_experimental_option("debuggerAddress", connect_to)
             super().__init__(chrome_options=options, service_log_path='chrome.log', **kwargs)
     
     @classmethod
