@@ -31,7 +31,7 @@ class Browser(Chrome):
                 options.set_headless(headless=True)
             else:
                 options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-            super().__init__(chrome_options=options, **kwargs)
+            super().__init__(chrome_options=options, service_log_path='chrome.log', **kwargs)
     
     @classmethod
     def __create_instanse(cls):
