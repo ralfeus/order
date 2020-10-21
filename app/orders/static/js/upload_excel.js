@@ -60,7 +60,9 @@ function load_excel(data) {
         24: 'zone2',
         25: 'zone3',
         26: 'zone4',
-        27: 'kazakhstan cargo'
+        27: 'kz', // Cargo,
+        28: 'uz', // Cargo
+        29: 'kz' // Russia ????
     };
 
     $('#name').val(ws['B5'].v);
@@ -76,7 +78,13 @@ function load_excel(data) {
                 // console.log("L1: ", ws['L1'].v);
                 // console.log("Shipping before: ", $('#shipping').val());
                 // console.log("Shipping methods:", $('#shipping')[0].options)
-                $('#shipping').val(ws['L1'].v);
+                if (ws['L2'].v == 27) {
+                    $('#shipping').val(3);
+                } else if (ws['L2'].v == 28) {
+                    $('#shipping').val(3);
+                } else {
+                    $('#shipping').val(ws['L1'].v);
+                }
                 // console.log("Shipping after:", $('#shipping').val());
 
                 for (var i = 12; i <= 831; i++) {

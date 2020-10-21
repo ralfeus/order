@@ -75,21 +75,25 @@ class PurchaseOrderManager:
         ordered_products = []
         for op in order_products:
             try:
-                product_code_input.send_keys(op.product_id)
-                while product_code_input.get_attribute('value') == op.product_id:
-                    sleep(0.5)
-                    product_code_input.send_keys(Keys.RETURN)
-                    sleep(1)
-                
-                product_line = self.__browser.find_element_by_xpath(
-                    '//tr[td[span[@class="materialCode"]]][last()]')
-                quantity_input = product_line.find_element_by_xpath(
-                    './/input[@class="numberic"]')
-                quantity_input.clear()
-                quantity_input.send_keys(op.quantity)
-                
-                ordered_products.append(op)
-                self.__log(f"Added product {op.product_id}")
+                if op.quantity > 0:
+                    product_code_input.send_keys(op.product_id)
+                    while product_code_input.get_attribute('value') == op.product_id:
+                        sleep(0.5)
+                        product_code_input.send_keys(Keys.RETURN)
+                        sleep(1)
+                    
+                    product_line = self.__browser.find_element_by_xpath(
+                        '//tr[td[span[@class="materialCode"]]][last()]')
+                    quantity_input = product_line.find_element_by_xpath(
+                        './/input[@class="numberic"]')
+                    quantity_input.clear()
+                    quantity_input.send_keys(op.quantity)
+                    
+                    ordered_products.append(op)
+                    self.__log(f"Added product {op.product_id}")
+                else:
+                    self.__logger.warning('The product %s has wrong quantity %s',
+                        op.product_id, op.quantity)
             except Exception as ex:
                 product_code_input.clear()
                 self.__logger.warning("Couldn't add product %s", op.product_id)

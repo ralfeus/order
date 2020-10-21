@@ -110,7 +110,7 @@ class TestOrdersApi(BaseTestCase):
             'customer': None,
             'invoice_id': None,
             'address': None,
-            'country': {'id': 'c1', 'name': 'country1'},
+            'country': {'id': 'c1', 'name': 'country1', 'sort_order': 999},
             'phone': None,
             'subtotal_krw': 2600,
             'shipping_krw': 100,
