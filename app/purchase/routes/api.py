@@ -89,12 +89,13 @@ def create_purchase_order():
 @bp_api_admin.route('/order/repost', methods=['POST'])
 @roles_required('admin')
 def repost_failed_purchase_orders():
+    from app.jobs import post_purchase_orders
+
     failed_po = PurchaseOrder.query.filter_by(status=PurchaseOrderStatus.failed)
     for po in failed_po:
         po.status = PurchaseOrderStatus.pending
     db.session.commit()
-    from app.jobs import post_purchase_orders
-    task = post_purchase_orders().delay()
+    task = post_purchase_orders.delay()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
     # task = post_purchase_orders() # For debug purposes only
 

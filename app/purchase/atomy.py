@@ -47,6 +47,7 @@ class PurchaseOrderManager:
             purchase_order.payment_account = self.__submit_order()
             for op in ordered_products:
                 op.status = 'Purchased'
+                op.when_changed = datetime.now()
             return purchase_order
         except Exception as ex:
             # Saving page for investigation
