@@ -94,11 +94,9 @@ def repost_failed_purchase_orders():
         po.status = PurchaseOrderStatus.pending
     db.session.commit()
     from app.jobs import post_purchase_orders
-    task = post_purchase_orders.delay()
-    # task = post_purchase_orders()
-    # from app.tools import start_job
-    # pid = start_job('test', current_app.logger)
+    task = post_purchase_orders().delay()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
+    # task = post_purchase_orders() # For debug purposes only
 
     return (jsonify(list(map(lambda po: po.to_dict(), failed_po))), 202)
 

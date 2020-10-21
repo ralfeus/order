@@ -96,7 +96,14 @@ $(document).ready( function () {
         order: [[6, 'desc']],
         select: true,
         serverSide: true,
-        processing: true
+        processing: true,
+        createdRow: (row, data) => {
+            if (data.status == 'failed') {
+                $(row).addClass('red-line');
+            } else if (data.status == 'partially_posted') {
+                $(row).addClass('orange-line');
+            }
+        }
     });
 });
 

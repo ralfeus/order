@@ -11,11 +11,14 @@ from app.orders.models import Suborder
 
 class PurchaseOrderStatus(enum.Enum):
     pending = 1
-    posted = 2
-    paid = 3
-    delivered = 4
-    failed = 5,
-    cancelled = 6
+    partially_posted = 2,
+    posted = 3,
+    paid = 4,
+    payment_past_due = 5,
+    shipped = 6,
+    delivered = 7
+    failed = 8,
+    cancelled = 9
 
 class PurchaseOrder(db.Model, BaseModel):
     __tablename__ = 'purchase_orders'

@@ -34,7 +34,7 @@ class PurchaseOrderManager:
                 purchase_order.customer.password,
                 self.__browser)
             self.__open_quick_order()
-            self.__add_products(purchase_order.order_products)
+            ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_sender_name()
             self.__set_purchase_order_id(purchase_order.id) # Receiver name
@@ -45,6 +45,8 @@ class PurchaseOrderManager:
             self.__set_payment_destination()
             self.__set_tax_info(purchase_order.company.tax_id)
             purchase_order.payment_account = self.__submit_order()
+            for op in ordered_products:
+                op.status = 'Purchased'
             return purchase_order
         except Exception as ex:
             # Saving page for investigation
@@ -69,6 +71,7 @@ class PurchaseOrderManager:
         self.__log("PO: Adding products")
         # add_button = self.__browser.get_element_by_id('btnProductListSearch')
         product_code_input = self.__browser.get_element_by_class('selectGubunInput')
+        ordered_products = []
         for op in order_products:
             try:
                 product_code_input.send_keys(op.product_id)
@@ -84,12 +87,14 @@ class PurchaseOrderManager:
                 quantity_input.clear()
                 quantity_input.send_keys(op.quantity)
                 
+                ordered_products.append(op)
                 self.__log(f"Added product {op.product_id}")
             except Exception as ex:
                 product_code_input.clear()
                 self.__logger.warning("Couldn't add product %s", op.product_id)
                 self.__logger.warning(ex)
         # self.__browser.save_screenshot(realpath('02-products.png'))
+        return ordered_products
 
     def __set_purchase_date(self, purchase_date):
         self.__log("PO: Setting purchase date")
