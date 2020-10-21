@@ -70,6 +70,7 @@ function load_excel(data) {
     $('#phone').val(ws['B7'].v);
     if (ws['L2'].v == 0) {
         $('shipping').val(4); // No shipping
+        load_products(ws);
     } else {
         $('#country').val(countries[ws['L2'].v]);
         // console.log("Country: ", $('#country').val());
@@ -86,32 +87,7 @@ function load_excel(data) {
                     $('#shipping').val(ws['L1'].v);
                 }
                 // console.log("Shipping after:", $('#shipping').val());
-
-                for (var i = 12; i <= 831; i++) {
-                    // Line is beginning of a new subcustomer but no subcustomer data provided
-                    // it means no new entries in the file
-                    if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
-                    // Just empty line. Ignored
-                    if (!ws['A' + i]) continue;
-                    // The line is beginning of new subcustomer
-                    if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
-                        current_node = add_user(ws['B' + i].v);
-                        item = 0;
-                    // The line is product line
-                    } else {
-                        var quantity;
-                        if (ws['D' + i]) {
-                            quantity = parseInt(ws['D' + i].v);
-                        } else {
-                            quantity = 0;
-                        }
-                        if (isNaN(quantity)) {
-                            quantity = 0;
-                        }
-                        add_product(current_node, item, ws['A' + i].v, quantity);
-                        item++;
-                    }
-                }            
+                load_products(ws);
             });
     }
     
@@ -146,4 +122,32 @@ function add_user(subcustomer) {
 function cleanup() {
     clear_form();
     delete_subcustomer($('.btn-delete'));
+}
+
+function load_products(ws) {
+    for (var i = 12; i <= 831; i++) {
+        // Line is beginning of a new subcustomer but no subcustomer data provided
+        // it means no new entries in the file
+        if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
+        // Just empty line. Ignored
+        if (!ws['A' + i]) continue;
+        // The line is beginning of new subcustomer
+        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
+            current_node = add_user(ws['B' + i].v);
+            item = 0;
+        // The line is product line
+        } else {
+            var quantity;
+            if (ws['D' + i]) {
+                quantity = parseInt(ws['D' + i].v);
+            } else {
+                quantity = 0;
+            }
+            if (isNaN(quantity)) {
+                quantity = 0;
+            }
+            add_product(current_node, item, ws['A' + i].v, quantity);
+            item++;
+        }
+    }            
 }
