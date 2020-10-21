@@ -1,7 +1,7 @@
 """country priority
 
 Revision ID: 09d4caed252e
-Revises: 18d483deca4b
+Revises: 13c782dc0a51
 Create Date: 2020-10-21 18:25:45.028442
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = '09d4caed252e'
-down_revision = '18d483deca4b'
+down_revision = '13c782dc0a51'
 branch_labels = None
 depends_on = None
 
