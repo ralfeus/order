@@ -4,12 +4,14 @@ var urlJSZIP = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js";
 var order_product_number = 0;
 
 $(document).ready(() => {
-    $('#excel')
-        .on('change', function() {
-            $('.wait').show();
-            read_file(this.files[0]);
-        })
-    $('.excel').show();
+    g_dictionaries_loaded.then(() => {
+        $('#excel')
+            .on('change', function() {
+                $('.wait').show();
+                read_file(this.files[0]);
+            })
+        $('.excel').show();
+    });
 });
 
 function read_file(file) {
@@ -68,14 +70,13 @@ function load_excel(data) {
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    if (ws['L2'].v == 0) {
-        $('shipping').val(4); // No shipping
-        load_products(ws);
-    } else {
-        $('#country').val(countries[ws['L2'].v]);
-        // console.log("Country: ", $('#country').val());
-        get_shipping_methods(countries[ws['L2'].v], 0)
-            .then(() => {
+    $('#country').val(countries[ws['L2'].v]);
+    get_shipping_methods(countries[ws['L2'].v], 0)
+        .then(() => {
+            if (ws['L2'].v == 0) {
+                $('#shipping').val(4); // No shipping
+            } else {
+                // console.log("Country: ", $('#country').val());
                 // console.log("L1: ", ws['L1'].v);
                 // console.log("Shipping before: ", $('#shipping').val());
                 // console.log("Shipping methods:", $('#shipping')[0].options)
@@ -87,11 +88,9 @@ function load_excel(data) {
                     $('#shipping').val(ws['L1'].v);
                 }
                 // console.log("Shipping after:", $('#shipping').val());
-                load_products(ws);
-            });
-    }
-    
-
+            }
+            load_products(ws);
+        });
     // alert('Order is prefilled. Submit it.');
 }
 
