@@ -86,7 +86,9 @@ class PurchaseOrderManager:
                 
                 self.__log(f"Added product {op.product_id}")
             except Exception as ex:
-                self.__log(f"Couldn't add product {op.product_id}")
+                product_code_input.clear()
+                self.__logger.warning("Couldn't add product %s", op.product_id)
+                self.__logger.warning(ex)
         # self.__browser.save_screenshot(realpath('02-products.png'))
 
     def __set_purchase_date(self, purchase_date):
