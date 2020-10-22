@@ -7,7 +7,9 @@ def get_celery(flask_app):
         backend='rpc://',
         include=['app.jobs']
     )
-    celery.conf.add_defaults(flask_app.config)
+    # celery.conf.add_defaults(flask_app.config)
+    celery.config_from_object(flask_app.config)
+    # celery.conf.task_default_queue = 'order'
 
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):

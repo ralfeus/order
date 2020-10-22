@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Response, abort, jsonify, request
+from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
@@ -114,6 +114,7 @@ def user_create_order():
                 db.session.add(subcustomer)
             suborder = Suborder(
                 order=order,
+                seq_num=suborder_data.get('seq_num'),
                 subcustomer=subcustomer,
                 buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
                     if suborder_data.get('buyout_date') else None,
@@ -133,7 +134,7 @@ def user_create_order():
             try:
                 add_order_product(suborder, item, errors)
             except:
-                pass
+                current_app.logger.exception("Couldn't add product %s", item['item_code'])
 
     order.update_total()
     try:

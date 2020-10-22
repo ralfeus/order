@@ -52,19 +52,20 @@ function populate_order(order_data) {
             return 0;
         }
     })
-    for (op in sorted_order_products) {
-        if (current_subcustomer != sorted_order_products[op].subcustomer) {
-            current_node = add_user(sorted_order_products[op].subcustomer);
-            current_subcustomer = sorted_order_products[op].subcustomer;
-            // item = 0;
-        } else {
-            var button = $('input[id^=add_userItem]', current_node).attr('id');
-            add_product_row(button);
-        }
-        var current_row = $('.item-code', current_node).last().closest('tr')[0];
+    for (i in order_data.suborders) {
+        var suborder = order_data.suborders[i];
+        var current_node = add_user(suborder.subcustomer);
+        $('.subcustomer-seq-num', current_node).val(suborder.seq_num);
+        var order_products = suborder.order_products;
+        for (op in order_products) {
+            if (op > 0) {
+                var button = $('input[id^=add_userItem]', current_node).attr('id');
+                add_product_row(button);
+            }
+            var current_row = $('.item-code', current_node).last().closest('tr')[0];
 
-        fill_product_row(current_row, sorted_order_products[op]);
-        // item++;
+            fill_product_row(current_row, order_products[op]);
+        }
     }
 }
 

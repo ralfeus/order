@@ -133,6 +133,7 @@ function load_products(ws) {
         // The line is beginning of new subcustomer
         if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
             current_node = add_user(ws['B' + i].v);
+            $('.subcustomer-seq-num', current_node).val(ws['A' + i].v);
             item = 0;
         // The line is product line
         } else {
