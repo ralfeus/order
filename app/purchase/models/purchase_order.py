@@ -42,7 +42,7 @@ class PurchaseOrder(db.Model, BaseModel):
 
 
     def __init__(self, suborder: Suborder, **kwargs):
-        self.id = '{}-{:06d}'.format(suborder.order_id, suborder.id)
+        self.id = 'PO-{}'.format(suborder.id[4:])
         self.suborder = suborder
 
         attributes = [a[0] for a in type(self).__dict__.items()

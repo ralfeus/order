@@ -37,7 +37,7 @@ class PurchaseOrderManager:
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_sender_name()
-            self.__set_purchase_order_id(purchase_order.id) # Receiver name
+            self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
