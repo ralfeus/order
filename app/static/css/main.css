@@ -34,6 +34,10 @@
     background-color: peachpuff;
 }
 
+tr.orange-line {
+    color: orange;
+}
+
 tr.red-line {
     color: red;
 }

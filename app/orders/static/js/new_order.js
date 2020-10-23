@@ -313,7 +313,8 @@ function submit_order() {
             comment: $('#comment').val(),
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
-	        buyout_date: $('.subcustomer-buyout-date', user).val(),
+                buyout_date: $('.subcustomer-buyout-date', user).val(),
+                seq_num: $('.subcustomer-seq-num', user).val(),
                 items: $('.item', user).toArray().map(item => ({
                     item_code: $('.item-code', item).val(),
                     quantity: $('.item-quantity', item).val()

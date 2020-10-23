@@ -4,11 +4,12 @@ from time import sleep
 from flask import current_app
 
 from app import celery, db
-from app.import_products import atomy
-from app.products.models import Product
 
 def import_products():
     from app import create_app
+    from app.import_products import atomy
+    from app.products.models import Product
+    
     create_app().app_context().push()
     current_app.logger.info('Starting products import')
     products = Product.query.all()
@@ -70,9 +71,13 @@ def add_together(a, b):
     return a + b
 
 @celery.task
-def post_purchase_orders():
+def post_purchase_orders(po_id=None):
+    from app.orders.models import OrderProduct
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
-    pending_purchase_orders = PurchaseOrder.query.filter_by(
+    pending_purchase_orders = PurchaseOrder.query
+    if po_id:
+        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
+    pending_purchase_orders = pending_purchase_orders.filter_by(
         status=PurchaseOrderStatus.pending)
     try: 
         # Wrap whole operation in order to 
@@ -88,7 +93,14 @@ def post_purchase_orders():
             logger.info("Posting a purchase order %s", po.id)
             try:
                 po_manager.post_purchase_order(po)
-                po.status = PurchaseOrderStatus.posted
+                posted_orders_count = po.order_products.filter_by(status='Purchased').count()
+                if posted_orders_count == po.order_products.count():
+                    po.status = PurchaseOrderStatus.posted
+                elif posted_orders_count > 0:
+                    po.status = PurchaseOrderStatus.partially_posted
+                else:
+                    po.status = PurchaseOrderStatus.failed
+                    logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                 logger.info("Posted a purchase order %s", po.id)
             except Exception as ex:
                 logger.exception("Failed to post the purchase order %s.", po.id)

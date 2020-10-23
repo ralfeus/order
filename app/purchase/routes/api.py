@@ -3,11 +3,13 @@ from datetime import datetime
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
+from sqlalchemy import or_
+
 from app import db
 from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query
 
-from app.orders.models import Order, OrderStatus
+from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 
 @bp_api_admin.route('/order', defaults={'po_id': None})
@@ -28,7 +30,11 @@ def get_purchase_orders(po_id):
     if request.args.get('draw') is not None: # Args were provided by DataTables
         purchase_orders, records_total, records_filtered = prepare_datatables_query(
             purchase_orders, request.values,
-            PurchaseOrder.id.like(f"%{request.values['search[value]']}%")
+            or_(
+                PurchaseOrder.id.like(f"%{request.values['search[value]']}%"),
+                PurchaseOrder.customer.has(
+                    Subcustomer.name.like(f"%{request.values['search[value]']}%"))
+            )
         )
         return jsonify({
             'draw': request.values['draw'],
@@ -86,21 +92,24 @@ def create_purchase_order():
 
     return (jsonify(list(map(lambda po: po.to_dict(), purchase_orders))), 202)
 
-@bp_api_admin.route('/order/repost', methods=['POST'])
+@bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
-def repost_failed_purchase_orders():
-    failed_po = PurchaseOrder.query.filter_by(status=PurchaseOrderStatus.failed)
-    for po in failed_po:
-        po.status = PurchaseOrderStatus.pending
-    db.session.commit()
-    from app.jobs import post_purchase_orders
-    task = post_purchase_orders.delay()
-    # task = post_purchase_orders()
-    # from app.tools import start_job
-    # pid = start_job('test', current_app.logger)
-    current_app.logger.info("Post purchase orders task ID is %s", task.id)
+def repost_failed_purchase_orders(po_id):
+    po = PurchaseOrder.query.get(po_id)
+    if po is None:
+        abort(Response("No Purchase Order <{po_id}> was found", status=404))
 
-    return (jsonify(list(map(lambda po: po.to_dict(), failed_po))), 202)
+    from app.jobs import post_purchase_orders
+    if request.values.get('action') == 'repost'\
+        and po.status == PurchaseOrderStatus.failed:
+
+        po.status = PurchaseOrderStatus.pending
+        db.session.commit()
+        task = post_purchase_orders.delay(po.id)
+        current_app.logger.info("Post purchase orders task ID is %s", task.id)
+    # task = post_purchase_orders() # For debug purposes only
+
+    return (jsonify(po.to_dict()), 202)
 
 @bp_api_admin.route('/company')
 @roles_required('admin')

@@ -4,6 +4,7 @@ Contains api endpoint routes of the application
 from datetime import datetime
 
 from more_itertools import map_reduce
+from operator import itemgetter
 
 from flask import Blueprint, Response, abort, jsonify, request
 from flask_login import current_user, login_required
@@ -20,7 +21,10 @@ api = Blueprint('api', __name__, url_prefix='/api/v1')
 @login_required
 def get_countries():
     countries = Country.query.join(ShippingRate)
-    return jsonify(list(map(lambda c: c.to_dict(), countries)))
+    return jsonify(sorted(
+        list(map(lambda c: c.to_dict(), countries)),
+        key=itemgetter('sort_order', 'name')
+    ))
 
 # @api.route('/currency')
 # def get_currency_rate():
@@ -51,7 +55,9 @@ def get_shipping_methods(country_id, weight):
     if weight:
         shipping_methods = shipping_methods.filter(ShippingRate.weight >= weight)
     if shipping_methods.count():
-        return jsonify(list(map(lambda s: s.to_dict(), shipping_methods)))
+        return jsonify(sorted(
+            list(map(lambda s: s.to_dict(), shipping_methods)),
+            key=itemgetter('name')))
     abort(Response(
         f"Couldn't find shipping method to send {weight}g parcel to {country_name}",
         status=409))

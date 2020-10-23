@@ -143,6 +143,7 @@ class Order(db.Model):
             'status': self.status.name if self.status else None,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
+            'suborders': [suborder.to_dict() for suborder in self.suborders],
             'order_products': [order_product.to_dict() for order_product in self.order_products],
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None

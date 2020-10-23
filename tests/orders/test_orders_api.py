@@ -105,53 +105,7 @@ class TestOrdersApi(BaseTestCase):
         
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/order'))
-        self.assertEqual(res.json[0], {
-            'id': gen_id,
-            'customer': None,
-            'invoice_id': None,
-            'address': None,
-            'country': {'id': 'c1', 'name': 'country1'},
-            'phone': None,
-            'subtotal_krw': 2600,
-            'shipping_krw': 100,
-            'total': 2700,
-            'total_krw': 2700,
-            'total_rur': 1350.0,
-            'total_usd': 1350.0,
-            'shipping': {'id': 1, 'name': 'Shipping1'},
-            'tracking_id': None,
-            'tracking_url': None,
-            'user': 'user1_test_orders_api',
-            'status': None,
-            'when_created': None,
-            'when_changed': None,
-            'order_products': [
-                {
-                    'id': 10,
-                    'order_id': gen_id,
-                    'suborder_id': suborder.id,
-                    'order_product_id': 10,
-                    'customer': None,
-                    'subcustomer': None,
-                    'subcustomer_id': None,
-                    'private_comment': None,
-                    'public_comment': None,
-                    'product_id': '0000',
-                    'product': None,
-                    'name': 'Test product',
-                    'name_english': None,
-                    'name_russian': None,
-                    'price': 10,
-                    'points': None,
-                    'quantity': 10,
-                    'status': None,
-                    'weight': 10,
-                    'buyout_date': None,
-                    'when_created': None,
-                    'when_changed': None
-                }
-            ]
-        })
+        self.assertEqual(res.json[0]['total'], 2700)
 
     def test_get_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -178,11 +132,12 @@ class TestOrdersApi(BaseTestCase):
     def test_get_order_products(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         subcustomer = Subcustomer()
-        suborder = Suborder(order_id=gen_id, subcustomer=subcustomer)
-        self.try_add_entities([
-            Order(id=gen_id, user_id=self.user.id, status=OrderStatus.pending, country_id='c1',
+        order = Order(id=gen_id, user_id=self.user.id, status=OrderStatus.pending, country_id='c1',
                   shipping_method_id=1,
-                  tracking_id='T00', tracking_url='https://tracking.fake/T00'),
+                  tracking_id='T00', tracking_url='https://tracking.fake/T00')
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        self.try_add_entities([
+            order,
             subcustomer,
             suborder
         ])
@@ -193,9 +148,10 @@ class TestOrdersApi(BaseTestCase):
     def test_save_order_product(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         op_id = datetime.now().microsecond
+        order = Order(id=gen_id, user=self.user)
+        suborder = Suborder(id=op_id, order=order)
         self.try_add_entities([
-            Order(id=gen_id, user=self.user),
-            Suborder(id=op_id, order_id=gen_id),
+            order, suborder,
             OrderProduct(id=op_id, suborder_id=op_id, product_id='0000', price=10, quantity=10)
         ])
         res = self.try_admin_operation(
@@ -211,9 +167,10 @@ class TestOrdersApi(BaseTestCase):
     def test_set_order_product_status(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         op_id = datetime.now().microsecond
+        order = Order(id=gen_id, user=self.user)
         self.try_add_entities([
-            Order(id=gen_id, user=self.user),
-            Suborder(id=op_id, order_id=gen_id),
+            order,
+            Suborder(id=op_id, order=order),
             OrderProduct(id=op_id, suborder_id=op_id, product_id='0000', price=10, quantity=10)
         ])
         res = self.try_admin_operation(
@@ -222,12 +179,11 @@ class TestOrdersApi(BaseTestCase):
     def test_get_order_product_status_history(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         subcustomer = Subcustomer()
-        suborder = Suborder(order_id=gen_id, subcustomer=subcustomer)
+        order = Order(id=gen_id, user_id=self.user.id, status='pending', country_id='c1',
+                  tracking_id='T00', tracking_url='https://tracking.fake/T00')
+        suborder = Suborder(order=order, subcustomer=subcustomer)
         self.try_add_entities([
-            Order(id=gen_id, user_id=self.user.id, status='pending', country_id='c1',
-                  tracking_id='T00', tracking_url='https://tracking.fake/T00'),
-            subcustomer,
-            suborder,
+            order, subcustomer, suborder,
             OrderProduct(id=10, suborder=suborder, product_id='0000', price=10, quantity=10),
             OrderProductStatusEntry(order_product_id=10, user_id=self.admin.id,
                 set_at=datetime(2020, 1, 1, 1, 0, 0), status="Pending")
