@@ -62,7 +62,7 @@ $(document).ready( function () {
         rowId: 'id',
         buttons: [
             { extend: 'create', editor: g_editor, text: 'Create purchase order' },
-            { extend: 'repost', text: 'Re-post failed purchase orders'}
+            { extend: 'repost', text: 'Re-post select failed POs'}
         ],
         columns: [
             {
