@@ -42,7 +42,10 @@ class PurchaseOrder(db.Model, BaseModel):
 
 
     def __init__(self, suborder: Suborder, **kwargs):
-        self.id = 'PO-{}'.format(suborder.id[4:])
+        if len(suborder.id) > 5:
+            self.id = 'PO-{}'.format(suborder.id[4:])
+        else:
+            self.id = 'PO-{}-{}'.format(suborder.order_id[4:], suborder.id)
         self.suborder = suborder
 
         attributes = [a[0] for a in type(self).__dict__.items()
