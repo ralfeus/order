@@ -9,7 +9,7 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-# from app.config import Config
+from app.config import Config
 import app.tools
 from app.utils.services import get_celery, init_celery
 
@@ -19,14 +19,14 @@ migrate = Migrate()
 from app.forms import LoginForm
 security = Security()
 
-def create_app(config='config.py'):
+def create_app(config=Config):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_pyfile(config)
+    flask_app.config.from_object(config)
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
     Bootstrap(flask_app)
