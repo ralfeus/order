@@ -3,11 +3,13 @@ from datetime import datetime
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
+from sqlalchemy import or_
+
 from app import db
 from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query
 
-from app.orders.models import Order, OrderStatus
+from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 
 @bp_api_admin.route('/order', defaults={'po_id': None})
@@ -28,7 +30,11 @@ def get_purchase_orders(po_id):
     if request.args.get('draw') is not None: # Args were provided by DataTables
         purchase_orders, records_total, records_filtered = prepare_datatables_query(
             purchase_orders, request.values,
-            PurchaseOrder.id.like(f"%{request.values['search[value]']}%")
+            or_(
+                PurchaseOrder.id.like(f"%{request.values['search[value]']}%"),
+                PurchaseOrder.customer.has(
+                    Subcustomer.name.like(f"%{request.values['search[value]']}%"))
+            )
         )
         return jsonify({
             'draw': request.values['draw'],

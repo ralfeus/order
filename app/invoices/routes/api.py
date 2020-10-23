@@ -73,7 +73,8 @@ def get_invoices(invoice_id):
                 invoices, request.values,
                 or_(                
                     Invoice.id.like(f"%{request.values['search[value]']}%"),
-                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%")))
+                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%")),
+                    Invoice.customer.like(f"%{request.values['search[value]']}%"))
             )
             return jsonify({
                 'draw': request.values['draw'],
