@@ -71,10 +71,13 @@ def add_together(a, b):
     return a + b
 
 @celery.task
-def post_purchase_orders():
+def post_purchase_orders(po_id=None):
     from app.orders.models import OrderProduct
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
-    pending_purchase_orders = PurchaseOrder.query.filter_by(
+    pending_purchase_orders = PurchaseOrder.query
+    if po_id:
+        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
+    pending_purchase_orders = pending_purchase_orders.filter_by(
         status=PurchaseOrderStatus.pending)
     try: 
         # Wrap whole operation in order to 

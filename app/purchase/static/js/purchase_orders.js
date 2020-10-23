@@ -4,8 +4,8 @@ var g_orders;
 var g_purchase_orders_table;
 
 $.fn.dataTable.ext.buttons.repost = {
-    action: function(_e, _dt, _node, _config) {
-        repost_failed(_dt.data({selected: true}));
+    action: function(_e, dt, _node, _config) {
+        repost_failed(dt.rows({selected: true}));
     }
 };
 
@@ -62,7 +62,7 @@ $(document).ready( function () {
         rowId: 'id',
         buttons: [
             { extend: 'create', editor: g_editor, text: 'Create purchase order' },
-            // { extend: 'repost', text: 'Re-post failed purchase orders'}
+            { extend: 'repost', text: 'Re-post failed purchase orders'}
         ],
         columns: [
             {
@@ -177,18 +177,20 @@ function poll_status() {
     }, 30000);
 }
 
-function repost_failed(target) {
-    $.ajax({
-        url: '/api/v1/admin/purchase/order/repost',
-        method: 'post',
-        complete: () => {
-            g_purchase_orders_table.ajax.reload();
-        },
-        success: (_data, _status, xhr) => {
-            if (xhr.status == 202) {
-                poll_status();
+function repost_failed(rows) {
+    var pos = rows.data().map(row => row.id).toArray();
+    pos.forEach(po_id => {
+        $.ajax({
+            url: '/api/v1/admin/purchase/order/' + po_id + '?action=repost',
+            method: 'post',
+            success: (data, _status, xhr) => {
+                var row = rows.select(data.id);
+                row.data(data).draw();
+                if (xhr.status == 202) {
+                    poll_status();
+                }
             }
-        }
+        });        
     });
 }
 

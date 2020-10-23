@@ -92,20 +92,24 @@ def create_purchase_order():
 
     return (jsonify(list(map(lambda po: po.to_dict(), purchase_orders))), 202)
 
-@bp_api_admin.route('/order/repost', methods=['POST'])
+@bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
-def repost_failed_purchase_orders():
-    from app.jobs import post_purchase_orders
+def repost_failed_purchase_orders(po_id):
+    po = PurchaseOrder.query.get(po_id)
+    if po is None:
+        abort(Response("No Purchase Order <{po_id}> was found", status=404))
 
-    failed_po = PurchaseOrder.query.filter_by(status=PurchaseOrderStatus.failed)
-    for po in failed_po:
+    from app.jobs import post_purchase_orders
+    if request.values.get('action') == 'repost'\
+        and po.status == PurchaseOrderStatus.failed:
+
         po.status = PurchaseOrderStatus.pending
-    db.session.commit()
-    task = post_purchase_orders.delay()
-    current_app.logger.info("Post purchase orders task ID is %s", task.id)
+        db.session.commit()
+        task = post_purchase_orders.delay(po.id)
+        current_app.logger.info("Post purchase orders task ID is %s", task.id)
     # task = post_purchase_orders() # For debug purposes only
 
-    return (jsonify(list(map(lambda po: po.to_dict(), failed_po))), 202)
+    return (jsonify(po.to_dict()), 202)
 
 @bp_api_admin.route('/company')
 @roles_required('admin')
