@@ -14,6 +14,7 @@ class Company(db.Model, BaseModel):
     phone = Column(String(13))
     address_id = Column(Integer, ForeignKey('addresses.id'))
     address = relationship('Address', foreign_keys=[address_id])
+    bank_id = Column(String(2))
 
     def __repr__(self):
         return f"<Company {self.id}: {self.name}>"

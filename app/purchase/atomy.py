@@ -23,7 +23,7 @@ class PurchaseOrderManager:
 
     def __log(self, entry):
         if self.__logger:
-            self.__logger.info(entry)   
+            self.__logger.info(entry)
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
@@ -42,7 +42,7 @@ class PurchaseOrderManager:
             self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
             self.__set_payment_mobile(purchase_order.payment_phone)
-            self.__set_payment_destination()
+            self.__set_payment_destination(purchase_order.bank_id)
             self.__set_tax_info(purchase_order.company.tax_id)
             purchase_order.payment_account = self.__submit_order()
             for op in ordered_products:
@@ -166,10 +166,10 @@ class PurchaseOrderManager:
         self.__browser.get_element_by_id('settleGubun2_input').click()
         # self.__browser.save_screenshot(realpath('09-payment-method.png'))
 
-    def __set_payment_destination(self):
+    def __set_payment_destination(self, bank_id='06'):
         self.__log("PO: Setting payment receiver")
         self.__browser.execute_script(
-            "document.getElementById('sBank').value = '06'")
+            f"document.getElementById('sBank').value = '{bank_id}'")
         # self.__browser.save_screenshot(realpath('10-payment-dst.png'))
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):

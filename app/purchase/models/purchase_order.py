@@ -25,7 +25,7 @@ class PurchaseOrder(db.Model, BaseModel):
 
     ''' Represents purchase order '''
     id = Column(String(23), primary_key=True, nullable=False)
-    suborder_id = Column(Integer, ForeignKey('suborders.id'))
+    suborder_id = Column(String(20), ForeignKey('suborders.id'))
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
     customer = relationship('Subcustomer', foreign_keys=[customer_id])
@@ -63,6 +63,10 @@ class PurchaseOrder(db.Model, BaseModel):
     @property
     def address(self):
         return {'zip': self.zip, 'address_1': self.address_1, 'address_2': self.address_2}
+
+    @property
+    def bank_id(self):
+        return self.company.bank_id
 
     def __repr__(self):
         return "<PurchaseOrder: {}>".format(self.id)
