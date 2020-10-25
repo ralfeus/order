@@ -8,9 +8,9 @@ class Company(db.Model, BaseModel):
     __tablename__ = 'companies'
 
     name = Column(String(32))
-    tax_id_1 = Column(Integer)
-    tax_id_2 = Column(Integer)
-    tax_id_3 = Column(Integer)
+    tax_id_1 = Column(String(3))
+    tax_id_2 = Column(String(2))
+    tax_id_3 = Column(String(5))
     phone = Column(String(13))
     address_id = Column(Integer, ForeignKey('addresses.id'))
     address = relationship('Address', foreign_keys=[address_id])

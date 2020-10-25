@@ -1,5 +1,6 @@
 ''' Fills and submits purchase order at Atomy '''
 from datetime import datetime, timedelta
+from functools import reduce
 from logging import Logger
 from pytz import timezone
 from time import sleep
@@ -38,6 +39,10 @@ class PurchaseOrderManager:
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_sender_name()
             self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
+            total_ordered_amount = reduce(
+                lambda acc, op: acc + op.price * op.quantity, ordered_products, 0)
+            if total_ordered_amount < 30000:
+                self.__set_combined_shipment()
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
@@ -115,6 +120,12 @@ class PurchaseOrderManager:
                 self.__browser.execute_script(
                     f"document.getElementById('sSaleDate').value = '{date_str}'")
         # self.__browser.save_screenshot(realpath('03-purchase-date.png'))
+
+    def __set_combined_shipment(self):
+        self.__log("PO: Setting combined shipment")
+        self.__browser.get_element_by_id('cPackingMemo2').click()
+        self.__browser.get_element_by_id('all-agree').click()
+        self.__browser.get_element_by_class('btnInsert').click()
 
     def __set_sender_name(self):
         self.__log("PO: Setting sender name")
