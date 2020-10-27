@@ -48,6 +48,14 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
+        columnDefs: [
+            {
+                targets: [9, 10],
+                render: (data, type, row, meta) => {
+                    return format_date(new Date(data));
+                }
+            }
+        ],
         order: [[9, 'desc']],
         select: true,
         serverSide: true,

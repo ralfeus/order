@@ -9,3 +9,15 @@ function modal(title, text) {
     $('.modal-body').text(text);
     $('.modal').modal();
 }
+
+function format_date(date) {
+    d = [ date.getFullYear() ].concat([
+        '0' + (date.getMonth() + 1),
+        '0' + date.getDate(),
+        '0' + date.getHours(),
+        '0' + date.getMinutes()
+    ].map(component => component.slice(-2))); // take last 2 digits of every component
+
+    // join the components into date
+    return d.slice(0, 3).join('-') + ' ' + d.slice(3).join(':');
+}

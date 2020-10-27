@@ -15,9 +15,9 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 def admin_dashboard():
     '''
     Shows admin dashboard
-    Currently it's a list of order products
+    Currently it's a list of ordes
     '''
-    return redirect('orders/products')
+    return redirect('orders')
 
 @admin.route('/users/new', methods=['GET', 'POST'])
 @roles_required('admin')
