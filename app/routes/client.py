@@ -24,6 +24,10 @@ def index():
     '''
     return redirect('orders')
 
+@client.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static/images', 'favicon.ico')
+
 @client.route('/signup', methods=['GET', 'POST'])
 def user_signup():
     """
