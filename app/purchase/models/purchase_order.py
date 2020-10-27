@@ -26,7 +26,7 @@ class PurchaseOrder(db.Model, BaseModel):
     ''' Represents purchase order '''
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(12))
-    suborder_id = Column(String(20), ForeignKey('suborders.id'))
+    suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
     customer = relationship('Subcustomer', foreign_keys=[customer_id])

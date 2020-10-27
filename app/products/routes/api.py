@@ -89,7 +89,7 @@ def save_product(product_id):
 
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
-                           'synchronize']
+                           'synchronize', 'purchase']
     for attr in editable_attributes:
         if payload.get(attr) is not None:
             setattr(product, attr, payload[attr])

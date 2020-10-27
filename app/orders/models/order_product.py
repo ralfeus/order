@@ -14,7 +14,7 @@ class OrderProduct(db.Model, BaseModel):
 
     # Keep for back compatibility, remove when not needed
     order_id = Column(String(16), ForeignKey('orders.id'))
-    suborder_id = Column(String(20), ForeignKey('suborders.id'))
+    suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')

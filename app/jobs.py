@@ -64,10 +64,10 @@ def import_products():
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
 
-@celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(1800, update_purchase_orders_status,
-        name='Update PO status every 30 minutes')
+# @celery.on_after_finalize.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     sender.add_periodic_task(1800, update_purchase_orders_status,
+#         name='Update PO status every 30 minutes')
 
 
 @celery.task

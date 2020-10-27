@@ -13,6 +13,7 @@ $(document).ready( function () {
             }
             target.available = target.available[0]
             target.synchronize = target.synchronize[0]
+            target.purchase = target.purchase[0]
             $.ajax({
                 url: url,
                 method: method,
@@ -44,6 +45,14 @@ $(document).ready( function () {
             {
                 label: 'Synchronize', 
                 name: 'synchronize', 
+                type: 'checkbox', 
+                options: [{label:'', value:true}],
+                def: true,
+                unselectedValue: false
+            },
+            {
+                label: 'Purchase', 
+                name: 'purchase', 
                 type: 'checkbox', 
                 options: [{label:'', value:true}],
                 def: true,
