@@ -3,6 +3,7 @@ from flask import current_app
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from app.exceptions import AtomyLoginError
 from app.utils.browser import Browser
 
 def atomy_login(username, password, browser=None):
@@ -28,9 +29,9 @@ def atomy_login(username, password, browser=None):
                 if local_browser.get_element_by_id('btnRelayPassword'):
                     __ignore_change_password(local_browser)
                 else:
-                    raise AttributeError('Login failed', ex)
+                    raise AtomyLoginError(ex)
             except:
-                raise AttributeError('Login failed', ex)
+                raise AtomyLoginError(ex)
         finally:
             if not browser:
                 local_browser.quit()

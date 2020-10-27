@@ -132,7 +132,11 @@ def update_purchase_orders_status():
     po_manager = PurchaseOrderManager(logger=logger)
     with create_app().app_context():
         for subcustomer in Subcustomer.query:
-            logger.info("Updating customer %s", subcustomer.name)
-            po_manager.update_purchase_orders_status(subcustomer)
+            try:
+                logger.info("Updating customer %s", subcustomer.name)
+                po_manager.update_purchase_orders_status(subcustomer)
+            except:
+                logger.exception(
+                    "Couldn't update POs status for %s", subcustomer.name)
         db.session.commit()
     logger.info("Done update of PO statuses")
