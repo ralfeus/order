@@ -20,9 +20,13 @@ class Subcustomer(db.Model, BaseModel):
     name = Column(String(128))
     username = Column(String(16))
     password = Column(String(16))
+    suborders = relationship("Suborder", lazy='dynamic')
 
     def __repr__(self):
         return "<Subcustomer: {} {}>".format(self.id, self.name)
+
+    def get_purchase_orders(self):
+        return map(lambda s: s.get_purchase_order(), self.suborders)
 
     def to_dict(self):
         return {

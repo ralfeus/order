@@ -11,13 +11,13 @@ from app.orders.models import Suborder
 
 class PurchaseOrderStatus(enum.Enum):
     pending = 1
-    partially_posted = 2,
-    posted = 3,
-    paid = 4,
-    payment_past_due = 5,
-    shipped = 6,
+    partially_posted = 2
+    posted = 3
+    paid = 4
+    payment_past_due = 5
+    shipped = 6
     delivered = 7
-    failed = 8,
+    failed = 8
     cancelled = 9
 
 class PurchaseOrder(db.Model, BaseModel):
@@ -25,6 +25,7 @@ class PurchaseOrder(db.Model, BaseModel):
 
     ''' Represents purchase order '''
     id = Column(String(23), primary_key=True, nullable=False)
+    vendor_po_id = Column(String(12))
     suborder_id = Column(String(20), ForeignKey('suborders.id'))
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))

@@ -3,7 +3,7 @@ from time import sleep
 
 from flask import current_app
 
-from app import celery, db
+from app import celery, db, create_app
 
 def import_products():
     from app import create_app
@@ -64,6 +64,12 @@ def import_products():
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
 
+@celery.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(1800, update_purchase_orders_status,
+        name='Update PO status every 30 minutes')
+
+
 @celery.task
 def add_together(a, b):
     for i in range(100):
@@ -114,3 +120,19 @@ def post_purchase_orders(po_id=None):
             po.status = PurchaseOrderStatus.failed
         db.session.commit()
         raise ex
+
+@celery.task
+def update_purchase_orders_status():
+    from celery.utils.log import get_task_logger
+    from app.orders.models import Subcustomer
+    from app.purchase.atomy import PurchaseOrderManager
+    
+    logger = get_task_logger(__name__)
+    logger.info("Starting update of PO statuses")
+    po_manager = PurchaseOrderManager(logger=logger)
+    with create_app().app_context():
+        for subcustomer in Subcustomer.query:
+            logger.info("Updating customer %s", subcustomer.name)
+            po_manager.update_purchase_orders_status(subcustomer)
+        db.session.commit()
+    logger.info("Done update of PO statuses")

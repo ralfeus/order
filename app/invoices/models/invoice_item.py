@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 
 from app import db
 from app.invoices.models.invoice import Invoice
+from app.products.models import Product
 from app.models.base import BaseModel
 
 class InvoiceItem(db.Model, BaseModel):

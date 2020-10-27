@@ -13,6 +13,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models import Shipping, NoShipping
+from app.invoices.models import Invoice
 from app.currencies.models import Currency
 
 class OrderStatus(enum.Enum):

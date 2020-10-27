@@ -8,6 +8,11 @@ $.fn.dataTable.ext.buttons.repost = {
         repost_failed(dt.rows({selected: true}));
     }
 };
+$.fn.dataTable.ext.buttons.status_update = {
+    action: function(_e, dt, _node, _config) {
+        update_status(dt.rows({selected: true}));
+    }
+};
 
 $(document).ready( function () {
     g_editor = new $.fn.dataTable.Editor({
@@ -62,7 +67,8 @@ $(document).ready( function () {
         rowId: 'id',
         buttons: [
             { extend: 'create', editor: g_editor, text: 'Create purchase order' },
-            { extend: 'repost', text: 'Re-post select failed POs'}
+            { extend: 'repost', text: 'Re-post selected failed POs'},
+            { extend: 'status_update', text: 'Update selected POs status'}
         ],
         columns: [
             {
@@ -196,4 +202,23 @@ function repost_failed(rows) {
 
 function show_po_status(po_id) {
     modal('', g_purchase_orders_table.row('#' + po_id).data().status_details);
+}
+
+function update_status(rows) {
+    var pos = rows.data().map(row => row.id).toArray();
+    pos_left = pos.length
+    $('.wait').show();
+    pos.forEach(po_id => {
+        $.ajax({
+            url: '/api/v1/admin/purchase/order/' + po_id + '?action=update_status',
+            method: 'post',
+            success: (data, _status, xhr) => {
+                var row = rows.select(data.id);
+                row.data(data).draw();
+                if (!--pos_left) {
+                    $('.wait').hide();
+                }
+            }
+        });        
+    });
 }

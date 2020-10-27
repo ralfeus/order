@@ -5,6 +5,7 @@ from logging import Logger
 from pytz import timezone
 from time import sleep
 
+from app.exceptions import NoPurchaseOrderError
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
 
@@ -20,7 +21,10 @@ class PurchaseOrderManager:
         self.__logger = logger
 
     def __del__(self):
-        self.__browser.quit()
+        try:
+            self.__browser.quit()
+        except:
+            pass
 
     def __log(self, entry):
         if self.__logger:
@@ -49,15 +53,17 @@ class PurchaseOrderManager:
             self.__set_payment_mobile(purchase_order.payment_phone)
             self.__set_payment_destination(purchase_order.bank_id)
             self.__set_tax_info(purchase_order.company.tax_id)
-            purchase_order.payment_account = self.__submit_order()
+            po_params = self.__submit_order()
+            purchase_order.vendor_po_id = po_params[0]
+            purchase_order.payment_account = po_params[1]
             for op in ordered_products:
                 op.status = 'Purchased'
                 op.when_changed = datetime.now()
             return purchase_order
         except Exception as ex:
             # Saving page for investigation
-            with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
-                f.write(self.__browser.page_source)
+            # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
+            #     f.write(self.__browser.page_source)
             self.__log(f"PO: Failed to post an order {purchase_order.id}")
             self.__log(ex)
             raise ex
@@ -212,9 +218,21 @@ class PurchaseOrderManager:
             
 
         self.__logger.info("Order completion page is loaded.")
+        return self.__get_po_params()
+        
+
+    def __get_po_params(self):
+        self.__logger.info('Looking for purchase order number')
+        po_id = None
+        for attempt in range(1, 4):
+            po_id_span = self.__browser.find_element_by_css_selector('div.cartTopbtn span.blue')
+            if po_id_span:
+                po_id = po_id_span.text
+                break
+        if not po_id:
+            raise Exception("Couldn't get PO number")
+
         self.__logger.info('Looking for account number to pay')
-        # self.__browser.save_screenshot(realpath('12-submit.png'))
-        # headers = self.__browser.find_elements_by_css_selector('th[scope=row]')
         for attempt in range(1, 4): # Let's try to get account number several times
             headers = self.__browser.find_elements_by_xpath("//*[text()='입금계좌']")
             self.__logger.info("Got theaders")
@@ -223,9 +241,76 @@ class PurchaseOrderManager:
                 if header.find_element_by_xpath('following-sibling::*').text:
                     self.__logger.info("Found bank account line")
                     bank_account = header.find_element_by_xpath('following-sibling::*')
-                    return bank_account.text
+                    return po_id, bank_account.text
             self.__logger.warning("Couldn't find account number at attempt %d.", attempt)
             sleep(5)
-        
         self.__logger.warning("Gave up trying")  
         raise Exception("Couldn't find account number to pay to")
+
+    def update_purchase_order_status(self, purchase_order):
+        atomy_login(
+            purchase_order.customer.username,
+            purchase_order.customer.password,
+            self.__browser)
+        vendor_purchase_orders = self.__get_purchase_orders()
+        for o in vendor_purchase_orders:
+            print(str(o))
+            if o['id'] == purchase_order.vendor_po_id:
+                purchase_order.status = o['status']
+                return purchase_order
+
+        raise NoPurchaseOrderError(
+            'No corresponding purchase order for Atomy PO <%s> was found' %
+            o['id'])
+        
+
+    def update_purchase_orders_status(self, subcustomer):
+        atomy_login(
+            subcustomer.username,
+            subcustomer.password,
+            self.__browser)
+        vendor_purchase_orders = self.__get_purchase_orders()
+        subcustomer_purchase_orders = subcustomer.get_purchase_orders()
+        for o in vendor_purchase_orders:
+            print(str(o))
+            filtered_po = filter(
+                lambda po: po and po.vendor_po_id == o['id'],
+                subcustomer_purchase_orders)
+            try:
+                po = next(filtered_po)
+                po.status = o['status']
+            except:
+                self.__logger.warning(
+                    'No corresponding purchase order for Atomy PO <%s> was found', 
+                    o['id'])
+
+    def __get_purchase_orders(self):
+        # self.__logger.info("Getting orders")
+        self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
+        
+        order_lines = []
+        while not len(order_lines):
+            # self.__logger.info('Getting order lines')
+            order_lines = self.__browser.find_elements_by_css_selector(
+                "tbody#tbdList tr:nth-child(odd)")
+            sleep(1)
+        orders = map(self.__line_to_dict,
+            order_lines
+        )
+        return orders
+
+    def __line_to_dict(self, l):
+        from app.purchase.models import PurchaseOrderStatus
+        po_statuses = {
+            '주문접수': PurchaseOrderStatus.posted,
+            '배송중': PurchaseOrderStatus.shipped,
+            '미결제마감': PurchaseOrderStatus.payment_past_due,
+            '결제완료': PurchaseOrderStatus.paid,
+            '상품준비중': PurchaseOrderStatus.paid,
+            '주문취소': PurchaseOrderStatus.cancelled
+        }       
+        # print(l.text)
+        return {
+            'id': l.find_element_by_css_selector('td:nth-child(2)').text,
+            'status': po_statuses[l.find_element_by_css_selector('p.fs18').text]
+        }

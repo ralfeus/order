@@ -88,13 +88,14 @@ def create_purchase_order():
     
     from app.jobs import post_purchase_orders
     task = post_purchase_orders.delay()
+    # post_purchase_orders()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
     return (jsonify(list(map(lambda po: po.to_dict(), purchase_orders))), 202)
 
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
-def repost_failed_purchase_orders(po_id):
+def update_purchase_order(po_id):
     po = PurchaseOrder.query.get(po_id)
     if po is None:
         abort(Response("No Purchase Order <{po_id}> was found", status=404))
@@ -104,9 +105,14 @@ def repost_failed_purchase_orders(po_id):
         and po.status == PurchaseOrderStatus.failed:
 
         po.status = PurchaseOrderStatus.pending
-        db.session.commit()
         task = post_purchase_orders.delay(po.id)
+        # post_purchase_orders(po.id)
         current_app.logger.info("Post purchase orders task ID is %s", task.id)
+    elif request.values.get('action') == 'update_status':
+        from app.purchase.atomy import PurchaseOrderManager
+        pom = PurchaseOrderManager()
+        pom.update_purchase_order_status(po)
+    db.session.commit()
     # task = post_purchase_orders() # For debug purposes only
 
     return (jsonify(po.to_dict()), 202)
