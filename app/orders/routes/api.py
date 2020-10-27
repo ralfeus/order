@@ -64,7 +64,7 @@ def filter_orders(orders, filter_params):
             Order.id.like(f"%{filter_params['search[value]']}%"),
             Order.user.has(User.username.like(f"%{filter_params['search[value]']}%")),
             Order.name.like(f"%{filter_params['search[value]']}%"),
-            Order.status.like(f"%{filter_params['search[value]']}%")
+            Order.status == filter_params['search[value]']
         )
     )
     return jsonify({
@@ -384,7 +384,8 @@ def get_order_products():
                 OrderProduct.product_id.like(filter_clause),
                 OrderProduct.product.has(Product.name.like(filter_clause)),
                 OrderProduct.product.has(Product.name_english.like(filter_clause)),
-                OrderProduct.product.has(Product.name_russian.like(filter_clause))
+                OrderProduct.product.has(Product.name_russian.like(filter_clause)),
+                OrderProduct.status == request.values['search[value]']
             )
         )
         outcome = list(map(lambda entry: entry.to_dict(), order_products))
