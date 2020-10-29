@@ -124,7 +124,7 @@ function cleanup() {
 }
 
 function load_products(ws) {
-    for (var i = 12; i <= 831; i++) {
+    for (var i = 12; i <= 2000; i++) {
         // Line is beginning of a new subcustomer but no subcustomer data provided
         // it means no new entries in the file
         if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
