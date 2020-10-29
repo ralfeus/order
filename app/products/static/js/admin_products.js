@@ -96,6 +96,7 @@ $(document).ready( function () {
             },
             {data: 'id'},
             {data: 'name'},
+            {data: 'name_english'},
             {data: 'weight'},
             {data: 'price'},
             {data: 'points'},
@@ -106,13 +107,13 @@ $(document).ready( function () {
                 searchPanes: {
                     show: true
                 },
-                targets: [1, 2, 6]
+                targets: [1, 2, 3, 4, 7]
             }, 
             {
                 searchPanes: {
                     show: false
                 },
-                targets: [0, 3, 4, 5]
+                targets: [0, 3, 5, 6]
             }
         ],
         select: true,
