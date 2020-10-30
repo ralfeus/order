@@ -1,5 +1,6 @@
 ''' Singleton of web browser '''
-from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.common.exceptions import NoSuchElementException,\
+    StaleElementReferenceException, UnexpectedAlertPresentException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -41,8 +42,9 @@ class Browser(Chrome):
         Browser.__instance = super(Browser, cls).__new__(cls)
 
     def __get_by(self, criterium, value):
+        ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
         try:
-            return WebDriverWait(self, 20).until(
+            return WebDriverWait(self, 20, ignored_exceptions=ignored_exceptions).until(
                 EC.presence_of_element_located((criterium, value)))
         except UnexpectedAlertPresentException as ex:
             raise ex
