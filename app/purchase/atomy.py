@@ -282,13 +282,16 @@ class PurchaseOrderManager:
         
 
     def update_purchase_orders_status(self, subcustomer, purchase_orders):
+        self.__logger.info('Attempting to log in as %s...', subcustomer.name)
         atomy_login(
             subcustomer.username,
             subcustomer.password,
             self.__browser)
+        self.__logger.info('Getting subcustomer\'s POs')
         vendor_purchase_orders = self.__get_purchase_orders()
+        self.__logger.debug('Got %s POs', len(list(vendor_purchase_orders)))
         for o in vendor_purchase_orders:
-            print(str(o))
+            self.__logger.info(str(o))
             filtered_po = filter(
                 lambda po: po and po.vendor_po_id == o['id'],
                 purchase_orders)
@@ -309,7 +312,7 @@ class PurchaseOrderManager:
             # self.__logger.info('Getting order lines')
             order_lines = self.__browser.find_elements_by_css_selector(
                 "tbody#tbdList tr:nth-child(odd)")
-            sleep(1)
+            sleep(2)
         if order_lines[0].text == '조회된 정보가 없습니다.':
             order_lines = []
         orders = map(self.__line_to_dict,

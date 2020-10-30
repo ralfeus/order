@@ -148,7 +148,7 @@ def update_purchase_orders_status(po_id=None, browser=None):
         lambda po: po.customer)
     for customer, purchase_orders in grouped_customers.items():
         try:
-            logger.info("Updating customer %s", customer.name)
+            logger.info("Updating subcustomer %s", customer.name)
             po_manager.update_purchase_orders_status(customer, purchase_orders)
         except:
             logger.exception(

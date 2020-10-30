@@ -9,9 +9,11 @@ from app.utils.atomy import atomy_login
 from app.jobs import *
 
 with create_app().app_context():
-    update_purchase_orders_status(Browser(headless=False, connect_to="localhost:9222"))
+    update_purchase_orders_status(
+        po_id='PO-2020-10-0023-001',
+        browser=Browser(headless=False, connect_to="localhost:9222"))
     # pom = PurchaseOrderManager(
-	# 	 Browser(headless=False, connect_to="localhost:9222"), 
+	# 	 Browser(headless=False, connect_to="localhost:9222"),
 	# 	 logging.getLogger('pom'))
     # subcustomer = Subcustomer.query.get(36)
     # pom.update_purchase_orders_status(subcustomer)
