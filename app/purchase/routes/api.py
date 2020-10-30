@@ -101,18 +101,20 @@ def update_purchase_order(po_id):
         abort(Response("No Purchase Order <{po_id}> was found", status=404))
 
     from app.jobs import post_purchase_orders, update_purchase_orders_status
-    if request.values.get('action') == 'repost'\
-        and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
+    try:
+        if request.values.get('action') == 'repost'\
+            and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
 
-        po.status = PurchaseOrderStatus.pending
-        task = post_purchase_orders.delay(po.id)
-        # post_purchase_orders(po.id)
-        current_app.logger.info("Post purchase orders task ID is %s", task.id)
-    elif request.values.get('action') == 'update_status':
-        current_app.logger.info("Updating POs status")
-        task = update_purchase_orders_status.delay(po_id=po_id)
-        current_app.logger.info("Update POs status task ID is %s", task.id)
-        
+            po.status = PurchaseOrderStatus.pending
+            task = post_purchase_orders.delay(po.id)
+            # post_purchase_orders(po.id)
+            current_app.logger.info("Post purchase orders task ID is %s", task.id)
+        elif request.values.get('action') == 'update_status':
+            current_app.logger.info("Updating POs status")
+            task = update_purchase_orders_status.delay(po_id=po_id)
+            current_app.logger.info("Update POs status task ID is %s", task.id)
+    except Exception as ex:
+        abort(Response(po_id, 500))
     db.session.commit()
     # task = post_purchase_orders() # For debug purposes only
 

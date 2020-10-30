@@ -190,7 +190,7 @@ function repost_failed(rows) {
             url: '/api/v1/admin/purchase/order/' + po_id + '?action=repost',
             method: 'post',
             success: (data, _status, xhr) => {
-                var row = rows.select(data.id);
+                var row = rows.select(data.id)
                 row.data(data).draw();
                 if (xhr.status == 202) {
                     poll_status();
@@ -217,8 +217,13 @@ function update_status(rows) {
             //         $('.wait').hide();
             //     }
             // },
-            error: (xhr, request) => {
-                modal('PO: Status update', "Couldn't update PO status");
+            success: (data, _status, xhr) => {
+                var status_cell = g_purchase_orders_table.cell('#' + po_id, 5);
+                status_cell
+                    .data('<img src="/static/images/loaderB16.gif" />&nbsp;' + status_cell.data());
+            },
+            error: xhr => {
+                modal('PO: Status update', "Couldn't update PO status. " + xhr.responseText);
             }
         });        
     });
