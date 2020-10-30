@@ -311,17 +311,16 @@ class PurchaseOrderManager:
         order_lines = []
         while not len(order_lines):
             # self.__logger.info('Getting order lines')
+            sleep(1)
             order_lines = self.__browser.find_elements_by_css_selector(
                 "tbody#tbdList tr:nth-child(odd)")
-            sleep(1)
-        while True:
             try:
-                if order_lines[0].text == '조회된 정보가 없습니다.':
+                if len(order_lines) and order_lines[0].text == '조회된 정보가 없습니다.':
                     order_lines = []
                 break
             except StaleElementReferenceException:
                 self.__logger.warn("Couldn't get order line text. Retrying...")
-                sleep(1)
+                order_lines = []
         orders = list(map(self.__line_to_dict,
             order_lines
         ))
