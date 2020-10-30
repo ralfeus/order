@@ -289,7 +289,7 @@ class PurchaseOrderManager:
             self.__browser)
         self.__logger.info('Getting subcustomer\'s POs')
         vendor_purchase_orders = self.__get_purchase_orders()
-        self.__logger.debug('Got %s POs', len(list(vendor_purchase_orders)))
+        self.__logger.debug('Got %s POs', len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             self.__logger.info(str(o))
             filtered_po = filter(
@@ -312,12 +312,12 @@ class PurchaseOrderManager:
             # self.__logger.info('Getting order lines')
             order_lines = self.__browser.find_elements_by_css_selector(
                 "tbody#tbdList tr:nth-child(odd)")
-            sleep(2)
+            sleep(1)
         if order_lines[0].text == '조회된 정보가 없습니다.':
             order_lines = []
-        orders = map(self.__line_to_dict,
+        orders = list(map(self.__line_to_dict,
             order_lines
-        )
+        ))
         return orders
 
     def __line_to_dict(self, l):
@@ -333,7 +333,8 @@ class PurchaseOrderManager:
         }       
         # print(l.text)
         acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text
+        status_text = l.find_element_by_css_selector('p.fs18').text
         return {
             'id': re.search('^\d+', acc_num_text)[0],
-            'status': po_statuses[l.find_element_by_css_selector('p.fs18').text]
+            'status': po_statuses[status_text]
         }
