@@ -110,7 +110,8 @@ def update_purchase_order(po_id):
         current_app.logger.info("Post purchase orders task ID is %s", task.id)
     elif request.values.get('action') == 'update_status':
         from app.purchase.atomy import PurchaseOrderManager
-        pom = PurchaseOrderManager(logger=current_app.logger)
+        pom = PurchaseOrderManager(
+            logger=current_app.logger, config=current_app.config)
         pom.update_purchase_order_status(po)
     db.session.commit()
     # task = post_purchase_orders() # For debug purposes only
