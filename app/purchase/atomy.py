@@ -5,7 +5,8 @@ from logging import Logger
 from pytz import timezone
 import re
 from time import sleep
-from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.common.exceptions import UnexpectedAlertPresentException,\
+    StaleElementReferenceException
 
 from app.exceptions import NoPurchaseOrderError
 from app.utils.atomy import atomy_login
@@ -313,8 +314,14 @@ class PurchaseOrderManager:
             order_lines = self.__browser.find_elements_by_css_selector(
                 "tbody#tbdList tr:nth-child(odd)")
             sleep(1)
-        if order_lines[0].text == '조회된 정보가 없습니다.':
-            order_lines = []
+        while True:
+            try:
+                if order_lines[0].text == '조회된 정보가 없습니다.':
+                    order_lines = []
+                break
+            except StaleElementReferenceException:
+                self.__logger.warn("Couldn't get order line text. Retrying...")
+                sleep(1)
         orders = list(map(self.__line_to_dict,
             order_lines
         ))
