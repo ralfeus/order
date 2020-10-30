@@ -20,13 +20,15 @@ class PurchaseOrderManager:
     __logger: Logger = None
 
     def __init__(self, browser=None, logger=None, config=None):
+        # if logger:
+        #     logger.info(config)
         if browser is None:
             browser = Browser(
                 executable_path=config['SELENIUM_DRIVER'] \
-                    if config and config.get('SELENIUM_BROWSER') \
+                    if config and config.get('SELENIUM_DRIVER') \
                     else None,
                 connect_to=config['SELENIUM_BROWSER'] \
-                    if config.get('SELENIUM_BROWSER') \
+                    if config and config.get('SELENIUM_BROWSER') \
                     else None)
         self.__browser = browser
         self.__logger = logger
