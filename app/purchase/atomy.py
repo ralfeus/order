@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from functools import reduce
 from logging import Logger
 from pytz import timezone
+import re
 from time import sleep
 from selenium.common.exceptions import UnexpectedAlertPresentException
 
@@ -269,22 +270,21 @@ class PurchaseOrderManager:
             o['id'])
         
 
-    def update_purchase_orders_status(self, subcustomer):
+    def update_purchase_orders_status(self, subcustomer, purchase_orders):
         atomy_login(
             subcustomer.username,
             subcustomer.password,
             self.__browser)
         vendor_purchase_orders = self.__get_purchase_orders()
-        subcustomer_purchase_orders = subcustomer.get_purchase_orders()
         for o in vendor_purchase_orders:
             print(str(o))
             filtered_po = filter(
                 lambda po: po and po.vendor_po_id == o['id'],
-                subcustomer_purchase_orders)
+                purchase_orders)
             try:
                 po = next(filtered_po)
                 po.status = o['status']
-            except:
+            except StopIteration:
                 self.__logger.warning(
                     'No corresponding purchase order for Atomy PO <%s> was found', 
                     o['id'])
@@ -292,13 +292,15 @@ class PurchaseOrderManager:
     def __get_purchase_orders(self):
         # self.__logger.info("Getting orders")
         self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
-        
+        self.__browser.execute_script('SetDateSearch("m", -12)')
         order_lines = []
         while not len(order_lines):
             # self.__logger.info('Getting order lines')
             order_lines = self.__browser.find_elements_by_css_selector(
                 "tbody#tbdList tr:nth-child(odd)")
             sleep(1)
+        if order_lines[0].text == '조회된 정보가 없습니다.':
+            order_lines = []
         orders = map(self.__line_to_dict,
             order_lines
         )
@@ -312,10 +314,12 @@ class PurchaseOrderManager:
             '미결제마감': PurchaseOrderStatus.payment_past_due,
             '결제완료': PurchaseOrderStatus.paid,
             '상품준비중': PurchaseOrderStatus.paid,
-            '주문취소': PurchaseOrderStatus.cancelled
+            '주문취소': PurchaseOrderStatus.cancelled,
+            '배송완료': PurchaseOrderStatus.delivered
         }       
         # print(l.text)
+        acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text
         return {
-            'id': l.find_element_by_css_selector('td:nth-child(2)').text,
+            'id': re.search('^\d+', acc_num_text)[0],
             'status': po_statuses[l.find_element_by_css_selector('p.fs18').text]
         }

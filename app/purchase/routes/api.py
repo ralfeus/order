@@ -102,7 +102,7 @@ def update_purchase_order(po_id):
 
     from app.jobs import post_purchase_orders
     if request.values.get('action') == 'repost'\
-        and po.status == PurchaseOrderStatus.failed:
+        and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
 
         po.status = PurchaseOrderStatus.pending
         task = post_purchase_orders.delay(po.id)
@@ -110,7 +110,7 @@ def update_purchase_order(po_id):
         current_app.logger.info("Post purchase orders task ID is %s", task.id)
     elif request.values.get('action') == 'update_status':
         from app.purchase.atomy import PurchaseOrderManager
-        pom = PurchaseOrderManager()
+        pom = PurchaseOrderManager(logger=current_app.logger)
         pom.update_purchase_order_status(po)
     db.session.commit()
     # task = post_purchase_orders() # For debug purposes only

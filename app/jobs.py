@@ -1,9 +1,11 @@
 from datetime import datetime
+from more_itertools import map_reduce
 from time import sleep
 
 from flask import current_app
+from sqlalchemy import not_
 
-from app import celery, db, create_app
+from app import celery, db
 
 def import_products():
     from app import create_app
@@ -64,10 +66,10 @@ def import_products():
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
 
-# @celery.on_after_finalize.connect
-# def setup_periodic_tasks(sender, **kwargs):
-#     sender.add_periodic_task(1800, update_purchase_orders_status,
-#         name='Update PO status every 30 minutes')
+@celery.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(3600, update_purchase_orders_status,
+        name='Update PO status every 60 minutes')
 
 
 @celery.task
@@ -122,21 +124,30 @@ def post_purchase_orders(po_id=None):
         raise ex
 
 @celery.task
-def update_purchase_orders_status():
+def update_purchase_orders_status(browser=None):
     from celery.utils.log import get_task_logger
     from app.orders.models import Subcustomer
+    from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
     from app.purchase.atomy import PurchaseOrderManager
     
     logger = get_task_logger(__name__)
     logger.info("Starting update of PO statuses")
-    po_manager = PurchaseOrderManager(logger=logger)
-    with create_app().app_context():
-        for subcustomer in Subcustomer.query:
-            try:
-                logger.info("Updating customer %s", subcustomer.name)
-                po_manager.update_purchase_orders_status(subcustomer)
-            except:
-                logger.exception(
-                    "Couldn't update POs status for %s", subcustomer.name)
-        db.session.commit()
+    po_manager = PurchaseOrderManager(logger=logger, browser=browser)
+    pending_purchase_orders = PurchaseOrder.query.filter(
+        not_(PurchaseOrder.status.in_((
+            PurchaseOrderStatus.cancelled,
+            PurchaseOrderStatus.failed,
+            PurchaseOrderStatus.shipped)))
+    )
+    grouped_customers = map_reduce(
+        pending_purchase_orders,
+        lambda po: po.customer)
+    for customer, purchase_orders in grouped_customers.items():
+        try:
+            logger.info("Updating customer %s", customer.name)
+            po_manager.update_purchase_orders_status(customer, purchase_orders)
+        except:
+            logger.exception(
+                "Couldn't update POs status for %s", customer.name)
+    db.session.commit()
     logger.info("Done update of PO statuses")
