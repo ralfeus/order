@@ -207,17 +207,18 @@ function show_po_status(po_id) {
 function update_status(rows) {
     var pos = rows.data().map(row => row.id).toArray();
     pos_left = pos.length
-    $('.wait').show();
+    // $('.wait').show();
     pos.forEach(po_id => {
         $.ajax({
             url: '/api/v1/admin/purchase/order/' + po_id + '?action=update_status',
             method: 'post',
-            success: (data, _status, xhr) => {
-                var row = rows.select(data.id);
-                row.data(data).draw();
-                if (!--pos_left) {
-                    $('.wait').hide();
-                }
+            // complete: () => {
+            //     if (!--pos_left) {
+            //         $('.wait').hide();
+            //     }
+            // },
+            error: (xhr, request) => {
+                modal('PO: Status update', "Couldn't update PO status");
             }
         });        
     });

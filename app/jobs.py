@@ -124,7 +124,7 @@ def post_purchase_orders(po_id=None):
         raise ex
 
 @celery.task
-def update_purchase_orders_status(browser=None):
+def update_purchase_orders_status(po_id=None, browser=None):
     from celery.utils.log import get_task_logger
     from app.orders.models import Subcustomer
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
@@ -133,12 +133,16 @@ def update_purchase_orders_status(browser=None):
     logger = get_task_logger(__name__)
     logger.info("Starting update of PO statuses")
     po_manager = PurchaseOrderManager(logger=logger, browser=browser)
-    pending_purchase_orders = PurchaseOrder.query.filter(
-        not_(PurchaseOrder.status.in_((
-            PurchaseOrderStatus.cancelled,
-            PurchaseOrderStatus.failed,
-            PurchaseOrderStatus.shipped)))
-    )
+    pending_purchase_orders = PurchaseOrder.query
+    if po_id:
+        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
+    else:
+        pending_purchase_orders = pending_purchase_orders.filter(
+            not_(PurchaseOrder.status.in_((
+                PurchaseOrderStatus.cancelled,
+                PurchaseOrderStatus.failed,
+                PurchaseOrderStatus.shipped)))
+        )
     grouped_customers = map_reduce(
         pending_purchase_orders,
         lambda po: po.customer)

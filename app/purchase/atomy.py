@@ -262,11 +262,14 @@ class PurchaseOrderManager:
         raise Exception("Couldn't find account number to pay to")
 
     def update_purchase_order_status(self, purchase_order):
+        self.__logger.info("%s: Logging in...", __name__)
         atomy_login(
             purchase_order.customer.username,
             purchase_order.customer.password,
             self.__browser)
+        self.__logger.info("%s: Getting POs from Atomy...", __name__)
         vendor_purchase_orders = self.__get_purchase_orders()
+        self.__logger.info("%s: Got %s POs", __name__, len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             print(str(o))
             if o['id'] == purchase_order.vendor_po_id:

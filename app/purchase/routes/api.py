@@ -100,7 +100,7 @@ def update_purchase_order(po_id):
     if po is None:
         abort(Response("No Purchase Order <{po_id}> was found", status=404))
 
-    from app.jobs import post_purchase_orders
+    from app.jobs import post_purchase_orders, update_purchase_orders_status
     if request.values.get('action') == 'repost'\
         and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
 
@@ -109,10 +109,10 @@ def update_purchase_order(po_id):
         # post_purchase_orders(po.id)
         current_app.logger.info("Post purchase orders task ID is %s", task.id)
     elif request.values.get('action') == 'update_status':
-        from app.purchase.atomy import PurchaseOrderManager
-        pom = PurchaseOrderManager(
-            logger=current_app.logger, config=current_app.config)
-        pom.update_purchase_order_status(po)
+        current_app.logger.info("Updating POs status")
+        task = update_purchase_orders_status.delay(po_id=po_id)
+        current_app.logger.info("Update POs status task ID is %s", task.id)
+        
     db.session.commit()
     # task = post_purchase_orders() # For debug purposes only
 

@@ -32,6 +32,8 @@ class Browser(Chrome):
                 options.set_headless(headless=True)
             if connect_to:
                 options.add_experimental_option("debuggerAddress", connect_to)
+            if not kwargs.get('executable_path'):
+                kwargs['executable_path'] = 'chromedriver'
             super().__init__(chrome_options=options, service_log_path='chrome.log', **kwargs)
     
     @classmethod
