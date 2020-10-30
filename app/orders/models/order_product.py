@@ -13,8 +13,8 @@ class OrderProduct(db.Model, BaseModel):
     __tablename__ = 'order_products'
 
     # Keep for back compatibility, remove when not needed
-    order_id = Column(String(16), ForeignKey('orders.id')) 
-    suborder_id = Column(Integer, ForeignKey('suborders.id'))
+    order_id = Column(String(16), ForeignKey('orders.id'))
+    suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
@@ -37,6 +37,7 @@ class OrderProduct(db.Model, BaseModel):
             'suborder_id': self.suborder_id,
             'order_product_id': self.id,
             'customer': self.suborder.order.name if self.suborder and self.suborder.order else None,
+            'subcustomer_id': self.suborder.subcustomer_id if self.suborder else None,
             'subcustomer': self.suborder.subcustomer.name if self.suborder and self.suborder.subcustomer else None,
             'buyout_date': self.suborder.buyout_date.strftime('%Y-%m-%d') if self.suborder and self.suborder.buyout_date else None,
             'product_id': self.product_id,
@@ -51,5 +52,7 @@ class OrderProduct(db.Model, BaseModel):
             # 'comment': self.order.comment,
             'quantity': self.quantity,
             'status': self.status,
-            'weight': self.product.weight
+            'weight': self.product.weight,
+            'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
         }

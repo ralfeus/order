@@ -1,3 +1,4 @@
+var g_orders_table;
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
@@ -5,21 +6,21 @@ $.fn.dataTable.ext.buttons.invoice = {
 };
 
 $(document).ready( function () {
-    var table = $('#orders').DataTable({
+    g_orders_table = $('#orders').DataTable({
         dom: 'lfrBtip',
         buttons: [
 	    {
 		extend: 'print',
 		text: 'Print order',
 		customize: window => {
-		    window.location = table.rows({selected: true}).data()[0].id + '?view=print'
+		    window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
 		}
 	    },
             {extend: 'invoice', text: 'Create invoice'}
         ],
         ajax: {
             url: '/api/v1/admin/order',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {
@@ -28,21 +29,42 @@ $(document).ready( function () {
                 "data":           null,
                 "defaultContent": ''
             },
+            {
+                "className":      'order-actions',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ' \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-open" \
+                        onclick="open_order(this);">Open</button>'
+            },            
             {data: 'id'},
             {data: 'user'},
             {data: 'customer'},
-            {data: 'total'},
+            {data: 'subtotal_krw'},
+            {data: 'shipping_krw'},
+            {data: 'total_krw'},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
-        order: [[6, 'desc']],
-        select: true
+        columnDefs: [
+            {
+                targets: [9, 10],
+                render: (data, type, row, meta) => {
+                    return format_date(new Date(data));
+                }
+            }
+        ],
+        order: [[9, 'desc']],
+        select: true,
+        serverSide: true,
+        processing: true
     });
 
     $('#orders tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
-        var row = table.row( tr );
+        var row = g_orders_table.row( tr );
  
         if ( row.child.isShown() ) {
             // This row is already open - close it
@@ -52,7 +74,7 @@ $(document).ready( function () {
         else {
             // First close all open rows
             $('tr.shown').each(function() {
-                table.row(this).child.hide();
+                g_orders_table.row(this).child.hide();
                 $(this).removeClass('shown');
             })
             // Open this row
@@ -99,13 +121,13 @@ function format ( row, data ) {
         .show();
     $('#order-products', order_details).DataTable({
         ajax: {
-            url: '/api/v1/admin/order_product?order_id=' + data.id,
+            url: '/api/v1/admin/order/product?order_id=' + data.id,
             dataSrc: ''
         },
         columns: [
             {data: 'subcustomer'},
-	    {data: 'buyout_date'},
-            {data: 'id'},
+	        {data: 'buyout_date'},
+            {data: 'product_id'},
             {data: 'product', class: 'wrapok'},
             {data: 'price'},
             {data: 'quantity'},
@@ -115,6 +137,7 @@ function format ( row, data ) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping.name);
+    $('#shipping-cost', order_details).val(data.shipping_krw);
     $('#status', order_details).val(data.status);
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);
@@ -140,4 +163,8 @@ function create_invoice(rows) {
             console.log(ex);
         }
     });  
+}
+
+function open_order(target) {
+    window.location = g_orders_table.row($(target).parents('tr')).data().id;
 }

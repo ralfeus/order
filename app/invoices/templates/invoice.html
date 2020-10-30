@@ -31,6 +31,13 @@
                 <label class="input-group-text" for="usd_rate">₩</label>
             </div>
         </div> -->
+        <div id='customer-input-group' class="input-group input-group-sm mb-2">
+            <div class="input-group-prepend">
+                <label id="label" class="input-group-text" for="customer">Customer</label>
+            </div>
+            <input id="customer" class="form-control" aria-label="Small" 
+                aria-describedby="label" value="{{ context.customer }}" disabled/>
+        </div>
         <div id='total-weight-input-group' class="input-group input-group-sm mb-2">
             <div class="input-group-prepend">
                 <label id="label" class="input-group-text" for="total-weight">Total weight</label>

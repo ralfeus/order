@@ -4,17 +4,18 @@ from tests import BaseTestCase, db
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderStatus
 from app.payments.models import PaymentMethod, Transaction, TransactionStatus
-from app.models import Role, User
+from app.purchase.models import Company
+from app.models import Address, Role, User
 
 class TestTransactionApi(BaseTestCase):
     def setUp(self):
         super().setUp()
         db.create_all()
         admin_role = Role(name='admin')
-        self.user = User(username='user' + str(__class__), email='user@name.com',
+        self.user = User(username='user-' + str(__name__), email='user@name.com',
             password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
             enabled=True)
-        self.admin = User(username='admin' + str(__class__), email='admin@name.com',
+        self.admin = User(username='admin-' + str(__name__), email='admin@name.com',
             password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
             enabled=True, roles=[admin_role])
         self.try_add_entities([
@@ -23,16 +24,20 @@ class TestTransactionApi(BaseTestCase):
 
     def test_create_payment(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_id_int = datetime.now().microsecond
         self.try_add_entities([
             Order(id=gen_id, user=self.user),
-            Currency(code='USD', name='US Dollar', rate=1)
+            Currency(code='USD', name='US Dollar', rate=1),
+            Address(id=gen_id_int),
+            Company(id=gen_id_int, address_id=gen_id_int),
+            PaymentMethod(id=gen_id_int, payee_id=gen_id_int)
         ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/transaction', json={
                 'orders': [gen_id],
                 'amount_original': 100,
                 'currency_code': 'USD',
-                'payment_method': 'paypal'
+                'payment_method': gen_id_int
             }))
         self.assertEqual(Transaction.query.count(), 1)
         transaction = Transaction.query.first()
@@ -53,6 +58,17 @@ class TestTransactionApi(BaseTestCase):
                 'amount_received_krw': 100
         }))
         self.assertEqual(res.json['transaction']['amount_received_krw'], 100)
+
+    def test_approve_transaction_no_received_krw(self):
+        currency = Currency(code='KRW', rate=1)
+        transaction = Transaction(amount_sent_original=100, currency=currency,
+                                  user=self.user, status=TransactionStatus.pending)
+        self.try_add_entities([currency, transaction])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/transaction/{transaction.id}', json={
+                'status': 'approved'
+        }))
+        self.assertEqual(res.status_code, 400)     
     
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

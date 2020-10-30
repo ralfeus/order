@@ -20,9 +20,12 @@
     <table id="orders" class="table">
         <thead>
             <th></th>
+            <th></th>
             <th scope="col" style="width: 2em;">Order&nbsp;ID</th>
             <th scope="col" style="width: 2em;">Creator</th>
             <th scope="col" style="width: max-content;">Customer</th>
+            <th scope="col" style="width: 2em;">Subtotal (KRW)</th>
+            <th scope="col" style="width: 2em;">Shipping (KRW)</th>
             <th scope="col" style="width: 2em;">Total (KRW)</th>
             <th scope="col" style="width: 2em;">Status</th>
             <th scope="col" style="width: 8em;">When created</th>
@@ -68,9 +71,18 @@
             </div>
             <div id='shipping-input-group' class="input-group input-group-sm mb-2">
                 <div class="input-group-prepend">
-                    <label id="label" class="input-group-text" for="shipping">Shipping</label>
+                    <label id="label" class="input-group-text" for="shipping">Shipping method</label>
                 </div>
                 <input id="shipping" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+            <div id='shipping-cost-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="shipping-cost">Shipping cost</label>
+                </div>
+                <input id="shipping-cost" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+                <div class="input-group-append">
+                    <label id="label" class="input-group-text" for="shipping-cost">₩</label>
+                </div>            
             </div>
             <div id='tracking-id-input-group' class="input-group input-group-sm mb-2">
                 <div class="input-group-prepend">

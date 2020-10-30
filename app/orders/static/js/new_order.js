@@ -1,8 +1,5 @@
-var g_selected_shipping_method;
-var g_products;
-var g_cart = {};
 const g_dictionaries_loaded = $.Deferred();
-var box_weights = {
+const box_weights = {
     30000: 2200,
     20000: 1900,
     15000: 1400,
@@ -10,11 +7,18 @@ var box_weights = {
     5000: 500,
     2000: 250
 };
+const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
+const LOCAL_SHIPPING_COST = 2500;
+
+var g_selected_shipping_method;
+var g_products;
+var g_cart = {};
+
 var itemsCount = {};
 var currencyRates = {};
 var users = 1;
 
-var subtotalKRW = 0;
+var subtotal_krw = 0;
 var totalWeight = 0;
 
 var subcustomerTemplate;
@@ -76,7 +80,7 @@ function clear_form() {
     g_cart = {};
     itemsCount = {};
     users = 1;
-    subtotalKRW = 0;
+    subtotal_krw = 0;
     totalWeight = 0;
 
     $('.subcustomer-card').remove();
@@ -145,7 +149,9 @@ function get_currencies() {
     $.ajax({
         url: '/api/v1/currency',
         success: function(data, _status, _xhr) {
-            currencyRates = data;
+            for (var currency in data) {
+                currencyRates[data[currency].code] = data[currency].rate;
+            }
             promise.resolve();
         }
     });
@@ -159,13 +165,14 @@ function get_products() {
         success: function(data) {
             if (data) {
                 g_products = data.map(product => ({
-                    'value': product.id,
-                    'label': product.name_english == null
+                    value: product.id,
+                    label: product.name_english == null
                                 ? product.name
                                 : product.name_english + " | " + product.name_russian,
-                    'price': product.price,
-                    'points': product.points,
-                    'weight': product.weight
+                    price: product.price,
+                    points: product.points,
+                    separate_shipping: product.separate_shipping,
+                    weight: product.weight
                 }));
             }
             promise.resolve();
@@ -187,7 +194,6 @@ function get_shipping_cost(shipping_method, weight) {
 }
 
 function get_shipping_methods(country, weight) {
-    console.log(country);
     var promise = $.Deferred()
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
@@ -195,11 +201,13 @@ function get_shipping_methods(country, weight) {
     $('#shipping').html('');
     $.ajax({
         url: '/api/v1/shipping/' + country + '/' + weight,
-        success: data => {
+        success: (data, _status, xhr) => {
             $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
             if ($('#shipping option').toArray().map(i => i.value).includes(g_selected_shipping_method)) {
                 $('#shipping').val(g_selected_shipping_method);
             }
+            // console.log("Shipping methods are set:", $('#shipping').html());
+            // console.log(xhr);
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
                 success: data => {
@@ -216,13 +224,14 @@ function get_shipping_methods(country, weight) {
                         modal('Something went wrong...', xhr.responseText);
                     }
                 }
-            })
+            });
+            promise.resolve();
         },
         error: (xhr) => {
             $('.modal-body').text(xhr.responseText);
             $('.modal').modal();
-        },
-        complete: () => {promise.resolve()}
+            promise.resolve();
+        }
     });
     return promise;
 }
@@ -304,7 +313,8 @@ function submit_order() {
             comment: $('#comment').val(),
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
-	        buyout_date: $('.subcustomer-buyout-date', user).val(),
+                buyout_date: $('.subcustomer-buyout-date', user).val(),
+                seq_num: $('.subcustomer-seq-num', user).val(),
                 items: $('.item', user).toArray().map(item => ({
                     item_code: $('.item-code', item).val(),
                     quantity: $('.item-quantity', item).val()
@@ -393,6 +403,8 @@ function update_item_subtotal(sender) {
         $('.total-weight', itemObject).html('');
         $('.total-points', itemObject).html('');
     }
+
+    update_subcustomer_local_shipping(sender);
     update_all_totals();
 }
 
@@ -446,48 +458,79 @@ function update_shipping_cost(cost, totalWeight) {
     });
 }
 
+function update_subcustomer_local_shipping(node) {
+    var subcustomer_card = $(node).closest('.subcustomer-card');
+    var subcustomer_total = $('.subcustomer-total', subcustomer_card)[0];
+    var userId = parseInt(subcustomer_total.id.substr(14));
+    var userProducts = Object.entries(g_cart)
+        .filter(product => product[0].startsWith('userItems' + userId))
+        .map(product => product[1]);
+    var total_local_package_amount = userProducts
+        .filter(product => !product.separate_shipping)
+        .reduce((acc, product) => acc + product.price * product.quantity, 0);
+    var local_shipping = 0;
+    if (total_local_package_amount < FREE_LOCAL_SHIPPING_THRESHOLD) {
+        $('.local-shipping', $(subcustomer_total)).html(
+            "(Local shipping: " + LOCAL_SHIPPING_COST + ')');
+        local_shipping = LOCAL_SHIPPING_COST;
+    } else {
+        $('.local-shipping', $(subcustomer_total)).html("");
+        local_shipping = 0;
+}}
+
 /**
  * Update subtotal for single customer
  * @param {jQuery} target - div#userItems*
  */
 function update_subcustomer_totals() { 
-    $('.subcustomer-total').each(function(){
+    $('.subcustomer-total').each(function() {
         var userId = parseInt(this.id.substr(14));
         var userProducts = Object.entries(g_cart)
-            .filter(product => product[0].startsWith('userItems' + userId));
-
+            .filter(product => product[0].startsWith('userItems' + userId))
+            .map(product => product[1]);
+        var local_shipping_text = $('.local-shipping', $(this)).text()
+            .match(RegExp(LOCAL_SHIPPING_COST), 'g');
+        var local_shipping = local_shipping_text
+            ? parseInt(local_shipping_text[0])
+            : 0;
         $('#subtotalCostKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product[1].costKRW, 0));
+            userProducts.reduce((acc, product) => acc + product.costKRW, 0));
         $('#subtotalWeight', $(this)).html(
             userProducts.reduce((acc, product) => 
-                acc + product[1].weight * product[1].quantity, 0));
+                acc + product.weight * product.quantity, 0));
         $('#subtotalShippingCostKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product[1].shippingCostKRW, 0));
+            userProducts.reduce((acc, product) => acc + product.shippingCostKRW, local_shipping));
         $('#subtotalTotalKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product[1].totalKRW, 0));
+            userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping));
         $('#subtotalTotalRUR', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 
-                acc + product[1].totalKRW, 0) * currencyRates.RUR, 2));
+                acc + product.totalKRW, 0) * currencyRates.RUR, 2));
         $('#subtotalTotalUSD', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 
-                acc + product[1].totalKRW, 0) * currencyRates.USD, 2));
+                acc + product.totalKRW, 0) * currencyRates.USD, 2));
         $('#subtotalTotalPoints', $(this)).html(
             userProducts.reduce((acc, product) => 
-                acc + product[1].points * product[1].quantity, 0));
+                acc + product.points * product.quantity, 0));
     });
 }
 
 function update_grand_subtotal() {
     var userProducts = Object.entries(g_cart);
-    subtotalKRW = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
+    subtotal_krw = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
+    var local_shipping_fees = $('.local-shipping').text()
+        .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
+    var local_shipping_cost = local_shipping_fees 
+        ? local_shipping_fees.reduce((acc, cost) => acc + parseInt(cost), 0)
+        : 0;
     var total_weight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
     box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
         .sort((a, b) => b[0] - a[0])
         .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
     set_total_weight(total_weight + box_weight);
-    $('#totalItemsCostKRW').html(subtotalKRW);
-    $('#totalItemsCostRUR').html(round_up(subtotalKRW * currencyRates.RUR, 2));
-    $('#totalItemsCostUSD').html(round_up(subtotalKRW * currencyRates.USD, 2));
+    var total_with_local_shipping_krw = subtotal_krw + local_shipping_cost
+    $('#totalItemsCostKRW').html(total_with_local_shipping_krw);
+    $('#totalItemsCostRUR').html(round_up(total_with_local_shipping_krw * currencyRates.RUR, 2));
+    $('#totalItemsCostUSD').html(round_up(total_with_local_shipping_krw * currencyRates.USD, 2));
     $('[id^=totalItemsWeight]').html(totalWeight);
     if (box_weight) {
         $('.box-weight').show();
@@ -495,4 +538,29 @@ function update_grand_subtotal() {
     } else {
         $('.box-weight').hide();
     }
+}
+
+function validate_subcustomer(sender) {
+    $.ajax({
+        url: '/api/v1/order/subcustomer/validate',
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({subcustomer: sender.value}),
+        success: data => {
+            if (data.result) {
+                if (data.result == 'success') {
+                    $(sender).addClass('is-valid').removeClass('is-invalid');
+                } else if (data.result === 'failure') {
+                    modal(
+                        'Subcustomer verification',
+                        "Couldn't verify the subcustomer's credenticals. \n" +
+                        "Problem subcustomer is: \n" + sender.value + "\n" +
+                        data.message
+                    );
+                    $(sender).addClass('is-invalid').removeClass('is-valid');
+                }
+            }
+        }
+    })
 }

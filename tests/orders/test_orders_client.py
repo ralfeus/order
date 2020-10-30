@@ -33,7 +33,7 @@ class TestOrdersClient(BaseTestCase):
         self.try_add_entities([
             Order()
         ])
-        self.try_admin_operation(
+        self.try_user_operation(
             lambda: self.client.get(f'/admin/orders/{gen_id}'))
 
     def test_user_orders_list(self):

@@ -46,8 +46,8 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/country'))
         self.assertEqual(res.json, [
-            {'id': 'c1', 'name': 'country1'},
-            {'id': 'c2', 'name': 'country2'}
+            {'id': 'c1', 'name': 'country1', 'sort_order': 999},
+            {'id': 'c2', 'name': 'country2', 'sort_order': 999}
         ])
 
     def test_get_shipping(self):

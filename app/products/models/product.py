@@ -1,7 +1,7 @@
 '''
 Product model
 '''
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 
 from app import db
 from app.models.base import BaseModel
@@ -20,8 +20,10 @@ class Product(db.Model, BaseModel):
     weight = Column(Integer, default=0)
     price = Column(Integer)
     points = Column(Integer)
+    separate_shipping = Column(Boolean, default=False)
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)
+    purchase = Column(Boolean, default=True)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
@@ -42,6 +44,22 @@ class Product(db.Model, BaseModel):
             'price': self.price if self.price else 0,
             'weight': self.weight if self.weight else 0,
             'points': self.points if self.points else 0,
+            'separate_shipping': self.separate_shipping if self.separate_shipping else 0,
             'available': self.available,
-            'synchronize': self.synchronize
+            'synchronize': self.synchronize,
+            'purchase': self.purchase
         }
+
+    @staticmethod
+    def get_product_by_id(product_id):
+        stripped_id = product_id.lstrip('0')
+        product_query = Product.query.filter_by(available=True). \
+            filter(Product.id.endswith(stripped_id)).all()
+        products = [product for product in product_query
+                        if product.id.lstrip('0') == stripped_id]
+        if len(products) == 1:
+            return products[0]
+        elif len(products) == 0:
+            return None
+        else:
+            raise Exception(f"More than one product was found by ID <{product_id}>")

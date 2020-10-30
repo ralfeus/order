@@ -4,12 +4,14 @@ var urlJSZIP = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js";
 var order_product_number = 0;
 
 $(document).ready(() => {
-    $('#excel')
-        .on('change', function() {
-            $('.wait').show();
-            read_file(this.files[0]);
-        })
-    $('.excel').show();
+    g_dictionaries_loaded.then(() => {
+        $('#excel')
+            .on('change', function() {
+                $('.wait').show();
+                read_file(this.files[0]);
+            })
+        $('.excel').show();
+    });
 });
 
 function read_file(file) {
@@ -60,46 +62,36 @@ function load_excel(data) {
         24: 'zone2',
         25: 'zone3',
         26: 'zone4',
-        27: 'kazakhstan cargo'
+        27: 'kz', // Cargo,
+        28: 'uz', // Cargo
+        29: 'kz' // Russia ????
     };
 
     $('#name').val(ws['B5'].v);
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
-    if (ws['L2'].v == 0) {
-        $('shipping').val(4); // No shipping
-    } else {
-        $('#country').val(countries[ws['L2'].v]);
-        get_shipping_methods(countries[ws['L2'].v], 0)
-            .then(() => $('#shipping').val(ws['L1'].v));
-    }
-    
-    for (var i = 12; i <= 831; i++) {
-        // Line is beginning of a new subcustomer but no subcustomer data provided
-        // it means no new entries in the file
-        if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
-        // Just empty line. Ignored
-        if (!ws['A' + i]) continue;
-        // The line is beginning of new subcustomer
-        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
-            current_node = add_user(ws['B' + i].v);
-            item = 0;
-        // The line is product line
-        } else {
-            var quantity;
-            if (ws['D' + i]) {
-                quantity = parseInt(ws['D' + i].v);
+    $('#country').val(countries[ws['L2'].v]);
+    get_shipping_methods(countries[ws['L2'].v], 0)
+        .then(() => {
+            if (ws['L2'].v == 0) {
+                $('#shipping').val(4); // No shipping
             } else {
-                quantity = 0;
+                // console.log("Country: ", $('#country').val());
+                // console.log("L1: ", ws['L1'].v);
+                // console.log("Shipping before: ", $('#shipping').val());
+                // console.log("Shipping methods:", $('#shipping')[0].options)
+                if (ws['L2'].v == 27) {
+                    $('#shipping').val(3);
+                } else if (ws['L2'].v == 28) {
+                    $('#shipping').val(3);
+                } else {
+                    $('#shipping').val(ws['L1'].v);
+                }
+                // console.log("Shipping after:", $('#shipping').val());
             }
-            if (isNaN(quantity)) {
-                quantity = 0;
-            }
-            add_product(current_node, item, ws['A' + i].v, quantity);
-            item++;
-        }
-    }
-    alert('Order is prefilled. Submit it.');
+            load_products(ws);
+        });
+    // alert('Order is prefilled. Submit it.');
 }
 
 function add_product(current_node, item, product_id, quantity) {
@@ -129,4 +121,33 @@ function add_user(subcustomer) {
 function cleanup() {
     clear_form();
     delete_subcustomer($('.btn-delete'));
+}
+
+function load_products(ws) {
+    for (var i = 12; i <= 2000; i++) {
+        // Line is beginning of a new subcustomer but no subcustomer data provided
+        // it means no new entries in the file
+        if (ws['A' + i] && /^\d+$/.test(ws['A' + i].v) && !ws['B' + i]) break;
+        // Just empty line. Ignored
+        if (!ws['A' + i]) continue;
+        // The line is beginning of new subcustomer
+        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
+            current_node = add_user(ws['B' + i].v);
+            $('.subcustomer-seq-num', current_node).val(ws['A' + i].v);
+            item = 0;
+        // The line is product line
+        } else {
+            var quantity;
+            if (ws['D' + i]) {
+                quantity = parseInt(ws['D' + i].v);
+            } else {
+                quantity = 0;
+            }
+            if (isNaN(quantity)) {
+                quantity = 0;
+            }
+            add_product(current_node, item, ws['A' + i].v, quantity);
+            item++;
+        }
+    }            
 }

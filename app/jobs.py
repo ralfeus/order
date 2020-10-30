@@ -1,13 +1,15 @@
 from datetime import datetime
+from time import sleep
+
 from flask import current_app
 
-from app import db
-from app.import_products import atomy
-from app.products.models import Product
-
+from app import celery, db, create_app
 
 def import_products():
     from app import create_app
+    from app.import_products import atomy
+    from app.products.models import Product
+    
     create_app().app_context().push()
     current_app.logger.info('Starting products import')
     products = Product.query.all()
@@ -61,3 +63,80 @@ def import_products():
                                 same: {same}, new: {new},
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
+
+# @celery.on_after_finalize.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     sender.add_periodic_task(1800, update_purchase_orders_status,
+#         name='Update PO status every 30 minutes')
+
+
+@celery.task
+def add_together(a, b):
+    for i in range(100):
+        sleep(1)
+    return a + b
+
+@celery.task
+def post_purchase_orders(po_id=None):
+    from app.orders.models import OrderProduct
+    from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
+    pending_purchase_orders = PurchaseOrder.query
+    if po_id:
+        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
+    pending_purchase_orders = pending_purchase_orders.filter_by(
+        status=PurchaseOrderStatus.pending)
+    try: 
+        # Wrap whole operation in order to 
+        # mark all pending POs as failed in case of any failure
+        from celery.utils.log import get_task_logger
+        logger = get_task_logger(__name__)
+
+        from app.purchase.atomy import PurchaseOrderManager
+        po_manager = PurchaseOrderManager(logger=logger)
+
+        logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
+        for po in pending_purchase_orders:
+            logger.info("Posting a purchase order %s", po.id)
+            try:
+                po_manager.post_purchase_order(po)
+                posted_orders_count = po.order_products.filter_by(status='Purchased').count()
+                if posted_orders_count == po.order_products.count():
+                    po.status = PurchaseOrderStatus.posted
+                elif posted_orders_count > 0:
+                    po.status = PurchaseOrderStatus.partially_posted
+                else:
+                    po.status = PurchaseOrderStatus.failed
+                    logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
+                logger.info("Posted a purchase order %s", po.id)
+            except Exception as ex:
+                logger.exception("Failed to post the purchase order %s.", po.id)
+                # logger.warning(ex)
+                po.status = PurchaseOrderStatus.failed
+                po.status_details = str(ex)
+            db.session.commit()
+        logger.info('Done posting purchase orders')
+    except Exception as ex:
+        for po in pending_purchase_orders:
+            po.status = PurchaseOrderStatus.failed
+        db.session.commit()
+        raise ex
+
+@celery.task
+def update_purchase_orders_status():
+    from celery.utils.log import get_task_logger
+    from app.orders.models import Subcustomer
+    from app.purchase.atomy import PurchaseOrderManager
+    
+    logger = get_task_logger(__name__)
+    logger.info("Starting update of PO statuses")
+    po_manager = PurchaseOrderManager(logger=logger)
+    with create_app().app_context():
+        for subcustomer in Subcustomer.query:
+            try:
+                logger.info("Updating customer %s", subcustomer.name)
+                po_manager.update_purchase_orders_status(subcustomer)
+            except:
+                logger.exception(
+                    "Couldn't update POs status for %s", subcustomer.name)
+        db.session.commit()
+    logger.info("Done update of PO statuses")

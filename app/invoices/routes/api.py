@@ -2,7 +2,6 @@ from datetime import datetime
 from functools import reduce
 from more_itertools import map_reduce
 import openpyxl
-import re
 
 from flask import Response, abort, jsonify, request, send_file
 from flask_security import roles_required
@@ -10,9 +9,10 @@ from flask_security import roles_required
 from sqlalchemy import or_
 
 from app import db
-from app.invoices import bp_api_admin, bp_api_user
+from app.invoices import bp_api_admin
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order
+from app.tools import prepare_datatables_query
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
@@ -27,7 +27,7 @@ def create_invoice(usd_rate):
     if not orders:
         abort(Response("No orders with provided IDs were found ", status=400))
     invoice = Invoice()
-    invoice_items = []
+    # invoice_items = []
     invoice.when_created = datetime.now()
     cumulative_order_products = map_reduce(
         [order_product for order in orders
@@ -68,45 +68,22 @@ def get_invoices(invoice_id):
     if invoice_id is not None:
         invoices = invoices.filter_by(id=invoice_id)
     else: # here we check whether request is filtered by DataTables
-        if len(request.values) > 0:
-            records_total = invoices.count()
-            # Filtering .....
-            if len(request.values) > 0:
-                arg = {}
-                for param in request.values.items():
-                    match = re.search(r'(\w+)\[(\d+)\]\[(\w+)\]', param[0])
-                    if match:
-                        (array, index, attr) = match.groups()
-                        if not arg.get(array):
-                            arg[array] = {}
-                        if not arg[array].get(index):
-                            arg[array][index] = {}
-                        arg[array][index][attr] = param[1]
-                    else:
-                        arg[param[0]] = param[1]
-                invoices = invoices.filter(or_(
+        if request.values.get('draw') is not None:
+            invoices, records_total, records_filtered = prepare_datatables_query(
+                invoices, request.values,
+                or_(                
                     Invoice.id.like(f"%{request.values['search[value]']}%"),
-                    Invoice.orders.any(Order.id.like(f"%{arg['search[value]']}%"))))
-            records_filtered = invoices.count()
-            # Sorting
-            columns = arg['columns']
-            sort_column_input = arg['order']['0']
-            sort_column_name = columns[sort_column_input['column']]['data']
-            sort_column = Invoice.__table__.columns[sort_column_name]
-            if sort_column_input['dir'] == 'desc':
-                sort_column = sort_column.desc()
-            invoices = invoices.order_by(sort_column)
-            # Limiting to page
-            invoices = invoices.offset(request.values['start']). \
-                                limit(request.values['length'])
+                    Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%")),
+                    Invoice.customer.like(f"%{request.values['search[value]']}%"))
+            )
             return jsonify({
                 'draw': request.values['draw'],
                 'recordsTotal': records_total,
                 'recordsFiltered': records_filtered,
                 'data': list(map(lambda entry: entry.to_dict(), invoices))
             })
-        else:
-            invoices = invoices.all()
+        else: # By default we return only 100 invoices
+            invoices = invoices.limit(10)
     
 
     return jsonify(list(map(lambda entry: entry.to_dict(), invoices)))
@@ -143,7 +120,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     # Set invoice header
     ws.cell(7, 2, reference_invoice.id)
     ws.cell(7, 5, reference_invoice.when_created)
-    ws.cell(13, 4, reference_invoice.orders[0].name)
+    ws.cell(13, 4, reference_invoice.customer)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
     ws.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -152,7 +129,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     # Set packing list header
     pl.cell(7, 2, reference_invoice.id)
     pl.cell(7, 5, reference_invoice.when_created)
-    pl.cell(13, 4, reference_invoice.orders[0].name)
+    pl.cell(13, 4, reference_invoice.customer)
     pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
     pl.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -189,6 +166,24 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     pl.delete_rows(row, last_row - row + 1)
     invoice_wb.save(f'app/static/invoices/{invoice_file_name}')
 
+@bp_api_admin.route('/<invoice_id>', methods=['POST'])
+@roles_required('admin')
+def save_invoice(invoice_id):
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
+    payload = request.get_json()
+    if not payload:
+        abort(Response("No invoice data was provided", status=400))
+    editable_attributes = ['customer']
+    for attr in editable_attributes:
+        if payload.get(attr) and getattr(invoice, attr) != payload[attr]:
+            setattr(invoice, attr, type(getattr(invoice, attr))(payload[attr]))
+            invoice.when_changed = datetime.now()
+    db.session.commit()
+    return jsonify(invoice.to_dict())
+
+
 @bp_api_admin.route('/<invoice_id>/excel')
 @roles_required('admin')
 def get_invoice_excel(invoice_id):
@@ -217,6 +212,8 @@ def get_invoice_cumulative_excel():
     cumulative_invoice = Invoice()
     for invoice_id in request.args.getlist('invoices'):
         invoice = Invoice.query.get(invoice_id)
+        if not cumulative_invoice.customer:
+            cumulative_invoice.customer = invoice.customer
         cumulative_invoice.orders += invoice.orders
 
     invoice_file_name = 'cumulative_invoice.xlsx'

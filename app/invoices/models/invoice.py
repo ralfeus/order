@@ -18,6 +18,7 @@ class Invoice(db.Model):
 
     id = Column(String(16), primary_key=True)
     seq_num = Column(Integer)
+    customer = Column(String(128))
     orders = relationship('Order')
     _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
@@ -101,10 +102,12 @@ class Invoice(db.Model):
             else:
                 invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
-
+        if not self.customer and self.orders:
+            self.customer = self.orders[0].name
+            db.session.commit()
         return {
             'id': self.id,
-            'customer': self.orders[0].name if self.orders else None,
+            'customer': self.customer,
             'address': self.orders[0].address if self.orders else None,
             'country': self.orders[0].country.name if self.orders else None,
             'phone': self.orders[0].phone if self.orders else None,

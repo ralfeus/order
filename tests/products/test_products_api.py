@@ -39,7 +39,9 @@ class TestProductsApi(BaseTestCase):
                 'name_russian': None,
                 'points': 0,
                 'price': 10,
-                'weight': 10
+                'weight': 10,
+                'separate_shipping': False,
+                'purchase': True
             }
         ])
         res = self.client.get('/api/v1/product')
@@ -68,8 +70,10 @@ class TestProductsApi(BaseTestCase):
                 'points': 0,
                 'price': 1,
                 'weight': 0,
+                'separate_shipping': False,
                 'available': True,
-                'synchronize': True
+                'synchronize': True,
+                'purchase': True
             }
         ])
 

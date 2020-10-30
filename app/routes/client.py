@@ -22,7 +22,11 @@ def index():
     Entry point to the application.
     Takes no arguments
     '''
-    return render_template('index.html')
+    return redirect('orders')
+
+@client.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static/images', 'favicon.ico')
 
 @client.route('/signup', methods=['GET', 'POST'])
 def user_signup():
@@ -97,3 +101,21 @@ def user_logout():
 @client.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
+
+@client.route('/test', defaults={'task_id': None})
+@client.route('/test/<task_id>')
+def test(task_id):
+    from app import celery
+    result = None
+    if task_id is None:
+        from app.jobs import add_together
+        result = {'result': add_together.delay(2, 3).id}
+    else:
+        task = celery.AsyncResult(task_id)
+        result = {'state': task.state}
+        if task.ready():
+            result['result'] = task.result
+
+    from flask import jsonify
+    
+    return jsonify(result)
