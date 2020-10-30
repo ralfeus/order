@@ -17,5 +17,6 @@
         "**/lib/**": true,
         "**/lib64/**": true,
         "**/share/**": true
-      }
+    },
+    "python.pythonPath": "bin/python3"
 }

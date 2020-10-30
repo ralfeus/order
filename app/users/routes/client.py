@@ -1,29 +1,17 @@
-'''
-Contains client routes of the application
-'''
 from datetime import datetime
-from flask import Blueprint, current_app, redirect, render_template, send_from_directory, flash, url_for
-from flask_security import login_required, current_user, login_user, logout_user
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
+
+from flask import Blueprint, Response, abort, jsonify, request, current_user
+from flask import redirect, render_template, flash, current_app, url_for, send_from_directory
+from flask_security import login_required, roles_required, login_user, logout_user
 
 from app import db, security
+from app.users import bp_client_admin, bp_client_user
+from app.users.forms import SignupForm, LoginForm
+from app.users.models import User
 
-client = Blueprint('client', __name__, url_prefix='/')
-
-
-@client.route('/')
-@login_required
-def index():
-    '''
-    Entry point to the application.
-    Takes no arguments
-    '''
-    return redirect('orders')
-
-@client.route('/favicon.ico')
-def favicon():
-    return send_from_directory('static/images', 'favicon.ico')
-
-@client.route('/signup', methods=['GET', 'POST'])
+@bp_client_user.route('/signup', methods=['GET', 'POST'])
 def user_signup():
     """
     User sign-up page.
@@ -67,7 +55,7 @@ def user_signup():
         body="Sign up for a user account."
     )
 
-@client.route('/login', methods=['GET', 'POST'])
+@bp_client_user.route('/login', methods=['GET', 'POST'])
 def user_login():
     ''' Login user '''
     if current_user.is_authenticated:
@@ -86,31 +74,21 @@ def user_login():
     
     return render_template('login.html', title='Sign In', form=form)
 
-@client.route("/logout")
+@bp_client_user.route("/logout")
 @login_required
 def user_logout():
     """User log-out logic."""
     logout_user()
     return redirect(url_for('client.user_login'))
 
-@client.route('/upload/<path:path>')
+@bp_client_user.route('/upload/<path:path>')
 def send_from_upload(path):
     return send_from_directory('upload', path)
 
-@client.route('/test', defaults={'task_id': None})
-@client.route('/test/<task_id>')
-def test(task_id):
-    from app import celery
-    result = None
-    if task_id is None:
-        from app.jobs import add_together
-        result = {'result': add_together.delay(2, 3).id}
-    else:
-        task = celery.AsyncResult(task_id)
-        result = {'state': task.state}
-        if task.ready():
-            result['result'] = task.result
-
-    from flask import jsonify
-    
-    return jsonify(result)
+@bp_client_user.route('/users', methods=['GET', 'POST'])
+@roles_required('admin')
+def users():
+    '''
+    Edits the user settings
+    '''
+    return render_template('users.html')

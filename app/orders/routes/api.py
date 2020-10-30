@@ -8,11 +8,12 @@ from sqlalchemy.exc import IntegrityError, OperationalError, InvalidRequestError
 
 from app import db
 from app.exceptions import SubcustomerParseError
-from app.models import Country, Shipping, User
+from app.models import Country, Shipping
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
+from app.users.models import User
 from app.utils.atomy import atomy_login
 from app.tools import prepare_datatables_query
 

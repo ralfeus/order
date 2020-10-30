@@ -16,7 +16,8 @@ from app.utils.services import get_celery, init_celery
 celery = get_celery(__name__)
 db = SQLAlchemy()
 migrate = Migrate()
-from app.forms import LoginForm
+# login = LoginManager()
+from app.users.forms import LoginForm
 security = Security()
 
 def create_app(config=Config):
@@ -34,8 +35,8 @@ def create_app(config=Config):
     migrate.init_app(flask_app, db, compare_type=True)
     init_celery(celery, flask_app)
     
-    from app.models.user import User
-    from app.models.role import Role
+    from app.users.models import User
+    from app.users.models import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)

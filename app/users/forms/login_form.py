@@ -2,7 +2,7 @@ from flask import current_app, flash
 from flask_security.forms import LoginForm as BaseLoginForm
 from wtforms import BooleanField, StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired
-from app.models import User
+from app.users.models import User
 
 class LoginForm(BaseLoginForm):
     """User Login form. """

@@ -10,7 +10,7 @@ from flask import Blueprint, Response, abort, jsonify, request
 from flask_login import current_user, login_required
 
 from app import db
-from app.models import Country, Shipping, ShippingRate, User
+from app.models import Country, Shipping, ShippingRate
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
                               Suborder
 from app.currencies.models import Currency
@@ -99,20 +99,3 @@ def get_shipping_rate(country, shipping_method_id, weight):
             f"Couldn't find rate for {weight}g parcel to {country.title()}",
             status=409
         ))
-
-
-@api.route('/user')
-@login_required
-def get_user():
-    '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'username': user name,
-            'email': user's email,
-            'creted': user's profile created,
-            'changed': last profile change
-        }
-    '''
-    user_query = User.query.all()
-    return jsonify(User.get_user(user_query))
