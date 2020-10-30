@@ -4,10 +4,14 @@ from functools import reduce
 from logging import Logger
 from pytz import timezone
 from time import sleep
+from selenium.common.exceptions import UnexpectedAlertPresentException
 
 from app.exceptions import NoPurchaseOrderError
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
+
+ATTEMPTS_TOTAL = 3
+ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
 
 class PurchaseOrderManager:
     ''' Fills and submits purchase order at Atomy '''
@@ -43,10 +47,7 @@ class PurchaseOrderManager:
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_sender_name()
             self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
-            total_ordered_amount = reduce(
-                lambda acc, op: acc + op.price * op.quantity, ordered_products, 0)
-            if total_ordered_amount < 30000:
-                self.__set_combined_shipment()
+            self.__set_combined_shipment()
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
@@ -64,8 +65,7 @@ class PurchaseOrderManager:
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
             #     f.write(self.__browser.page_source)
-            self.__log(f"PO: Failed to post an order {purchase_order.id}")
-            self.__log(ex)
+            self.__logger.exception("PO: Failed to post an order %s", purchase_order.id)
             raise ex
 
     @property
@@ -131,10 +131,13 @@ class PurchaseOrderManager:
         # self.__browser.save_screenshot(realpath('03-purchase-date.png'))
 
     def __set_combined_shipment(self):
-        self.__log("PO: Setting combined shipment")
-        self.__browser.get_element_by_id('cPackingMemo2').click()
-        self.__browser.get_element_by_id('all-agree').click()
-        self.__browser.get_element_by_class('btnInsert').click()
+        local_shipment_node = self.__browser.find_element_by_css_selector(
+            'ul#areaSummary li.pOr2 div em')
+        if local_shipment_node.text == '2,500':
+            self.__log("PO: Setting combined shipment")
+            self.__browser.get_element_by_id('cPackingMemo2').click()
+            self.__browser.get_element_by_id('all-agree').click()
+            self.__browser.get_element_by_class('btnInsert').click()
 
     def __set_sender_name(self):
         self.__log("PO: Setting sender name")
@@ -216,8 +219,7 @@ class PurchaseOrderManager:
             self.__browser.wait_for_url('https://www.atomy.kr/v2/Home/Payment/OrderComplete')
         except Exception as ex:
             self.__log("Couldn't get order completion page")
-            self.__log(ex.args[1])
-            raise Exception(ex, ex.args[1])
+            raise Exception(ex)
             
 
         self.__logger.info("Order completion page is loaded.")

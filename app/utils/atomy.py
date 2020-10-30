@@ -1,5 +1,6 @@
 from flask import current_app
 
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -20,10 +21,10 @@ def atomy_login(username, password, browser=None):
     password_field.submit()
     for attempt in range(2):
         try:
-            WebDriverWait(local_browser, 10).until(
-                EC.url_to_be('https://www.atomy.kr/v2/Home')
-            )
+            local_browser.wait_for_url('https://www.atomy.kr/v2/Home')
             return
+        except UnexpectedAlertPresentException as ex:
+            raise AtomyLoginError(ex)
         except Exception as ex:
             try:
                 if local_browser.get_element_by_id('btnRelayPassword'):

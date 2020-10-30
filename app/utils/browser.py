@@ -1,4 +1,5 @@
 ''' Singleton of web browser '''
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -37,19 +38,23 @@ class Browser(Chrome):
     def __create_instanse(cls):
         Browser.__instance = super(Browser, cls).__new__(cls)
 
-    def get_element_by_class(self, class_name):
+    def __get_by(self, criterium, value):
         try:
             return WebDriverWait(self, 20).until(
-                EC.presence_of_element_located((By.CLASS_NAME, class_name)))
+                EC.presence_of_element_located((criterium, value)))
+        except UnexpectedAlertPresentException as ex:
+            raise ex
         except Exception as ex:
-            raise Exception(f"No element with class {class_name} was found", ex)
+            raise Exception(f"No element with {criterium} {value} was found", ex)
+
+    def get_element_by_class(self, class_name):
+        return self.__get_by(By.CLASS_NAME, class_name)
+
+    def get_element_by_css(self, css):
+        return self.__get_by(By.CSS_SELECTOR, css)
 
     def get_element_by_id(self, id):
-        try:
-            return WebDriverWait(self, 20).until(
-                EC.presence_of_element_located((By.ID, id)))
-        except Exception as ex:
-            raise Exception(f"No element with ID {id} was found", ex)
+        return self.__get_by(By.ID, id)
 
     def wait_for_url(self, url):
         try:

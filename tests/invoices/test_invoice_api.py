@@ -35,10 +35,12 @@ class TestInvoiceClient(BaseTestCase):
     
     def test_create_invoice(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id)
+        suborder = Suborder(order=order)
         self.try_add_entities([
-            Order(id=gen_id),
+            order, suborder,
             Product(id=gen_id, name='Product 1', price=1),
-            OrderProduct(order_id=gen_id, product_id=gen_id, quantity=1, price=1)
+            OrderProduct(suborder=suborder, product_id=gen_id, quantity=1, price=1)
         ])
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/invoice/new/0.5',

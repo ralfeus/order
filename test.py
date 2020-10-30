@@ -14,7 +14,8 @@ with create_app().app_context():
     # subcustomer = Subcustomer.query.get(36)
     # pom.update_purchase_orders_status(subcustomer)
     po = PurchaseOrder.query.get('PO-2020-10-0022-009')
-    pom.update_purchase_order_status(po)
-# 	pom.post_purchase_order(po)
+    # po.customer.password = '1'
+    # pom.update_purchase_order_status(po)
+    pom.post_purchase_order(po)
 # atomy_login('11305301', 's111111!', Browser(headless=False))
 # atomy_login('12170778', 's111111!', Browser(headless=False))
