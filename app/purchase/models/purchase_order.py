@@ -79,6 +79,7 @@ class PurchaseOrder(db.Model, BaseModel):
         return {
             'id': self.id,
             'order_id': self.suborder.order_id,
+            'vendor_po_id': self.vendor_po_id,
             'suborder_id': self.suborder_id,
             'customer_id': self.customer_id,
             'customer': self.customer.name,

@@ -7,7 +7,7 @@ from sqlalchemy import or_
 
 from app import db
 from app.purchase import bp_api_admin
-from app.tools import prepare_datatables_query
+from app.tools import prepare_datatables_query, modify_object
 
 from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
@@ -109,16 +109,23 @@ def update_purchase_order(po_id):
             task = post_purchase_orders.delay(po.id)
             # post_purchase_orders(po.id)
             current_app.logger.info("Post purchase orders task ID is %s", task.id)
+            result = (jsonify(po.to_dict()), 202)
         elif request.values.get('action') == 'update_status':
             current_app.logger.info("Updating POs status")
             task = update_purchase_orders_status.delay(po_id=po_id)
             current_app.logger.info("Update POs status task ID is %s", task.id)
+            result = (jsonify(po.to_dict()), 202)
+        else:
+            editable_attributes = ['payment_account', 'status', 'vendor_po_id']
+            po = modify_object(po, request.get_json(), editable_attributes)
+            result = jsonify(po.to_dict())
     except Exception as ex:
+        current_app.logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
     db.session.commit()
+    return result
     # task = post_purchase_orders() # For debug purposes only
 
-    return (jsonify(po.to_dict()), 202)
 
 @bp_api_admin.route('/company')
 @roles_required('admin')

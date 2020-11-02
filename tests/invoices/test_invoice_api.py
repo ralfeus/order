@@ -35,6 +35,7 @@ class TestInvoiceClient(BaseTestCase):
     
     def test_create_invoice(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        id_prefix = datetime.now().strftime('INV-%Y-%m-')
         order = Order(id=gen_id)
         suborder = Suborder(order=order)
         self.try_add_entities([
@@ -48,7 +49,7 @@ class TestInvoiceClient(BaseTestCase):
                 'order_ids': [gen_id]
             })
         )
-        self.assertEqual(res.json['invoice_id'], 'INV-2020-10-0001')
+        self.assertEqual(res.json['invoice_id'], f'{id_prefix}0001')
         invoice = Invoice.query.get(res.json['invoice_id'])
         self.assertEqual(len(invoice.orders), 1)
         self.assertEqual(invoice.invoice_items.count(), 1)
