@@ -1,6 +1,7 @@
-from datetime import datetime
-from more_itertools import map_reduce
+from datetime import datetime, timedelta
 from time import sleep
+
+from more_itertools import map_reduce
 
 from flask import current_app
 from sqlalchemy import not_
@@ -66,10 +67,10 @@ def import_products():
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
 
-# @celery.on_after_finalize.connect
-# def setup_periodic_tasks(sender, **kwargs):
-#     sender.add_periodic_task(3600, update_purchase_orders_status,
-#         name='Update PO status every 60 minutes')
+@celery.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(3600, update_purchase_orders_status,
+        name='Update PO status every 60 minutes')
 
 
 @celery.task
@@ -138,6 +139,9 @@ def update_purchase_orders_status(po_id=None, browser=None):
         pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
     else:
         pending_purchase_orders = pending_purchase_orders.filter(
+            PurchaseOrder.when_created > (datetime.now() - timedelta(weeks=1)).date()
+        )
+        pending_purchase_orders = pending_purchase_orders.filter(
             not_(PurchaseOrder.status.in_((
                 PurchaseOrderStatus.cancelled,
                 PurchaseOrderStatus.failed,
@@ -146,12 +150,17 @@ def update_purchase_orders_status(po_id=None, browser=None):
     grouped_customers = map_reduce(
         pending_purchase_orders,
         lambda po: po.customer)
+    subcustomers_num = len(grouped_customers)
+    logger.info("There are %d subcustomers to update POs for", subcustomers_num)
+    subcustomer_num = 1
     for customer, purchase_orders in grouped_customers.items():
         try:
-            logger.info("Updating subcustomer %s", customer.name)
+            logger.info("Updating subcustomer %s (%d of %d)",
+                customer.name, subcustomer_num, subcustomers_num)
             po_manager.update_purchase_orders_status(customer, purchase_orders)
         except:
             logger.exception(
                 "Couldn't update POs status for %s", customer.name)
+        subcustomer_num += 1
     db.session.commit()
     logger.info("Done update of PO statuses")
