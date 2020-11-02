@@ -1,19 +1,15 @@
 '''
 Contains api endpoint routes of the application
 '''
-from datetime import datetime
-
-from more_itertools import map_reduce
 from operator import itemgetter
 
-from flask import Blueprint, Response, abort, jsonify, request
-from flask_login import current_user, login_required
+from more_itertools import map_reduce
 
-from app import db
-from app.models import Country, Shipping, ShippingRate, User
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
-                              Suborder
-from app.currencies.models import Currency
+from flask import Blueprint, Response, abort, jsonify
+from flask_login import login_required
+
+from app.models import Country, User
+from app.shipping.models import Shipping, ShippingRate
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
 

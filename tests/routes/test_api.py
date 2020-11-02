@@ -1,7 +1,8 @@
 from tests import BaseTestCase, db
 
+from app.models import Country, User
 from app.currencies.models import Currency
-from app.models import Country, Shipping, ShippingRate, User
+from app.shipping.models import Shipping, ShippingRate
 
 class TestClientApi(BaseTestCase):
     def setUp(self):

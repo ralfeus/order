@@ -7,7 +7,7 @@ from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
 
 from app import db
-from app.models import ShippingRate
+from . import ShippingRate
 from app.models.base import BaseModel
 
 box_weights = {

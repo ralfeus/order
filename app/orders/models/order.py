@@ -12,7 +12,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.models import Shipping, NoShipping
+from app.shipping.models import Shipping, NoShipping
 from app.invoices.models import Invoice
 from app.currencies.models import Currency
 
