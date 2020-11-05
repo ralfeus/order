@@ -7,7 +7,10 @@ from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
 
 from app import db
-from . import ShippingRate
+from app.exceptions import NoShippingRateError
+
+from .shipping_rate import ShippingRate
+from app.models import Country
 from app.models.base import BaseModel
 
 box_weights = {
@@ -27,23 +30,34 @@ class Shipping(db.Model, BaseModel):
 
     name = Column(String(16))
     discriminator = Column(String(50))
-    rates = relationship('ShippingRate')
+    rates = relationship('ShippingRate', lazy='dynamic')
 
     __mapper_args__ = {'polymorphic_on': discriminator}
 
-    def get_shipment_cost(self, destination, weight):
+    def can_ship(self, country: Country, weight: int) -> bool:
+        if not country:
+            return True
+        rates = self.rates.filter_by(destination=country.id)
+        if weight:
+            rates = rates.filter(ShippingRate.weight >= weight)
+        return rates.count()
+
+
+    def get_shipping_cost(self, destination, weight):
         '''
         Returns shipping cost to provided destination for provided weight
 
         :param destination: destination (mostly country)
         :param weight: shipment weight in grams
         '''
-        for rate in ShippingRate.query \
-                    .filter_by(shipping_method_id=self.id, destination=destination) \
-                    .order_by(ShippingRate.weight):
-            if weight <= rate.weight:
-                return rate.rate
-        raise Exception("No rates found")
+        rate = self.rates \
+            .filter_by(destination=destination) \
+            .filter(ShippingRate.weight >= weight) \
+            .order_by(ShippingRate.weight) \
+            .first()
+        if rate:
+            return rate.rate
+        raise NoShippingRateError()
 
     def to_dict(self):
         return {
@@ -65,5 +79,5 @@ class NoShipping(Shipping):
     def name(self):
         return 'No shipping'
 
-    def get_shipment_cost(self, destination, weight):
+    def get_shipping_cost(self, destination, weight):
         return 0

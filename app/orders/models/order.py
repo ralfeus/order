@@ -171,7 +171,7 @@ class Order(db.Model):
         self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 
-        self.shipping_krw = int(Decimal(self.shipping.get_shipment_cost(
+        self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None, 
             self.total_weight + self.shipping_box_weight)))
         self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate

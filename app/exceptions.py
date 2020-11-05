@@ -4,5 +4,8 @@ class AtomyLoginError(Exception):
 class NoPurchaseOrderError(Exception):
     pass
 
+class NoShippingRateError(Exception):
+    pass
+
 class SubcustomerParseError(Exception):
     pass

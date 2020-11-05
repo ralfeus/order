@@ -55,6 +55,7 @@ def register_components(flask_app):
     import app.payments, app.payments.routes
     import app.products, app.products.routes
     import app.purchase, app.purchase.routes
+    import app.shipping, app.shipping.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
@@ -66,6 +67,7 @@ def register_components(flask_app):
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
     app.purchase.register_blueprints(flask_app)
+    app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
 

@@ -114,7 +114,7 @@ function delete_product(target) {
     }
 }
 
-function fill_product_row(product_row, product) {
+async function fill_product_row(product_row, product) {
     if (product.product_id) {
         $('.item-code', product_row).val(product.product_id);
     }
@@ -128,7 +128,7 @@ function fill_product_row(product_row, product) {
     $('.item-price', product_row).html(product.price);
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
-    update_item_subtotal($('.item-quantity', product_row));
+    await update_item_subtotal($('.item-quantity', product_row));
 }
 
 function get_countries() {
@@ -137,8 +137,10 @@ function get_countries() {
         url: '/api/v1/country',
         success: function(data) {
             $('#country').html(data.map(c => '<option value="' + c.id + '">' + c.name + '</option>'))
-            get_shipping_methods($('#country').val(), 0);
-            promise.resolve();
+            get_shipping_methods($('#country').val(), 0)
+            .then(() => {
+                promise.resolve();
+            });
         }
     });
     return promise;
@@ -194,7 +196,7 @@ function get_shipping_cost(shipping_method, weight) {
 }
 
 function get_shipping_methods(country, weight) {
-    var promise = $.Deferred()
+    var promise = $.Deferred();
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
     }
@@ -210,6 +212,9 @@ function get_shipping_methods(country, weight) {
             // console.log(xhr);
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
+                complete: () => {
+                    promise.resolve();
+                },
                 success: data => {
                     shipping_rates = data;
                     get_shipping_cost($('#shipping').val(), weight);
@@ -225,7 +230,6 @@ function get_shipping_methods(country, weight) {
                     }
                 }
             });
-            promise.resolve();
         },
         error: (xhr) => {
             $('.modal-body').text(xhr.responseText);
@@ -288,9 +292,9 @@ function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this)); });
 }
 
-function set_total_weight(total_weight) {
+async function set_total_weight(total_weight) {
     totalWeight = total_weight;
-    get_shipping_methods($('#country').val(), total_weight);
+    await get_shipping_methods($('#country').val(), total_weight);
 }
 
 function shipping_changed() {
@@ -372,8 +376,8 @@ function update_all_grand_totals(shippingCost, totalWeight) {
 /**
  * Updates all totals (item, subcustomer, grand total)
  */
-function update_all_totals() {
-    update_grand_subtotal();
+async function update_all_totals() {
+    await update_grand_subtotal();
 }
 
 /**
@@ -388,7 +392,7 @@ function update_grand_totals() {
         parseFloat($('#totalItemsCostUSD').html()) + parseFloat($('#totalShippingCostUSD').html()), 2));
 }
 
-function update_item_subtotal(sender) {
+async function update_item_subtotal(sender) {
     var itemObject = sender.parent().parent(); // tr
     var product_id = itemObject.attr('id');
     if (g_cart[product_id]) {
@@ -405,7 +409,7 @@ function update_item_subtotal(sender) {
     }
 
     update_subcustomer_local_shipping(sender);
-    update_all_totals();
+    await update_all_totals();
 }
 
 function update_item_total() {
@@ -514,7 +518,7 @@ function update_subcustomer_totals() {
     });
 }
 
-function update_grand_subtotal() {
+async function update_grand_subtotal() {
     var userProducts = Object.entries(g_cart);
     subtotal_krw = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
     var local_shipping_fees = $('.local-shipping').text()
@@ -526,7 +530,7 @@ function update_grand_subtotal() {
     box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
         .sort((a, b) => b[0] - a[0])
         .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
-    set_total_weight(total_weight + box_weight);
+    await set_total_weight(total_weight + box_weight);
     var total_with_local_shipping_krw = subtotal_krw + local_shipping_cost
     $('#totalItemsCostKRW').html(total_with_local_shipping_krw);
     $('#totalItemsCostRUR').html(round_up(total_with_local_shipping_krw * currencyRates.RUR, 2));

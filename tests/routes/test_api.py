@@ -2,7 +2,7 @@ from tests import BaseTestCase, db
 
 from app.models import Country, User
 from app.currencies.models import Currency
-from app.shipping.models import Shipping, ShippingRate
+from app.shipping.models import DHL, Shipping, ShippingRate
 
 class TestClientApi(BaseTestCase):
     def setUp(self):
@@ -20,6 +20,7 @@ class TestClientApi(BaseTestCase):
                 Shipping(id=1, name='Shipping1'),
                 Shipping(id=2, name='Shipping2'),
                 Shipping(id=3, name='Shipping3'),
+                DHL(),
                 ShippingRate(id=1, shipping_method_id=1, destination='c1', weight=100, rate=100),
                 ShippingRate(id=5, shipping_method_id=2, destination='c1', weight=200, rate=110),
                 ShippingRate(id=2, shipping_method_id=2, destination='c2', weight=100, rate=100),
@@ -55,6 +56,7 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/shipping'))
         self.assertEqual(res.json, [
+            {'id': 4, 'name': 'DHL'},
             {'id': 1, 'name': 'Shipping1'},
             {'id': 2, 'name': 'Shipping2'},
             {'id': 3, 'name': 'Shipping3'}
