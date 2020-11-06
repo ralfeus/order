@@ -207,16 +207,20 @@ class PurchaseOrderManager:
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__log("PO: Setting counteragent tax information")
-        self.__browser.get_element_by_id('tax_gubun2').click()
-        # self.__browser.execute_script(
-        #     "document.getElementById('tTaxGubun1').value = '2'")
-        tTaxGubun1 = self.__browser.get_element_by_id('tTaxGubun1')
-        tTaxGubun1.click()
-        tTaxGubun1.send_keys(Keys.DOWN)
-        tTaxGubun1.send_keys(Keys.RETURN)
-        self.__browser.get_element_by_id('tTaxBizNo1').send_keys(tax_id[0])
-        self.__browser.get_element_by_id('tTaxBizNo2').send_keys(tax_id[1])
-        self.__browser.get_element_by_id('tTaxBizNo3').send_keys(tax_id[2])
+        if tax_id == ('', '', ''): # No company
+            self.__browser.get_element_by_id('tax_gubun1').click()
+        else:
+            self.__browser.get_element_by_id('tax_gubun2').click()
+            # self.__browser.execute_script(
+            #     "document.getElementById('tTaxGubun1').value = '2'")
+                
+            tTaxGubun1 = self.__browser.get_element_by_id('tTaxGubun1')
+            tTaxGubun1.click()
+            tTaxGubun1.send_keys(Keys.DOWN)
+            tTaxGubun1.send_keys(Keys.RETURN)
+            self.__browser.get_element_by_id('tTaxBizNo1').send_keys(tax_id[0])
+            self.__browser.get_element_by_id('tTaxBizNo2').send_keys(tax_id[1])
+            self.__browser.get_element_by_id('tTaxBizNo3').send_keys(tax_id[2])
         # self.__browser.save_screenshot(realpath('11-tax-info.png'))
 
     def __submit_order(self):

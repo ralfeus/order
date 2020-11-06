@@ -1,4 +1,5 @@
 from datetime import datetime
+from operator import itemgetter
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
@@ -131,4 +132,6 @@ def update_purchase_order(po_id):
 @roles_required('admin')
 def get_companies():
     companies = Company.query
-    return jsonify(list(map(lambda entry: entry.to_dict(), companies)))
+    return jsonify(sorted(
+        list(map(lambda entry: entry.to_dict(), companies)),
+        key=itemgetter('name')))
