@@ -82,9 +82,27 @@ $(document).ready( function () {
             tr.addClass('shown');
 
             $('.btn-save').on('click', event => save_order(event.target, row));
+            $('.btn-delete').on('click', event => delete_order(event.target, row));
         }
     } );
 });
+
+function delete_order(_target, row) {
+    $('.wait').show();
+    $.ajax({
+        url: '/api/v1/admin/order/' + row.data().id,
+        method: 'delete',
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: () => {
+            row.draw();
+        },
+        error: (response) => {
+            modal('Delete sale order error', response.responseText)
+        }
+    });
+}
 
 function save_order(target, row) {
     var order_node = $(target).closest('.order-details');

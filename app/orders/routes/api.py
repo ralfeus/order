@@ -17,6 +17,24 @@ from app.shipping.models import Shipping
 from app.utils.atomy import atomy_login
 from app.tools import prepare_datatables_query
 
+@bp_api_admin.route('/<order_id>', methods=['DELETE'])
+@roles_required('admin')
+def delete_order(order_id):
+    '''
+    Deletes specified order
+    '''
+    order = Order.query.get(order_id)
+    if order is None:
+        abort(Response(f"No order <{order_id}> was found", status=404))
+    if order.status != OrderStatus.pending:
+        abort(Response(f"Can't delete order in status <{order.status.name}>", status=409))
+    # for op in order.order_products:
+    #     db.session.delete(op)
+    db.session.delete(order)
+    db.session.commit()
+    return Response(status=200)
+        
+
 @bp_api_admin.route('', defaults={'order_id': None})
 @bp_api_admin.route('/<order_id>')
 @roles_required('admin')

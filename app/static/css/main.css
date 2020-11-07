@@ -10,6 +10,11 @@
     background: green;
 }
 
+.btn-red {
+    background: red;
+    color: yellow;
+}
+
 .btn-secondary:not(:disabled):not(.disabled).active {
     background: greenyellow;
     color: black;

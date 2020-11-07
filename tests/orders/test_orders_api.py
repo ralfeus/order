@@ -59,6 +59,26 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.shipping.name, 'Shipping1')
 
+    def test_delete_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
+        order1 = Order(id=gen_id + '1', user=self.user, status=OrderStatus.paid)
+        suborder = Suborder(order=order)
+        self.try_add_entities([
+            Order(user=self.user),
+            order, order1, suborder,
+            OrderProduct(suborder=suborder, product_id='0000'),
+            OrderProduct(suborder=suborder, product_id='0000')
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.delete(f'/api/v1/admin/order/{gen_id}')
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Order.query.count(), 2)
+        res = self.client.delete(f'/api/v1/admin/order/{order1.id}')
+        self.assertEqual(res.status_code, 409)
+        self.assertEqual(Order.query.count(), 2)
+        
     def test_save_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
