@@ -32,6 +32,9 @@ def delete_order(order_id):
     #     db.session.delete(op)
     db.session.delete(order)
     db.session.commit()
+    current_app.logger.warning(
+        "Sale Order <%s> of customer <%s> created on <%s> is deleted by <%s>",
+        order_id, order.name, order.when_created, current_user.username)
     return Response(status=200)
         
 
