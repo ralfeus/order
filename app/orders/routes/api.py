@@ -26,7 +26,7 @@ def delete_order(order_id):
     order = Order.query.get(order_id)
     if order is None:
         abort(Response(f"No order <{order_id}> was found", status=404))
-    if order.status != OrderStatus.pending:
+    if order.status in [OrderStatus.paid, OrderStatus.po_created, OrderStatus.shipped]:
         abort(Response(f"Can't delete order in status <{order.status.name}>", status=409))
     # for op in order.order_products:
     #     db.session.delete(op)

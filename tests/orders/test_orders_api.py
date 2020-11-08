@@ -63,10 +63,11 @@ class TestOrdersApi(BaseTestCase):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
         order1 = Order(id=gen_id + '1', user=self.user, status=OrderStatus.paid)
+        order2 = Order(id=gen_id + '2', user=self.user)
         suborder = Suborder(order=order)
         self.try_add_entities([
             Order(user=self.user),
-            order, order1, suborder,
+            order, order1, order2, suborder,
             OrderProduct(suborder=suborder, product_id='0000'),
             OrderProduct(suborder=suborder, product_id='0000')
         ])
@@ -74,9 +75,12 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/admin/order/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(Order.query.count(), 2)
+        self.assertEqual(Order.query.count(), 3)
         res = self.client.delete(f'/api/v1/admin/order/{order1.id}')
         self.assertEqual(res.status_code, 409)
+        self.assertEqual(Order.query.count(), 3)
+        res = self.client.delete(f'/api/v1/admin/order/{order2.id}')
+        self.assertEqual(res.status_code, 200)
         self.assertEqual(Order.query.count(), 2)
         
     def test_save_order(self):
