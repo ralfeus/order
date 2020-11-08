@@ -28,8 +28,11 @@ def delete_order(order_id):
         abort(Response(f"No order <{order_id}> was found", status=404))
     if order.status in [OrderStatus.paid, OrderStatus.po_created, OrderStatus.shipped]:
         abort(Response(f"Can't delete order in status <{order.status.name}>", status=409))
-    # for op in order.order_products:
-    #     db.session.delete(op)
+    if order.invoice is not None:
+        abort(Response(f"""
+            There is an invoice {order.invoice} assigned to the order <{order_id}>. 
+            Can't delete order with invoice created""", status=409))
+
     db.session.delete(order)
     db.session.commit()
     current_app.logger.warning(
