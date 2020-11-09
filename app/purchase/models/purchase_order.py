@@ -1,7 +1,10 @@
 ''' Represents purchase order '''
+from datetime import datetime, date
 import enum
 
 from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import select
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -27,7 +30,7 @@ class PurchaseOrder(db.Model, BaseModel):
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(12))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
-    suborder = relationship('Suborder', foreign_keys=[suborder_id])
+    suborder = relationship('Suborder', foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
     customer = relationship('Subcustomer', foreign_keys=[customer_id])
     contact_phone = Column(String(13))
@@ -61,8 +64,22 @@ class PurchaseOrder(db.Model, BaseModel):
         return self.suborder.order_products
 
     @property
-    def purchase_date(self):
-        return self.suborder.buyout_date
+    def purchase_date(self) -> date:
+        return self.suborder.buyout_date.date()
+
+    @purchase_date.setter
+    def purchase_date(self, value):
+        if isinstance(value, datetime):
+            self.suborder.buyout_date = value
+        elif isinstance(value, str):
+            self.suborder.buyout_date = datetime.strptime(value, '%Y-%m-%d')
+        else:
+            raise AttributeError('Unsupported value type for purchase_date: %s' % type(value))
+
+    # @classmethod
+    # @purchase_date.expression
+    # def purchase_date(cls):
+    #     return Suborder.buyout_date
 
     @property
     def address(self):
@@ -76,6 +93,7 @@ class PurchaseOrder(db.Model, BaseModel):
         return "<PurchaseOrder: {}>".format(self.id)
 
     def to_dict(self):
+        purchase_date = self.purchase_date
         return {
             'id': self.id,
             'order_id': self.suborder.order_id,
@@ -88,6 +106,17 @@ class PurchaseOrder(db.Model, BaseModel):
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
             'status_details': self.status_details,
+            'purchase_date': purchase_date.strftime('%Y-%m-%d') if purchase_date else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }
+
+    # @classmethod
+    # def from_dict(cls, attr):
+    #     result = super().from_dict(attr)
+    #     if result is None:
+    #         if attr == 'purchase_date':
+    #             return PurchaseOrder.purchase_date
+    #         return None
+
+    #     return result

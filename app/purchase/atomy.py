@@ -46,6 +46,11 @@ class PurchaseOrderManager:
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
+        # First check whether purchase date set is in acceptable bounds
+        if not self.__is_purchase_date_valid(purchase_order.purchase_date):
+            self.__logger.info("PO: Skip <%s>: purchase date is %s",
+                purchase_order.id, purchase_order.purchase_date)
+            return purchase_order
         self.__log("PO: Logging in...")
         try:
             atomy_login(
@@ -125,19 +130,20 @@ class PurchaseOrderManager:
         # self.__browser.save_screenshot(realpath('02-products.png'))
         return ordered_products
 
-    def __set_purchase_date(self, purchase_date):
-        self.__log("PO: Setting purchase date")
+    def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
         today = datetime.now().astimezone(tz)
         min_date = (today - timedelta(days=2)).date()
         max_date = (today + timedelta(days=1)).date()
-        if purchase_date:
-            purchase_date = purchase_date.date()
-            if purchase_date >= min_date and \
-                purchase_date <= max_date:
-                date_str = purchase_date.strftime('%Y-%m-%d')
-                self.__browser.execute_script(
-                    f"document.getElementById('sSaleDate').value = '{date_str}'")
+        return purchase_date is None or \
+            (purchase_date >= min_date and purchase_date <= max_date)
+                
+
+    def __set_purchase_date(self, purchase_date):
+        if purchase_date and self.__is_purchase_date_valid(purchase_date):
+            date_str = purchase_date.strftime('%Y-%m-%d')
+            self.__browser.execute_script(
+                f"document.getElementById('sSaleDate').value = '{date_str}'")
         # self.__browser.save_screenshot(realpath('03-purchase-date.png'))
 
     def __set_combined_shipment(self):

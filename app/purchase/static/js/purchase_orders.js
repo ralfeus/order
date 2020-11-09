@@ -61,6 +61,12 @@ $(document).ready( function () {
     g_create_editor.field('order_id').input().on('change', on_order_change);
     g_create_editor.field('company_id').input().on('change', on_company_change);
 
+    var min_date = new Date();
+    var backday = 3;
+    if ([1, 2].includes(min_date.getDay())) { 
+        backday += 2; 
+    }
+    min_date.setDate(min_date.getDate() - backday);
     g_editor  = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
             var url = '/api/v1/admin/purchase/order/' + Object.entries(data.data)[0][0];
@@ -82,6 +88,17 @@ $(document).ready( function () {
         table: '#purchase_orders',
         idSrc: 'id',
         fields: [
+            {
+                label: 'Purchase date', 
+                name: 'purchase_date',
+                type: 'datetime',
+                opts: {
+                    firstDay: 1,
+                    gotoCurrent: true,
+                    minDate: min_date,
+                    disableDays: [0, 6]
+                }
+            },
             {label: 'Vendor PO ID', name: 'vendor_po_id'},
             {label: 'Payment account', name: 'payment_account'},
             {
@@ -127,6 +144,7 @@ $(document).ready( function () {
             {data: 'id'},
             {data: 'customer', orderable: false},
             {data: 'total_krw', orderable: false},
+            {data: 'purchase_date', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
             {
@@ -141,7 +159,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[7, 'desc']],
+        order: [[8, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

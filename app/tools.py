@@ -50,7 +50,8 @@ def prepare_datatables_query(query, args, filter_clause):
     sort_column_input = args['order']['0']
     sort_column_name = columns[sort_column_input['column']]['data']
     if sort_column_name != '':
-        sort_column = query.column_descriptions[0]['expr'].columns[sort_column_name]
+        # sort_column = query.column_descriptions[0]['expr'].columns[sort_column_name]
+        sort_column = getattr(query.column_descriptions[0]['type'], sort_column_name)
         if sort_column_input['dir'] == 'desc':
             sort_column = sort_column.desc()
         query = query.order_by(sort_column)

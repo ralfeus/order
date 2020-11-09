@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from pytz import timezone
 from time import sleep
 
 from more_itertools import map_reduce
@@ -98,7 +99,12 @@ def post_purchase_orders(po_id=None):
         po_manager = PurchaseOrderManager(logger=logger)
 
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
+        tz = timezone('Asia/Seoul')
+        today = datetime.now().astimezone(tz)
         for po in pending_purchase_orders:
+            if po.purchase_date > today + timedelta(days=1):
+                logger.info("Skip <%s>: purchase date is %s")
+                continue
             logger.info("Posting a purchase order %s", po.id)
             try:
                 po_manager.post_purchase_order(po)

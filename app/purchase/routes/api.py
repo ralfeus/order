@@ -117,10 +117,11 @@ def update_purchase_order(po_id):
             current_app.logger.info("Update POs status task ID is %s", task.id)
             result = (jsonify(po.to_dict()), 202)
         else:
-            editable_attributes = ['payment_account', 'status', 'vendor_po_id']
+            editable_attributes = ['payment_account', 'purchase_date',
+                'status', 'vendor_po_id']
             po = modify_object(po, request.get_json(), editable_attributes)
             result = jsonify(po.to_dict())
-    except Exception as ex:
+    except:
         current_app.logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
     db.session.commit()
