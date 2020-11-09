@@ -65,7 +65,9 @@ class PurchaseOrder(db.Model, BaseModel):
 
     @property
     def purchase_date(self) -> date:
-        return self.suborder.buyout_date.date()
+        return self.suborder.buyout_date.date() \
+            if self.suborder and self.suborder.buyout_date \
+            else None
 
     @purchase_date.setter
     def purchase_date(self, value):
@@ -100,7 +102,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'vendor_po_id': self.vendor_po_id,
             'suborder_id': self.suborder_id,
             'customer_id': self.customer_id,
-            'customer': self.customer.name,
+            'customer': self.customer.name if self.customer else None,
             'total_krw': self.suborder.total_krw,
             'address': self.address,
             'payment_account': self.payment_account,
