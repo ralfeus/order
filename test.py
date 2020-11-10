@@ -12,14 +12,15 @@ with create_app().app_context():
     # update_purchase_orders_status(
     #     po_id='	PO-2020-10-0024-099',
     #     browser=Browser(headless=False, connect_to="localhost:9222"))
-    pom = PurchaseOrderManager(
-		 Browser(headless=False, connect_to="localhost:9222"),
-		 logging.getLogger('pom'))
+    # pom = PurchaseOrderManager(
+	# 	 Browser(headless=False, connect_to="localhost:9222"),
+	# 	 logging.getLogger('pom'))
     # subcustomer = Subcustomer.query.get(36)
     # pom.update_purchase_orders_status(subcustomer)
-    po = PurchaseOrder.query.get('PO-2020-10-0024-099')
+    # po = PurchaseOrder.query.get('PO-2020-10-0024-099')
     # po.customer.password = '1'
     # pom.update_purchase_order_status(po)
-    pom.post_purchase_order(po)
+    # pom.post_purchase_order(po)
 # atomy_login('11305301', 's111111!', Browser(headless=False))
 # atomy_login('12170778', 's111111!', Browser(headless=False))
+    import_products()

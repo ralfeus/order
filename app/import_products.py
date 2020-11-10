@@ -1,3 +1,4 @@
+import itertools
 import lxml.html
 from lxml.cssselect import CSSSelector
 import re
@@ -11,10 +12,13 @@ sel_item_price = CSSSelector('td.line_C_r:nth-child(4)')
 sel_item_points = CSSSelector('td.line_C_r:nth-child(5)')
 
 def get_document_from_url(url, headers=None):
-    headers_list = [
-        header for set in list(map(
-            lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
-    ]
+    # headers_list = [
+    #     header for set in list(map(
+    #         lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
+    # ]
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
+    ]))
     output = subprocess.run([
         '/usr/bin/curl',
         url,
@@ -22,14 +26,19 @@ def get_document_from_url(url, headers=None):
         ] + headers_list,
         encoding='euc-kr', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
-    doc = lxml.html.fromstring(output.stdout)
-    return doc
+    if re.search('HTTP.*? 200', output.stderr):
+        doc = lxml.html.fromstring(output.stdout)
+        return doc
 
-def atomy():
+    raise "Couldn't get page"
+
+def get_atomy_products():
     product_url = "https://www.atomy.kr/center/popup_material.asp"
-    session = atomy_login()
-    doc = get_document_from_url(product_url, {
-        'Cookie': session })
+    session_cookies = atomy_login()
+    doc = get_document_from_url(product_url, 
+        [{'Cookie': c} for c in session_cookies ])
+    result = []
+    items = sel_item(doc)
     for item in sel_item(doc):
         product_line = item.getparent().getparent()
         item_code = sel_item_code(product_line)[0].text.strip()
@@ -45,13 +54,14 @@ def atomy():
             item_available = False
         else:
             item_available = True
-        yield {
+        result.append({
             'id': item_code,
             'name': item_name,
             'price': item_price,
             'points': item_points,
             'available': item_available
-        }
+        })
+    return result
 
 def atomy_login():
     '''
@@ -67,9 +77,10 @@ def atomy_login():
         '-v'
         ],
         encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-    if output.stderr.find('< location: ') != -1:
-        return re.search(r'ASPSESSIONID(\w+)=(\w+)', output.stderr).group()
+    if re.search('< location: center_main', output.stderr):
+        # return re.search(r'ASPSESSIONID(\w+)=(\w+)', output.stderr).group()
+        return re.findall('set-cookie: (.*)', output.stderr)
     return None
 
 if __name__ == '__main__':
-    atomy()
+    get_atomy_products()
