@@ -103,7 +103,7 @@ def post_purchase_orders(po_id=None):
         today = datetime.now().astimezone(tz).date()
         for po in pending_purchase_orders:
             if po.purchase_date and po.purchase_date > today + timedelta(days=1):
-                logger.info("Skip <%s>: purchase date is %s")
+                logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
                 continue
             logger.info("Posting a purchase order %s", po.id)
             try:
