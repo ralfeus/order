@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -161,8 +162,8 @@ def user_create_order():
             except:
                 current_app.logger.exception("Couldn't add product %s", item['item_code'])
 
-    order.update_total()
     try:
+        order.update_total()
         db.session.add(order)
         db.session.commit()
         result = {
@@ -170,7 +171,19 @@ def user_create_order():
             'order_id': order.id,
             'message': errors
         }
-    except (IntegrityError, OperationalError, DataError) as ex:
+    except DataError as ex:
+        db.session.rollback()
+        message = ex.orig.args[1]
+        table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
+        if table:
+            if table == 'subcustomers':
+                message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+        result = {
+            'status': 'error',
+            'message': f"""Couldn't add order due to input error. Check your form and try again.
+                           {message}"""
+        }
+    except (IntegrityError, OperationalError) as ex:
         db.session.rollback()
         result = {
             'status': 'error',
@@ -180,7 +193,7 @@ def user_create_order():
     return jsonify(result)
 
 def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
-    '''Returns a tuple of customer from raw data 
+    '''Returns a tuple of customer from raw data
     and indication whether customer is existing one or created'''
     parts = subcustomer_data.split(',')
     for part in parts:
