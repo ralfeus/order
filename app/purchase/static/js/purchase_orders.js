@@ -142,7 +142,19 @@ $(document).ready( function () {
                     //     onclick="cancel_purchase_order(this);">Cancel</button>'
             },
             {data: 'id'},
-            {data: 'customer', orderable: false},
+            {
+                data: 'customer', 
+                orderable: false,
+                fnCreatedCell: function(nTd, sData, oData, iRow, iCol) {
+                    $(nTd).html("" +
+                        "<span " +
+                        "    class='subcustomer'" +
+                        "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                        "    title=\"Username: " + oData.customer.username + "\nPassword: " + oData.customer.password + "\">" +
+                            oData.customer.name + 
+                        "</span>");
+                }
+            },
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},

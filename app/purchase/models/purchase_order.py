@@ -102,7 +102,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'vendor_po_id': self.vendor_po_id,
             'suborder_id': self.suborder_id,
             'customer_id': self.customer_id,
-            'customer': self.customer.name if self.customer else None,
+            'customer': self.customer.to_dict() if self.customer else None,
             'total_krw': self.suborder.total_krw,
             'address': self.address,
             'payment_account': self.payment_account,
