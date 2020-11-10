@@ -9,6 +9,14 @@ from sqlalchemy import not_
 
 from app import celery, db
 
+@celery.on_after_finalize.connect
+def setup_periodic_tasks(sender, **kwargs):
+    sender.add_periodic_task(7200, update_purchase_orders_status,
+        name='Update PO status every 120 minutes')
+    sender.add_periodic_task(28800, import_products,
+        name="Import products from Atomy every 8 hours")
+
+@celery.task
 def import_products():
     from app import create_app
     from app.import_products import get_atomy_products
@@ -88,12 +96,6 @@ def import_products():
                                 same: {same}, new: {new},
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
-
-@celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(7200, update_purchase_orders_status,
-        name='Update PO status every 60 minutes')
-
 
 @celery.task
 def add_together(a, b):
