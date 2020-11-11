@@ -1,3 +1,4 @@
+from celery.utils.log import get_task_logger
 from datetime import datetime, timedelta
 from pytz import timezone
 from time import sleep
@@ -22,55 +23,56 @@ def import_products():
     from app.import_products import get_atomy_products
     from app.products.models import Product
     
-    current_app.logger.info('Starting products import')
+    logger = get_task_logger(__name__)
+    logger.info("Starting products import")
     products = Product.query.all()
     same = new = modified = ignored = 0
     vendor_products = get_atomy_products()
-    current_app.logger.info("Got %d products", len(vendor_products))
+    logger.info("Got %d products", len(vendor_products))
     if len(vendor_products) == 0: # Something went wrong
-        current_app.logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
+        logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
         return
     for atomy_product in vendor_products:
         try:
             product = next(p for p in products
                            if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))
             if product.synchronize:
-                current_app.logger.debug('Synchronizing product %s', atomy_product['id'])
+                logger.debug('Synchronizing product %s', atomy_product['id'])
                 is_dirty = False
                 if product.name != atomy_product['name']:
-                    current_app.logger.debug('\tname(%s): vendor(%s) != local(%s)', 
+                    logger.debug('\tname(%s): vendor(%s) != local(%s)', 
                         atomy_product['id'], atomy_product['name'], product.name)
                     product.name = atomy_product['name']
                     is_dirty = True
                 if product.price != int(atomy_product['price']):
-                    current_app.logger.debug('\tprice(%s): vendor(%s) != local(%s)', 
+                    logger.debug('\tprice(%s): vendor(%s) != local(%s)', 
                         atomy_product['id'], atomy_product['price'], product.price)
                     product.price = int(atomy_product['price'])
                     is_dirty = True
                 if product.points != int(atomy_product['points']):
-                    current_app.logger.debug('\tpoints(%s): vendor(%s) != local(%s)', 
+                    logger.debug('\tpoints(%s): vendor(%s) != local(%s)', 
                         atomy_product['id'], atomy_product['points'], product.points)
                     product.points = int(atomy_product['points'])
                     is_dirty = True
                 if product.available != atomy_product['available']:
-                    current_app.logger.debug('\tavailable(%s): vendor(%s) != local(%s)', 
+                    logger.debug('\tavailable(%s): vendor(%s) != local(%s)', 
                         atomy_product['id'], atomy_product['available'], product.available)
                     product.available = atomy_product['available']
                     is_dirty = True
                 if is_dirty:
-                    current_app.logger.debug('\t%s: MODIFIED', atomy_product['id'])
+                    logger.debug('\t%s: MODIFIED', atomy_product['id'])
                     product.when_changed = datetime.now()
                     modified += 1
                 else:
-                    current_app.logger.debug('\t%s: SAME', atomy_product['id'])
+                    logger.debug('\t%s: SAME', atomy_product['id'])
                     same += 1
             else:
-                current_app.logger.debug('\t%s: IGNORED', product.id)
+                logger.debug('\t%s: IGNORED', product.id)
                 ignored += 1
 
             products.remove(product)
         except StopIteration:
-            current_app.logger.debug('%s: No local product found. ADDING', atomy_product['id'])
+            logger.debug('%s: No local product found. ADDING', atomy_product['id'])
             product = Product(
                 id=atomy_product['id'],
                 name=atomy_product['name'],
@@ -82,17 +84,17 @@ def import_products():
             )
             new += 1
             db.session.add(product)
-    current_app.logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
+    logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
         len(products))
     for product in products:
         if product.synchronize:
-            current_app.logger.debug("%s: should be synchronized. DISABLED", product.id)
+            logger.debug("%s: should be synchronized. DISABLED", product.id)
             product.available = False
             modified += 1
         else:
-            current_app.logger.debug("%s: should NOT be synchronized. IGNORED", product.id)
+            logger.debug("%s: should NOT be synchronized. IGNORED", product.id)
             ignored += 1
-    current_app.logger.info(f"""Product synchronization result:
+    logger.info(f"""Product synchronization result:
                                 same: {same}, new: {new},
                                 modified: {modified}, ignored: {ignored}""")
     db.session.commit()
@@ -115,7 +117,6 @@ def post_purchase_orders(po_id=None):
     try: 
         # Wrap whole operation in order to 
         # mark all pending POs as failed in case of any failure
-        from celery.utils.log import get_task_logger
         logger = get_task_logger(__name__)
 
         from app.purchase.atomy import PurchaseOrderManager
@@ -155,7 +156,6 @@ def post_purchase_orders(po_id=None):
 
 @celery.task
 def update_purchase_orders_status(po_id=None, browser=None):
-    from celery.utils.log import get_task_logger
     from app.orders.models import Subcustomer
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
     from app.purchase.atomy import PurchaseOrderManager
