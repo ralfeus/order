@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_subcustomers.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="subcustomers" class="table">
+        <thead>
+            <th scope="col" style="width: 2em;">Subcustomer ID</th>
+            <th scope="col" style="width: max-content;">Name</th>
+            <th scope="col" style="width: 2em;">User name</th>
+            <th scope="col" style="width: 2em;">Password</th>
+            <th scope="col" style="width: 8em;">When created</th>
+            <th scope="col" style="width: 8em;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+{% endblock %}

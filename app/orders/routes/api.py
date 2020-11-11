@@ -16,7 +16,7 @@ from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
 from app.products.models import Product
 from app.shipping.models import Shipping
 from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query
+from app.tools import prepare_datatables_query, modify_object
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -479,6 +479,86 @@ def user_get_order_product_status_history(order_product_id):
         })
         result.status_code = 404
         return result
+
+@bp_api_admin.route('/subcustomer')
+@roles_required('admin')
+def admin_get_subcustomers():
+    subcustomers = Subcustomer.query
+    if request.values.get('draw') is not None: # Args were provided by DataTables
+        filter_clause = f"%{request.values['search[value]']}%"
+        subcustomers, records_total, records_filtered = prepare_datatables_query(
+            subcustomers, request.values,
+            or_(
+                Subcustomer.name.like(filter_clause),
+                Subcustomer.username.like(filter_clause)
+            )
+        )
+        outcome = list(map(lambda entry: entry.to_dict(), subcustomers))
+
+        return jsonify({
+            'draw': request.values['draw'],
+            'recordsTotal': records_total,
+            'recordsFiltered': records_filtered,
+            'data': outcome
+        })
+    
+    return jsonify(list(map(lambda entry: entry.to_dict(), subcustomers)))
+
+@bp_api_admin.route('/subcustomer', methods=['POST'])
+@roles_required('admin')
+def admin_create_subcustomer():
+    payload = request.get_json()
+    if payload is None:
+        abort(Response("No customer data is provided", status=400))
+    try:
+        if Subcustomer.query.filter_by(username=payload['username']).first():
+            abort(Response("Subcustomer with such username already exists", status=409))
+        subcustomer = Subcustomer(
+            name=payload['name'],
+            username=payload['username'],
+            password=payload['password']
+        )
+        db.session.add(subcustomer)
+        db.session.commit()
+        return jsonify(subcustomer.to_dict())
+    except KeyError:
+        abort(Response("Not all subcustomer data is provided", status=400))
+    
+@bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['POST'])
+@roles_required('admin')
+def admin_save_subcustomer(subcustomer_id):
+    payload = request.get_json()
+    if payload is None:
+        abort(Response("No customer data is provided", status=400))
+    subcustomer = Subcustomer.query.get(subcustomer_id)
+    if subcustomer is None:
+        abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
+    try:
+        if Subcustomer.query.filter_by(username=payload['username']).count() > 0:
+            abort(Response(
+                f"Subcustomer with username <{payload['username']}> already exists",
+                status=409))
+        modify_object(subcustomer, payload, ['name', 'username', 'password'])
+        db.session.commit()
+        return jsonify(subcustomer.to_dict())
+    except KeyError:
+        abort(Response("Not all subcustomer data is provided", status=400))
+
+@bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['DELETE'])
+@roles_required('admin')
+def admin_delete_subcustomer(subcustomer_id):
+    subcustomer = Subcustomer.query.get(subcustomer_id)
+    if subcustomer is None:
+        abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
+    owned_suborders = Suborder.query.filter_by(subcustomer=subcustomer)
+    if owned_suborders.count() > 0:
+        suborder_ids = ','.join([s.id for s in owned_suborders])
+        abort(Response(
+            f"Can't delete subcustomer that has suborders: {suborder_ids}", status=409))
+    db.session.delete(subcustomer)
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
 
 @bp_api_user.route('/subcustomer/validate', methods=['POST'])
 @login_required

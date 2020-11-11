@@ -22,7 +22,7 @@ $(document).ready(() => {
                 data: JSON.stringify(target),
                 success: data => {
                     success(({data: [data]}))
-                    update_totals()
+                    // update_totals()
                 },
                 error: error
             });

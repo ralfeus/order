@@ -70,3 +70,8 @@ def admin_get_order(order_id):
     else:
         return user_get_order(order_id)
 
+
+@bp_client_admin.route('/subcustomers')
+@roles_required('admin')
+def admin_get_subcustomers():
+    return render_template('admin_subcustomers.html')
