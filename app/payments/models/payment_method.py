@@ -14,6 +14,9 @@ class PaymentMethod(db.Model, BaseModel):
     def __repr__(self):
         return f"<PaymentMethod: {self.id} - {self.name}>"
 
+    def __str__(self):
+        return str(self.name)
+
     def to_dict(self):
         return {
             'id': self.id,

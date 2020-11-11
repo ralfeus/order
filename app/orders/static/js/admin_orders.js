@@ -45,18 +45,19 @@ $(document).ready( function () {
             {data: 'shipping_krw'},
             {data: 'total_krw'},
             {data: 'status'},
+            {data: 'payment_method'},
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
         columnDefs: [
             {
-                targets: [9, 10],
+                targets: [10, 11],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
             }
         ],
-        order: [[9, 'desc']],
+        order: [[10, 'desc']],
         select: true,
         serverSide: true,
         processing: true

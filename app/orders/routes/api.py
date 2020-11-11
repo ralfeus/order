@@ -45,7 +45,7 @@ def delete_order(order_id):
 @bp_api_admin.route('', defaults={'order_id': None})
 @bp_api_admin.route('/<order_id>')
 @roles_required('admin')
-def get_orders(order_id):
+def admin_get_orders(order_id):
     '''
     Returns all or selected orders in JSON
     '''
@@ -53,15 +53,16 @@ def get_orders(order_id):
     if order_id is not None:
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
-            return jsonify(orders.first().to_dict())
+            return jsonify(orders.first().to_dict(details=True))
     if request.values.get('status'):
-        orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
+        orders = orders.filter_by(status=OrderStatus[request.values['status']].name)
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     else:
-        return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
+        return jsonify(list(map(
+            lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
 
 @bp_api_user.route('', defaults={'order_id': None})
 @bp_api_user.route('/<order_id>')
@@ -73,7 +74,7 @@ def user_get_orders(order_id):
     if order_id is not None:
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
-            return jsonify(orders.first().to_dict())
+            return jsonify(orders.first().to_dict(details=True))
     if request.values.get('status'):
         orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
     if request.values.get('draw') is not None: # Args were provided by DataTables
@@ -81,7 +82,8 @@ def user_get_orders(order_id):
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     else:
-        return jsonify(list(map(lambda entry: entry.to_dict(), orders)))
+        return jsonify(list(map(
+            lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
 
 def filter_orders(orders, filter_params):
     orders, records_total, records_filtered = prepare_datatables_query(

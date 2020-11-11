@@ -12,9 +12,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.shipping.models import Shipping, NoShipping
-from app.invoices.models import Invoice
 from app.currencies.models import Currency
+from app.invoices.models import Invoice
+from app.payments.models import Transaction
+from app.shipping.models import Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
     pending = 1
@@ -60,6 +61,16 @@ class Order(db.Model):
     when_changed = Column(DateTime)
     suborders = relationship('Suborder', lazy='dynamic')
     __order_products = relationship('OrderProduct', lazy='dynamic')
+
+    @property
+    def payment_method(self):
+        if self.status in [OrderStatus.paid, OrderStatus.po_created, OrderStatus.shipped]:
+            payment = Transaction.query.filter(Transaction.orders.any(
+                Order.id == self.id
+            )).first()
+            return payment.payment_method.name if payment else None
+        else:
+            return None
 
     @hybrid_property
     def status(self):
@@ -119,14 +130,20 @@ class Order(db.Model):
     def __repr__(self):
         return "<Order: {}>".format(self.id)
 
-    def to_dict(self):
+    def to_dict(self, details=False):
+        is_order_updated = False
         if not self.total_krw:
             self.update_total()
+            is_order_updated = True
         if not self.total_rur:
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
+            is_order_updated = True
         if not self.total_usd:
             self.total_usd = self.total_krw * Currency.query.get('USD').rate
-        return {
+            is_order_updated = True
+        if is_order_updated:
+            db.session.commit()
+        result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
             'customer': self.name,
@@ -142,13 +159,19 @@ class Order(db.Model):
             'country': self.country.to_dict() if self.country else None,
             'shipping': self.shipping.to_dict() if self.shipping else None,
             'status': self.status.name if self.status else None,
+            'payment_method': self.payment_method,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
-            'suborders': [suborder.to_dict() for suborder in self.suborders],
-            'order_products': [order_product.to_dict() for order_product in self.order_products],
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
         }
+        if details:
+            result = { **result,
+                'suborders': [suborder.to_dict() for suborder in self.suborders],
+                'order_products': [order_product.to_dict()
+                    for order_product in self.order_products]
+            }
+        return result
 
     def update_total(self):
         '''
