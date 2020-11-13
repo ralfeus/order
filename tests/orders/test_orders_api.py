@@ -58,6 +58,52 @@ class TestOrdersApi(BaseTestCase):
         order = Order.query.get(created_order_id)
         self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.shipping.name, 'Shipping1')
+    
+    def test_update_subcustomer_password(self):
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                "shipping":"1",
+                "phone":"",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Subcustomer.query.filter_by(username='A000').count(), 1)
+        res = self.client.post('/api/v1/order', json={
+            "name":"User1",
+            "address":"Address1",
+            "country":"c1",
+            "shipping":"1",
+            "phone":"",
+            "comment":"",
+            "suborders": [
+                {
+                    "subcustomer":"A000, Subcustomer1, 111",
+                    "items": [
+                        {"item_code":"0000", "quantity":"1"},
+                        {"item_code":"1", "quantity": "1"}
+                    ]
+                }
+            ]
+        })
+        self.assertEqual(res.status_code, 200)
+        subcustomer = Subcustomer.query.filter_by(username='A000')
+        self.assertEqual(subcustomer.count(), 1)
+        self.assertEqual(subcustomer.first().password, '111')
 
     def test_delete_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

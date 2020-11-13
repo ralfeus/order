@@ -202,6 +202,11 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
         subcustomer = Subcustomer.query.filter(or_(
             Subcustomer.name == part, Subcustomer.username == part)).first()
         if subcustomer:
+            try:
+                if subcustomer.password != parts[2].strip():
+                    subcustomer.password = parts[2].strip()
+            except IndexError:
+                pass # the password wasn't provided, so we don't update
             return subcustomer, False
     try:
         subcustomer = Subcustomer(
