@@ -203,6 +203,8 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
             Subcustomer.name == part, Subcustomer.username == part)).first()
         if subcustomer:
             try:
+                if subcustomer.name != parts[1].strip():
+                    subcustomer.name = parts[1].strip()
                 if subcustomer.password != parts[2].strip():
                     subcustomer.password = parts[2].strip()
             except IndexError:
