@@ -7,7 +7,7 @@ from app.models.base import BaseModel
 class PaymentMethod(db.Model, BaseModel):
     __tablename__ = 'payment_methods'
 
-    name = Column(String(16))
+    name = Column(String(32))
     payee_id = Column(Integer, ForeignKey('companies.id'))
     payee = relationship('Company', foreign_keys=[payee_id])
 

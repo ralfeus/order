@@ -345,7 +345,8 @@ class PurchaseOrderManager:
             '결제완료': PurchaseOrderStatus.paid,
             '상품준비중': PurchaseOrderStatus.paid,
             '주문취소': PurchaseOrderStatus.cancelled,
-            '배송완료': PurchaseOrderStatus.delivered
+            '배송완료': PurchaseOrderStatus.delivered,
+            '반품': PurchaseOrderStatus.delivered
         }       
         # print(l.text)
         acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text

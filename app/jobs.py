@@ -94,9 +94,9 @@ def import_products():
         else:
             logger.debug("%s: should NOT be synchronized. IGNORED", product.id)
             ignored += 1
-    logger.info(f"""Product synchronization result:
-                                same: {same}, new: {new},
-                                modified: {modified}, ignored: {ignored}""")
+    logger.info(
+        "Product synchronization result: same: %d, new: %d, modified: %d, ignored: %d",
+        same, new, modified, ignored)
     db.session.commit()
 
 @celery.task

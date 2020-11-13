@@ -31,11 +31,26 @@ $(document).ready(function() {
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer);
     $('#submit').on('click', submit_order)
-    $('.subcustomer-buyout-date').datepicker({
-	format: 'dd.mm.yyyy',
-	todayHighlight: true,
-        autoclose: true
-    });
+    $('.common-purchase-date')
+        .datepicker({
+            format: 'dd.mm.yyyy',
+            todayHighlight: true,
+            autoclose: true
+        })
+        .on('change', event => {
+            if (event.target.value) {
+                $('.subcustomer-buyout-date').val($('.common-purchase-date').val());
+            }
+        });
+    $('.subcustomer-buyout-date')
+        .datepicker({
+            format: 'dd.mm.yyyy',
+            todayHighlight: true,
+            autoclose: true
+        })
+        .on('change', () => {
+            $('.common-purchase-date').val('');
+        });
 
     load_dictionaries();
     g_dictionaries_loaded
