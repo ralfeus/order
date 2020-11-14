@@ -1,3 +1,4 @@
+from celery.schedules import crontab
 from celery.utils.log import get_task_logger
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -16,6 +17,8 @@ def setup_periodic_tasks(sender, **kwargs):
         name='Update PO status every 120 minutes')
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
+    sender.add_periodic_task(crontab(hour=19, minute=0), post_purchase_orders,
+        name="Run pending POs every day")
 
 @celery.task
 def import_products():
