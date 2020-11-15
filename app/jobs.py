@@ -17,7 +17,7 @@ def setup_periodic_tasks(sender, **kwargs):
         name='Update PO status every 120 minutes')
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
-    sender.add_periodic_task(crontab(hour=17, minute=0), post_purchase_orders,
+    sender.add_periodic_task(crontab(hour=16, minute=0), post_purchase_orders,
         name="Run pending POs every day")
 
 @celery.task
