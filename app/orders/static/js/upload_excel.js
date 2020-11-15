@@ -146,6 +146,13 @@ function load_products(ws) {
             if (isNaN(quantity)) {
                 quantity = 0;
             }
+            if (typeof current_node === "undefined") {
+                modal("Load order", 
+                    "Couldn't load order from the Excel spreadsheet. " +
+                    "No first subcustomer was identified");
+                $('.wait').hide();
+                return null;
+            }
             add_product(current_node, item, ws['A' + i].v, quantity);
             item++;
         }
