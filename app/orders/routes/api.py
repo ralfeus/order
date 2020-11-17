@@ -199,17 +199,29 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
     and indication whether customer is existing one or created'''
     parts = subcustomer_data.split(',')
     for part in parts:
-        subcustomer = Subcustomer.query.filter(or_(
-            Subcustomer.name == part, Subcustomer.username == part)).first()
-        if subcustomer:
-            try:
+        part = part.strip()
+        try:
+            subcustomer = Subcustomer.query.filter(or_(
+                Subcustomer.name == part, Subcustomer.username == part)).first()
+            if subcustomer:
                 if subcustomer.name != parts[1].strip():
                     subcustomer.name = parts[1].strip()
                 if subcustomer.password != parts[2].strip():
                     subcustomer.password = parts[2].strip()
-            except IndexError:
-                pass # the password wasn't provided, so we don't update
-            return subcustomer, False
+                return subcustomer, False
+        except DataError as ex:
+            message = ex.orig.args[1]
+            table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
+            if table:
+                if table == 'subcustomers':
+                    message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+            result = {
+                'status': 'error',
+                'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
+                            {message}"""
+            }
+        except IndexError:
+            pass # the password wasn't provided, so we don't update
     try:
         subcustomer = Subcustomer(
             username=parts[0].strip(),
@@ -540,16 +552,15 @@ def admin_save_subcustomer(subcustomer_id):
     subcustomer = Subcustomer.query.get(subcustomer_id)
     if subcustomer is None:
         abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
-    try:
-        if Subcustomer.query.filter_by(username=payload['username']).count() > 0:
-            abort(Response(
-                f"Subcustomer with username <{payload['username']}> already exists",
-                status=409))
-        modify_object(subcustomer, payload, ['name', 'username', 'password'])
-        db.session.commit()
-        return jsonify(subcustomer.to_dict())
-    except KeyError:
-        abort(Response("Not all subcustomer data is provided", status=400))
+
+    if payload.get('username') and \
+        Subcustomer.query.filter_by(username=payload['username']).count() > 0:
+        abort(Response(
+            f"Subcustomer with username <{payload['username']}> already exists",
+            status=409))
+    modify_object(subcustomer, payload, ['name', 'username', 'password'])
+    db.session.commit()
+    return jsonify(subcustomer.to_dict())
 
 @bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -581,6 +592,5 @@ def validate_subcustomer():
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
     except:
-        import sys
-        current_app.logger.warning(sys.exc_info())
+        current_app.logger.exception("Couldn't validate subcustomer %s", payload)
         return jsonify({'result': 'failure'})

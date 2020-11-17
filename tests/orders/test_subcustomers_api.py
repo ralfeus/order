@@ -43,9 +43,7 @@ class TestSubcustomersApi(BaseTestCase):
         subcustomer2 = Subcustomer(name='S2', username='s2', password='p1')
         self.try_add_entities([subcustomer1, subcustomer2])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/order/subcustomer/{subcustomer1.id}', json={}))
-        self.assertEqual(res.status_code, 400)
-        res = self.client.post('/api/v1/admin/order/subcustomer/999', json={})
+            lambda: self.client.post('/api/v1/admin/order/subcustomer/999', json={}))
         self.assertEqual(res.status_code, 404)
         
         res = self.client.post(f'/api/v1/admin/order/subcustomer/{subcustomer1.id}', json={
