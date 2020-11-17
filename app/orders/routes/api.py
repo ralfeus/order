@@ -149,6 +149,7 @@ def user_create_order():
                 local_shipping=0,
                 when_created=datetime.now()
             )
+            current_app.logger.debug('Created instance of Suborder %s', suborder)
             db.session.add(suborder)
         except SubcustomerParseError:
             abort(Response(f"""Couldn't find subcustomer and provided data
