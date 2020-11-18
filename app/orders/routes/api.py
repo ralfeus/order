@@ -132,6 +132,7 @@ def user_create_order():
         status=OrderStatus.pending,
         when_created=datetime.now()
     )
+    db.session.add(order)
     # order_products = []
     errors = []
     # ordertotal_weight = 0
@@ -163,11 +164,11 @@ def user_create_order():
             try:
                 add_order_product(suborder, item, errors)
             except:
-                current_app.logger.exception("Couldn't add product %s", item['item_code'])
+                # current_app.logger.exception("Couldn't add product %s", item['item_code'])
+                pass
 
     try:
         order.update_total()
-        db.session.add(order)
         db.session.commit()
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',

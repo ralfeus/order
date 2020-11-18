@@ -23,7 +23,7 @@ class Suborder(db.Model, BaseModel):
     seq_num = Column(Integer)
     subcustomer_id = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
-    order_id = Column(String(16), ForeignKey('orders.id'))
+    order_id = Column(String(16), ForeignKey('orders.id'), nullable=False)
     order = relationship('Order', foreign_keys=[order_id])
     buyout_date = Column(DateTime, index=True)
     # subtotal_krw = Column(Integer(), default=0)
