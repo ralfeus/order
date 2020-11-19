@@ -34,6 +34,10 @@ def delete_order(order_id):
             There is an invoice {order.invoice} assigned to the order <{order_id}>. 
             Can't delete order with invoice created""", status=409))
 
+    for suborder in order.suborders:
+        for op in suborder.order_products:
+            db.session.delete(op)
+        db.session.delete(suborder)
     db.session.delete(order)
     db.session.commit()
     current_app.logger.warning(
@@ -213,15 +217,17 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
                 return subcustomer, False
         except DataError as ex:
             message = ex.orig.args[1]
-            table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
-            if table:
-                if table == 'subcustomers':
-                    message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
-            result = {
-                'status': 'error',
-                'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
-                            {message}"""
-            }
+            match = re.search('(INSERT INTO|UPDATE) (.+?) ', ex.statement)
+            if match:
+                table = match.groups()[1]
+                if table:
+                    if table == 'subcustomers':
+                        message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+                result = {
+                    'status': 'error',
+                    'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
+                                {message}"""
+                }
         except IndexError:
             pass # the password wasn't provided, so we don't update
     try:
@@ -232,6 +238,8 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
             when_created=datetime.now())
         # db.session.add(subcustomer)
         return subcustomer, True
+    except ValueError as ex:
+        raise SubcustomerParseError(str(ex))
     except IndexError:
         raise SubcustomerParseError("The subcustomer string doesn't conform <ID, Name, Password> format")
 
