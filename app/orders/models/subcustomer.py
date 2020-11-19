@@ -1,4 +1,3 @@
-
 '''
 Subcustomer model
 '''
@@ -7,7 +6,7 @@ from decimal import Decimal
 from functools import reduce
 
 from sqlalchemy import Column, DateTime, Numeric, ForeignKey, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
@@ -24,6 +23,12 @@ class Subcustomer(db.Model, BaseModel):
 
     def __repr__(self):
         return "<Subcustomer: {} {}>".format(self.id, self.name)
+
+    @validates('username', 'password')
+    def validate_creds(self, key, value):
+        if len(value) > 16:
+            raise ValueError(f'The <{key}> length should be up to 16 characters')
+        return value
 
     def get_purchase_orders(self):
         return map(lambda s: s.get_purchase_order(), self.suborders)
