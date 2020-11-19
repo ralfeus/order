@@ -2,7 +2,7 @@ import imp
 import glob
 from os.path import dirname, basename, isfile, join, splitext
 import sys
-from .purchase_order_manager import PurchaseOrderManagerBase
+from .vendor_base import PurchaseOrderVendorBase
 
 self = sys.modules[__name__]
 __all__ = []
@@ -22,11 +22,11 @@ for module in modules:
             fp, basename(module), ('.py', 'r', imp.PY_SOURCE))
         # print(ma)  
         classes = { c for c in ma.__dict__.items() 
-            if isinstance(c[1], type) and issubclass(c[1], PurchaseOrderManagerBase) }
+            if isinstance(c[1], type) and issubclass(c[1], PurchaseOrderVendorBase) }
         for class_pair in classes:
             setattr(self, class_pair[0], class_pair[1])
             if class_pair[0] not in __all__:
                 __all__.append(class_pair[0])
-                if issubclass(class_pair[1], PurchaseOrderManagerBase):
+                if issubclass(class_pair[1], PurchaseOrderVendorBase):
                     vendors.append(class_pair[1])
         # print({c[0]: type(c[1]) for c in classes})

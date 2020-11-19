@@ -54,7 +54,26 @@ $(document).ready( function () {
                 name: 'company_id',
                 type: 'select2'
             },
-            {label: 'Contact phone', name: 'contact_phone'}
+            {label: 'Contact phone', name: 'contact_phone'},
+            {
+                label: 'Vendor',
+                name: 'vendor',
+                type: 'select2',
+                opts: {
+                    ajax: {
+                        url: '/api/v1/admin/purchase/vendor',
+                        dataType: 'json',
+                        processResults: data => {
+                            return {
+                                results: data.map(i => {
+                                    entry = Object.entries(i)[0]; 
+                                    return {id:entry[0], text:entry[1]};
+                                })
+                            }
+                        }
+                    }
+                }
+            }
         ]
     });
     g_create_editor.on('open', on_editor_open);

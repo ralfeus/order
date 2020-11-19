@@ -14,4 +14,4 @@ class PurchaseOrderVendorBase(metaclass=ABCMeta):
         return f"<{type(self)}>"
 
     def to_dict(self):
-        return {str(type(self)): str(self)}
+        return {type(self).__name__: str(self)}

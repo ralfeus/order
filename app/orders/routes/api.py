@@ -5,7 +5,7 @@ from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
-from sqlalchemy.exc import IntegrityError, OperationalError, InvalidRequestError, DataError
+from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
 from app.exceptions import SubcustomerParseError

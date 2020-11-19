@@ -142,4 +142,4 @@ def get_companies():
 def get_vendors():
     from ..models.vendor_manager import PurchaseOrderVendorManager
     vendor_mgmt = PurchaseOrderVendorManager()
-    return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors)))
+    return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors())))

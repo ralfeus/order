@@ -10,7 +10,7 @@ from selenium.common.exceptions import StaleElementReferenceException
 from app.exceptions import NoPurchaseOrderError
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
-from .vendor_base import PurchaseOrderVendorBase
+from . import PurchaseOrderVendorBase
 
 ATTEMPTS_TOTAL = 3
 ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
