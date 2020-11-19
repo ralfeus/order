@@ -35,3 +35,9 @@ class TestPurchaseOrdersApi(BaseTestCase):
         self.try_admin_operation(
             lambda: self.client.get(f"/api/v1/admin/purchase/order/{po.id}")
         )
+    
+    def test_get_vendors(self):
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/purchase/vendor')
+        )
+        self.assertEqual(len(res.json), 2)
