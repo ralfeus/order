@@ -213,15 +213,17 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
                 return subcustomer, False
         except DataError as ex:
             message = ex.orig.args[1]
-            table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
-            if table:
-                if table == 'subcustomers':
-                    message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
-            result = {
-                'status': 'error',
-                'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
-                            {message}"""
-            }
+            match = re.search('(INSERT INTO|UPDATE) (.+?) ', ex.statement)
+            if match:
+                table = match.groups()[1]
+                if table:
+                    if table == 'subcustomers':
+                        message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+                result = {
+                    'status': 'error',
+                    'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
+                                {message}"""
+                }
         except IndexError:
             pass # the password wasn't provided, so we don't update
     try:
