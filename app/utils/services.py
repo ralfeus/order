@@ -5,7 +5,7 @@ def get_celery(app_name):
         app_name,
         broker='pyamqp://172.17.0.1',
         backend='rpc://',
-        include=['app.jobs']
+        include=['app.jobs', 'app.purchase.jobs']
     )
     # celery.conf.add_defaults(flask_app.config)
     # celery.conf.task_default_queue = 'order'

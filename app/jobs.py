@@ -1,28 +1,18 @@
-from celery.schedules import crontab
-from celery.utils.log import get_task_logger
-from datetime import datetime, timedelta
-from pytz import timezone
+from datetime import datetime
 from time import sleep
-
-from more_itertools import map_reduce
-
-from flask import current_app
-from sqlalchemy import not_
+from celery.utils.log import get_task_logger
 
 from app import celery, db
 
 @celery.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(7200, update_purchase_orders_status,
-        name='Update PO status every 120 minutes')
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
-    sender.add_periodic_task(crontab(hour=16, minute=0), post_purchase_orders,
-        name="Run pending POs every day")
+    # sender.add_periodic_task(crontab(hour=16, minute=0), post_purchase_orders,
+    #     name="Run pending POs every day")
 
 @celery.task
 def import_products():
-    from app import create_app
     from app.import_products import get_atomy_products
     from app.products.models import Product
     
@@ -108,91 +98,3 @@ def add_together(a, b):
         sleep(1)
     return a + b
 
-@celery.task
-def post_purchase_orders(po_id=None):
-    from app.orders.models import OrderProduct
-    from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
-    pending_purchase_orders = PurchaseOrder.query
-    if po_id:
-        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
-    pending_purchase_orders = pending_purchase_orders.filter_by(
-        status=PurchaseOrderStatus.pending)
-    try: 
-        # Wrap whole operation in order to 
-        # mark all pending POs as failed in case of any failure
-        logger = get_task_logger(__name__)
-
-        from app.purchase.atomy import PurchaseOrderManager
-        po_manager = PurchaseOrderManager(logger=logger)
-
-        logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
-        tz = timezone('Asia/Seoul')
-        today = datetime.now().astimezone(tz).date()
-        for po in pending_purchase_orders:
-            if po.purchase_date and po.purchase_date > today + timedelta(days=1):
-                logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
-                continue
-            logger.info("Posting a purchase order %s", po.id)
-            try:
-                po_manager.post_purchase_order(po)
-                posted_orders_count = po.order_products.filter_by(status='Purchased').count()
-                if posted_orders_count == po.order_products.count():
-                    po.status = PurchaseOrderStatus.posted
-                elif posted_orders_count > 0:
-                    po.status = PurchaseOrderStatus.partially_posted
-                else:
-                    po.status = PurchaseOrderStatus.failed
-                    logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
-                logger.info("Posted a purchase order %s", po.id)
-            except Exception as ex:
-                logger.exception("Failed to post the purchase order %s.", po.id)
-                # logger.warning(ex)
-                po.status = PurchaseOrderStatus.failed
-                po.status_details = str(ex)
-            db.session.commit()
-        logger.info('Done posting purchase orders')
-    except Exception as ex:
-        for po in pending_purchase_orders:
-            po.status = PurchaseOrderStatus.failed
-        db.session.commit()
-        raise ex
-
-@celery.task
-def update_purchase_orders_status(po_id=None, browser=None):
-    from app.orders.models import Subcustomer
-    from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
-    from app.purchase.atomy import PurchaseOrderManager
-    
-    logger = get_task_logger(__name__)
-    logger.info("Starting update of PO statuses")
-    po_manager = PurchaseOrderManager(logger=logger, browser=browser)
-    pending_purchase_orders = PurchaseOrder.query
-    if po_id:
-        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
-    else:
-        pending_purchase_orders = pending_purchase_orders.filter(
-            PurchaseOrder.when_created > (datetime.now() - timedelta(weeks=1)).date()
-        )
-        pending_purchase_orders = pending_purchase_orders.filter(
-            not_(PurchaseOrder.status.in_((
-                PurchaseOrderStatus.cancelled,
-                PurchaseOrderStatus.failed,
-                PurchaseOrderStatus.shipped)))
-        )
-    grouped_customers = map_reduce(
-        pending_purchase_orders,
-        lambda po: po.customer)
-    subcustomers_num = len(grouped_customers)
-    logger.info("There are %d subcustomers to update POs for", subcustomers_num)
-    subcustomer_num = 1
-    for customer, purchase_orders in grouped_customers.items():
-        try:
-            logger.info("Updating subcustomer %s (%d of %d)",
-                customer.name, subcustomer_num, subcustomers_num)
-            po_manager.update_purchase_orders_status(customer, purchase_orders)
-        except:
-            logger.exception(
-                "Couldn't update POs status for %s", customer.name)
-        subcustomer_num += 1
-    db.session.commit()
-    logger.info("Done update of PO statuses")

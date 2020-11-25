@@ -42,6 +42,7 @@ class PurchaseOrder(db.Model, BaseModel):
     address_2 = Column(String(64))
     company_id = Column(Integer, ForeignKey('companies.id'))
     company = relationship('Company', foreign_keys=[company_id])
+    vendor = Column(String(64))
     status_details = Column(Text)
 
 
@@ -108,6 +109,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
             'status_details': self.status_details,
+            'vendor': self.vendor,
             'purchase_date': purchase_date.strftime('%Y-%m-%d') if purchase_date else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None

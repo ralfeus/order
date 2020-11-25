@@ -17,5 +17,7 @@
         "**/lib/**": true,
         "**/lib64/**": true,
         "**/share/**": true
-      }
+    },
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

@@ -58,21 +58,7 @@ $(document).ready( function () {
             {
                 label: 'Vendor',
                 name: 'vendor',
-                type: 'select2',
-                opts: {
-                    ajax: {
-                        url: '/api/v1/admin/purchase/vendor',
-                        dataType: 'json',
-                        processResults: data => {
-                            return {
-                                results: data.map(i => {
-                                    entry = Object.entries(i)[0]; 
-                                    return {id:entry[0], text:entry[1]};
-                                })
-                            }
-                        }
-                    }
-                }
+                type: 'select2'
             }
         ]
     });
@@ -234,9 +220,25 @@ function get_orders_to_purchase() {
     })
 }
 
+function get_vendors() {
+    $.ajax({
+        url: '/api/v1/admin/purchase/vendor',
+        success: data => {
+            g_create_editor.field('vendor').update(data.map(i => {
+                entry = Object.entries(i)[0]; 
+                return {value:entry[0], label:entry[1]};
+            }));
+            g_create_editor.field('vendor').val('AtomyQuick');
+        }
+    })
+}
+
+
+
 function on_editor_open() {
     get_orders_to_purchase();
     get_companies();
+    get_vendors();
 }
 
 function on_company_change() {

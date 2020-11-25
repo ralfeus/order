@@ -13,6 +13,8 @@ from app.tools import prepare_datatables_query, modify_object
 from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 
+from ..models.vendor_manager import PurchaseOrderVendorManager
+
 @bp_api_admin.route('/order', defaults={'po_id': None})
 @bp_api_admin.route('/order/<po_id>')
 @roles_required('admin')
@@ -68,6 +70,10 @@ def create_purchase_order():
     if not company:
         abort(Response("No counter agent company was found", status=400))
 
+    vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'])
+    if not vendor:
+        abort(Response("No vendor was found"))
+
     purchase_orders = []
     for suborder in order.suborders:
         purchase_order = PurchaseOrder(
@@ -80,6 +86,7 @@ def create_purchase_order():
             address_1=company.address.address_1,
             address_2=company.address.address_2,
             company=company,
+            vendor=vendor.id,
             when_created=datetime.now()
         )
         purchase_orders.append(purchase_order)
@@ -87,8 +94,8 @@ def create_purchase_order():
     order.status = OrderStatus.po_created
     db.session.commit()
     
-    from app.jobs import post_purchase_orders
-    task = post_purchase_orders.delay()
+    from ..jobs import post_purchase_orders
+    task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
     # post_purchase_orders()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
@@ -101,19 +108,19 @@ def update_purchase_order(po_id):
     if po is None:
         abort(Response("No Purchase Order <{po_id}> was found", status=404))
 
-    from app.jobs import post_purchase_orders, update_purchase_orders_status
+    from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:
         if request.values.get('action') == 'repost'\
             and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
 
             po.status = PurchaseOrderStatus.pending
-            task = post_purchase_orders.delay(po.id)
+            task = post_purchase_orders.apply_async(po.id, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
             current_app.logger.info("Post purchase orders task ID is %s", task.id)
             result = (jsonify(po.to_dict()), 202)
         elif request.values.get('action') == 'update_status':
             current_app.logger.info("Updating POs status")
-            task = update_purchase_orders_status.delay(po_id=po_id)
+            task = update_purchase_orders_status.apply_async(po_id=po_id, retry=False, connect_timeout=1)
             current_app.logger.info("Update POs status task ID is %s", task.id)
             result = (jsonify(po.to_dict()), 202)
         else:

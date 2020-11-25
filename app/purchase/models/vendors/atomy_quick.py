@@ -75,9 +75,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
-            for op in ordered_products:
-                op.status = 'Purchased'
-                op.when_changed = datetime.now()
+            self._set_order_products_status(ordered_products, 'Purchased')
             return purchase_order
         except Exception as ex:
             # Saving page for investigation
