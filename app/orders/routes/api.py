@@ -204,32 +204,30 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
     '''Returns a tuple of customer from raw data
     and indication whether customer is existing one or created'''
     parts = subcustomer_data.split(',')
-    for part in parts:
-        part = part.strip()
-        try:
-            subcustomer = Subcustomer.query.filter(or_(
-                Subcustomer.name == part, Subcustomer.username == part)).first()
-            if subcustomer:
-                if subcustomer.name != parts[1].strip():
-                    subcustomer.name = parts[1].strip()
-                if subcustomer.password != parts[2].strip():
-                    subcustomer.password = parts[2].strip()
-                return subcustomer, False
-        except DataError as ex:
-            message = ex.orig.args[1]
-            match = re.search('(INSERT INTO|UPDATE) (.+?) ', ex.statement)
-            if match:
-                table = match.groups()[1]
-                if table:
-                    if table == 'subcustomers':
-                        message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
-                result = {
-                    'status': 'error',
-                    'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
-                                {message}"""
-                }
-        except IndexError:
-            pass # the password wasn't provided, so we don't update
+    try:
+        subcustomer = Subcustomer.query.filter(
+            Subcustomer.username == parts[0].strip()).first()
+        if subcustomer:
+            if subcustomer.name != parts[1].strip():
+                subcustomer.name = parts[1].strip()
+            if subcustomer.password != parts[2].strip():
+                subcustomer.password = parts[2].strip()
+            return subcustomer, False
+    except DataError as ex:
+        message = ex.orig.args[1]
+        match = re.search('(INSERT INTO|UPDATE) (.+?) ', ex.statement)
+        if match:
+            table = match.groups()[1]
+            if table:
+                if table == 'subcustomers':
+                    message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+            result = {
+                'status': 'error',
+                'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
+                            {message}"""
+            }
+    except IndexError:
+        pass # the password wasn't provided, so we don't update
     try:
         subcustomer = Subcustomer(
             username=parts[0].strip(),
