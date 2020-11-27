@@ -13,13 +13,13 @@ modules = [ f
         # and not f.endswith('purchase_order_manager.py')
 ]
 for module in modules:
-    with open(module, 'rb') as fp:
+    # with open(module, 'rb') as fp:
         module_name = splitext(basename(module))[0]
         # res = imp.find_module(splitext(basename(module))[0], __path__)
         # print(res)
-        ma = imp.load_module(
-            'app.purchase.models.vendors.' + module_name, 
-            fp, basename(module), ('.py', 'r', imp.PY_SOURCE))
+        ma = imp.load_source(
+            __name__ + '.' + module_name, 
+            module)
         # print(ma)  
         classes = { c for c in ma.__dict__.items() 
             if isinstance(c[1], type) and issubclass(c[1], PurchaseOrderVendorBase) }

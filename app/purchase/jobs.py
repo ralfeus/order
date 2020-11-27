@@ -10,6 +10,7 @@ from sqlalchemy import not_
 from app import celery, db
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
+from app.purchase.models.vendors import *
 
 @celery.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -35,7 +36,7 @@ def post_purchase_orders(po_id=None):
         today = datetime.now().astimezone(tz).date()
         for po in pending_purchase_orders:
             vendor = PurchaseOrderVendorManager.get_vendor(
-                po.vendor, logger=logger, config=)
+                po.vendor, logger=logger)
             if po.purchase_date and po.purchase_date > today + timedelta(days=1):
                 logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
                 continue

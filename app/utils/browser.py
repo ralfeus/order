@@ -60,6 +60,9 @@ class Browser(Chrome):
     def get_element_by_id(self, id):
         return self.__get_by(By.ID, id)
 
+    def get_element_by_name(self, name):
+        return self.__get_by(By.NAME, name)
+
     def wait_for_url(self, url):
         try:
             WebDriverWait(self, 20).until(
