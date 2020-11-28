@@ -8,10 +8,11 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    po = PurchaseOrder.query.get('PO-2020-11-0002-001')
+    po = PurchaseOrder.query.get('PO-2020-10-0023-001')
     po.status = PurchaseOrderStatus.pending
     browser = Browser(connect_to='localhost:9222')
     vendor = PurchaseOrderVendorManager.get_vendor(
         po.vendor, logger=logging.getLogger(),
         browser=browser)
     vendor.post_purchase_order(po)
+    print(po.to_dict())

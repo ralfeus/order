@@ -38,7 +38,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         ordered_products = self.__add_products(purchase_order.order_products)
         self.__set_receiver_address(purchase_order.address)
         self.__set_combined_shipment()
-        self.__set_purchase_order_id(purchase_order.id)
+        self.__set_purchase_order_id(purchase_order.id[11:])
         self.__set_payment_method()
         self.__set_payment_destination(purchase_order.bank_id)
         self.__set_payment_mobile(purchase_order.payment_phone)
@@ -65,9 +65,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def __add_products(self, order_products):
         self.__logger.info("PO: Adding products")
-        add_line_button = self.__browser.get_element_by_css('img[src$="btn_D_add.gif"]')
-        for r in range(5):
-            add_line_button.click()
+        self.__browser.execute_script("$('img[src$=\"btn_D_add.gif\"]').click()")
         ordered_products = []
         field_num = 1
         for op in order_products:
@@ -80,12 +78,12 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 continue
             try:
                 product_code_input = self.__browser.find_element_by_id(f'material_code{field_num}')
-                product_code_input.send_keys(op.product_id)
-                product_code_input.send_keys(Keys.TAB)
+                product_code_input.send_keys(op.product_id, Keys.TAB)
                 product_qty_input = self.__browser.find_element_by_id(f'sale_qty{field_num}')
-                product_qty_input.clear()
-                product_qty_input.send_keys(op.quantity)
-                product_qty_input.send_keys(Keys.TAB)
+                product_qty_input.click()
+                product_qty_input.send_keys(Keys.DELETE, op.quantity, Keys.TAB)
+                while not self.__browser.get_element_by_name(f'tot_amt{field_num}').get_attribute('value'):
+                    sleep(0.3)
                 
                 ordered_products.append(op)
                 field_num += 1
@@ -102,10 +100,8 @@ class AtomyCenter(PurchaseOrderVendorBase):
             combined_shipment_input = self.__browser.get_element_by_id('cPackingMemo2')
             self.__browser.execute_script("arguments[0].click();", combined_shipment_input)
             alert = self.__browser.switch_to_alert()
-            if alert.getText() == '':
+            if alert:
                 alert.dismiss()
-            else:
-                raise UnexpectedAlertPresentException(alert.getText())
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
@@ -128,10 +124,12 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__logger.info("PO: Setting payment receiver")
         self.__browser.execute_script(
             f"document.getElementsByName('bank')[0].value = '{bank_id}'")
+        self.__browser.execute_script("check_ipgum_amt();")
 
     def __set_payment_method(self):
         self.__logger.info("PO: Setting payment method")
-        self.__browser.get_element_by_css('radio[name=settle_gubun][value=2]').click()
+        method_input = self.__browser.get_element_by_css('input[name=settle_gubun][value="2"]')
+        self.__browser.execute_script('arguments[0].click();', method_input)
 
     def __set_phones(self, phone='010-6275-2045'):
         self.__logger.info("PO: Setting receiver phone number")
@@ -173,6 +171,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
         self.__logger.info("PO: Setting shipment address")
+        self.__browser.execute_script("$('#deli_gubun2').click()")
         self.__browser.execute_script(
             f"$('[name=zip1]').val(\"{address['zip'][:2]}\");")
         self.__browser.execute_script(
@@ -184,14 +183,16 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.info("PO: Setting counteragent tax information")
         if tax_id == ('', '', ''): # No company
-            self.__browser.get_element_by_id('tax_gubun1').click()
+            self.__browser.execute_script("$('input[name=tax_gubun][value=\"0\"]').click()")
         else:
-            self.__browser.get_element_by_id('tax_gubun2').click()
+            self.__browser.execute_script("$('input[name=tax_gubun][value=\"1\"]').click()")
             # self.__browser.execute_script(
             #     "document.getElementById('tTaxGubun1').value = '2'")
                 
-            self.__browser.execute_script(
-                "document.getElementsByName('tax_l_gubun')[0].value = 2")
+            tax_l_gubun = self.__browser.get_element_by_name('tax_l_gubun')
+            # self.__browser.execute_script("arguments[0].click()", tax_l_gubun)
+            self.__browser.execute_script("arguments[0].value = 2", tax_l_gubun)
+            self.__browser.execute_script("chk_l_gubun();")
             # tTaxGubun1 = self.__browser.get_element_by_name('tax_l_gubun')
             # tTaxGubun1.click()
             # tTaxGubun1.send_keys(Keys.DOWN)
@@ -206,7 +207,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__browser.execute_script("Submit()")
         try:
             self.__logger.info('Waiting for order completion page')
-            self.__browser.wait_for_url('https://www.atomy.kr/center/c_sale_ok.asp')
+            self.__browser.wait_for_url('https://atomy.kr/center/c_sale_ok.asp')
         except Exception as ex:
             self.__logger.info("Couldn't get order completion page")
             raise Exception(ex)
@@ -230,7 +231,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
         self.__logger.info('Looking for account number to pay')
         for attempt in range(1, 4): # Let's try to get account number several times
-            divs = self.__browser.get_element_by_css('div[align="center"]')
+            divs = self.__browser.find_elements_by_css_selector('div[align="center"]')
             bank_account = None
             for div in divs:
                 match = re.search('입금계좌번호\s+:\s+(\d+)', div.text)
