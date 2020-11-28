@@ -32,10 +32,11 @@ $(document).ready( function () {
             {data: 'total_krw'},
             {data: 'total_rur'},
             {data: 'total_usd'},
+            {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[6, 'desc']],
+        order: [[7, 'desc']],
         select: true,
         serverSide: true,
         processing: true
