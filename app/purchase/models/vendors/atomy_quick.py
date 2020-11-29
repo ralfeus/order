@@ -24,13 +24,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # if logger:
         #     logger.info(config)
         if browser is None:
-            browser = Browser(
-                executable_path=config['SELENIUM_DRIVER'] \
-                    if config and config.get('SELENIUM_DRIVER') \
-                    else None,
-                connect_to=config['SELENIUM_BROWSER'] \
-                    if config and config.get('SELENIUM_BROWSER') \
-                    else None)
+            browser = Browser(config=config)
         self.__browser = browser
         self.__logger = logger
 

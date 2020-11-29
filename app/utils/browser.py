@@ -1,4 +1,5 @@
 ''' Singleton of web browser '''
+import logging
 from selenium.common.exceptions import NoSuchElementException,\
     StaleElementReferenceException, UnexpectedAlertPresentException
 from selenium.webdriver import Chrome
@@ -13,7 +14,7 @@ class Browser(Chrome):
     __instance = None
     __refs_num = 0
 
-    def __new__(cls, headless=True, **kwargs):
+    def __new__(cls, **kwargs):
         if Browser.__instance is None:
             Browser.__create_instanse()
         else:
@@ -26,16 +27,25 @@ class Browser(Chrome):
         Browser.__refs_num += 1
         return Browser.__instance
 
-    def __init__(self, headless=True, connect_to=None, **kwargs):
+    def __init__(self, headless=True, config=None, **kwargs):
         if self.__refs_num == 1:
             options = Options()
             if headless:
-                options.set_headless(headless=True)
-            if connect_to:
-                options.add_experimental_option("debuggerAddress", connect_to)
+                options.headless = True
+            if config:
+                if config.get('SELENIUM_BROWSER'):
+                    options.add_experimental_option(
+                        "debuggerAddress", config['SELENIUM_BROWSER'])
+                if config.get('SELENIUM_DRIVER'):
+                    kwargs['executable_path'] = config['SELENIUM_DRIVER']
+                if config['LOG_LEVEL'] == logging.DEBUG:
+                    if config.get('SELENIUM_LOG_PATH'):
+                        kwargs['service_log_path'] = config['SELENIUM_LOG_PATH']
+                    kwargs['service_args'] = ['--verbose']
+
             if not kwargs.get('executable_path'):
                 kwargs['executable_path'] = '/usr/bin/chromedriver'
-            super().__init__(chrome_options=options, service_log_path='chrome.log', **kwargs)
+            super().__init__(options=options, **kwargs)
     
     @classmethod
     def __create_instanse(cls):
