@@ -150,6 +150,5 @@ def get_companies():
 @bp_api_admin.route('/vendor')
 @roles_required('admin')
 def get_vendors():
-    from ..models.vendor_manager import PurchaseOrderVendorManager
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))

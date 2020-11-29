@@ -13,15 +13,20 @@ from . import PurchaseOrderVendorBase
 class AtomyCenter(PurchaseOrderVendorBase):
     def __init__(self, browser=None, logger=None, config=None):
         super().__init__()
-        if browser is None:
-            browser = Browser(config=config)
-        self.__browser = browser
+        self.__browser_attr = browser
         self.__logger = logger
+        self.__config = config
         self.__username = 'atomy1026'
         self.__password = '5714'
 
     def __str__(self):
         return "Atomy - Center"
+
+    @property
+    def __browser(self):
+        if self.__browser_attr is None:
+            self.__browser_attr = Browser(config=self.__config)
+        return self.__browser_attr
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
         self.login()

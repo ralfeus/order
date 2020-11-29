@@ -21,12 +21,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __logger: Logger = None
 
     def __init__(self, browser=None, logger=None, config=None):
-        # if logger:
-        #     logger.info(config)
-        if browser is None:
-            browser = Browser(config=config)
-        self.__browser = browser
+        self.__browser_attr = browser
         self.__logger = logger
+        self.__config = config
 
     def __del__(self):
         try:
@@ -36,6 +33,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __str__(self):
         return "Atomy - Quick order"
+
+    @property
+    def __browser(self):
+        if self.__browser_attr is None:
+            self.__browser_attr = Browser(config=self.__config)
+        return self.__browser_attr
         
     def __log(self, entry):
         if self.__logger:
