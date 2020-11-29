@@ -34,7 +34,7 @@ class Browser(Chrome):
             if connect_to:
                 options.add_experimental_option("debuggerAddress", connect_to)
             if not kwargs.get('executable_path'):
-                kwargs['executable_path'] = 'chromedriver'
+                kwargs['executable_path'] = '/usr/bin/chromedriver'
             super().__init__(chrome_options=options, service_log_path='chrome.log', **kwargs)
     
     @classmethod

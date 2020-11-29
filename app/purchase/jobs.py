@@ -5,6 +5,7 @@ from pytz import timezone
 
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
+from flask import current_app
 from sqlalchemy import not_
 
 from app import celery, db
@@ -30,13 +31,14 @@ def post_purchase_orders(po_id=None):
         # Wrap whole operation in order to
         # mark all pending POs as failed in case of any failure
         logger = get_task_logger(__name__)
+        logger.debug("Using config %s", str(current_app.config))
 
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
         tz = timezone('Asia/Seoul')
         today = datetime.now().astimezone(tz).date()
         for po in pending_purchase_orders:
             vendor = PurchaseOrderVendorManager.get_vendor(
-                po.vendor, logger=logger)
+                po.vendor, logger=logger, config=current_app.config)
             if po.purchase_date and po.purchase_date > today + timedelta(days=1):
                 logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
                 continue

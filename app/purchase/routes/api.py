@@ -70,7 +70,7 @@ def create_purchase_order():
     if not company:
         abort(Response("No counter agent company was found", status=400))
 
-    vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'])
+    vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
 
@@ -152,4 +152,4 @@ def get_companies():
 def get_vendors():
     from ..models.vendor_manager import PurchaseOrderVendorManager
     vendor_mgmt = PurchaseOrderVendorManager()
-    return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors())))
+    return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))
