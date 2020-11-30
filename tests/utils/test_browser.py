@@ -6,9 +6,6 @@ class BrowserTest(BaseTestCase):
     def test_create_browser(self):
         a = Browser(config=app.config)
         self.assertIsNotNone(a)
-        b = Browser()
-        self.assertEqual(a, b)
-        b.quit()
         a.get('about:blank')
         a.quit()
         sleep(1)

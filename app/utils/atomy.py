@@ -1,7 +1,8 @@
 import logging
 from flask import current_app
 
-from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.common.exceptions import NoAlertPresentException, \
+    UnexpectedAlertPresentException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -17,8 +18,12 @@ def atomy_login(username, password, browser=None):
         service_args = None
         local_browser = Browser(config=current_app.config)
     local_browser.get('https://www.atomy.kr/v2/Home/Account/Login')
-    user_field = local_browser.find_element_by_id('userId')
-    password_field = local_browser.find_element_by_id('userPw')
+    try:
+        local_browser.switch_to_alert().dismiss()
+    except NoAlertPresentException:
+        pass
+    user_field = local_browser.get_element_by_id('userId')
+    password_field = local_browser.get_element_by_id('userPw')
     user_field.send_keys(username)
     password_field.send_keys(password)
     password_field.submit()

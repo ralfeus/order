@@ -18,6 +18,7 @@ ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __browser: Browser = None
+    __is_browser_created_locally = False
     __logger: Logger = None
 
     def __init__(self, browser=None, logger=None, config=None):
@@ -26,10 +27,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__config = config
 
     def __del__(self):
-        try:
-            self.__browser.quit()
-        except:
-            pass
+        if self.__is_browser_created_locally:
+            try:
+                self.__browser.quit()
+            except:
+                pass
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -38,6 +40,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __browser(self):
         if self.__browser_attr is None:
             self.__browser_attr = Browser(config=self.__config)
+            self.__is_browser_created_locally = True
         return self.__browser_attr
         
     def __log(self, entry):
@@ -144,7 +147,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # self.__browser.save_screenshot(realpath('03-purchase-date.png'))
 
     def __set_combined_shipment(self):
-        local_shipment_node = self.__browser.find_element_by_css_selector(
+        local_shipment_node = self.__browser.get_element_by_css(
             'ul#areaSummary li.pOr2 div em')
         if local_shipment_node.text == '2,500':
             self.__log("PO: Setting combined shipment")
@@ -247,10 +250,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__logger.info('Looking for purchase order number')
         po_id = None
         for attempt in range(1, 4):
-            po_id_span = self.__browser.find_element_by_css_selector('div.cartTopbtn span.blue')
-            if po_id_span:
+            try:
+                po_id_span = self.__browser.get_element_by_css('div.cartTopbtn span.blue')
                 po_id = po_id_span.text
                 break
+            except:
+                self.__logger.info("Couldn't get PO ID")
         if not po_id:
             raise Exception("Couldn't get PO number")
 
@@ -346,8 +351,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             '반품': PurchaseOrderStatus.delivered
         }       
         # print(l.text)
-        acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text
-        status_text = l.find_element_by_css_selector('p.fs18').text
+        acc_num_text = l.get_element_by_css('td:nth-child(2)').text
+        status_text = l.get_element_by_css('p.fs18').text
         return {
             'id': re.search('^\d+', acc_num_text)[0],
             'status': po_statuses[status_text]

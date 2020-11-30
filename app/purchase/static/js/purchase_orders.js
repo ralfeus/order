@@ -162,6 +162,7 @@ $(document).ready( function () {
             },
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
+            {data: 'vendor', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
             {
@@ -176,7 +177,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[8, 'desc']],
+        order: [[9, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

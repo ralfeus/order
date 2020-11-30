@@ -11,6 +11,8 @@ from app.utils.browser import Browser, Keys, UnexpectedAlertPresentException
 from . import PurchaseOrderVendorBase
 
 class AtomyCenter(PurchaseOrderVendorBase):
+    __is_browser_created_locally = False
+
     def __init__(self, browser=None, logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
@@ -26,7 +28,15 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __browser(self):
         if self.__browser_attr is None:
             self.__browser_attr = Browser(config=self.__config)
+            self.__is_browser_created_locally = True
         return self.__browser_attr
+
+    def __del__(self):
+        if self.__is_browser_created_locally:
+            try:
+                self.__browser_attr.quit()
+            except:
+                pass
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
         self.login()
@@ -76,11 +86,17 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                product_code_input = self.__browser.find_element_by_id(f'material_code{field_num}')
+                product_code_input = self.__browser.get_element_by_id(f'material_code{field_num}')
                 product_code_input.send_keys(op.product_id, Keys.TAB)
-                product_qty_input = self.__browser.find_element_by_id(f'sale_qty{field_num}')
-                product_qty_input.click()
-                product_qty_input.send_keys(Keys.DELETE, op.quantity, Keys.TAB)
+                product_qty_input = self.__browser.get_element_by_id(f'sale_qty{field_num}')
+                attempts_left = 3
+                while product_qty_input.get_attribute('value') != str(op.quantity):
+                    if not attempts_left:
+                        raise Exception("Couldn't set product quantity")
+                    product_qty_input.click()
+                    product_qty_input.send_keys(Keys.DELETE, op.quantity, Keys.TAB)
+                    sleep(0.3)
+                
                 while not self.__browser.get_element_by_name(f'tot_amt{field_num}').get_attribute('value'):
                     sleep(0.3)
                 
@@ -93,7 +109,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         return ordered_products
 
     def __set_combined_shipment(self):
-        local_shipment_node = self.__browser.find_element_by_css_selector('span#stot_sum')
+        local_shipment_node = self.__browser.get_element_by_css('span#stot_sum')
         if int(re.sub('\\D', '', local_shipment_node.text)) < 30000:
             self.__logger.info("PO: Setting combined shipment")
             combined_shipment_input = self.__browser.get_element_by_id('cPackingMemo2')
@@ -219,21 +235,20 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __get_po_params(self):
         self.__logger.info('Looking for purchase order number')
         po_id = None
-        for attempt in range(1, 4):
-            po_id_node = self.__browser.find_element_by_css_selector(
+        try:
+            po_id_node = self.__browser.get_element_by_css(
                 'font[color="#FF0000"] strong')
-            if po_id_node:
-                po_id = po_id_node.text
-                break
-        if not po_id:
-            raise Exception("Couldn't get PO number")
+            po_id = po_id_node.text
+                
+        except Exception as ex:
+            raise Exception("Couldn't get PO number", ex)
 
         self.__logger.info('Looking for account number to pay')
         for attempt in range(1, 4): # Let's try to get account number several times
             divs = self.__browser.find_elements_by_css_selector('div[align="center"]')
             bank_account = None
             for div in divs:
-                match = re.search('입금계좌번호\s+:\s+(\d+)', div.text)
+                match = re.search(r'입금계좌번호\s+:\s+(\d+)', div.text)
                 if match:
                     bank_account = match.groups()[0]
                     break
