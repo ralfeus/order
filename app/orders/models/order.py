@@ -19,10 +19,11 @@ from app.shipping.models import Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
     pending = 1
-    paid = 2
+    can_be_paid = 2
     po_created = 3
-    shipped = 4
-    complete = 5
+    paid = 4
+    shipped = 5
+    complete = 6
 
 class Order(db.Model):
     ''' System's order '''
@@ -59,6 +60,9 @@ class Order(db.Model):
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
+    __purchase_date = Column('purchase_date', DateTime)
+    purchase_date_sort = Column(DateTime, index=True,
+        nullable=False, default=datetime(9999, 12, 31))
     suborders = relationship('Suborder', lazy='dynamic')
     __order_products = relationship('OrderProduct', lazy='dynamic')
 
@@ -84,6 +88,8 @@ class Order(db.Model):
             value = OrderStatus(value)
 
         self.__status = value
+        if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
+            self.purchase_date_sort = datetime(9999, 12, 31)
 
     @property
     def shipping(self):
@@ -102,6 +108,15 @@ class Order(db.Model):
                                   for order_product in suborder.order_products]
         else:
             return list(self.__order_products)
+
+    @hybrid_property
+    def purchase_date(self):
+        return self.__purchase_date
+
+    @purchase_date.setter
+    def purchase_date(self, value):
+        self.__purchase_date = value
+        self.purchase_date_sort = value
 
     def __init__(self, **kwargs):
         today = datetime.now()
@@ -162,8 +177,12 @@ class Order(db.Model):
             'payment_method': self.payment_method,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
+            'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.purchase_date else None,
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_changed else None
         }
         if details:
             result = { **result,

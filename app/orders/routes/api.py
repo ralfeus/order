@@ -4,8 +4,9 @@ import re
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_, not_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
+from werkzeug.datastructures import MultiDict
 
 from app import db
 from app.exceptions import SubcustomerParseError
@@ -62,6 +63,7 @@ def admin_get_orders(order_id):
         orders = orders.filter_by(status=OrderStatus[request.values['status']].name)
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
+
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     else:
@@ -90,9 +92,9 @@ def user_get_orders(order_id):
             lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
 
 def filter_orders(orders, filter_params):
+    orders = orders.order_by(Order.purchase_date_sort)
     orders, records_total, records_filtered = prepare_datatables_query(
-        orders, filter_params,
-        or_(
+        orders, filter_params, or_(
             Order.id.like(f"%{filter_params['search[value]']}%"),
             Order.user.has(User.username.like(f"%{filter_params['search[value]']}%")),
             Order.name.like(f"%{filter_params['search[value]']}%"),
@@ -149,11 +151,15 @@ def user_create_order():
                 order=order,
                 seq_num=suborder_data.get('seq_num'),
                 subcustomer=subcustomer,
-                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%d.%m.%Y') \
+                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                     if suborder_data.get('buyout_date') else None,
                 local_shipping=0,
                 when_created=datetime.now()
             )
+            if suborder.buyout_date:
+                if not order.purchase_date or order.purchase_date > suborder.buyout_date:
+                    order.purchase_date = suborder.buyout_date
+
             current_app.logger.debug('Created instance of Suborder %s', suborder)
             db.session.add(suborder)
         except SubcustomerParseError:
@@ -208,9 +214,9 @@ def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
         subcustomer = Subcustomer.query.filter(
             Subcustomer.username == parts[0].strip()).first()
         if subcustomer:
-            if subcustomer.name != parts[1].strip():
+            if len(parts) >= 2 and subcustomer.name != parts[1].strip():
                 subcustomer.name = parts[1].strip()
-            if subcustomer.password != parts[2].strip():
+            if len(parts) == 3 and subcustomer.password != parts[2].strip():
                 subcustomer.password = parts[2].strip()
             return subcustomer, False
     except DataError as ex:
@@ -273,21 +279,37 @@ def user_save_order(order_id):
     order_products = list(order.order_products)
     if payload.get('suborders'):
         for suborder_data in payload['suborders']:
-            suborder = order.suborders.filter(
-                Suborder.subcustomer.has(
-                    Subcustomer.name == suborder_data['subcustomer'])
-                ).first()
-            for item in suborder_data['items']:
-                order_product = [op for op in suborder.order_products
-                                    if op.product_id == item['item_code']]
-                if len(order_product) > 0:
-                    update_order_product(order, order_product[0], item)
-                    order_products.remove(order_product[0])
-                else:
-                    try:
-                        add_order_product(suborder, item, errors)
-                    except:
-                        pass
+            try:
+                suborder = order.suborders.filter(and_(
+                    Suborder.order_id == order.id,
+                    Suborder.seq_num == suborder_data['seq_num']    
+                )).first()
+
+                subcustomer, state = parse_subcustomer(suborder_data['subcustomer'])
+                suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
+                    if suborder_data.get('buyout_date') else None
+                suborder.subcustomer = subcustomer
+                for item in suborder_data['items']:
+                    order_product = [op for op in suborder.order_products
+                                        if op.product_id == item['item_code']]
+                    if len(order_product) > 0:
+                        update_order_product(order, order_product[0], item)
+                        order_products.remove(order_product[0])
+                    else:
+                        try:
+                            add_order_product(suborder, item, errors)
+                        except:
+                            pass
+                if suborder.buyout_date and (
+                    not order.purchase_date or order.purchase_date > suborder.buyout_date):
+                        order.purchase_date = suborder.buyout_date
+            except SubcustomerParseError:
+                abort(Response(f"""Couldn't find subcustomer and provided data
+                                doesn't allow to create new one. Please provide
+                                new subcustomer data in format: 
+                                <ID>, <Name>, <Password>
+                                Erroneous data is: {suborder_data['subcustomer']}""",
+                            status=400))
     
     # Remove order products
     for order_product in order_products:

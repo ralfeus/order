@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from tests import BaseTestCase, db
 from app.models import Country, Role, User
@@ -167,7 +167,7 @@ class TestOrdersApi(BaseTestCase):
 
     def test_increase_order_amount_over_free_shipping_threshold(self):
         order = Order(user=self.user)
-        subcustomer = Subcustomer(name='A000')
+        subcustomer = Subcustomer(name='A000', username='A000')
         suborder = Suborder(order=order, subcustomer=subcustomer)
         self.try_add_entities([
             order, suborder, subcustomer,
@@ -178,6 +178,7 @@ class TestOrdersApi(BaseTestCase):
                 'suborders': [
                     {
                         'subcustomer': 'A000',
+                        'seq_num': 1,
                         'items': [
                             {
                                 'item_code': '0000',

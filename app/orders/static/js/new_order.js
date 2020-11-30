@@ -33,7 +33,7 @@ $(document).ready(function() {
     $('#submit').on('click', submit_order)
     $('.common-purchase-date')
         .datepicker({
-            format: 'dd.mm.yyyy',
+            format: 'yyyy-mm-dd',
             todayHighlight: true,
             autoclose: true
         })
@@ -44,7 +44,7 @@ $(document).ready(function() {
         });
     $('.subcustomer-buyout-date')
         .datepicker({
-            format: 'dd.mm.yyyy',
+            format: 'yyyy-mm-dd',
             todayHighlight: true,
             autoclose: true
         })
@@ -80,7 +80,7 @@ function add_subcustomer() {
     var node = $(html)
     $('div#accordion').append(node);
     $('.subcustomer-buyout-date').datepicker({
-	format: 'dd.mm.yyyy',
+	format: 'yyyy-mm-dd',
 	todayHighlight: true,
         autoclose: true
     });

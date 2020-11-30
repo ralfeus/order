@@ -84,7 +84,8 @@ class Suborder(db.Model, BaseModel):
             'id': self.id,
             'order_id': self.order_id,
             'seq_num': self.seq_num,
-            'subcustomer': self.subcustomer.name if self.subcustomer else None,
+            'subcustomer': f"{self.subcustomer.username}, {self.subcustomer.name}" \
+                if self.subcustomer else None,
             'buyout_date': self.buyout_date.strftime('%Y-%m-%d') if self.buyout_date else None,
             'order_products': [op.to_dict() for op in self.order_products],
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,

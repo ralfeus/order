@@ -43,6 +43,7 @@ async function populate_order(order_data) {
         var suborder = order_data.suborders[i];
         var current_node = add_user(suborder.subcustomer);
         $('.subcustomer-seq-num', current_node).val(suborder.seq_num);
+        $('.subcustomer-buyout-date', current_node).val(suborder.buyout_date);
         var order_products = suborder.order_products;
         for (op in order_products) {
             if (op > 0) {
