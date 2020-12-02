@@ -152,7 +152,12 @@ function format ( row, data ) {
             {data: 'price'},
             {data: 'quantity'},
             {data: 'status'}
-        ]
+        ],
+        createdRow: (row, data) => {
+            if (!data.purchase) {
+                $(row).addClass('orange-line');
+            }
+        }
     });
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');

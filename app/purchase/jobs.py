@@ -11,7 +11,6 @@ from sqlalchemy import not_
 from app import celery, db
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
-from app.purchase.models.vendors import *
 
 @celery.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):

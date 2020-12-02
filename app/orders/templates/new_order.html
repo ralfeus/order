@@ -16,7 +16,7 @@
 {{ super() }}
     <!-- <form method='post'> -->
         <div class="container-fluid row">
-            <div class="col-4">
+            <div class="col-3">
                 <input class="form-control" id="name" placeholder="Customer name"/>
                 <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
             </div>
@@ -25,6 +25,13 @@
                 <select class="form-control" id="country" onchange="country_changed()"></select>
                 <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
                 <input class="form-control" id="phone" placeholder="+(country code) phone" />
+            </div>
+            <div class="col-3">
+                <div class="form-check my-2">
+                    <input type="checkbox" class="form-check-input" id="postpone"/>
+                    <label for="postpone" class="form-check-label">Postpone shipment</label>
+                </div>
+                <select class="form-control" id="combine"></select>
             </div>
         </div>
         <div class="container-fluid row">&nbsp;</div>
@@ -128,9 +135,9 @@
         <table class="table-sm table-bordered table-light">
             <thead>
                 <th></th>
-                <th>Total items cost</th>
-                <th>Items weight</th>
-                <th>Shipping cost</th>
+                <th>Subtotal</th>
+                <th>Weight</th>
+                <th>Shipping</th>
                 <th>Total</th>
             </thead>
             <tbody>

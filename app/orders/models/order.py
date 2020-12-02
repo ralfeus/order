@@ -45,7 +45,8 @@ class Order(db.Model):
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    __shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
+    # __shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
+    shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
     subtotal_usd = Column(Numeric(10, 2), default=0)
@@ -91,15 +92,15 @@ class Order(db.Model):
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
 
-    @property
-    def shipping(self):
-        if self.__shipping is None:
-            self.__shipping = NoShipping()
-        return self.__shipping
+    # @property
+    # def shipping(self):
+    #     if self.__shipping is None:
+    #         self.__shipping = Shipping.get(4)
+    #     return self.__shipping
 
-    @shipping.setter
-    def shipping(self, value):
-        self.__shipping = value
+    # @shipping.setter
+    # def shipping(self, value):
+    #     self.__shipping = value
 
     @property
     def order_products(self):
@@ -199,9 +200,13 @@ class Order(db.Model):
         for suborder in self.suborders:
             suborder.update_total()
 
-        if self.shipping is None and self.shipping_method_id is not None:
-            self.shipping = Shipping.query.get(self.shipping_method_id)
-
+        if self.shipping is None:
+            if self.shipping_method_id is not None:
+                self.shipping = Shipping.query.get(self.shipping_method_id)
+            else:
+                self.shipping = Shipping.query.filter_by(discriminator='noshipping').first()
+                if self.shipping is None:
+                    self.shipping = NoShipping()
         self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
                                    self.suborders, 0)
         self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
