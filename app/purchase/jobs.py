@@ -99,7 +99,7 @@ def update_purchase_orders_status(po_id=None, browser=None):
         logger.info("There are %d subcustomers to update POs for", subcustomers_num)
         subcustomer_num = 1
         vendor = PurchaseOrderVendorManager.get_vendor(
-            vendor, logger=logger, browser=browser)
+            vendor, logger=logger, browser=browser, config=current_app.config)
         for customer, customer_pos in grouped_customers.items():
             try:
                 logger.info("Updating subcustomer %s (%d of %d)",
