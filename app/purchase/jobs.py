@@ -9,7 +9,7 @@ from flask import current_app
 from sqlalchemy import not_
 
 from app import celery, db
-from app.exeptions import AtomyLoginError
+from app.exceptions import AtomyLoginError
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
 
