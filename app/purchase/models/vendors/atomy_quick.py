@@ -351,8 +351,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             '반품': PurchaseOrderStatus.delivered
         }       
         # print(l.text)
-        acc_num_text = l.get_element_by_css('td:nth-child(2)').text
-        status_text = l.get_element_by_css('p.fs18').text
+        acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text
+        status_text = l.find_element_by_css_selector('p.fs18').text
         return {
             'id': re.search('^\d+', acc_num_text)[0],
             'status': po_statuses[status_text]
