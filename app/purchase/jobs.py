@@ -103,9 +103,10 @@ def update_purchase_orders_status(po_id=None, browser=None):
             vendor, logger=logger, browser=browser, config=current_app.config)
         for customer, customer_pos in grouped_customers.items():
             try:
-                logger.info("Updating subcustomer %s (%d of %d)",
-                    customer.name, subcustomer_num, subcustomers_num)
-                vendor.update_purchase_orders_status(customer, customer_pos)
+                logger.info("Updating subcustomer %s (%d of %d) - %d POs",
+                    customer.name, subcustomer_num, subcustomers_num, len(customer_pos))
+                if len(customer_pos) > 0:
+                    vendor.update_purchase_orders_status(customer, customer_pos)
             except AtomyLoginError as ex:
                 logger.warning("Couldn't log in as %s: %s", customer.name, str(ex))
             except:
