@@ -82,7 +82,9 @@ def update_purchase_orders_status(po_id=None, browser=None):
             not_(PurchaseOrder.status.in_((
                 PurchaseOrderStatus.cancelled,
                 PurchaseOrderStatus.failed,
-                PurchaseOrderStatus.shipped)))
+                PurchaseOrderStatus.payment_past_due,
+                PurchaseOrderStatus.shipped,
+                PurchaseOrderStatus.delivered)))
         )
     grouped_vendors = map_reduce(
         pending_purchase_orders,
