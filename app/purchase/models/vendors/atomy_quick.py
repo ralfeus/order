@@ -347,6 +347,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             '결제완료': PurchaseOrderStatus.paid,
             '상품준비중': PurchaseOrderStatus.paid,
             '주문취소': PurchaseOrderStatus.cancelled,
+            '매출취소': PurchaseOrderStatus.cancelled,
             '배송완료': PurchaseOrderStatus.delivered,
             '반품': PurchaseOrderStatus.delivered
         }       
