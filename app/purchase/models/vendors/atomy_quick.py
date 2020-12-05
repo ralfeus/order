@@ -22,6 +22,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __logger: Logger = None
 
     def __init__(self, browser=None, logger=None, config=None):
+        super().__init__()
         self.__browser_attr = browser
         self.__logger = logger
         self.__config = config
