@@ -12,9 +12,10 @@ with create_app().app_context():
     po = PurchaseOrder.query.get('PO-2020-11-0001-001')
     po.status = PurchaseOrderStatus.pending
     current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
-    browser = Browser(config=current_app.config)
-    vendor = PurchaseOrderVendorManager.get_vendor(
-        po.vendor, logger=logging.getLogger(),
-        browser=browser)
-    vendor.post_purchase_order(po)
+    # browser = Browser(config=current_app.config)
+    # vendor = PurchaseOrderVendorManager.get_vendor(
+    #     po.vendor, logger=logging.getLogger(),
+    #     browser=browser)
+    # vendor.post_purchase_order(po)
+    post_purchase_orders(po_id='PO-2020-11-0001-001')
     print(po.to_dict())

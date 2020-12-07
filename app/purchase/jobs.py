@@ -36,30 +36,35 @@ def post_purchase_orders(po_id=None):
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
         tz = timezone('Asia/Seoul')
         today = datetime.now().astimezone(tz).date()
-        for po in pending_purchase_orders:
+        grouped_vendors = map_reduce(
+            pending_purchase_orders,
+            lambda po: po.vendor
+        )        
+        for vendor_id, pos in grouped_vendors.items():
             vendor = PurchaseOrderVendorManager.get_vendor(
-                po.vendor, logger=logger, config=current_app.config)
-            if po.purchase_date and po.purchase_date > today + timedelta(days=1):
-                logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
-                continue
-            logger.info("Posting a purchase order %s", po.id)
-            try:
-                vendor.post_purchase_order(po)
-                posted_orders_count = po.order_products.filter_by(status='Purchased').count()
-                if posted_orders_count == po.order_products.count():
-                    po.status = PurchaseOrderStatus.posted
-                elif posted_orders_count > 0:
-                    po.status = PurchaseOrderStatus.partially_posted
-                else:
+                vendor_id, logger=logger, config=current_app.config)
+            for po in pos:
+                if po.purchase_date and po.purchase_date > today + timedelta(days=1):
+                    logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
+                    continue
+                logger.info("Posting a purchase order %s", po.id)
+                try:
+                    vendor.post_purchase_order(po)
+                    posted_orders_count = po.order_products.filter_by(status='Purchased').count()
+                    if posted_orders_count == po.order_products.count():
+                        po.status = PurchaseOrderStatus.posted
+                    elif posted_orders_count > 0:
+                        po.status = PurchaseOrderStatus.partially_posted
+                    else:
+                        po.status = PurchaseOrderStatus.failed
+                        logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
+                    logger.info("Posted a purchase order %s", po.id)
+                except Exception as ex:
+                    logger.exception("Failed to post the purchase order %s.", po.id)
+                    # logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
-                    logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
-                logger.info("Posted a purchase order %s", po.id)
-            except Exception as ex:
-                logger.exception("Failed to post the purchase order %s.", po.id)
-                # logger.warning(ex)
-                po.status = PurchaseOrderStatus.failed
-                po.status_details = str(ex)
-            db.session.commit()
+                    po.status_details = str(ex)
+                db.session.commit()
         logger.info('Done posting purchase orders')
     except Exception as ex:
         for po in pending_purchase_orders:

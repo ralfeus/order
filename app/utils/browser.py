@@ -106,3 +106,7 @@ class Browser:
     def quit(self):
         self.__browser.quit()
         del self.__browser
+
+    @property
+    def title(self):
+        return self.__browser.title

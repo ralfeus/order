@@ -52,10 +52,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         ''' Posts a purchase order to Atomy based on provided data '''
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
-            self.__logger.info("PO: Skip <%s>: purchase date is %s",
+            self.__logger.info("AtomyQuick: Skip <%s>: purchase date is %s",
                 purchase_order.id, purchase_order.purchase_date)
             return purchase_order
-        self.__log("PO: Logging in...")
+        self.__log("AtomyQuick: Logging in...")
         try:
             atomy_login(
                 purchase_order.customer.username,
@@ -82,7 +82,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
             #     f.write(self.__browser.page_source)
-            self.__logger.exception("PO: Failed to post an order %s", purchase_order.id)
+            self.__logger.exception("AtomyQuick: Failed to post an order %s", purchase_order.id)
             raise ex
 
     @property
@@ -90,14 +90,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return self.__browser
 
     def __open_quick_order(self):
-        self.__log("PO: Open quick order")
+        self.__log("AtomyQuick: Open quick order")
         self.__browser.get('https://www.atomy.kr/v2/Home/Product/MallMain')
         quick_order = self.__browser.get_element_by_id('aQuickOrder2')
         quick_order.click()
         # self.__browser.save_screenshot(realpath('01-quick-order.png'))
 
     def __add_products(self, order_products):
-        self.__log("PO: Adding products")
+        self.__log("AtomyQuick: Adding products")
         # add_button = self.__browser.get_element_by_id('btnProductListSearch')
         product_code_input = self.__browser.get_element_by_class('selectGubunInput')
         ordered_products = []
@@ -151,24 +151,24 @@ class AtomyQuick(PurchaseOrderVendorBase):
         local_shipment_node = self.__browser.get_element_by_css(
             'ul#areaSummary li.pOr2 div em')
         if local_shipment_node.text == '2,500':
-            self.__log("PO: Setting combined shipment")
+            self.__log("AtomyQuick: Setting combined shipment")
             self.__browser.get_element_by_id('cPackingMemo2').click()
             self.__browser.get_element_by_id('all-agree').click()
             self.__browser.get_element_by_class('btnInsert').click()
 
     def __set_sender_name(self):
-        self.__log("PO: Setting sender name")
+        self.__log("AtomyQuick: Setting sender name")
         self.__browser.get_element_by_id('tSendName').send_keys('dumb')
         # self.__browser.save_screenshot(realpath('04-sender-name.png'))
 
     def __set_purchase_order_id(self, purchase_order_id):
-        self.__log("PO: Setting purchase order ID")
+        self.__log("AtomyQuick: Setting purchase order ID")
         adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
         self.__browser.get_element_by_id('tRevUserName').send_keys(adapted_po_id)
         # self.__browser.save_screenshot(realpath('05-po-id.png'))
 
     def __set_receiver_mobile(self, phone='010-6275-2045'):
-        self.__log("PO: Setting receiver phone number")
+        self.__log("AtomyQuick: Setting receiver phone number")
         phone = phone.split('-')
         self.__browser.execute_script(
             f"document.getElementById('tRevCellPhone1').value = '{phone[0]}'")
@@ -178,7 +178,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # self.__browser.save_screenshot(realpath('06-rcv-mobile.png'))
 
     def __set_payment_mobile(self, phone='010-6275-2045'):
-        self.__log("PO: Setting phone number for payment notification")
+        self.__log("AtomyQuick: Setting phone number for payment notification")
         phone = phone.split('-')
         self.__browser.execute_script(
             f"document.getElementById('tVirCellPhone1').value = '{phone[0]}'")
@@ -191,7 +191,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             'zip': '08584',
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
-        self.__log("PO: Setting shipment address")
+        self.__log("AtomyQuick: Setting shipment address")
         self.__browser.execute_script(
             f"document.getElementById('tRevPostNo').value = \"{address['zip']}\"")
         # self.__browser.get_element_by_id('tRevPostNo').send_keys(address['zip'])
@@ -202,18 +202,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # self.__browser.save_screenshot(realpath('08-rcv-address.png'))
 
     def __set_payment_method(self):
-        self.__log("PO: Setting payment method")
+        self.__log("AtomyQuick: Setting payment method")
         self.__browser.get_element_by_id('settleGubun2_input').click()
         # self.__browser.save_screenshot(realpath('09-payment-method.png'))
 
     def __set_payment_destination(self, bank_id='06'):
-        self.__log("PO: Setting payment receiver")
+        self.__log("AtomyQuick: Setting payment receiver")
         self.__browser.execute_script(
             f"document.getElementById('sBank').value = '{bank_id}'")
         # self.__browser.save_screenshot(realpath('10-payment-dst.png'))
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
-        self.__log("PO: Setting counteragent tax information")
+        self.__log("AtomyQuick: Setting counteragent tax information")
         if tax_id == ('', '', ''): # No company
             self.__browser.get_element_by_id('tax_gubun1').click()
         else:
@@ -231,17 +231,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # self.__browser.save_screenshot(realpath('11-tax-info.png'))
 
     def __submit_order(self):
-        self.__log("PO: Submitting the order")
+        self.__logger.info("AtomyQuick: Submitting the order")
         self.__browser.get_element_by_id('chkAgree').click()
         # self.__browser.get_element_by_id('chkEduAgree').click()
         self.__browser.get_element_by_id('bPayment').click()
         try:
-            self.__log('Waiting for order completion page')
+            self.__logger.info('Waiting for order completion page')
             self.__browser.wait_for_url('https://www.atomy.kr/v2/Home/Payment/OrderComplete')
         except Exception as ex:
-            self.__log("Couldn't get order completion page")
+            self.__logger.info("Couldn't get order completion page")
+            self.__logger.info("AtomyQuick: %s", self.__browser.title)
             raise Exception(ex)
-            
 
         self.__logger.info("Order completion page is loaded.")
         return self.__get_po_params()
