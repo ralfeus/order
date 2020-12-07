@@ -15,7 +15,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
-from app.shipping.models import Shipping
+from app.shipping.models import Shipping, PostponeShipping
 from app.utils.atomy import atomy_login
 from app.tools import prepare_datatables_query, modify_object
 
@@ -83,6 +83,9 @@ def user_get_orders(order_id):
             return jsonify(orders.first().to_dict(details=True))
     if request.values.get('status'):
         orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
+    if request.values.get('to_attach') is not None:
+        orders = orders.join(PostponeShipping).filter(
+            not_(Order.status.in_([OrderStatus.shipped, OrderStatus.complete])))
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
     if orders.count() == 0:
@@ -138,11 +141,44 @@ def user_create_order():
         status=OrderStatus.pending,
         when_created=datetime.now()
     )
+    order.attach_orders(request_data.get('attached_orders'))
     db.session.add(order)
     # order_products = []
     errors = []
     # ordertotal_weight = 0
-    for suborder_data in request_data['suborders']:
+    add_suborders(order, request_data['suborders'], errors)
+
+    try:
+        order.update_total()
+        db.session.commit()
+        result = {
+            'status': 'warning' if len(errors) > 0 else 'success',
+            'order_id': order.id,
+            'message': errors
+        }
+    except DataError as ex:
+        db.session.rollback()
+        message = ex.orig.args[1]
+        table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
+        if table:
+            if table == 'subcustomers':
+                message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+        result = {
+            'status': 'error',
+            'message': f"""Couldn't add order due to input error. Check your form and try again.
+                           {message}"""
+        }
+    except (IntegrityError, OperationalError) as ex:
+        db.session.rollback()
+        result = {
+            'status': 'error',
+            'message': f"""Couldn't add order due to input error. Check your form and try again.
+                           {str(ex)}"""
+        }
+    return jsonify(result)
+
+def add_suborders(order, suborders, errors):
+    for suborder_data in suborders:
         try:
             subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
             if is_new:
@@ -176,35 +212,6 @@ def user_create_order():
             except:
                 # current_app.logger.exception("Couldn't add product %s", item['item_code'])
                 pass
-
-    try:
-        order.update_total()
-        db.session.commit()
-        result = {
-            'status': 'warning' if len(errors) > 0 else 'success',
-            'order_id': order.id,
-            'message': errors
-        }
-    except DataError as ex:
-        db.session.rollback()
-        message = ex.orig.args[1]
-        table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
-        if table:
-            if table == 'subcustomers':
-                message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
-        result = {
-            'status': 'error',
-            'message': f"""Couldn't add order due to input error. Check your form and try again.
-                           {message}"""
-        }
-    except (IntegrityError, OperationalError) as ex:
-        db.session.rollback()
-        result = {
-            'status': 'error',
-            'message': f"""Couldn't add order due to input error. Check your form and try again.
-                           {str(ex)}"""
-        }
-    return jsonify(result)
 
 def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
     '''Returns a tuple of customer from raw data
@@ -274,10 +281,12 @@ def user_save_order(order_id):
         order.phone = payload['phone']
     if payload.get('comment') and order.comment != payload['comment']:
         order.comment = payload['comment']
+    if payload.get('attached_orders'):
+        order.attach_orders(payload['attached_orders'])
 
     # Edit or add order products
-    order_products = list(order.order_products)
     if payload.get('suborders'):
+        order_products = list(order.order_products)
         for suborder_data in payload['suborders']:
             try:
                 suborder = order.suborders.filter(and_(
@@ -311,9 +320,9 @@ def user_save_order(order_id):
                                 Erroneous data is: {suborder_data['subcustomer']}""",
                             status=400))
     
-    # Remove order products
-    for order_product in order_products:
-        delete_order_product(order, order_product)
+        # Remove order products
+        for order_product in order_products:
+            delete_order_product(order, order_product)
 
     order.update_total()
 
@@ -398,9 +407,9 @@ def add_order_product(suborder, item, errors):
             suborder.order.total_weight += product.weight * order_product.quantity
             suborder.order.subtotal_krw += product.price * order_product.quantity
             return order_product
-        else:
-            errors.append(f'{item["item_code"]}: no such product')
-            raise Exception(f'{item["item_code"]}: no such product')
+
+        errors.append(f'{item["item_code"]}: no such product')
+        raise Exception(f'{item["item_code"]}: no such product')
 
 def update_order_product(order, order_product, item):
     if order_product.quantity != int(item['quantity']):

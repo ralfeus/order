@@ -10,7 +10,7 @@ function startup() {
 function get_order(order_id) {
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/order/' + order_id,
+        url: '/api/v1/order/' + order_id + '?details=1',
         success: data => {
             g_dictionaries_loaded
                 .then(() => {
@@ -35,6 +35,10 @@ async function populate_order(order_data) {
     $('#address').val(order_data.address);
     $('#phone').val(order_data.phone);
     $('#country').val(order_data.country.id);
+    order_data.attached_orders.forEach(ao => {
+        $('#attached_orders')
+            .append(new Option(ao.id, ao.id, false, true)).trigger('change');
+    });
     get_shipping_methods(order_data.country.id, 0)
     .then(() => { $('#shipping').val(order_data.shipping.id); });
 

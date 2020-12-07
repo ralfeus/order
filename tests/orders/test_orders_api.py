@@ -1,4 +1,7 @@
-from datetime import date, datetime
+'''
+Tests of sale order functionality API
+'''
+from datetime import datetime
 
 from tests import BaseTestCase, db
 from app.models import Country, Role, User
@@ -6,7 +9,7 @@ from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
     OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
-from app.shipping.models import Shipping, ShippingRate
+from app.shipping.models import PostponeShipping, Shipping, ShippingRate
 
 class TestOrdersApi(BaseTestCase):
     def setUp(self):
@@ -308,3 +311,63 @@ class TestOrdersApi(BaseTestCase):
         })
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json['result'], 'success')
+
+    def test_get_orders_to_attach(self):
+        postpone_shipping = PostponeShipping()
+        self.try_add_entities([
+            postpone_shipping,
+            Order(shipping=postpone_shipping, user=self.user, status=OrderStatus.pending)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/order?to_attach')
+        )
+        self.assertEqual(len(res.json), 1)
+
+    def test_postponed_orders(self):
+        postpone_shipping = PostponeShipping()
+        postponed_order = Order(
+            shipping=postpone_shipping, user=self.user, status=OrderStatus.pending)
+        suborder = Suborder(order=postponed_order)
+        self.try_add_entities([
+            postpone_shipping, postponed_order, suborder,
+            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+        ])
+        postponed_order1 = Order(
+            shipping=postpone_shipping, user=self.user, status=OrderStatus.pending)
+        suborder1 = Suborder(order=postponed_order1)
+        self.try_add_entities([
+            postponed_order1, suborder1,
+            OrderProduct(suborder=suborder1, product_id='0000', price=10, quantity=10)
+        ])
+        postponed_order.update_total()
+        postponed_order1.update_total()
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                "shipping":"1",
+                "phone":"",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"100"}
+                        ]
+                    }
+                ],
+                "attached_orders": [postponed_order.id]
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(res.json['order_id'])
+        self.assertEqual(order.attached_orders.count(), 1)
+        self.assertEqual(order.shipping_krw, 200)
+        self.assertEqual(order.total_krw, 3700)
+        res = self.client.post(f'/api/v1/order/{order.id}', json={
+            "attached_orders": [postponed_order.id, postponed_order1.id]
+        })
+        self.assertEqual(order.attached_orders.count(), 2)
+        self.assertEqual(order.shipping_krw, 200)
+        self.assertEqual(order.total_krw, 3700)
