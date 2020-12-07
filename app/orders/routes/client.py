@@ -67,8 +67,8 @@ def admin_get_order(order_id):
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order)
-    else:
-        return user_get_order(order_id)
+    
+    return user_get_order(order_id)
 
 
 @bp_client_admin.route('/subcustomers')

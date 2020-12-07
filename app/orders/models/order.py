@@ -6,18 +6,18 @@ from datetime import datetime
 from decimal import Decimal
 from functools import reduce
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, Table
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.currencies.models import Currency
-from app.invoices.models import Invoice
 from app.payments.models import Transaction
 from app.shipping.models import Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
+    ''' Sale orders statuses '''
     pending = 1
     can_be_paid = 2
     po_created = 3
@@ -66,6 +66,10 @@ class Order(db.Model):
         nullable=False, default=datetime(9999, 12, 31))
     suborders = relationship('Suborder', lazy='dynamic')
     __order_products = relationship('OrderProduct', lazy='dynamic')
+    attached_order_id = Column(String(16), ForeignKey('orders.id'))
+    attached_order = relationship('Order', remote_side=[id])
+    attached_orders = relationship('Order',
+        foreign_keys=[attached_order_id], lazy='dynamic')
 
     @property
     def payment_method(self):
@@ -78,7 +82,7 @@ class Order(db.Model):
             return None
 
     @hybrid_property
-    def status(self):
+    def status(self) -> Column:
         return self.__status
 
     @status.setter
@@ -91,6 +95,9 @@ class Order(db.Model):
         self.__status = value
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
+        if value == OrderStatus.shipped:
+            for ao in self.attached_orders:
+                ao.status = value
 
     # @property
     # def shipping(self):
@@ -124,7 +131,7 @@ class Order(db.Model):
         today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
         last_order = db.session.query(Order.seq_num). \
             filter(Order.id.like(today_prefix + '%')). \
-            order_by(Order.when_created.desc()). \
+            order_by(Order.seq_num.desc()). \
             first()
         self.seq_num = last_order[0] + 1 if last_order else 1
         self.id = today_prefix + '{:04d}'.format(self.seq_num)
@@ -145,6 +152,15 @@ class Order(db.Model):
 
     def __repr__(self):
         return "<Order: {}>".format(self.id)
+
+    def attach_orders(self, orders):
+        if orders:
+            if isinstance(orders[0], Order):
+                self.attached_orders = orders
+            else:
+                self.attached_orders = Order.query.filter(Order.id.in_(orders))
+        else:
+            self.attached_orders = []
 
     def to_dict(self, details=False):
         is_order_updated = False
@@ -187,9 +203,9 @@ class Order(db.Model):
         }
         if details:
             result = { **result,
-                'suborders': [suborder.to_dict() for suborder in self.suborders],
-                'order_products': [order_product.to_dict()
-                    for order_product in self.order_products]
+                'suborders': [so.to_dict() for so in self.suborders],
+                'order_products': [op.to_dict() for op in self.order_products],
+                'attached_orders': [o.to_dict() for o in self.attached_orders]
             }
         return result
 
@@ -204,11 +220,13 @@ class Order(db.Model):
             if self.shipping_method_id is not None:
                 self.shipping = Shipping.query.get(self.shipping_method_id)
             else:
-                self.shipping = Shipping.query.filter_by(discriminator='noshipping').first()
+                self.shipping = NoShipping.query.first()
                 if self.shipping is None:
                     self.shipping = NoShipping()
         self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
-                                   self.suborders, 0)
+                                   self.suborders, 0) + \
+                            reduce(lambda acc, ao: acc + ao.total_weight, 
+                                   self.attached_orders, 0)
         self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
 
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,

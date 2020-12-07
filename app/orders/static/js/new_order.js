@@ -51,6 +51,17 @@ $(document).ready(function() {
         .on('change', () => {
             $('.common-purchase-date').val('');
         });
+    $('#attached_orders').select2({
+        ajax: {
+            url: '/api/v1/order?to_attach',
+            processResults: data => {
+                var r = {
+                    results: data.map(i => { return {id: i.id, text: i.id };})
+                };
+                return r;
+            }
+        }
+    });
 
     load_dictionaries();
     g_dictionaries_loaded
@@ -100,6 +111,7 @@ function clear_form() {
 
     $('.subcustomer-card').remove();
     add_subcustomer();
+    $('#attached_orders').val('');
     //$('div#accordion').append(subcustomerTemplate);
     //product_code_autocomplete($('.item-code'));
     //product_quantity_change($('.item-quantity'));
@@ -330,6 +342,7 @@ function submit_order() {
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
             comment: $('#comment').val(),
+            attached_orders: $('#attached_orders').val(),
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),

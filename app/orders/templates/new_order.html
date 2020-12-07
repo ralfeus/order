@@ -26,12 +26,9 @@
                 <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
                 <input class="form-control" id="phone" placeholder="+(country code) phone" />
             </div>
-            <div class="col-3">
-                <div class="form-check my-2">
-                    <input type="checkbox" class="form-check-input" id="postpone"/>
-                    <label for="postpone" class="form-check-label">Postpone shipment</label>
-                </div>
-                <select class="form-control" id="combine"></select>
+            <div class="col-3" style="font-size: 94%;">
+                <select class="form-control" id="attached_orders" 
+                    data-placeholder="Attach postponed orders" multiple></select>
             </div>
         </div>
         <div class="container-fluid row">&nbsp;</div>

@@ -17,6 +17,14 @@
       <td>{{ order.shipping.name }}</td>
       <td>{{ order.total_weight }}</td>
     </tr>
+    <tr>
+      <td><h3>Orders to be shipped with this one:</h3></td>
+      <td>
+        {% for ao in order.attached_orders %}
+        <h3>{{ ao.id }}</h3>
+        {% endfor %}
+      </td>
+    </tr>
   </tbody>
 </table>
 {% for suborder in order.suborders %}

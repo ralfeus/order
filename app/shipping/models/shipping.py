@@ -78,6 +78,16 @@ class NoShipping(Shipping):
     @property
     def name(self):
         return 'No shipping'
+    
+    def can_ship(self, country: Country, weight: int) -> bool:
+        return True
 
     def get_shipping_cost(self, destination, weight):
         return 0
+
+class PostponeShipping(NoShipping):
+    __mapper_args__ = {'polymorphic_identity': 'postpone'}
+
+    @property
+    def name(self):
+        return "Postpone shipping"
