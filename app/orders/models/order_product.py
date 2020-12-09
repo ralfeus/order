@@ -1,9 +1,39 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from datetime import datetime
+import enum
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
-from app.orders.models import Order
 from app.models.base import BaseModel
+
+class OrderProductStatus(enum.Enum):
+    pending = 1
+    po_created = 2
+    unavailable = 3
+    purchased = 4
+    shipped = 5
+    complete = 6
+    cancelled = 7
+
+class OrderProductStatusEntry(db.Model):
+    __tablename__ = 'order_product_status_history'
+    # __table_args__ = { 'extend_existing': True }
+
+    order_product_id = Column('order_product_id', Integer,
+        ForeignKey('order_products.id'), primary_key=True)
+    status = Column('status', Enum(OrderProductStatus))
+    user_id = Column('user_id', Integer, ForeignKey('users.id'))
+    user = relationship("User", foreign_keys=[user_id])
+    when_created = Column('when_created', DateTime, primary_key=True)
+
+    def to_dict(self):
+        return {
+            'status': self.status.name if self.status else None,
+            'set_by': self.user.username if self.user else None,
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None
+        }
 
 
 class OrderProduct(db.Model, BaseModel):
@@ -22,13 +52,24 @@ class OrderProduct(db.Model, BaseModel):
     quantity = Column(Integer)
     private_comment = Column(String(256))
     public_comment = Column(String(256))
-    status = Column(String(16))
-    status_history = relationship('OrderProductStatusEntry', backref="order_product",
-                                  lazy='dynamic')
+    status = Column(Enum(OrderProductStatus),
+        server_default=OrderProductStatus.pending.name)
+    status_history = relationship("OrderProductStatusEntry", lazy='dynamic')
 
     def __repr__(self):
-        return "<OrderProduct: Order: {}, Product: {}, Status: {}".format(
-            self.order_id, self.product_id, self.status)
+        return "<OrderProduct: Suborder: {}, Product: {}, Status: {}".format(
+            self.suborder.id, self.product_id, self.status)
+    
+    def set_status(self, status, user):
+        self.status = status
+        db.session.add(OrderProductStatusEntry(
+            order_product_id=self.id,
+            status=status,
+            user=user,
+            when_created=datetime.now()
+        ))
+        if status == OrderProductStatus.cancelled:
+            self.suborder.order.update_total()
 
     def to_dict(self):
         return {
@@ -51,7 +92,7 @@ class OrderProduct(db.Model, BaseModel):
             'points': self.product.points,
             # 'comment': self.order.comment,
             'quantity': self.quantity,
-            'status': self.status,
+            'status': self.status.name if self.status else None,
             'weight': self.product.weight,
             'purchase': self.product.purchase,
             'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,

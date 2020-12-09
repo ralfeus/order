@@ -175,10 +175,12 @@ class TestInvoiceClient(BaseTestCase):
 
     def test_create_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id)
         self.try_add_entities([
             Product(id=gen_id, name='Product 1'),
-            Order(id=gen_id),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            order,
+            Suborder(id=gen_id, order=order),
+            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
             Invoice(id=gen_id, order_id=gen_id)
         ])
         self.try_admin_operation(
@@ -190,10 +192,12 @@ class TestInvoiceClient(BaseTestCase):
     
     def test_save_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id)
         self.try_add_entities([
+            order,
             Product(id=gen_id, name='Product 1'),
-            Order(id=gen_id),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            Suborder(id=gen_id, order=order),
+            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
             Invoice(id=gen_id, order_id=gen_id),
             InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
         ])
@@ -208,12 +212,15 @@ class TestInvoiceClient(BaseTestCase):
     
     def test_delete_invoice_item(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = Order(id=gen_id)
         self.try_add_entities([
             Product(id=gen_id, name='Product 1'),
-            Order(id=gen_id),
-            OrderProduct(order_id=gen_id, product_id=gen_id, price=10, quantity=10),
+            order,
+            Suborder(id=gen_id, order=order),
+            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
             Invoice(id=gen_id, order_id=gen_id),
-            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
+            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, 
+                quantity=10)
         ])
         res = self.try_admin_operation(
             lambda: self.client.delete(f'/api/v1/admin/invoice/{gen_id}/item/10')

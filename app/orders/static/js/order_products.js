@@ -2,7 +2,21 @@ $(document).ready( function () {
     var table = $('#order_products').DataTable({
         dom: 'lfrBtip',
         buttons: [
-	        'print'
+            'print',
+            { 
+                extend: 'selected', 
+                text: 'Cancel',
+                action: function(_e, dt, _node, _config) {
+                    cancel(dt.rows({selected: true}));
+                } 
+            },
+            { 
+                extend: 'selected', 
+                text: 'Separate',
+                action: function(_e, dt, _node, _config) {
+                    separate(dt.rows({selected: true}));
+                } 
+            }
         ],        
         ajax: {
             url: '/api/v1/order/product',
@@ -74,6 +88,11 @@ $(document).ready( function () {
     } );
 });
 
+function cancel(target) {
+    $.post('/api/v1/order/product/' + target.data().id + '/status/cancelled')
+    .then(data => {target.data(data).update();});
+}
+
 /**
  * Draws order product details
  * @param {object} row - row object 
@@ -89,4 +108,11 @@ function format ( row, data ) {
             '<textarea id="public_comment" class="form-control col-4">' + data.public_comment + '</textarea>' +
         '</div>'+
     '</div>';
+}
+
+function separate(target) {
+    if (!target.count()) {
+        modal('Separate order product', 'Nothing selected');
+        return false;
+    }
 }

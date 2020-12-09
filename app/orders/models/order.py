@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from functools import reduce
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, Table
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute

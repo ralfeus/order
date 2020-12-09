@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import db
 from app.currencies.models import Currency
 from app.products import bp_api_admin, bp_api_user
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+from app.orders.models import Order, OrderProduct, \
     Suborder, Subcustomer
 from app.products.models import Product
 from app.shipping.models import Shipping

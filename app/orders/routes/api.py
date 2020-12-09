@@ -6,13 +6,12 @@ from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import and_, or_, not_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
-from werkzeug.datastructures import MultiDict
 
 from app import db
 from app.exceptions import SubcustomerParseError
 from app.models import Country, User
 from app.orders import bp_api_admin, bp_api_user
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
+from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
@@ -368,28 +367,34 @@ def save_order_product(order_product_id):
     except Exception as ex:
         abort(Response(str(ex), status=500))
 
-@bp_api_admin.route('/product/<int:order_product_id>/status/<order_product_status>',
-                    methods=['POST'])
-@roles_required('admin')
-def admin_set_order_product_status(order_product_id, order_product_status):
+@bp_api_user.route('/product/<int:order_product_id>/status/<order_product_status>',
+                   methods=['POST'])
+@login_required
+def user_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
     '''
-    order_product = OrderProduct.query.get(order_product_id)
-    order_product.status = order_product_status
-    db.session.add(OrderProductStatusEntry(
-        order_product=order_product,
-        status=order_product_status,
-        # set_by=current_user,
-        user_id=current_user.id,
-        set_at=datetime.now()
-    ))
+    order_product = OrderProduct.query
+    if not current_user.has_role('admin'):
+        order_product = order_product.filter(OrderProduct.suborder.has(
+            Suborder.order.has(Order.user == current_user)))
+    order_product = order_product.filter_by(id=order_product_id).first()
+    if not order_product:
+        abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
+    user_allowed_statuses = [OrderProductStatus.cancelled]
+    order_product_status = OrderProductStatus[order_product_status]
+    if not current_user.has_role('admin') \
+        and order_product_status not in user_allowed_statuses:
+        abort(Response(f"You are not allowed to set status <{order_product_status}>",
+            status=409
+        ))
+    order_product.set_status(order_product_status, current_user)
     db.session.commit()
 
     return jsonify({
         'order_product_id': order_product_id,
-        'order_product_status': order_product_status,
+        'order_product_status': order_product_status.name,
         'status': 'success'
     })
 
@@ -402,7 +407,7 @@ def add_order_product(suborder, item, errors):
                 product=product,
                 price=product.price,
                 quantity=int(item['quantity']),
-                status='Pending')
+                status=OrderProductStatus.pending)
             db.session.add(order_product)
             suborder.order.total_weight += product.weight * order_product.quantity
             suborder.order.subtotal_krw += product.price * order_product.quantity
@@ -507,36 +512,28 @@ def get_order_products():
 
     return jsonify(outcome)
 
-@bp_api_admin.route('/product/<int:order_product_id>/status/history')
-@roles_required('admin')
-def admin_get_order_product_status_history(order_product_id):
-    history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
-    if history.count():
-        return jsonify(list(map(lambda entry: {
-            'set_by': entry.set_by.username,
-            'set_at': entry.set_at.strftime('%Y-%m-%d %H:%M:%S') if entry.set_at else '',
-            'status': entry.status
-        }, history)))
-    else:
-        abort(Response(f'No order product ID={order_product_id} found', status=404))
+@bp_api_user.route('/status')
+@login_required
+def user_get_order_statuses():
+    return jsonify(list(map(lambda i: i.name, OrderStatus)))
 
-@bp_api_user.route('/order_product/<int:order_product_id>/status/history')
+@bp_api_user.route('/product/status')
+@login_required
+def user_get_order_product_statuses():
+    return jsonify(list(map(lambda i: i.name, OrderProductStatus)))
+
+@bp_api_user.route('/product/<int:order_product_id>/status/history')
 @login_required
 def user_get_order_product_status_history(order_product_id):
-    history = OrderProductStatusEntry.query.filter_by(order_product_id=order_product_id)
-    if history.count():
-        return jsonify(list(map(lambda entry: {
-            'set_by': entry.set_by.username,
-            'set_at': entry.set_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'status': entry.status
-        }, history)))
-    else:
-        result = jsonify({
-            'status': 'error',
-            'message': f'No order product ID={order_product_id} found'
-        })
-        result.status_code = 404
-        return result
+    order_product = OrderProduct.query
+    if not current_user.has_role('admin'):
+        order_product = order_product.filter(OrderProduct.suborder.has(
+            Suborder.order.has(Order.user == current_user)))
+    order_product = order_product.filter_by(id=order_product_id).first()
+    if not order_product:
+        abort(Response(f"No order product <{order_product_id}> was found", status=404))
+
+    return jsonify(list(map(lambda entry: entry.to_dict(), order_product.status_history)))
 
 @bp_api_admin.route('/subcustomer')
 @roles_required('admin')
@@ -625,7 +622,7 @@ def validate_subcustomer():
         abort(Response('No subcustomer data was provided', status=400))
     
     try:
-        subcustomer, is_new = parse_subcustomer(payload['subcustomer'])
+        subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
         atomy_login(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
