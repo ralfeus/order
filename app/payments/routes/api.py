@@ -1,5 +1,5 @@
 '''
-Contains API endpoint routes of the transaction services
+Contains API endpoint routes of the payment services
 '''
 from datetime import datetime
 import os.path
@@ -11,99 +11,77 @@ from app import db
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderStatus
 from app.payments import bp_api_admin, bp_api_user
-from app.payments.models import PaymentMethod, Transaction, TransactionStatus
+from app.payments.models import PaymentMethod, Payment, PaymentStatus
 
 from app.tools import rm, write_to_file
 
-@bp_api_admin.route('/', defaults={'transaction_id': None}, strict_slashes=False)
-@bp_api_admin.route('/<int:transaction_id>')
+@bp_api_admin.route('/', defaults={'payment_id': None}, strict_slashes=False)
+@bp_api_admin.route('/<int:payment_id>')
 @roles_required('admin')
-def admin_get_transactions(transaction_id):
+def admin_get_payments(payment_id):
     '''
-    Returns all or selected transactions in JSON
+    Returns all or selected payments in JSON
     '''
-    transactions = Transaction.query
-    if transaction_id is not None:
-        transactions = transactions.filter_by(id=transaction_id)
+    payments = Payment.query
+    if payment_id is not None:
+        payments = payments.filter_by(id=payment_id)
 
     if request.values.get('order_id'):
-        transactions = transactions.filter(
-            Transaction.orders.has(Order.id == request.values['order_id']))
+        payments = payments.filter(
+            Payment.orders.has(Order.id == request.values['order_id']))
 
-    return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
+    return jsonify(list(map(lambda entry: entry.to_dict(), payments)))
 
-@bp_api_admin.route('/<int:transaction_id>', methods=['POST'])
+@bp_api_admin.route('/<int:payment_id>', methods=['POST'])
 @roles_required('admin')
-def admin_save_transaction(transaction_id):
+def admin_save_payment(payment_id):
     '''
     Saves updates in user profile.
     '''
     payload = request.get_json()
-    transaction = Transaction.query.get(transaction_id)
-    if not transaction:
-        abort(Response(f"No transaction <{transaction_id}> was found", status=404))
-    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
-        abort(Response(f"Can't update transaction in state <{transaction.status}>", status=409))
+    payment = Payment.query.get(payment_id)
+    if not payment:
+        abort(Response(f"No payment <{payment_id}> was found", status=404))
+    if payment.status in (PaymentStatus.approved, PaymentStatus.cancelled):
+        abort(Response(f"Can't update payment in state <{payment.status}>", status=409))
     if not payload:
-        abort(Response("No transaction data was provided", status=400))
-
-    if payload.get('amount_original'):
-        transaction.amount_sent_original = payload['amount_original']
-    if payload.get('currency_code'):
-        transaction.currency = Currency.query.get(payload['currency_code'])
-    if payload.get('amount_krw'):
-        transaction.amount_sent_krw = payload['amount_krw']
-    if payload.get('amount_received_krw'):
-        transaction.amount_received_krw = payload['amount_received_krw']
-    if payload.get('status') and transaction.status != TransactionStatus.approved:
-        transaction.status = payload['status'].lower()
-
-    transaction.when_changed = datetime.now()
-    transaction.changed_by = current_user
+        abort(Response("No payment data was provided", status=400))
 
     messages = []
-    if transaction.status == TransactionStatus.approved:
-        update_money(transaction, messages)
+    payment.when_changed = datetime.now()
+    payment.changed_by = current_user
+    if payload.get('amount_original'):
+        payment.amount_sent_original = payload['amount_original']
+    if payload.get('currency_code'):
+        payment.currency = Currency.query.get(payload['currency_code'])
+    if payload.get('amount_krw'):
+        payment.amount_sent_krw = payload['amount_krw']
+    if payload.get('amount_received_krw'):
+        payment.amount_received_krw = payload['amount_received_krw']
+    if payload.get('status'):
+        payment.set_status(payload['status'].lower(), messages)
 
     db.session.commit()
 
-    return jsonify({'transaction': transaction.to_dict(), 'message': messages})
+    return jsonify({'payment': payment.to_dict(), 'message': messages})
 
-def update_money(transaction, messages):
-    if not transaction.amount_received_krw:
-        abort(Response(f"No amount of received payment is set for transaction <{transaction.id}>",
-                       status=400))
-    transaction.user.balance += transaction.amount_received_krw
-    for order in transaction.orders:
-        if order.total_krw <= transaction.user.balance and \
-           order.status == OrderStatus.pending:
-            transaction.user.balance -= order.total_krw
-            order.status = OrderStatus.paid
-            messages.append(f"Order <{order.id}> is PAID")
-            # db.session.add(Transaction(
-            #     user=transaction.user,
-            #     orders=[order],
-            #     amount_received_krw=-order.total_krw,
-            #     status=TransactionStatus.approved
-            # ))
-
-@bp_api_user.route('', defaults={'transaction_id': None})
-@bp_api_user.route('/<int:transaction_id>')
+@bp_api_user.route('', defaults={'payment_id': None})
+@bp_api_user.route('/<int:payment_id>')
 @login_required
-def user_get_transactions(transaction_id):
+def user_get_payments(payment_id):
     '''
-    Returns user's or all transactions in JSON
+    Returns user's or all payments in JSON
     '''
-    transactions = Transaction.query
+    payments = Payment.query
     if not current_user.has_role('admin'):
-        transactions = transactions.filter_by(user=current_user)
-    if transaction_id is not None:
-        transaction = transaction.filter_by(id=transaction_id)
+        payments = payments.filter_by(user=current_user)
+    if payment_id is not None:
+        payment = payment.filter_by(id=payment_id)
     if request.values.get('order_id'):
-        transactions = transactions.filter(
-            Transaction.orders.any(Order.id == request.values['order_id']))
+        payments = payments.filter(
+            Payment.orders.any(Order.id == request.values['order_id']))
 
-    return jsonify(list(map(lambda tran: tran.to_dict(), transactions)))
+    return jsonify(list(map(lambda tran: tran.to_dict(), payments)))
 
 @bp_api_user.route('', methods=['POST'])
 @login_required
@@ -115,7 +93,7 @@ def user_create_payment():
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
 
-    transaction = Transaction(
+    payment = Payment(
         user=current_user,
         changed_by=current_user,
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all(),
@@ -123,50 +101,50 @@ def user_create_payment():
         amount_sent_original=payload['amount_original'],
         amount_sent_krw=float(payload['amount_original']) / float(currency.rate),
         payment_method_id=payload['payment_method'],
-        status=TransactionStatus.pending,
+        status=PaymentStatus.pending,
         when_created=datetime.now()
     )
-    db.session.add(transaction)
+    db.session.add(payment)
     db.session.commit()
-    return jsonify(transaction.to_dict())
+    return jsonify(payment.to_dict())
 
-@bp_api_user.route('/<int:transaction_id>', methods=['POST'])
+@bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
-def user_save_transaction(transaction_id):
+def user_save_payment(payment_id):
     '''
-    Saves updates in transaction
+    Saves updates in payment
     '''
     payload = request.get_json()
-    transaction = Transaction.query.get(transaction_id)
-    if not transaction:
+    payment = Payment.query.get(payment_id)
+    if not payment:
         abort(404)
 
-    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+    if payment.status in (PaymentStatus.approved, PaymentStatus.cancelled):
         abort(Response(
-            f"Can't update transaction in state <{transaction.status}>", status=409))
+            f"Can't update payment in state <{payment.status}>", status=409))
     if payload['status'] == 'cancelled':
-        transaction.status = TransactionStatus.cancelled
+        payment.status = PaymentStatus.cancelled
 
-    transaction.when_changed = datetime.now()
-    transaction.changed_by = current_user
+    payment.when_changed = datetime.now()
+    payment.changed_by = current_user
 
     db.session.commit()
 
-    return jsonify(transaction.to_dict())
+    return jsonify(payment.to_dict())
 
-@bp_api_user.route('/<int:transaction_id>/evidence', methods=['POST'])
+@bp_api_user.route('/<int:payment_id>/evidence', methods=['POST'])
 @login_required
-def user_upload_transaction_evidence(transaction_id):
-    transaction = Transaction.query.get(transaction_id)
+def user_upload_payment_evidence(payment_id):
+    payment = Payment.query.get(payment_id)
     if not current_user.has_role('admin') and \
-        current_user != transaction.user:
+        current_user != payment.user:
         abort(403)
-    if transaction.status in (TransactionStatus.approved, TransactionStatus.cancelled):
+    if payment.status in (PaymentStatus.approved, PaymentStatus.cancelled):
         abort(Response(
-            f"Can't update transaction in state <{transaction.status}>", status=409))
+            f"Can't update payment in state <{payment.status}>", status=409))
     if request.files and request.files['file'] and request.files['file'].filename:
         file = request.files['file']
-        rm(transaction.proof_image)
+        rm(payment.proof_image)
         image_data = file.read()
         file_name = os.path.join(
             current_app.config['UPLOAD_PATH'],
@@ -175,9 +153,9 @@ def user_upload_transaction_evidence(transaction_id):
             ''.join(os.path.splitext(file.filename)[1:])
         write_to_file(file_name, image_data)
     
-        transaction.proof_image = file_name
-        transaction.when_changed = datetime.now()
-        transaction.changed_by = current_user
+        payment.proof_image = file_name
+        payment.when_changed = datetime.now()
+        payment.changed_by = current_user
         db.session.commit()
     else:
         abort(Response("No file is uploaded", status=400))

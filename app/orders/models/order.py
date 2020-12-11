@@ -13,7 +13,6 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.currencies.models import Currency
-from app.payments.models import Transaction
 from app.shipping.models import Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
@@ -71,16 +70,8 @@ class Order(db.Model):
     attached_order = relationship('Order', remote_side=[id])
     attached_orders = relationship('Order',
         foreign_keys=[attached_order_id], lazy='dynamic')
-
-    @property
-    def payment_method(self):
-        if self.status in [OrderStatus.paid, OrderStatus.po_created, OrderStatus.shipped]:
-            payment = Transaction.query.filter(Transaction.orders.any(
-                Order.id == self.id
-            )).first()
-            return payment.payment_method.name if payment else None
-        else:
-            return None
+    payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
+    payment_method = relationship('PaymentMethod', foreign_keys=[payment_method_id])
 
     @hybrid_property
     def status(self) -> Column:

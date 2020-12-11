@@ -1,7 +1,10 @@
 '''
 Abscract base model
 '''
+from datetime import datetime
+
 from sqlalchemy import Column, DateTime, Integer
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 class BaseModel:
     '''
@@ -10,6 +13,16 @@ class BaseModel:
     id = Column(Integer, primary_key=True)
     when_created = Column(DateTime, index=True)
     when_changed = Column(DateTime)
+
+    def __init__(self, **kwargs):
+        self.when_created = datetime.now()
+        # Set all attributes passed
+        attributes = [a[0] for a in type(self).__dict__.items()
+                           if isinstance(a[1], InstrumentedAttribute)]
+        for arg in kwargs:
+            if arg in attributes:
+                setattr(self, arg, kwargs[arg])
+
 
     # @classmethod
     # def from_dict(cls, attr):

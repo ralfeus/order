@@ -9,7 +9,7 @@ from app import db
 from app.currencies.models import Currency
 from app.orders.models import Order
 from app.payments import bp_client_admin, bp_client_user
-from app.payments.models import Transaction, TransactionStatus
+from app.payments.models import Payment, PaymentStatus
 from app.payments.forms.transaction import TransactionForm
 
 from app.tools import write_to_file
@@ -55,7 +55,7 @@ def create_transaction():
             write_to_file(file_name, image_data)
 
         currency = Currency.query.get(form.currency_code.data)
-        new_transaction = Transaction(
+        new_transaction = Payment(
             user=current_user,
             amount_sent_original=form.amount_original.data,
             currency=currency,
@@ -64,7 +64,7 @@ def create_transaction():
             payment_method=form.payment_method.data,
             order_id=form.order_id.data if form.order_id.data != 'None' else None,
             proof_image=file_name,
-            status=TransactionStatus.pending,
+            status=PaymentStatus.pending,
             when_created=datetime.now())
 
         db.session.add(new_transaction)
