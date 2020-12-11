@@ -72,7 +72,7 @@ $(document).ready( function () {
                     "data":           null,
                     "defaultContent": ''
                 },
-                {data: 'order_product_id'},
+                {data: 'id'},
                 {data: 'order_id'},
                 {data: 'customer'},
                 {data: 'subcustomer', className: 'editable'},
@@ -117,7 +117,7 @@ $(document).ready( function () {
                 $('.btn-save').on('click', function() {
                     var product_node = $(this).closest('.product-details');
                     var update = {
-                        id: row.data().order_product_id,
+                        id: row.data().id,
                         private_comment: $('#private_comment', product_node).val(),
                         public_comment: $('#public_comment', product_node).val()
                     };
@@ -147,7 +147,7 @@ $(document).ready( function () {
  * @param {object} data - data object for the row
  */
 function format ( row, data ) {
-    get_history(data.order_product_id, function(history_data) {
+    get_history(data.id, function(history_data) {
         $('#status_history', $(row.node()).next()).html(history_data.map(entry =>
             '<option>' + entry.when_created + " : " + entry.user + " : " + entry.status + "</option>"
         ).join("\n"));
@@ -196,20 +196,20 @@ function set_status(target, newStatus) {
     if (target.count()) {
         var order_products = [];
         for (var i = 0; i < target.count(); i++) {
-            order_products.push(target.data()[i].order_product_id);
+            order_products.push(target.data()[i].id);
             $.ajax({
                 url: '/api/v1/order/product/' + 
-                    target.data()[i].order_product_id + '/status/' + newStatus,
+                    target.data()[i].id + '/status/' + newStatus,
                 method: 'POST',
                 success: function(response, status, xhr) {
                     target.cell(
                         (idx, data, node) => 
-                            data.order_product_id === parseInt(response.order_product_id), 
+                            data.id === parseInt(response.id), 
                         8).data(response.order_product_status).draw();
                     for (var ii = 0; ii < target.count(); ii++) {
-                        if (target.data()[ii].order_product_id == response.order_product_id) {
+                        if (target.data()[ii].id == response.id) {
                             if ($(target.nodes()[ii]).hasClass('shown')) {
-                                get_history(response.order_product_id, function(history_data) {
+                                get_history(response.id, function(history_data) {
                                     $('#status_history', $(target.nodes()[ii]).next()).html(history_data.map(entry =>
                                         '<option>' + entry.when_created + " : " + entry.user + " : " + entry.status + "</option>"
                                     ).join("\n"));

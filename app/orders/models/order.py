@@ -56,7 +56,8 @@ class Order(db.Model):
     total_krw = Column(Integer(), default=0)
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
-    __status = Column('status', Enum(OrderStatus))
+    __status = Column('status', Enum(OrderStatus),
+        server_default=OrderStatus.pending.name)
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
     when_created = Column(DateTime)

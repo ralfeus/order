@@ -350,7 +350,7 @@ def save_order_product(order_product_id):
     payload = request.get_json()
     if not payload:
         return Response(status=304)
-    order_product = OrderProduct.query.get(order_product_id)
+    order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
 
@@ -374,11 +374,7 @@ def user_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
     '''
-    order_product = OrderProduct.query
-    if not current_user.has_role('admin'):
-        order_product = order_product.filter(OrderProduct.suborder.has(
-            Suborder.order.has(Order.user == current_user)))
-    order_product = order_product.filter_by(id=order_product_id).first()
+    order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
@@ -393,7 +389,7 @@ def user_set_order_product_status(order_product_id, order_product_status):
     db.session.commit()
 
     return jsonify({
-        'order_product_id': order_product_id,
+        'id': order_product_id,
         'order_product_status': order_product_status.name,
         'status': 'success'
     })
@@ -415,6 +411,22 @@ def add_order_product(suborder, item, errors):
 
         errors.append(f'{item["item_code"]}: no such product')
         raise Exception(f'{item["item_code"]}: no such product')
+
+@bp_api_user.route('/product/<int:order_product_id>/postpone', methods=['POST'])
+@login_required
+def postpone_order_product(order_product_id):
+    order_product = get_order_product(order_product_id)
+    if not order_product:
+        abort(Response(f"No product <{order_product_id}> was found", status=404))
+    postponed_order_product = order_product.postpone(current_user)
+    
+    return jsonify({
+        'new_id': postponed_order_product.id,
+        'new_suborder_id': postponed_order_product.suborder_id,
+        'new_order_id': postponed_order_product.suborder.order_id,
+        'status': 'success'
+    })
+    
 
 def update_order_product(order, order_product, item):
     if order_product.quantity != int(item['quantity']):
@@ -459,7 +471,7 @@ def admin_save_order(order_id):
 @login_required
 def get_order_products():
     '''
-    Returns list of ordered items. So far implemented only for admins
+    Returns list of ordered items.
     '''
     order_products = OrderProduct.query
     if not current_user.has_role('admin'):
@@ -525,11 +537,7 @@ def user_get_order_product_statuses():
 @bp_api_user.route('/product/<int:order_product_id>/status/history')
 @login_required
 def user_get_order_product_status_history(order_product_id):
-    order_product = OrderProduct.query
-    if not current_user.has_role('admin'):
-        order_product = order_product.filter(OrderProduct.suborder.has(
-            Suborder.order.has(Order.user == current_user)))
-    order_product = order_product.filter_by(id=order_product_id).first()
+    order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
@@ -630,3 +638,11 @@ def validate_subcustomer():
     except:
         current_app.logger.exception("Couldn't validate subcustomer %s", payload)
         return jsonify({'result': 'failure'})
+
+def get_order_product(order_product_id):
+    order_product = OrderProduct.query
+    if not current_user.has_role('admin'):
+        order_product = order_product.filter(OrderProduct.suborder.has(
+            Suborder.order.has(Order.user == current_user)))
+    order_product = order_product.filter_by(id=order_product_id).first()
+    return order_product

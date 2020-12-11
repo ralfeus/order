@@ -212,8 +212,10 @@ class TestOrdersApi(BaseTestCase):
         order = Order(id=gen_id, user=self.user)
         suborder = Suborder(order=order)
         self.try_add_entities([
+            Product(id=gen_id, price=10, weight=10)
+        ])
+        self.try_add_entities([
             order, suborder,
-            Product(id=gen_id, price=10, weight=10),
             OrderProduct(suborder=suborder, product_id=gen_id, price=10, quantity=10),
             Order(id=gen_id+'1', user=self.user, status=OrderStatus.pending)
         ])
@@ -374,23 +376,3 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.attached_orders.count(), 2)
         self.assertEqual(order.shipping_krw, 200)
         self.assertEqual(order.total_krw, 3700)
-
-    def test_cancel_order_product(self):
-        op_id = datetime.now().microsecond
-        order = Order(user=self.user, shipping_method_id=1, country_id='c1')
-        suborder = Suborder(order=order)
-        op1 = OrderProduct(suborder=suborder, product_id='0000', quantity=75,
-            price=10, status=OrderProductStatus.pending)
-        op2 = OrderProduct(id=op_id, suborder=suborder, product_id='0001',
-            quantity=10, price=10, status=OrderProductStatus.pending)
-        self.try_add_entities([
-            order, suborder,
-            Product(id='0001', name='Test product 1', price=10, weight=100),
-            op1, op2
-        ])
-        res = self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/product/{op_id}/status/cancelled')
-        )
-        self.assertEqual(res.status_code, 200)
-        order = OrderProduct.query.get(op_id).suborder.order
-        self.assertEqual(order.total_krw, 3350)
