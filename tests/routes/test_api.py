@@ -25,14 +25,7 @@ class TestClientApi(BaseTestCase):
                 ShippingRate(id=5, shipping_method_id=2, destination='c1', weight=200, rate=110),
                 ShippingRate(id=2, shipping_method_id=2, destination='c2', weight=100, rate=100),
                 ShippingRate(id=3, shipping_method_id=2, destination='c2', weight=1000, rate=150),
-                ShippingRate(id=4, shipping_method_id=3, destination='c2', weight=2000, rate=160),
-                # Order(id='ORD-2020-00-0001', shipping_method_id=1),
-                # OrderProduct(id=1, order_id='ORD-2020-00-0001'),
-                # OrderProduct(id=2, order_id='ORD-2020-00-0001'),
-                # OrderProductStatusEntry(order_product_id=1, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
-                # OrderProductStatusEntry(order_product_id=2, user_id=1, status="Pending", set_at=datetime(2020, 1, 1, 1, 0, 0)),
-                # Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True),
-                # Product(id='0002', name='Korean name 2'),
+                ShippingRate(id=4, shipping_method_id=3, destination='c2', weight=2000, rate=160)
             ]
             db.session.add_all(entities)
             db.session.commit()

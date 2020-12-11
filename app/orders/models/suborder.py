@@ -12,7 +12,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
-from app.orders.models import Order
+from app.orders.models import Order, OrderProduct, OrderProductStatus
 
 class Suborder(db.Model, BaseModel):
     ''' Suborder '''
@@ -34,13 +34,16 @@ class Suborder(db.Model, BaseModel):
 
     @property
     def total_weight(self):
-        return reduce(lambda acc, op: acc + op.product.weight * op.quantity, self.order_products, 0)
+        return reduce(
+                lambda acc, op: acc + op.product.weight * op.quantity,
+                self.get_actual_order_products(), 0)
 
     @property
     def total_krw(self):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
-            self.order_products, 0) + (self.local_shipping if self.local_shipping else 0)
+            self.get_actual_order_products(), 0) + \
+            (self.local_shipping if self.local_shipping else 0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         if order:
@@ -68,6 +71,10 @@ class Suborder(db.Model, BaseModel):
 
     def __repr__(self):
         return "<Suborder: {}>".format(self.id)
+
+    def get_actual_order_products(self):
+        return self.order_products.filter(
+            OrderProduct.status != OrderProductStatus.cancelled)
 
     def get_purchase_order(self):
         from app.purchase.models import PurchaseOrder
@@ -99,7 +106,7 @@ class Suborder(db.Model, BaseModel):
         free_local_shipment_eligibility_amount = reduce(
             calc_op_total, filter(
                 lambda op: not op.product.separate_shipping,
-                self.order_products
+                self.get_actual_order_products()
             ), 0)
         self.local_shipping = \
             current_app.config['LOCAL_SHIPPING_COST'] \

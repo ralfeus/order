@@ -6,8 +6,8 @@ from datetime import datetime
 from tests import BaseTestCase, db
 from app.models import Country, Role, User
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderProduct, OrderProductStatusEntry, \
-    OrderStatus, Subcustomer, Suborder
+from app.orders.models import Order, OrderProduct, OrderProductStatus, \
+    OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
 from app.shipping.models import PostponeShipping, Shipping, ShippingRate
 
@@ -212,8 +212,10 @@ class TestOrdersApi(BaseTestCase):
         order = Order(id=gen_id, user=self.user)
         suborder = Suborder(order=order)
         self.try_add_entities([
+            Product(id=gen_id, price=10, weight=10)
+        ])
+        self.try_add_entities([
             order, suborder,
-            Product(id=gen_id, price=10, weight=10),
             OrderProduct(suborder=suborder, product_id=gen_id, price=10, quantity=10),
             Order(id=gen_id+'1', user=self.user, status=OrderStatus.pending)
         ])
@@ -271,10 +273,11 @@ class TestOrdersApi(BaseTestCase):
         self.try_add_entities([
             order,
             Suborder(id=op_id, order=order),
-            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000', price=10, quantity=10)
+            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000',
+                price=10, quantity=10)
         ])
-        res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/order/product/{op_id}/status/0'))
+        self.try_user_operation(
+            lambda: self.client.post(f'/api/v1/order/product/{op_id}/status/pending'))
 
     def test_get_order_product_status_history(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -284,19 +287,21 @@ class TestOrdersApi(BaseTestCase):
         suborder = Suborder(order=order, subcustomer=subcustomer)
         self.try_add_entities([
             order, subcustomer, suborder,
-            OrderProduct(id=10, suborder=suborder, product_id='0000', price=10, quantity=10),
+            OrderProduct(id=10, suborder=suborder, product_id='0000', price=10, 
+                quantity=10),
             OrderProductStatusEntry(order_product_id=10, user_id=self.admin.id,
-                set_at=datetime(2020, 1, 1, 1, 0, 0), status="Pending")
+                when_created=datetime(2020, 1, 1, 1, 0, 0),
+                status=OrderProductStatus.pending)
         ])
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/order/product/10/status/history'))
-        res = self.client.get('/api/v1/admin/order/product/10/status/history')
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/order/product/10/status/history'))
+        res = self.client.get('/api/v1/order/product/10/status/history')
         self.assertEqual(res.json, [{
-            'set_at': '2020-01-01 01:00:00',
+            'when_created': '2020-01-01 01:00:00',
             'set_by': 'root_test_orders_api',
-            'status': 'Pending'
+            'status': 'pending'
         }])
-        res = self.client.get('/api/v1/admin/order/product/30/status/history')
+        res = self.client.get('/api/v1/order/product/30/status/history')
         self.assertEqual(res.status_code, 404)
 
     def test_validate_subcustomer(self):

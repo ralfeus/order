@@ -2,7 +2,21 @@ $(document).ready( function () {
     var table = $('#order_products').DataTable({
         dom: 'lfrBtip',
         buttons: [
-	        'print'
+            'print',
+            { 
+                extend: 'selected', 
+                text: 'Cancel',
+                action: function(_e, dt, _node, _config) {
+                    cancel(dt.rows({selected: true}));
+                } 
+            },
+            { 
+                extend: 'selected', 
+                text: 'Postpone',
+                action: function(_e, dt, _node, _config) {
+                    postpone(dt.rows({selected: true}));
+                } 
+            }
         ],        
         ajax: {
             url: '/api/v1/order/product',
@@ -17,7 +31,7 @@ $(document).ready( function () {
             },
             {data: 'order_id'},
             {data: 'suborder_id'},
-            {data: 'order_product_id'},
+            {data: 'id'},
             {data: 'subcustomer'},
             {data: 'product_id'},
             {data: 'product'},
@@ -52,7 +66,7 @@ $(document).ready( function () {
             $('.btn-save').on('click', function() {
                 var product_node = $(this).closest('.product-details');
                 var update = {
-                    id: row.data().order_product_id,
+                    id: row.data().id,
                     public_comment: $('#public_comment', product_node).val()
                 };
                 $('.wait').show();
@@ -74,6 +88,16 @@ $(document).ready( function () {
     } );
 });
 
+function cancel(target) {
+    target.data().toArray().forEach(op => {
+        $.post('/api/v1/order/product/' + op.id + '/status/cancelled')
+            .then(response => {
+                target.cell(parseInt(response.id), 8)
+                    .data(response.order_product_status).draw();
+            });
+    });
+}
+
 /**
  * Draws order product details
  * @param {object} row - row object 
@@ -89,4 +113,14 @@ function format ( row, data ) {
             '<textarea id="public_comment" class="form-control col-4">' + data.public_comment + '</textarea>' +
         '</div>'+
     '</div>';
+}
+
+function postpone(target) {
+    target.data().toArray().forEach(op => {
+        $.post('/api/v1/order/product/' + op.id + '/postpone')
+            .then(response => {
+                target.cell(parseInt(response.id), 8)
+                    .data(response.order_product_status).draw();
+            });
+    });
 }
