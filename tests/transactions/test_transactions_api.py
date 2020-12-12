@@ -62,13 +62,13 @@ class TestTransactionApi(BaseTestCase):
     def test_approve_transaction_no_received_krw(self):
         currency = Currency(code='KRW', rate=1)
         transaction = Payment(amount_sent_original=100, currency=currency,
-            amount_received_krw=100, user=self.user, status=PaymentStatus.pending)
+            user=self.user, status=PaymentStatus.pending)
         self.try_add_entities([currency, transaction])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/transaction/{transaction.id}', json={
                 'status': 'approved'
         }))
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.status_code, 409)
     
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

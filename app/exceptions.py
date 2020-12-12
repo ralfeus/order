@@ -7,5 +7,8 @@ class NoPurchaseOrderError(Exception):
 class NoShippingRateError(Exception):
     pass
 
+class PaymentNoReceivedAmountException(Exception):
+    pass
+
 class SubcustomerParseError(Exception):
     pass

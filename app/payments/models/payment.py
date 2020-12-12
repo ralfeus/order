@@ -6,6 +6,7 @@ from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
+from app.exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
 from app.orders.models import OrderStatus
 from . import Transaction
@@ -56,7 +57,7 @@ class Payment(db.Model, BaseModel):
 
         if value == PaymentStatus.approved:
             if not self.amount_received_krw:
-                raise AttributeError(
+                raise PaymentNoReceivedAmountException(
                     f"No received amount is set for payment <{self.id}>")
 
             self.add_payment(messages)

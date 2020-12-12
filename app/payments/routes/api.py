@@ -13,6 +13,7 @@ from app.orders.models import Order, OrderStatus
 from app.payments import bp_api_admin, bp_api_user
 from app.payments.models import PaymentMethod, Payment, PaymentStatus
 
+from app.exceptions import PaymentNoReceivedAmountException
 from app.tools import rm, write_to_file
 
 @bp_api_admin.route('/', defaults={'payment_id': None}, strict_slashes=False)
@@ -59,7 +60,10 @@ def admin_save_payment(payment_id):
     if payload.get('amount_received_krw'):
         payment.amount_received_krw = payload['amount_received_krw']
     if payload.get('status'):
-        payment.set_status(payload['status'].lower(), messages)
+        try:
+            payment.set_status(payload['status'].lower(), messages)
+        except PaymentNoReceivedAmountException as ex:
+            abort(Response(str(ex), status=409))
 
     db.session.commit()
 
