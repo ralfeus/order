@@ -8,14 +8,25 @@
 <h1>Order {{ order.id }}</h1>
 <h2>{{ order.name }}</h2>
 <table class="table">
-  <thead>
-    <th scope="col">Shipping method</th>
-    <th scope="col">Parcel weight</th>
-  </thead>
   <tbody>
+    <tr>
+      <td><h5>Shipping method</h5></td>
+      <td><h5>Parcel weight</h5></td>
+    </tr>
     <tr>
       <td>{{ order.shipping.name }}</td>
       <td>{{ order.total_weight }}</td>
+    </tr>
+    <tr>
+      <td><h5>Address</h5></td>
+      <td><h5>Phone</h5></td>
+    </tr>
+    <tr>
+      <td>
+        {{ order.address }}<br />
+        {{ order.country.name }}
+      </td>
+      <td>{{ order.phone }}</td>
     </tr>
     <tr>
       <td><h3>Orders to be shipped with this one:</h3></td>
