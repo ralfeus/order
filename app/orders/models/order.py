@@ -183,7 +183,8 @@ class Order(db.Model):
             'country': self.country.to_dict() if self.country else None,
             'shipping': self.shipping.to_dict() if self.shipping else None,
             'status': self.status.name if self.status else None,
-            'payment_method': self.payment_method,
+            'payment_method': self.payment_method.name \
+                if self.payment_method else None,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
