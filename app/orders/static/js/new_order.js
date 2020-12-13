@@ -518,7 +518,7 @@ function update_subcustomer_totals() {
     $('.subcustomer-total').each(function() {
         var userId = parseInt(this.id.substr(14));
         var userProducts = Object.entries(g_cart)
-            .filter(product => product[0].startsWith('userItems' + userId))
+            .filter(product => product[0].startsWith('userItems' + userId + '_'))
             .map(product => product[1]);
         var local_shipping_text = $('.local-shipping', $(this)).text()
             .match(RegExp(LOCAL_SHIPPING_COST), 'g');
