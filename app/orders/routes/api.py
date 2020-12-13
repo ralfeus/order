@@ -271,7 +271,7 @@ def user_save_order(order_id):
     if payload.get('name') and order.name != payload['name']:
         order.name = payload['name']
     if payload.get('address') and order.address != payload['address']:
-        order.customer = payload['address']
+        order.address = payload['address']
     if payload.get('country') and order.country_id != payload['country']:
         order.country_id = payload['country']
     if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
