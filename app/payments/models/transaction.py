@@ -10,7 +10,7 @@ from app import db
 from app.models.base import BaseModel
 from app.models import User
 
-class Transaction(db.Model, BaseModel):
+class Transaction(BaseModel, db.Model):
     __tablename__ = 'transactions'
 
     customer_id = Column(Integer(), ForeignKey('users.id'))

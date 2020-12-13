@@ -9,7 +9,7 @@ $(document).ready( function () {
         editor = new $.fn.dataTable.Editor({
             ajax: (_method, _url, data, success, error) => {
                 $.ajax({
-                    url: '/api/v1/transaction',
+                    url: '/api/v1/payment',
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -18,7 +18,7 @@ $(document).ready( function () {
                     error: error
                 });
             },
-            table: '#transactions',
+            table: '#payments',
             idSrc: 'id',
             fields: [
                 {
@@ -46,7 +46,7 @@ $(document).ready( function () {
                     label: 'Evidence',
                     name: 'evidences',
                     type: 'uploadMany',
-                    ajax: '/api/v1/transaction/evidence'
+                    ajax: '/api/v1/payment/evidence'
                 }
             ]
         });
@@ -56,13 +56,13 @@ $(document).ready( function () {
         editor.field('amount_original').input().on('focus', function(){this.old_value = this.value})
         editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
-        var table = $('#transactions').DataTable({
+        var table = $('#payments').DataTable({
             dom: 'lfrBtip',
             buttons: [
                 { extend: 'create', editor: editor, text: 'Create new payment request' },
             ],        
             ajax: {
-                url: '/api/v1/transaction',
+                url: '/api/v1/payment',
                 dataSrc: ''
             },
             columns: [
@@ -86,7 +86,7 @@ $(document).ready( function () {
         });
 
 
-        $('#transactions tbody').on('click', 'td.details-control', function () {
+        $('#payments tbody').on('click', 'td.details-control', function () {
             var tr = $(this).closest('tr');
             var row = table.row( tr );
     
@@ -105,15 +105,15 @@ $(document).ready( function () {
                 row.child( format(row, row.data()) ).show();
                 tr.addClass('shown');
                 $('.btn-save').on('click', function() {
-                    var transaction_node = $(this).closest('.transaction-details');
+                    var payment_node = $(this).closest('.payment-details');
                     var update = {
                         id: row.data().id,
-                        amount: $('#amount', transaction_node).val(),
-                        evidence: $('#evidence', transaction_node).val()
+                        amount: $('#amount', payment_node).val(),
+                        evidence: $('#evidence', payment_node).val()
                     };
                     $('.wait').show();
                     $.ajax({
-                        url: '/api/v1/transaction/' + update.id,
+                        url: '/api/v1/payment/' + update.id,
                         method: 'post',
                         dataType: 'json',
                         contentType: 'application/json',
@@ -138,22 +138,22 @@ $(document).ready( function () {
  * @param {object} data - data object for the row
  */
 function format ( row, data ) {
-    var transaction_details = $('.transaction-details')
+    var payment_details = $('.payment-details')
         .clone()
         .show(); 
-    $('#evidence', transaction_details).attr('src', data.evidence_image);
-    return transaction_details;
+    $('#evidence', payment_details).attr('src', data.evidence_image);
+    return payment_details;
 }
 
 /**
- * Cancels transaction request
+ * Cancels payment request
  * @param {*} target - table rows representing orders whose status is to be changed
  * @param {string} status - new status
  */
 function cancel(row) {
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/transaction/' + row.data().id,
+        url: '/api/v1/payment/' + row.data().id,
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
@@ -169,17 +169,17 @@ function cancel(row) {
     });
 }
 
-function get_currencies() {
-    var promise = $.Deferred();
-    $.ajax({
-        url: '/api/v1/currency',
-        success: data => {
-            g_currencies = data;
-            promise.resolve();
-        }
-    });
-    return promise;
-}
+// function get_currencies() {
+//     var promise = $.Deferred();
+//     $.ajax({
+//         url: '/api/v1/currency',
+//         success: data => {
+//             g_currencies = data;
+//             promise.resolve();
+//         }
+//     });
+//     return promise;
+// }
 
 function get_orders_to_pay() {
     $.ajax({
@@ -192,7 +192,7 @@ function get_orders_to_pay() {
 
 function get_payment_methods() {
     $.ajax({
-        url: '/api/v1/transaction/method',
+        url: '/api/v1/payment/method',
         success: data => {
             editor.field('payment_method').update(data.map(pm => ({
                 label: pm.name,

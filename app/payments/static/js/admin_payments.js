@@ -1,0 +1,420 @@
+var g_amount = 0;
+var g_amount_set_manually = false;
+var g_currencies = [];
+var g_customers;
+
+$.fn.dataTable.ext.buttons.status = {
+    action: function(_e, dt, _node, _config) {
+        set_status(dt.rows({selected: true}), this.text());
+    }
+};
+
+$(document).ready( function () {
+    get_dictionaries()
+        .then(() => { init_payments_table(); });
+
+    // table.on('select', function(e, dt, type, indexes) {
+    //         // Total over all pages
+    //         totalSentOriginal = dt.data()
+    //             .reduce(function (accumulator, i) {
+    //                 if (!accumulator[i.currency_code]) { 
+    //                     accumulator[dt.data()[i].currency_code] = 0;
+    //                 }
+    //                 accumulator[dt.data()[i].currency_code] += dt.data()[i].amount_original;
+    //                 return accumulator;
+    //             }, {})
+    //         totalSentOriginalString = Object.entries(totalSentOriginal)
+    //             .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+    //         totalSentKRW = api
+    //             .column( 4 )
+    //             .data()
+    //             .reduce( function (a, b) {
+    //                 return intVal(a) + intVal(b);
+    //             }, 0 );
+    //         totalReceivedKRW = api
+    //             .column( 5 )
+    //             .data()
+    //             .reduce( function (a, b) {
+    //                 return intVal(a) + intVal(b);
+    //             }, 0 );
+ 
+    //         // Update footer
+    //         $(api.column(3).footer()).html(totalSentOriginalString);
+    //         $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+    //         $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+    // });
+
+    $('#payments tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest('tr');
+        var row = table.row( tr );
+ 
+        if ( row.child.isShown() ) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        }
+        else {
+            // First close all open rows
+            $('tr.shown').each(function() {
+                table.row(this).child.hide();
+                $(this).removeClass('shown');
+            })
+            // Open this row
+            row.child( format(row, row.data()) ).show();
+            tr.addClass('shown');
+            // $('.btn-save').on('click', function() {
+            //     var payment_node = $(this).closest('.payment-details');
+            //     var update = {
+            //         id: row.data().id,
+            //         amount: $('#amount', payment_node).val(),
+            //         evidence: $('#evidence', payment_node).val()
+            //     };
+            //     $('.wait').show();
+            //     $.ajax({
+            //         url: '/api/v1/admin/payment/' + update.id,
+            //         method: 'post',
+            //         dataType: 'json',
+            //         contentType: 'application/json',
+            //         data: JSON.stringify(update),
+            //         complete: function() {
+            //             $('.wait').hide();
+            //         },
+            //         success: function(data) {
+            //             row.data(data).draw();
+            //         }
+            //     })
+            // });
+        }
+    } );
+});
+
+/**
+ * Draws order product details
+ * @param {object} row - row object 
+ * @param {object} data - data object for the row
+ */
+function format ( row, data ) {
+    var payment_details = $('.payment-details')
+        .clone()
+        .show();
+    $('#evidence', payment_details).attr('src', data.evidence_image);
+    $('#currency_code', payment_details).text(data.currency_code);
+    $('#amount_original', payment_details).val(data.amount_original);
+    $('#amount_krw', payment_details).val(data.amount_krw);
+    $('#amount_received_krw', payment_details).val(data.amount_received_krw);
+
+    $('.currency-dropdown', payment_details).on('hidden.bs.dropdown', function(target) {
+        $('#currency_code', payment_details).text(target.clickEvent.target.innerText);
+        update_amount_krw(payment_details, data);
+    });
+    $('#amount_original', payment_details).on('change', function() {
+        update_amount_krw(payment_details, data);
+    });
+    $('#amount_krw', payment_details).on('change', function() {
+        data.amount_krw = this.value;
+        
+    });
+    $('#amount_received_krw', payment_details).on('change', function() {
+        data.amount_received_krw = this.value;
+    });
+    $('#evidence_image', payment_details).on('change', function() {
+        if (this.files[0]) {
+            this.nextElementSibling.textContent = 'File is specified';
+        }
+    });
+
+    if (['approved', 'cancelled'].includes(data.status)) {
+        $('.btn-save', payment_details).hide()
+    } else {
+        $('.btn-save', payment_details).on('click', function() {
+            save_payment(row);
+        })
+    }
+
+    for (var currency in g_currencies) {
+        $('.dropdown-menu', payment_details).append(
+            '<a class="dropdown-item" href="#">' + currency + '</a>'
+        );
+    }
+    return payment_details;
+}
+
+async function get_dictionaries() {
+    g_currencies = await get_currencies();
+    g_users = await get_users();
+}
+
+function get_orders_to_pay() {
+    get_list('/api/v1/order?status=pending')
+        .then(() => {editor.field('orders').update(data.map(o => o.id))});
+}
+
+function init_payments_table() {
+    editor = new $.fn.dataTable.Editor({
+        ajax: (_method, _url, data, success, error) => {
+            $.ajax({
+                url: '/api/v1/payment',
+                method: 'post',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(data.data[0]),
+                success: data => {success(({data: [data]}))},
+                error: error
+            });
+        },
+        table: '#payments',
+        idSrc: 'id',
+        fields: [
+            {
+                label: 'Customer',
+                name: 'user_name',
+                type: 'select2',
+                options: g_customers
+            },
+            {
+                label: 'Currency',
+                name: 'currency_code',
+                type: 'select2',
+                def: 'USD',
+                options: g_currencies.map(c => c.code)
+            },
+            {
+                label: 'Orders', 
+                name: 'orders',
+                type: 'select2',
+                opts: {
+                    multiple: true
+                }
+            },
+            {
+                label: 'Payment method', 
+                name: 'payment_method',
+                type: 'select2'
+            },
+            {label: 'Amount', name: 'amount_original'},
+            {
+                label: 'Evidence',
+                name: 'evidences',
+                type: 'uploadMany',
+                ajax: '/api/v1/payment/evidence'
+            }
+        ]
+    });
+    editor.on('open', on_editor_open);
+    editor.field('currency_code').input().on('change', on_currency_change);
+    editor.field('orders').input().on('change', on_orders_change);
+    editor.field('amount_original').input().on('focus', function(){this.old_value = this.value})
+    editor.field('amount_original').input().on('blur', on_amount_original_blur);
+
+    var table = $('#payments').DataTable({
+        dom: 'lfrBtip',
+        buttons: [
+            { extend: 'create', editor: editor, text: 'Create new payment' },
+            { 
+                extend: 'collection', 
+                text: 'Set status',
+                buttons: [
+                    { extend: 'status', text: 'Approved' },
+                    { extend: 'status', text: 'Rejected'}
+                ]
+            }
+        ],        
+        ajax: {
+            url: '/api/v1/admin/payment',
+            dataSrc: ''
+        },
+        columns: [
+            {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ''
+            },
+            {data: 'id'},
+            {data: 'user_name'},
+            {data: 'orders'},
+            {data: 'amount_original_string'},
+            {data: 'amount_krw'},
+            {data: 'amount_received_krw'},
+            {data: 'status'},
+            {data: 'when_created'},
+            {data: 'when_changed'}
+        ],
+        order: [[8, 'desc']],
+        select: true,
+        footerCallback: function(row, data, start, end, display) {
+            var api = this.api(), data;
+
+            // // Remove the formatting to get integer data for summation
+            // var intVal = function ( i ) {
+            //     return typeof i === 'string' ?
+            //         i.replace(/[\$,]/g, '')*1 :
+            //         typeof i === 'number' ?
+            //             i : 0;
+            // };
+
+            // Total over all pages
+            totalSentOriginal = api
+                .data()
+                .reduce(function (accumulator, current) {
+                    if (!accumulator[current.currency_code]) { 
+                        accumulator[current.currency_code] = 0;
+                    }
+                    accumulator[current.currency_code] += current.amount_original;
+                    return accumulator;
+                }, {})
+            totalSentOriginalString = Object.entries(totalSentOriginal)
+                .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+            totalSentKRW = api
+                .column( 5 )
+                .data()
+                .reduce( function (a, b) {
+                    return a + b;
+                }, 0 );
+            totalReceivedKRW = api
+                .column( 6 )
+                .data()
+                .reduce( function (a, b) {
+                    return a + b;
+                }, 0 );
+
+            // Update footer
+            $(api.column(4).footer()).html(totalSentOriginalString);
+            $( api.column(5).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+            $( api.column(6).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+        }
+    });
+}
+
+function on_currency_change() {
+    if (editor.field('currency_code').val()) {
+        var currency_code = editor.field('currency_code').val();
+        var currency = g_currencies.filter(c => c.code == currency_code)[0]
+        if (!g_amount_set_manually) {
+            editor.field('amount_original').val(g_amount * currency.rate);
+        }
+    }
+    return {};
+}
+
+function on_amount_original_blur(data) {
+    if (data.target.value != data.target.old_value) {
+        g_amount_set_manually = true;
+    }
+}
+
+function on_editor_open() {
+    g_amount_set_manually = false;
+    get_orders_to_pay();
+    get_payment_methods();
+}
+
+function on_orders_change() {
+    if (!g_amount_set_manually) {
+        g_amount = 0;
+        var orders = editor.field('orders').val();
+        var orders_left = orders.length;
+        for (var i = 0; i < orders.length; i++) {
+            $.ajax({
+                url: '/api/v1/order/' + orders[i],
+                success: data => {
+                    g_amount += data.total_krw;
+                    if (!--orders_left) {
+                        on_currency_change();
+                    }
+                }
+            });
+        }
+    }
+    return {};
+}
+
+function save_payment(row) {
+    $('.wait').show();
+    $.ajax({
+        url: '/api/v1/admin/payment/' + row.data().id,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            amount_original: row.data().amount_original,
+            amount_krw: row.data().amount_krw,
+            amount_received_krw: row.data().amount_received_krw,
+            currency_code: row.data().currency_code
+        }),
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: function(data) {
+            row.data(data.payment).draw();
+            if (data.message && data.message.length) {
+                modal('Transaction save', data.message.join('<br />'));
+            }
+        }
+    });
+
+    var form_data = new FormData();
+    form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
+    if (form_data) {
+        $.ajax({
+            url: '/api/v1/payment/' + row.data().id + '/evidence', 
+            method: 'post',
+            data: form_data, 
+            contentType: false,
+            cache: false,
+            processData: false
+        });
+    }
+}
+
+/**
+ * Sets status of the order
+ * @param {*} target - table rows representing orders whose status is to be changed
+ * @param {string} status - new status
+ */
+function set_status(target, newStatus) {
+    if (target.count()) {
+        $('.wait').show();
+        var remained = 0;
+        for (var i = 0; i < target.count(); i++) {
+            remained++;
+            $.ajax({
+                url: '/api/v1/admin/payment/' + target.data()[i].id,
+                method: 'POST',
+                dataType: 'json', 
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    'status': newStatus,
+                }),
+                complete: function() {
+                    remained--;
+                    if (!remained) {
+                        $('.wait').hide();
+                    }
+                },
+                success: function(response, _status, _xhr) {
+                    target.cell(
+                        (_idx, data, _node) => 
+                            data.id === parseInt(response.payment.id), 
+                        5).data(response.payment.status).draw();
+                    if (response.message && response.message.length) {
+                        modal('Transaction save', response.message.join('<br />'));
+                    }
+                },
+                error: xhr => {
+                    modal("Transaction set status", xhr.responseText);
+                }
+            });     
+        }
+    } else {
+        alert('Nothing selected');
+    }
+}
+
+function update_amount_krw(target, target_data) {
+    target_data.currency_code = $('#currency_code', target).text();
+    target_data.amount_original = $('#amount_original', target).val();
+    target_data.amount_krw = parseFloat(target_data.amount_original) / g_currencies[target_data.currency_code];
+    $('#amount_krw', target).val(target_data.amount_krw);
+    //target_data.draw();
+}
