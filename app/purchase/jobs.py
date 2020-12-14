@@ -78,8 +78,10 @@ def update_purchase_orders_status(po_id=None, browser=None):
     logger.info("Starting update of PO statuses")
     pending_purchase_orders = PurchaseOrder.query
     if po_id:
+        logger.info("Update status of PO <%s>", po_id)
         pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
     else:
+        logger.info('Update status of all POs')
         pending_purchase_orders = pending_purchase_orders.filter(
             PurchaseOrder.when_created > (datetime.now() - timedelta(weeks=1)).date()
         )
