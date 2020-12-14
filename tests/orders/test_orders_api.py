@@ -168,6 +168,29 @@ class TestOrdersApi(BaseTestCase):
             }))
         self.assertEqual(res.status_code, 200)
 
+    def test_save_order_add_suborder(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
+                'suborders': [
+                    {
+                        'subcustomer': 'test, test, test',
+                        'items': [
+                            {
+                                'item_code': '0000',
+                                'quantity': 1
+                            }
+                        ]
+                    }
+                ]
+            }))
+        self.assertEqual(res.status_code, 200)
+
+
+
     def test_increase_order_amount_over_free_shipping_threshold(self):
         order = Order(user=self.user)
         subcustomer = Subcustomer(name='A000', username='A000')

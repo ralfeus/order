@@ -180,39 +180,42 @@ def user_create_order():
 
 def add_suborders(order, suborders, errors):
     for suborder_data in suborders:
+        add_suborder(order, suborder_data, errors)
+
+def add_suborder(order, suborder_data, errors):
+    try:
+        subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
+        if is_new:
+            db.session.add(subcustomer)
+        suborder = Suborder(
+            order=order,
+            seq_num=suborder_data.get('seq_num'),
+            subcustomer=subcustomer,
+            buyout_date=datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
+                if suborder_data.get('buyout_date') else None,
+            local_shipping=0,
+            when_created=datetime.now()
+        )
+        if suborder.buyout_date:
+            if not order.purchase_date or order.purchase_date > suborder.buyout_date:
+                order.purchase_date = suborder.buyout_date
+
+        current_app.logger.debug('Created instance of Suborder %s', suborder)
+        db.session.add(suborder)
+    except SubcustomerParseError:
+        abort(Response(f"""Couldn't find subcustomer and provided data
+                        doesn't allow to create new one. Please provide
+                        new subcustomer data in format: 
+                        <ID>, <Name>, <Password>
+                        Erroneous data is: {suborder_data['subcustomer']}""",
+                    status=400))
+
+    for item in suborder_data['items']:
         try:
-            subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
-            if is_new:
-                db.session.add(subcustomer)
-            suborder = Suborder(
-                order=order,
-                seq_num=suborder_data.get('seq_num'),
-                subcustomer=subcustomer,
-                buyout_date=datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
-                    if suborder_data.get('buyout_date') else None,
-                local_shipping=0,
-                when_created=datetime.now()
-            )
-            if suborder.buyout_date:
-                if not order.purchase_date or order.purchase_date > suborder.buyout_date:
-                    order.purchase_date = suborder.buyout_date
-
-            current_app.logger.debug('Created instance of Suborder %s', suborder)
-            db.session.add(suborder)
-        except SubcustomerParseError:
-            abort(Response(f"""Couldn't find subcustomer and provided data
-                            doesn't allow to create new one. Please provide
-                            new subcustomer data in format: 
-                            <ID>, <Name>, <Password>
-                            Erroneous data is: {suborder_data['subcustomer']}""",
-                        status=400))
-
-        for item in suborder_data['items']:
-            try:
-                add_order_product(suborder, item, errors)
-            except:
-                # current_app.logger.exception("Couldn't add product %s", item['item_code'])
-                pass
+            add_order_product(suborder, item, errors)
+        except:
+            # current_app.logger.exception("Couldn't add product %s", item['item_code'])
+            pass
 
 def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
     '''Returns a tuple of customer from raw data
@@ -292,27 +295,29 @@ def user_save_order(order_id):
             try:
                 suborder = order.suborders.filter(and_(
                     Suborder.order_id == order.id,
-                    Suborder.seq_num == suborder_data['seq_num']    
+                    Suborder.seq_num == suborder_data.get('seq_num')
                 )).first()
-
-                subcustomer, state = parse_subcustomer(suborder_data['subcustomer'])
-                suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
-                    if suborder_data.get('buyout_date') else None
-                suborder.subcustomer = subcustomer
-                for item in suborder_data['items']:
-                    order_product = [op for op in suborder.order_products
-                                        if op.product_id == item['item_code']]
-                    if len(order_product) > 0:
-                        update_order_product(order, order_product[0], item)
-                        order_products.remove(order_product[0])
-                    else:
-                        try:
-                            add_order_product(suborder, item, errors)
-                        except:
-                            pass
-                if suborder.buyout_date and (
-                    not order.purchase_date or order.purchase_date > suborder.buyout_date):
-                        order.purchase_date = suborder.buyout_date
+                if suborder is None:
+                    add_suborder(order, suborder_data, errors)
+                else:
+                    subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
+                    suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
+                        if suborder_data.get('buyout_date') else None
+                    suborder.subcustomer = subcustomer
+                    for item in suborder_data['items']:
+                        order_product = [op for op in suborder.order_products
+                                            if op.product_id == item['item_code']]
+                        if len(order_product) > 0:
+                            update_order_product(order, order_product[0], item)
+                            order_products.remove(order_product[0])
+                        else:
+                            try:
+                                add_order_product(suborder, item, errors)
+                            except:
+                                pass
+                    if suborder.buyout_date and (
+                        not order.purchase_date or order.purchase_date > suborder.buyout_date):
+                            order.purchase_date = suborder.buyout_date
             except SubcustomerParseError:
                 abort(Response(f"""Couldn't find subcustomer and provided data
                                 doesn't allow to create new one. Please provide
