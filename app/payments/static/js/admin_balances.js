@@ -10,9 +10,9 @@ $(document).ready( function () {
 
 function init_balances_table() {
     $('#balances').DataTable({
-        dom: 'lfrBtip',       
+        dom: 'lfrtip',       
         ajax: {
-            url: '/api/v1/user',
+            url: '/api/v1/admin/user',
             dataSrc: ''
         },
         columns: [

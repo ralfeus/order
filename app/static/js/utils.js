@@ -39,7 +39,7 @@ async function get_payment_methods() {
 }
 
 async function get_users() {
-    return await get_list('/api/v1/user');
+    return await get_list('/api/v1/admin/user');
 }
 
 $(document).ready(function(){

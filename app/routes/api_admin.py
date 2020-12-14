@@ -63,3 +63,12 @@ def save_user(user_id):
 
     db.session.commit()
     return jsonify(user.to_dict())
+
+@admin_api.route('/user')
+@roles_required('admin')
+def admin_get_users():
+    '''
+    Returns list of users in JSON:
+    '''
+    user_query = User.query.all()
+    return jsonify(User.get_user(user_query))
