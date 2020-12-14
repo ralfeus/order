@@ -77,6 +77,7 @@ class User(db.Model, UserMixin):
             'username': self.username,
             'email': self.email,
             'enabled': self.enabled,
+            'balance': self.balance,
             'when_created': self.when_created,
             'when_changed': self.when_changed
         }

@@ -34,14 +34,7 @@ def get_countries():
 @login_required
 def get_user():
     '''
-    Returns list of products in JSON:
-        {
-            'id': product ID,
-            'username': user name,
-            'email': user's email,
-            'creted': user's profile created,
-            'changed': last profile change
-        }
+    Returns list of users in JSON:
     '''
     user_query = User.query.all()
     return jsonify(User.get_user(user_query))

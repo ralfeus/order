@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_balances.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="balances" class="table">
+        <thead>
+            <th scope="col" style="width: 2em;">User</th>
+            <th scope="col" style="width: 2em;">Balance</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+{% endblock %}
