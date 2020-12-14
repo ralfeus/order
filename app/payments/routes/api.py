@@ -9,9 +9,10 @@ from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderStatus
+from app.orders.models import Order
 from app.payments import bp_api_admin, bp_api_user
 from app.payments.models import PaymentMethod, Payment, PaymentStatus
+from app.models import User
 
 from app.exceptions import PaymentNoReceivedAmountException
 from app.tools import rm, write_to_file
@@ -96,9 +97,14 @@ def user_create_payment():
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
+    user = current_user
+    if current_user.has_role('admin') and payload.get('user_id'):
+        user = User.query.get(payload['user_id'])
+        if user is None:
+            abort(Response(f"No user <{payload['user_id']}> was found", status=400))
 
     payment = Payment(
-        user=current_user,
+        user=user,
         changed_by=current_user,
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all(),
         currency=currency,

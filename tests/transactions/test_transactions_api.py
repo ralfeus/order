@@ -33,7 +33,7 @@ class TestTransactionApi(BaseTestCase):
             PaymentMethod(id=gen_id_int, payee_id=gen_id_int)
         ])
         res = self.try_user_operation(
-            lambda: self.client.post('/api/v1/transaction', json={
+            lambda: self.client.post('/api/v1/payment', json={
                 'orders': [gen_id],
                 'amount_original': 100,
                 'currency_code': 'USD',
@@ -45,7 +45,7 @@ class TestTransactionApi(BaseTestCase):
 
     def test_get_payments(self):
         res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/transaction'))
+            lambda: self.client.get('/api/v1/admin/payment'))
 
     def test_save_payment(self):
         self.try_add_entities([
@@ -54,7 +54,7 @@ class TestTransactionApi(BaseTestCase):
                         status=PaymentStatus.pending)
         ])
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/transaction/0', json={
+            lambda: self.client.post('/api/v1/admin/payment/0', json={
                 'amount_received_krw': 100
         }))
         self.assertEqual(res.json['payment']['amount_received_krw'], 100)
@@ -65,7 +65,7 @@ class TestTransactionApi(BaseTestCase):
             user=self.user, status=PaymentStatus.pending)
         self.try_add_entities([currency, transaction])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/transaction/{transaction.id}', json={
+            lambda: self.client.post(f'/api/v1/admin/payment/{transaction.id}', json={
                 'status': 'approved'
         }))
         self.assertEqual(res.status_code, 409)
@@ -81,7 +81,7 @@ class TestTransactionApi(BaseTestCase):
             orders=[order])
         self.try_add_entities([order, payment, currency])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/transaction/{payment.id}', json={
+            lambda: self.client.post(f'/api/v1/admin/payment/{payment.id}', json={
                 'status': 'approved'
             }))
         self.assertEqual(res.status_code, 200)
@@ -93,7 +93,7 @@ class TestTransactionApi(BaseTestCase):
             PaymentMethod(name='Payment method 1')
         ])
         res = self.try_user_operation(
-            lambda: self.client.get('/api/v1/transaction/method'))
+            lambda: self.client.get('/api/v1/payment/method'))
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.json), 1)
         self.assertEqual(res.json[0]['name'], 'Payment method 1')

@@ -60,11 +60,13 @@ def admin_get_orders(order_id):
             return jsonify(orders.first().to_dict(details=True))
     if request.values.get('status'):
         orders = orders.filter_by(status=OrderStatus[request.values['status']].name)
+    if request.values.get('user_id'):
+        orders = orders.filter_by(user_id=request.values['user_id'])
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
 
-    if orders.count() == 0:
-        abort(Response("No orders were found", status=404))
+    # if orders.count() == 0:
+    #     abort(Response("No orders were found", status=404))
     else:
         return jsonify(list(map(
             lambda entry: entry.to_dict(details=request.values.get('details')), orders)))

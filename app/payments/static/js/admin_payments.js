@@ -1,7 +1,9 @@
 var g_amount = 0;
 var g_amount_set_manually = false;
 var g_currencies = [];
-var g_customers;
+var g_customers = [];
+var g_editor;
+var g_payment_methods = [];
 
 $.fn.dataTable.ext.buttons.status = {
     action: function(_e, dt, _node, _config) {
@@ -11,7 +13,7 @@ $.fn.dataTable.ext.buttons.status = {
 
 $(document).ready( function () {
     get_dictionaries()
-        .then(() => { init_payments_table(); });
+        .then(init_payments_table);
 
     // table.on('select', function(e, dt, type, indexes) {
     //         // Total over all pages
@@ -141,16 +143,17 @@ function format ( row, data ) {
 
 async function get_dictionaries() {
     g_currencies = await get_currencies();
-    g_users = await get_users();
+    g_customers = await get_users();
+    g_payment_methods = await get_payment_methods();
 }
 
-function get_orders_to_pay() {
-    get_list('/api/v1/order?status=pending')
-        .then(() => {editor.field('orders').update(data.map(o => o.id))});
+function get_orders_to_pay(user) {
+    get_list('/api/v1/admin/order?status=pending&user_id=' + user)
+        .then(data => {g_editor.field('orders').update(data.map(o => o.id))});
 }
 
 function init_payments_table() {
-    editor = new $.fn.dataTable.Editor({
+    g_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
             $.ajax({
                 url: '/api/v1/payment',
@@ -167,9 +170,12 @@ function init_payments_table() {
         fields: [
             {
                 label: 'Customer',
-                name: 'user_name',
+                name: 'user_id',
                 type: 'select2',
-                options: g_customers
+                options: g_customers.map(c => ({
+                    value: c.id,
+                    label: c.username
+                }))
             },
             {
                 label: 'Currency',
@@ -189,7 +195,11 @@ function init_payments_table() {
             {
                 label: 'Payment method', 
                 name: 'payment_method',
-                type: 'select2'
+                type: 'select2',
+                options: g_payment_methods.map(pm => ({
+                    value: pm.id,
+                    label: pm.name
+                }))
             },
             {label: 'Amount', name: 'amount_original'},
             {
@@ -200,16 +210,18 @@ function init_payments_table() {
             }
         ]
     });
-    editor.on('open', on_editor_open);
-    editor.field('currency_code').input().on('change', on_currency_change);
-    editor.field('orders').input().on('change', on_orders_change);
-    editor.field('amount_original').input().on('focus', function(){this.old_value = this.value})
-    editor.field('amount_original').input().on('blur', on_amount_original_blur);
+    g_editor.on('open', on_editor_open);
+    g_editor.field('user_id').input().on('change', on_customer_change);
+    g_editor.field('currency_code').input().on('change', on_currency_change);
+    g_editor.field('orders').input().on('change', on_orders_change);
+    g_editor.field('amount_original').input().on('focus', function() {
+        this.old_value = this.value});
+    g_editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
     var table = $('#payments').DataTable({
         dom: 'lfrBtip',
         buttons: [
-            { extend: 'create', editor: editor, text: 'Create new payment' },
+            { extend: 'create', editor: g_editor, text: 'Create new payment' },
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -287,11 +299,11 @@ function init_payments_table() {
 }
 
 function on_currency_change() {
-    if (editor.field('currency_code').val()) {
-        var currency_code = editor.field('currency_code').val();
+    if (g_editor.field('currency_code').val()) {
+        var currency_code = g_editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            editor.field('amount_original').val(g_amount * currency.rate);
+            g_editor.field('amount_original').val(g_amount * currency.rate);
         }
     }
     return {};
@@ -303,16 +315,21 @@ function on_amount_original_blur(data) {
     }
 }
 
+function on_customer_change() {
+    if (g_editor.field('user_id').val()) {
+        get_orders_to_pay(g_editor.field('user_id').val());
+    }
+}
+
 function on_editor_open() {
     g_amount_set_manually = false;
-    get_orders_to_pay();
-    get_payment_methods();
+    //get_orders_to_pay();
 }
 
 function on_orders_change() {
     if (!g_amount_set_manually) {
         g_amount = 0;
-        var orders = editor.field('orders').val();
+        var orders = g_editor.field('orders').val();
         var orders_left = orders.length;
         for (var i = 0; i < orders.length; i++) {
             $.ajax({

@@ -27,19 +27,19 @@ function format_date(date) {
 }
 
 async function get_currencies() {
-    return get_list('/api/v1/currency');
+    return await get_list('/api/v1/currency');
 }
 
 async function get_list(url) {
-    return await fetch(url);
+    return (await fetch(url)).json();
 }
 
-function get_payment_methods() {
-    return get_list('/api/v1/payment/method');
+async function get_payment_methods() {
+    return await get_list('/api/v1/payment/method');
 }
 
 async function get_users() {
-    return get_list('/api/v1/user');
+    return await get_list('/api/v1/user');
 }
 
 $(document).ready(function(){
