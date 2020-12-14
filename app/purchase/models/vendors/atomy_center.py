@@ -59,7 +59,10 @@ class AtomyCenter(PurchaseOrderVendorBase):
         return purchase_order
 
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
-        pass
+        from .atomy_quick import AtomyQuick
+        proxy = AtomyQuick(self.__browser, self.__logger, self.__config)
+        proxy.update_purchase_orders_status(customer, customer_pos)
+        del proxy
 
     def login(self):
         self.__browser.get('https://atomy.kr/center/login.asp')
