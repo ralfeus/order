@@ -110,7 +110,7 @@ def get_invoice_order_products(invoice):
     return result
 
 def create_invoice_excel(reference_invoice, invoice_file_name):
-    invoice_wb = openpyxl.open('app/static/invoices/invoice_template.xlsx')
+    invoice_wb = openpyxl.open('/var/www/order/app/static/invoices/invoice_template.xlsx')
     invoice_dict = reference_invoice.to_dict()
     order_products = get_invoice_order_products(reference_invoice)
     total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
@@ -164,7 +164,7 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
         row += 1
     ws.delete_rows(row, last_row - row + 1)
     pl.delete_rows(row, last_row - row + 1)
-    invoice_wb.save(f'app/static/invoices/{invoice_file_name}')
+    invoice_wb.save(f'/var/www/order/app/static/invoices/{invoice_file_name}')
 
 @bp_api_admin.route('/<invoice_id>', methods=['POST'])
 @roles_required('admin')
