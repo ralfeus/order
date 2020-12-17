@@ -399,3 +399,20 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.attached_orders.count(), 2)
         self.assertEqual(order.shipping_krw, 200)
         self.assertEqual(order.total_krw, 3700)
+
+    def test_pay_order(self):
+        self.user.balance = 2600
+        order = Order(
+            user=self.user, status=OrderStatus.pending)
+        suborder = Suborder(order=order)
+        self.try_add_entities([
+            order, suborder,
+            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={
+                'status': 'paid'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.user.balance, 0)

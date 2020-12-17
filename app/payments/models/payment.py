@@ -8,8 +8,8 @@ from sqlalchemy.orm import relationship
 from app import db
 from app.exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
-from app.orders.models import OrderStatus
-from . import Transaction
+from app.orders.models.order import OrderStatus
+from app.payments.models.transaction import Transaction
 
 payments_orders = db.Table('payments_orders',
         db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
@@ -40,7 +40,8 @@ class Payment(db.Model, BaseModel):
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
     evidence_image = Column(String(256))
-    status = Column('status', Enum(PaymentStatus))
+    status = Column('status', Enum(PaymentStatus), 
+        server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship("Transaction", foreign_keys=[transaction_id])
     changed_by_id = Column(Integer, ForeignKey('users.id'))
@@ -80,7 +81,7 @@ class Payment(db.Model, BaseModel):
         )
         if self.amount_received_krw >= total_orders_amount:
             for order in self.orders:
-                order.status = OrderStatus.can_be_paid
+                order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
                 order.payment_method_id = self.payment_method_id
                 messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
 
@@ -106,6 +107,8 @@ class Payment(db.Model, BaseModel):
             #     if self.payment_method and self.payment_method.payee else None,
             'evidence_image': self.evidence_image,
             'status': self.status.name,
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else '',
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else ''
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_changed else None
         }

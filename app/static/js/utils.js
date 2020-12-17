@@ -4,10 +4,19 @@ function round_up(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
-function modal(title, text) {
+function modal(title, text, type='info') {
+    var promise = $.Deferred();
     $('.modal-title').text(title);
     $('.modal-body').text(text);
+    if (type == 'confirmation') {
+        $('.modal-footer').html(
+            '<button type="button" id="btn-yes" class="btn btn-danger"  data-dismiss="modal">Yes</button>' +
+            '<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>'
+        );
+        $('#btn-yes').on('click', () => {promise.resolve('yes')});
+    }
     $('.modal').modal();
+    return promise;
 }
 
 function format_date(date) {

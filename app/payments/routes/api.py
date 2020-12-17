@@ -8,16 +8,17 @@ from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from app import db
-from app.currencies.models import Currency
-from app.orders.models import Order
 from app.payments import bp_api_admin, bp_api_user
-from app.payments.models import PaymentMethod, Payment, PaymentStatus
-from app.models import User
+from app.currencies.models.currency import Currency
+from app.orders.models.order import Order
+from app.payments.models.payment import Payment, PaymentStatus
+from app.payments.models.payment_method import PaymentMethod
+from app.models.user import User
 
 from app.exceptions import PaymentNoReceivedAmountException
 from app.tools import rm, write_to_file
 
-@bp_api_admin.route('/', defaults={'payment_id': None}, strict_slashes=False)
+@bp_api_admin.route('', defaults={'payment_id': None})
 @bp_api_admin.route('/<int:payment_id>')
 @roles_required('admin')
 def admin_get_payments(payment_id):

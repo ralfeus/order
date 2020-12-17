@@ -10,8 +10,9 @@ from sqlalchemy import or_
 
 from app import db
 from app.invoices import bp_api_admin
-from app.invoices.models import Invoice, InvoiceItem
-from app.orders.models import Order
+from app.invoices.models.invoice import Invoice
+from app.invoices.models.invoice_item import InvoiceItem
+from app.orders.models.order import Order
 from app.tools import prepare_datatables_query
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])

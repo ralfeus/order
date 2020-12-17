@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_transactions.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="transactions" class="table">
+        <thead>
+            <th scope="col" style="width: 2em;">Transaction&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">Customer</th>
+            <th scope="col" style="width: 2em;">Amount</th>
+            <th scope="col" style="width: 2em;">Balance</th>
+            <th scope="col" style="width: 2em;">Created by</th>
+            <th scope="col" style="width: 2em;">When created</th>
+        </thead>
+        <tbody />
+        <!-- <tfoot>
+            <tr>
+                <th colspan="3" style="text-align:right">Total:</th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </tfoot> -->
+    </table>
+</div>
+{% endblock %}

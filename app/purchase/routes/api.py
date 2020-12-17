@@ -91,7 +91,7 @@ def create_purchase_order():
         )
         purchase_orders.append(purchase_order)
         db.session.add(purchase_order)
-    order.status = OrderStatus.po_created
+    order.set_status(OrderStatus.po_created, current_app)
     db.session.commit()
     
     from ..jobs import post_purchase_orders

@@ -460,7 +460,7 @@ def admin_save_order(order_id):
         abort(Response(f'No order {order_id} was found', status=404))
 
     if order_input.get('status') is not None:
-        order.status = order_input['status']
+        order.set_status(order_input['status'], current_user)
 
     if order_input.get('tracking_id') is not None:
         order.tracking_id = order_input['tracking_id']

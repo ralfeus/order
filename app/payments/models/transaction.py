@@ -15,6 +15,7 @@ class Transaction(BaseModel, db.Model):
 
     customer_id = Column(Integer(), ForeignKey('users.id'))
     customer = relationship('User', foreign_keys=[customer_id])
+    customer_balance = Column(Integer())
     amount = Column(Integer())
     user_id = Column(Integer(), ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
@@ -25,15 +26,29 @@ class Transaction(BaseModel, db.Model):
             customer = User.query.get(customer_id)
         if not user:
             user = User.query.get(user_id)
+        self.__update_customer_balance(customer, amount)
         kwargs['amount'] = amount
         kwargs['customer'] = customer
         kwargs['user'] = user
+        kwargs['customer_balance'] = customer.balance
         super().__init__(**kwargs)
 
-        self.update_customer_balance()
     
-    def update_customer_balance(self):
-        self.customer.balance += self.amount
+    def __update_customer_balance(self, customer, amount):
+        customer.balance += amount
         logging.getLogger().info(
             'Changed balance of customer <%s> on %d. New balance is %d',
-            self.customer.username, self.amount, self.customer.balance)
+            customer.username, amount, customer.balance)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'customer': self.customer.username,
+            'amount': self.amount,
+            'customer_balance': self.customer_balance,
+            'created_by': self.user.username,
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_changed else None
+        }

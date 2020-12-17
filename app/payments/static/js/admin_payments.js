@@ -46,48 +46,6 @@ $(document).ready( function () {
     //         $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
     // });
 
-    $('#payments tbody').on('click', 'td.details-control', function () {
-        var tr = $(this).closest('tr');
-        var row = table.row( tr );
- 
-        if ( row.child.isShown() ) {
-            // This row is already open - close it
-            row.child.hide();
-            tr.removeClass('shown');
-        }
-        else {
-            // First close all open rows
-            $('tr.shown').each(function() {
-                table.row(this).child.hide();
-                $(this).removeClass('shown');
-            })
-            // Open this row
-            row.child( format(row, row.data()) ).show();
-            tr.addClass('shown');
-            // $('.btn-save').on('click', function() {
-            //     var payment_node = $(this).closest('.payment-details');
-            //     var update = {
-            //         id: row.data().id,
-            //         amount: $('#amount', payment_node).val(),
-            //         evidence: $('#evidence', payment_node).val()
-            //     };
-            //     $('.wait').show();
-            //     $.ajax({
-            //         url: '/api/v1/admin/payment/' + update.id,
-            //         method: 'post',
-            //         dataType: 'json',
-            //         contentType: 'application/json',
-            //         data: JSON.stringify(update),
-            //         complete: function() {
-            //             $('.wait').hide();
-            //         },
-            //         success: function(data) {
-            //             row.data(data).draw();
-            //         }
-            //     })
-            // });
-        }
-    } );
 });
 
 /**
@@ -296,6 +254,48 @@ function init_payments_table() {
             $( api.column(6).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         }
     });
+    $('#payments tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest('tr');
+        var row = table.row( tr );
+ 
+        if ( row.child.isShown() ) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        }
+        else {
+            // First close all open rows
+            $('tr.shown').each(function() {
+                table.row(this).child.hide();
+                $(this).removeClass('shown');
+            })
+            // Open this row
+            row.child( format(row, row.data()) ).show();
+            tr.addClass('shown');
+            // $('.btn-save').on('click', function() {
+            //     var payment_node = $(this).closest('.payment-details');
+            //     var update = {
+            //         id: row.data().id,
+            //         amount: $('#amount', payment_node).val(),
+            //         evidence: $('#evidence', payment_node).val()
+            //     };
+            //     $('.wait').show();
+            //     $.ajax({
+            //         url: '/api/v1/admin/payment/' + update.id,
+            //         method: 'post',
+            //         dataType: 'json',
+            //         contentType: 'application/json',
+            //         data: JSON.stringify(update),
+            //         complete: function() {
+            //             $('.wait').hide();
+            //         },
+            //         success: function(data) {
+            //             row.data(data).draw();
+            //         }
+            //     })
+            // });
+        }
+    } );
 }
 
 function on_currency_change() {

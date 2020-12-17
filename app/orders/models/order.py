@@ -12,8 +12,9 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.currencies.models import Currency
-from app.shipping.models import Shipping, NoShipping
+from app.currencies.models.currency import Currency
+from app.payments.models.transaction import Transaction
+from app.shipping.models.shipping import Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
@@ -55,7 +56,7 @@ class Order(db.Model):
     total_krw = Column(Integer(), default=0)
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
-    __status = Column('status', Enum(OrderStatus),
+    status = Column(Enum(OrderStatus),
         server_default=OrderStatus.pending.name)
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
@@ -72,34 +73,23 @@ class Order(db.Model):
         foreign_keys=[attached_order_id], lazy='dynamic')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
     payment_method = relationship('PaymentMethod', foreign_keys=[payment_method_id])
+    transaction_id = Column(Integer(), ForeignKey('transactions.id'))
+    transaction = relationship('Transaction', foreign_keys=[transaction_id])
 
-    @hybrid_property
-    def status(self) -> Column:
-        return self.__status
-
-    @status.setter
-    def status(self, value) -> Column:
+    def set_status(self, value, actor):
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
             value = OrderStatus(value)
 
-        self.__status = value
+        self.status = value
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
         if value == OrderStatus.shipped:
             for ao in self.attached_orders:
-                ao.status = value
-
-    # @property
-    # def shipping(self):
-    #     if self.__shipping is None:
-    #         self.__shipping = Shipping.get(4)
-    #     return self.__shipping
-
-    # @shipping.setter
-    # def shipping(self, value):
-    #     self.__shipping = value
+                ao.set_status(value, actor)
+        if value == OrderStatus.paid:
+            self.__pay(actor)
 
     @property
     def order_products(self):
@@ -109,7 +99,7 @@ class Order(db.Model):
         else:
             return list(self.__order_products)
 
-    @hybrid_property
+    @property
     def purchase_date(self):
         return self.__purchase_date
 
@@ -153,6 +143,16 @@ class Order(db.Model):
                 self.attached_orders = Order.query.filter(Order.id.in_(orders))
         else:
             self.attached_orders = []
+
+    def __pay(self, actor):
+        self.update_total()
+        transaction = Transaction(
+            amount=-self.total_krw,
+            customer=self.user,
+            user=actor
+        )
+        self.transaction = transaction
+        db.session.add(transaction)
 
     def to_dict(self, details=False):
         is_order_updated = False

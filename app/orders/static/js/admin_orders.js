@@ -1,4 +1,6 @@
+var g_order_statuses;
 var g_orders_table;
+
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
@@ -6,64 +8,8 @@ $.fn.dataTable.ext.buttons.invoice = {
 };
 
 $(document).ready( function () {
-    g_orders_table = $('#orders').DataTable({
-        dom: 'lfrBtip',
-        buttons: [
-	    {
-		extend: 'print',
-		text: 'Print order',
-		customize: window => {
-		    window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
-		}
-	    },
-            {extend: 'invoice', text: 'Create invoice'}
-        ],
-        ajax: {
-            url: '/api/v1/admin/order',
-            dataSrc: 'data'
-        },
-        columns: [
-            {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ''
-            },
-            {
-                "className":      'order-actions',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ' \
-                    <button \
-                        class="btn btn-sm btn-secondary btn-open" \
-                        onclick="open_order(this);">Open</button>'
-            },            
-            {data: 'id'},
-            {data: 'user'},
-            {data: 'customer'},
-            {data: 'subtotal_krw'},
-            {data: 'shipping_krw'},
-            {data: 'total_krw'},
-            {data: 'status'},
-            {data: 'payment_method'},
-            {data: 'purchase_date'},
-            {data: 'when_created'},
-            {data: 'when_changed'},
-        ],
-        columnDefs: [
-            {
-                targets: [10, 11, 12],
-                render: (data, type, row, meta) => {
-                    return format_date(new Date(data));
-                }
-            }
-        ],
-        order: [[11, 'desc']],
-        select: true,
-        serverSide: true,
-        processing: true
-    });
-
+    get_dictionaries()
+        .then(init_orders_table);
     $('#orders tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = g_orders_table.row( tr );
@@ -90,24 +36,53 @@ $(document).ready( function () {
 });
 
 function delete_order(_target, row) {
-    $('.wait').show();
-    $.ajax({
-        url: '/api/v1/admin/order/' + row.data().id,
-        method: 'delete',
-        complete: function() {
-            $('.wait').hide();
-        },
-        success: () => {
-            row.draw();
-        },
-        error: (response) => {
-            modal('Delete sale order error', response.responseText)
+    modal(
+        "Order delete", 
+        "Are you sure you want to delete order <" + row.data().id + ">?",
+        "confirmation")
+    .then(result => {
+        if (result == 'yes') {
+            $('.wait').show();
+            $.ajax({
+                url: '/api/v1/admin/order/' + row.data().id,
+                method: 'delete',
+                complete: function() {
+                    $('.wait').hide();
+                },
+                success: () => {
+                    row.draw();
+                },
+                error: (response) => {
+                    modal('Delete sale order error', response.responseText)
+                }
+            });
         }
     });
 }
 
+async function get_dictionaries() {
+    g_order_statuses = await get_list('/api/v1/order/status');
+}
+
 function save_order(target, row) {
     var order_node = $(target).closest('.order-details');
+    var new_status = $('#status', order_node).val();
+    if (row.data().status != new_status) {
+        modal(
+            "Order status change", 
+            "Are you sure you want to change order status to <" + new_status + ">?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                save_order_action(order_node, row);
+            }
+        });
+    } else {
+        save_order_action(order_node, row);
+    }
+}
+
+function save_order_action(order_node, row) {
     var update = {
         id: row.data().id,
         status: $('#status', order_node).val(),
@@ -163,6 +138,14 @@ function format ( row, data ) {
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping.name);
     $('#shipping-cost', order_details).val(data.shipping_krw);
+    $('#status', order_details).select2({
+        theme: "bootstrap",
+        data: g_order_statuses.map(os => ({
+            id: os,
+            text: os,
+            selected: data.status == os
+        }))
+    });
     $('#status', order_details).val(data.status);
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);
@@ -188,6 +171,66 @@ function create_invoice(rows) {
             console.log(ex);
         }
     });  
+}
+
+function init_orders_table() {
+    g_orders_table = $('#orders').DataTable({
+        dom: 'lfrBtip',
+        buttons: [
+	    {
+            extend: 'print',
+            text: 'Print order',
+            customize: window => {
+                window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
+        }
+	    },
+            {extend: 'invoice', text: 'Create invoice'}
+        ],
+        ajax: {
+            url: '/api/v1/admin/order',
+            dataSrc: 'data'
+        },
+        columns: [
+            {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ''
+            },
+            {
+                "className":      'order-actions',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ' \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-open" \
+                        onclick="open_order(this);">Open</button>'
+            },            
+            {data: 'id'},
+            {data: 'user'},
+            {data: 'customer'},
+            {data: 'subtotal_krw'},
+            {data: 'shipping_krw'},
+            {data: 'total_krw'},
+            {data: 'status'},
+            {data: 'payment_method'},
+            {data: 'purchase_date'},
+            {data: 'when_created'},
+            {data: 'when_changed'},
+        ],
+        columnDefs: [
+            {
+                targets: [10, 11, 12],
+                render: (data, type, row, meta) => {
+                    return format_date(new Date(data));
+                }
+            }
+        ],
+        order: [[11, 'desc']],
+        select: true,
+        serverSide: true,
+        processing: true
+    });
 }
 
 function open_order(target) {

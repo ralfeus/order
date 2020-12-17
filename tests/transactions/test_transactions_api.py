@@ -1,11 +1,18 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.currencies.models import Currency
-from app.orders.models import Order, OrderStatus
-from app.payments.models import PaymentMethod, Payment, PaymentStatus
-from app.purchase.models import Company
-from app.models import Address, Role, User
+from app.currencies.models.currency import Currency
+from app.orders.models.order import Order, OrderStatus
+from app.orders.models.order_product import OrderProduct
+from app.orders.models.suborder import Suborder
+from app.payments.models.payment import Payment, Transaction
+from app.purchase.models.company import Company
+from app.products.models.product import Product
+from app.shipping.models.shipping import Shipping, ShippingRate
+from app.models.country import Country
+from app.models.address import Address
+from app.models.role import Role
+from app.models.user import User
 
 class TestTransactionApi(BaseTestCase):
     def setUp(self):
@@ -22,7 +29,7 @@ class TestTransactionApi(BaseTestCase):
             self.admin, self.user, admin_role
         ])
 
-    def test_create_payment(self):
+    def test_create_payment_transaction(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         gen_id_int = datetime.now().microsecond
         self.try_add_entities([
@@ -30,70 +37,47 @@ class TestTransactionApi(BaseTestCase):
             Currency(code='USD', name='US Dollar', rate=1),
             Address(id=gen_id_int),
             Company(id=gen_id_int, address_id=gen_id_int),
-            PaymentMethod(id=gen_id_int, payee_id=gen_id_int)
-        ])
-        res = self.try_user_operation(
-            lambda: self.client.post('/api/v1/payment', json={
-                'orders': [gen_id],
-                'amount_original': 100,
-                'currency_code': 'USD',
-                'payment_method': gen_id_int
-            }))
-        self.assertEqual(Payment.query.count(), 1)
-        transaction = Payment.query.first()
-        self.assertEqual(transaction.amount_sent_krw, 100)
-
-    def test_get_payments(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/payment'))
-
-    def test_save_payment(self):
-        self.try_add_entities([
-            Currency(code='USD', name='US Dollar', rate=1),
-            Payment(id=0, user=self.user, currency_code='USD',
-                        status=PaymentStatus.pending)
+            # PaymentMethod(id=gen_id_int, payee_id=gen_id_int),
+            Payment(id=gen_id_int, user=self.user, currency_code='USD',
+                amount_sent_krw=2600, amount_received_krw=2600)
         ])
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/payment/0', json={
-                'amount_received_krw': 100
-        }))
-        self.assertEqual(res.json['payment']['amount_received_krw'], 100)
-
-    def test_approve_transaction_no_received_krw(self):
-        currency = Currency(code='KRW', rate=1)
-        transaction = Payment(amount_sent_original=100, currency=currency,
-            user=self.user, status=PaymentStatus.pending)
-        self.try_add_entities([currency, transaction])
-        res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/payment/{transaction.id}', json={
-                'status': 'approved'
-        }))
-        self.assertEqual(res.status_code, 409)
-    
-    def test_pay_order(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        currency = Currency(code='KRW', rate=1)
-        order = Order(id=gen_id, total_krw=90, user=self.user,
-                      status=OrderStatus.pending)
-        payment = Payment(amount_sent_original=100, currency=currency,
-            amount_received_krw=100,
-            user=self.user, status=PaymentStatus.pending,
-            orders=[order])
-        self.try_add_entities([order, payment, currency])
-        res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/payment/{payment.id}', json={
+            lambda: self.client.post(f'/api/v1/admin/payment/{gen_id_int}', json={
                 'status': 'approved'
             }))
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
-        self.assertEqual(order.status, OrderStatus.can_be_paid)
+        transaction = Transaction.query.first()
+        self.assertEqual(transaction.amount, 2600)
+        self.assertEqual(self.user.balance, 2600)
 
-    def test_get_payment_methods(self):
+    def test_create_pay_order_transaction(self):
+        self.user.balance = 2600
         self.try_add_entities([
-            PaymentMethod(name='Payment method 1')
+            Country(id='c1', name='country1'),
+            Currency(code='USD', rate=0.5),
+            Currency(code='RUR', rate=0.5),
+            Product(id='0000', name='Test product', price=10, weight=10),
+            Shipping(id=1, name='Shipping1'),
+            ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=100),
+            ShippingRate(shipping_method_id=1, destination='c1', weight=10000, rate=200)
         ])
-        res = self.try_user_operation(
-            lambda: self.client.get('/api/v1/payment/method'))
+        order = Order(
+            user=self.user, status=OrderStatus.pending)
+        suborder = Suborder(order=order)
+        self.try_add_entities([
+            order, suborder,
+            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={
+                'status': 'paid'
+            })
+        )
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json), 1)
-        self.assertEqual(res.json[0]['name'], 'Payment method 1')
+        transaction = Transaction.query.first()
+        self.assertEqual(transaction.amount, -2600)
+        self.assertEqual(self.user.balance, 0)
+
+    def test_get_transactions(self):
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/payment/transaction'))

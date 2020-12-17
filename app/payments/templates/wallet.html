@@ -2,7 +2,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="static/js/payments.js"></script>
+<script src="static/js/wallet.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -22,6 +22,7 @@
             </div>
         </div>
     </div>
+    <h4>Payments</h4>
     <table id="payments" class="table">
         <thead>
             <th></th>
@@ -33,6 +34,17 @@
             <th scope="col" style="width: 2em;">Status</th>
             <th scope="col" style="width: max-content;">When created</th>
             <th scope="col" style="width: max-content;">When changed</th>
+        </thead>
+        <tbody />
+    </table>
+    <h4>Transactions</h4>
+    <table id="transactions" class="table">
+        <thead>
+            <th scope="col" style="width: 2em;">Transaction&nbsp;ID</th>
+            <th scope="col" style="width: 2em;">Amount</th>
+            <th scope="col" style="width: 2em;">Balance</th>
+            <th scope="col" style="width: 2em;">Created by</th>
+            <th scope="col" style="width: 2em;">When created</th>
         </thead>
         <tbody />
     </table>

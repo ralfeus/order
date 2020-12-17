@@ -23,7 +23,16 @@ def admin_payments():
     '''
     return render_template('admin_payments.html')
 
+@bp_client_admin.route('/transactions')
+@roles_required('admin')
+def admin_transactions():
+    '''
+    Payments management
+    '''
+    return render_template('admin_transactions.html')
+
 @bp_client_user.route('/')
 @login_required
-def user_payments():
-    return render_template('payments.html', balance=current_user.balance)
+def user_wallet():
+    return render_template('wallet.html', balance=current_user.balance)
+
