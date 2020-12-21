@@ -77,7 +77,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
             InvoiceItem(invoice_id='INV-2020-00-00', product_id='0001', price=10, quantity=1),
             Order(id=__name__ + '-1', invoice_id='INV-2020-00-00', country_id='c1',
-                  name='Customer 1')
+                  customer_name='Customer 1')
         ])
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice'))

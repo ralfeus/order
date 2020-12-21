@@ -175,15 +175,15 @@ function create_invoice(rows) {
 
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
-	    {
-            extend: 'print',
-            text: 'Print order',
-            customize: window => {
-                window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
-        }
-	    },
+            {
+                extend: 'print',
+                text: 'Print order',
+                customize: window => {
+                    window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
+                }
+            },
             {extend: 'invoice', text: 'Create invoice'}
         ],
         ajax: {
@@ -208,7 +208,7 @@ function init_orders_table() {
             },            
             {data: 'id'},
             {data: 'user'},
-            {data: 'customer'},
+            {data: 'customer_name'},
             {data: 'subtotal_krw'},
             {data: 'shipping_krw'},
             {data: 'total_krw'},
@@ -229,7 +229,23 @@ function init_orders_table() {
         order: [[11, 'desc']],
         select: true,
         serverSide: true,
-        processing: true
+        processing: true,
+        initComplete: function () {
+            // Apply the search
+            this.api().columns().every(function() { 
+                var column = this;
+                $('td:nth-child(' + (this.index() + 1) + ') input', 
+                    $(this.header()).closest('thead'))
+                    .on( 'keyup change clear', function () {
+                        if ( column.search() !== this.value ) {
+                            column
+                                .search( this.value )
+                                .draw();
+                        }
+                    })
+                    .val('');
+            });
+        }
     });
 }
 

@@ -103,7 +103,7 @@ class Invoice(db.Model):
                 invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
         if not self.customer and self.orders:
-            self.customer = self.orders[0].name
+            self.customer = self.orders[0].customer_name
             db.session.commit()
         return {
             'id': self.id,

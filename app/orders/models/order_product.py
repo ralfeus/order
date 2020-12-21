@@ -88,7 +88,7 @@ class OrderProduct(db.Model, BaseModel):
         if not postponed_order:
             postponed_order = Order(
                 user=referred_order.user,
-                name=referred_order.name,
+                customer_name=referred_order.customer_name,
                 address=referred_order.address,
                 country=referred_order.country,
                 phone=referred_order.phone,
@@ -134,7 +134,7 @@ class OrderProduct(db.Model, BaseModel):
             'id': self.id,
             'order_id': self.suborder.order_id if self.suborder else self.order_id,
             'suborder_id': self.suborder_id,
-            'customer': self.suborder.order.name if self.suborder and self.suborder.order else None,
+            'customer': self.suborder.order.customer_name if self.suborder and self.suborder.order else None,
             'subcustomer_id': self.suborder.subcustomer_id if self.suborder else None,
             'subcustomer': self.suborder.subcustomer.name if self.suborder and self.suborder.subcustomer else None,
             'buyout_date': self.suborder.buyout_date.strftime('%Y-%m-%d') if self.suborder and self.suborder.buyout_date else None,

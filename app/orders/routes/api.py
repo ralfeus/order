@@ -42,7 +42,7 @@ def delete_order(order_id):
     db.session.commit()
     current_app.logger.warning(
         "Sale Order <%s> of customer <%s> created on <%s> is deleted by <%s>",
-        order_id, order.name, order.when_created, current_user.username)
+        order_id, order.customer_name, order.when_created, current_user.username)
     return Response(status=200)
         
 
@@ -98,15 +98,10 @@ def user_get_orders(order_id):
 def filter_orders(orders, filter_params):
     orders = orders.order_by(Order.purchase_date_sort)
     orders, records_total, records_filtered = prepare_datatables_query(
-        orders, filter_params, or_(
-            Order.id.like(f"%{filter_params['search[value]']}%"),
-            Order.user.has(User.username.like(f"%{filter_params['search[value]']}%")),
-            Order.name.like(f"%{filter_params['search[value]']}%"),
-            Order.status == filter_params['search[value]']
-        )
+        orders, filter_params, None
     )
     return jsonify({
-        'draw': filter_params['draw'],
+        'draw': int(filter_params['draw']),
         'recordsTotal': records_total,
         'recordsFiltered': records_filtered,
         'data': list(map(lambda entry: entry.to_dict(), orders))
@@ -198,7 +193,7 @@ def add_suborder(order, suborder_data, errors):
         )
         if suborder.buyout_date:
             if not order.purchase_date or order.purchase_date > suborder.buyout_date:
-                order.purchase_date = suborder.buyout_date
+                order.set_purchase_date(suborder.buyout_date)
 
         current_app.logger.debug('Created instance of Suborder %s', suborder)
         db.session.add(suborder)
@@ -274,7 +269,7 @@ def user_save_order(order_id):
 
     errors = []
     if payload.get('name') and order.name != payload['name']:
-        order.name = payload['name']
+        order.customer_name = payload['name']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
     if payload.get('country') and order.country_id != payload['country']:
@@ -317,7 +312,7 @@ def user_save_order(order_id):
                                 pass
                     if suborder.buyout_date and (
                         not order.purchase_date or order.purchase_date > suborder.buyout_date):
-                            order.purchase_date = suborder.buyout_date
+                            order.set_purchase_date(suborder.buyout_date)
             except SubcustomerParseError:
                 abort(Response(f"""Couldn't find subcustomer and provided data
                                 doesn't allow to create new one. Please provide
@@ -502,7 +497,7 @@ def get_order_products():
                         Subcustomer.name.like(filter_clause))),
                 OrderProduct.suborder.has(
                     Suborder.order.has(
-                        Order.name.like(filter_clause))),
+                        Order.customer_name.like(filter_clause))),
                 OrderProduct.product_id.like(filter_clause),
                 OrderProduct.product.has(Product.name.like(filter_clause)),
                 OrderProduct.product.has(Product.name_english.like(filter_clause)),

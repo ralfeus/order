@@ -7,11 +7,12 @@ from decimal import Decimal
 from functools import reduce
 
 from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
-from sqlalchemy.ext.hybrid import hybrid_property
+# from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
 from app.shipping.models.shipping import Shipping, NoShipping
@@ -25,7 +26,7 @@ class OrderStatus(enum.Enum):
     shipped = 5
     complete = 6
 
-class Order(db.Model):
+class Order(db.Model, BaseModel):
     ''' System's order '''
     __tablename__ = 'orders'
     __id_pattern = 'ORD-{year}-{month:02d}-'
@@ -36,7 +37,7 @@ class Order(db.Model):
     user = relationship('User', foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
-    name = Column(String(64))
+    customer_name = Column(String(64))
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
     country = relationship('Country', foreign_keys=[country_id])
@@ -62,7 +63,7 @@ class Order(db.Model):
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
-    __purchase_date = Column('purchase_date', DateTime)
+    purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
     suborders = relationship('Suborder', lazy='dynamic')
@@ -99,13 +100,8 @@ class Order(db.Model):
         else:
             return list(self.__order_products)
 
-    @property
-    def purchase_date(self):
-        return self.__purchase_date
-
-    @purchase_date.setter
-    def purchase_date(self, value):
-        self.__purchase_date = value
+    def set_purchase_date(self, value):
+        self.purchase_date = value
         self.purchase_date_sort = value
 
     def __init__(self, **kwargs):
@@ -154,6 +150,19 @@ class Order(db.Model):
         self.transaction = transaction
         db.session.add(transaction)
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        from app.payments.models.payment_method import PaymentMethod
+        from app.models.user import User
+        part_filter = f'%{filter_value}%'
+        return \
+            base_filter.filter(column.has(User.username.like(part_filter))) \
+                if column.key == 'user' else \
+            base_filter.filter(column.has(PaymentMethod.name.like(part_filter))) \
+                if column.key == 'payment_method' else \
+            base_filter.filter(column.like(f'%{filter_value}%'))
+
+
     def to_dict(self, details=False):
         is_order_updated = False
         if not self.total_krw:
@@ -170,7 +179,7 @@ class Order(db.Model):
         result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
-            'customer': self.name,
+            'customer_name': self.customer_name,
             'address': self.address,
             'phone': self.phone,
             'invoice_id': self.invoice_id,

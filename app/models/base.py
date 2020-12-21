@@ -23,6 +23,10 @@ class BaseModel:
             if arg in attributes:
                 setattr(self, arg, kwargs[arg])
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        raise NotImplementedError(f'get_filter() is not implemented for {cls}')
+
 
     # @classmethod
     # def from_dict(cls, attr):
