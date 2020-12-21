@@ -36,7 +36,8 @@ def get_purchase_orders(po_id):
             or_(
                 PurchaseOrder.id.like(f"%{request.values['search[value]']}%"),
                 PurchaseOrder.customer.has(
-                    Subcustomer.name.like(f"%{request.values['search[value]']}%"))
+                    Subcustomer.name.like(f"%{request.values['search[value]']}%")),
+                PurchaseOrder.status.like(f'%{request.values["search[value]"]}%')
             )
         )
         return jsonify({
