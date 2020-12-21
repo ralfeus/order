@@ -7,7 +7,7 @@ $.fn.dataTable.ext.buttons.xls = {
 
 $(document).ready( function () {
     order_table = $('#orders').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         ajax: {
             url: '/api/v1/order',
             error: xhr => { modal('No orders', xhr.responseText) },
@@ -28,7 +28,7 @@ $(document).ready( function () {
                         onclick="open_order(this);">Open</button>'
             },
             {data: 'id'},
-            {data: 'customer'},
+            {data: 'customer_name'},
             {data: 'total_krw'},
             {data: 'total_rur'},
             {data: 'total_usd'},

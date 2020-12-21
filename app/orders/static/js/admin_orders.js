@@ -214,6 +214,10 @@ function init_orders_table() {
             {data: 'total_krw'},
             {data: 'status'},
             {data: 'payment_method'},
+            {
+                data: 'shipping',
+                render: 'name' 
+            },
             {data: 'purchase_date'},
             {data: 'when_created'},
             {data: 'when_changed'},
@@ -226,7 +230,7 @@ function init_orders_table() {
                 }
             }
         ],
-        order: [[11, 'desc']],
+        order: [[12, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

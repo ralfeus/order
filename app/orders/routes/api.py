@@ -126,7 +126,7 @@ def user_create_order():
         abort(Response(f"The country <{request_data['country']}> was not found", status=400))
     order = Order(
         user=current_user,
-        name=request_data['name'],
+        customer_name=request_data['name'],
         address=request_data['address'],
         country_id=request_data['country'],
         country=country,

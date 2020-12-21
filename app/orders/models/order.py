@@ -77,6 +77,18 @@ class Order(db.Model, BaseModel):
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
 
+    @property
+    def order_products(self):
+        if self.suborders.count() > 0:
+            return [order_product for suborder in self.suborders
+                                  for order_product in suborder.order_products]
+        else:
+            return list(self.__order_products)
+
+    def set_purchase_date(self, value):
+        self.purchase_date = value
+        self.purchase_date_sort = value
+
     def set_status(self, value, actor):
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
@@ -92,19 +104,8 @@ class Order(db.Model, BaseModel):
         if value == OrderStatus.paid:
             self.__pay(actor)
 
-    @property
-    def order_products(self):
-        if self.suborders.count() > 0:
-            return [order_product for suborder in self.suborders
-                                  for order_product in suborder.order_products]
-        else:
-            return list(self.__order_products)
-
-    def set_purchase_date(self, value):
-        self.purchase_date = value
-        self.purchase_date_sort = value
-
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         today = datetime.now()
         today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
         last_order = db.session.query(Order.seq_num). \
@@ -156,10 +157,12 @@ class Order(db.Model, BaseModel):
         from app.models.user import User
         part_filter = f'%{filter_value}%'
         return \
-            base_filter.filter(column.has(User.username.like(part_filter))) \
-                if column.key == 'user' else \
             base_filter.filter(column.has(PaymentMethod.name.like(part_filter))) \
                 if column.key == 'payment_method' else \
+            base_filter.filter(column.has(Shipping.name.like(part_filter))) \
+                if column.key == 'shipping' else \
+            base_filter.filter(column.has(User.username.like(part_filter))) \
+                if column.key == 'user' else \
             base_filter.filter(column.like(f'%{filter_value}%'))
 
 
