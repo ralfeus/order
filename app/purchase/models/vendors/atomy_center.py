@@ -89,19 +89,37 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                product_code_input = self.__browser.get_element_by_id(f'material_code{field_num}')
+                self.__logger.debug("Getting input field material_code%s...", field_num)
+                product_code_input = self.__browser.get_element_by_id(
+                    f'material_code{field_num}')
+                self.__logger.debug("\t...done")
+                self.__logger.debug("Entering product code %s...", op.product_id)
                 product_code_input.send_keys(op.product_id, Keys.TAB)
+                self.__logger.debug("\t...done")
+                self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
+                self.__logger.debug("Getting input field sale_qty%s...", field_num)
                 product_qty_input = self.__browser.get_element_by_id(f'sale_qty{field_num}')
+                self.__logger.debug("\t...done")
                 attempts_left = 3
                 while product_qty_input.get_attribute('value') != str(op.quantity):
+                    self.__logger.debug("Qty field value is %s whilst must be %s",
+                        product_qty_input.get_attribute('value'), op.quantity)
+                    self.__logger.debug("%s attemts left", attempts_left)
                     if not attempts_left:
                         raise Exception("Couldn't set product quantity")
+                    self.__logger.debug("Clicking sale_qty%s field...", field_num)
                     product_qty_input.click()
+                    self.__logger.debug("\t...done")
+                    self.__logger.debug("Typing %s to sale_qty%s...", op.quantity, field_num)
                     product_qty_input.send_keys(Keys.DELETE, op.quantity, Keys.TAB)
+                    self.__logger.debug("\t...done")
                     sleep(0.3)
                 
+                self.__logger.debug("Waiting tot_amt%s to update...", field_num)
                 while not self.__browser.get_element_by_name(f'tot_amt{field_num}').get_attribute('value'):
+                    self.__logger.debug("\t...not yet")
                     sleep(0.3)
+                self.__logger.debug("\t...done")
                 
                 ordered_products.append(op)
                 field_num += 1
