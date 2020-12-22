@@ -102,16 +102,17 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 self.__logger.debug("\t...done")
                 attempts_left = 3
                 while product_qty_input.get_attribute('value') != str(op.quantity):
+                    attempts_left -= 1
                     self.__logger.debug("Qty field value is %s whilst must be %s",
                         product_qty_input.get_attribute('value'), op.quantity)
                     self.__logger.debug("%s attemts left", attempts_left)
                     if not attempts_left:
                         raise Exception("Couldn't set product quantity")
                     self.__logger.debug("Clicking sale_qty%s field...", field_num)
-                    product_qty_input.click()
+                    self.__browser.doubleclick(product_qty_input)
                     self.__logger.debug("\t...done")
                     self.__logger.debug("Typing %s to sale_qty%s...", op.quantity, field_num)
-                    product_qty_input.send_keys(Keys.DELETE, op.quantity, Keys.TAB)
+                    product_qty_input.send_keys(op.quantity, Keys.TAB)
                     self.__logger.debug("\t...done")
                     sleep(0.3)
                 

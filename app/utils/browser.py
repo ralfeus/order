@@ -2,6 +2,7 @@
 import logging
 from selenium.common.exceptions import NoSuchElementException,\
     StaleElementReferenceException, UnexpectedAlertPresentException
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -50,6 +51,9 @@ class Browser:
             raise ex
         except Exception as ex:
             raise Exception(f"No element with {criterium} {value} was found", ex)
+
+    def doubleclick(self, element):
+        ActionChains(self.__browser).double_click(element).perform()
 
     def execute_script(self, script, *args):
         return self.__browser.execute_script(script, *args)
