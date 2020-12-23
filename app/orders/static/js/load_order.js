@@ -34,6 +34,7 @@ async function populate_order(order_data) {
     $('#name').val(order_data.customer);
     $('#address').val(order_data.address);
     $('#phone').val(order_data.phone);
+    $('#zip').val(order_data.zip);
     $('#country').val(order_data.country.id);
     order_data.attached_orders.forEach(ao => {
         $('#attached_orders')

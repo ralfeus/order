@@ -339,6 +339,7 @@ function submit_order() {
             name: $('#name').val(),
             address: $('#address').val(),
             country: $('#country').val(),
+            zip: $('#zip').val(),
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
             comment: $('#comment').val(),

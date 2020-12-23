@@ -59,7 +59,8 @@ def admin_get_orders(order_id):
         if orders.count() == 1:
             return jsonify(orders.first().to_dict(details=True))
     if request.values.get('status'):
-        orders = orders.filter_by(status=OrderStatus[request.values['status']].name)
+        orders = orders.filter(
+            Order.status.in_(request.values.getlist('status')))
     if request.values.get('user_id'):
         orders = orders.filter_by(user_id=request.values['user_id'])
     if request.values.get('draw') is not None: # Args were provided by DataTables
@@ -130,6 +131,7 @@ def user_create_order():
         address=request_data['address'],
         country_id=request_data['country'],
         country=country,
+        zip=request_data['zip'],
         shipping=shipping,
         phone=request_data['phone'],
         comment=request_data['comment'],
@@ -274,6 +276,8 @@ def user_save_order(order_id):
         order.address = payload['address']
     if payload.get('country') and order.country_id != payload['country']:
         order.country_id = payload['country']
+    if payload.get('zip') and order.zip != payload['zip']:
+        order.zip = payload['zip']
     if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
         order.shipping_method_id = payload['shipping']
     if payload.get('phone') and order.phone != payload['phone']:

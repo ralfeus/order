@@ -41,6 +41,7 @@ class Order(db.Model, BaseModel):
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
     country = relationship('Country', foreign_keys=[country_id])
+    zip = Column(String(10))
     phone = Column(String(64))
     comment = Column(String(128))
     shipping_box_weight = Column(Integer())
@@ -193,6 +194,7 @@ class Order(db.Model, BaseModel):
             'total_rur': float(self.total_rur),
             'total_usd': float(self.total_usd),
             'country': self.country.to_dict() if self.country else None,
+            'zip': self.zip,
             'shipping': self.shipping.to_dict() if self.shipping else None,
             'status': self.status.name if self.status else None,
             'payment_method': self.payment_method.name \
