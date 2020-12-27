@@ -37,6 +37,8 @@ class Order(db.Model, BaseModel):
     user = relationship('User', foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
+    customer_invoice_id = Column(String(16), ForeignKey('invoices.id'), unique=True)
+    customer_invoice = relationship('Invoice', foreign_keys=[customer_invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
@@ -83,8 +85,7 @@ class Order(db.Model, BaseModel):
         if self.suborders.count() > 0:
             return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
-        else:
-            return list(self.__order_products)
+        return list(self.__order_products)
 
     def set_purchase_date(self, value):
         self.purchase_date = value
@@ -187,6 +188,7 @@ class Order(db.Model, BaseModel):
             'address': self.address,
             'phone': self.phone,
             'invoice_id': self.invoice_id,
+            'customer_invoice_id': self.customer_invoice_id,
             'subtotal_krw': self.subtotal_krw,
             'shipping_krw': self.shipping_krw,
             'total': self.total_krw,

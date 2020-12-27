@@ -108,8 +108,9 @@ class Browser:
         self.__browser.get('about:blank')
 
     def quit(self):
-        self.__browser.quit()
-        del self.__browser
+        if self.__browser:
+            self.__browser.quit()
+            del self.__browser
 
     @property
     def title(self):

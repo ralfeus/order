@@ -53,8 +53,8 @@ class TestInvoiceClient(BaseTestCase):
         )
         self.assertEqual(res.json['invoice_id'], f'{id_prefix}0001')
         invoice = Invoice.query.get(res.json['invoice_id'])
-        self.assertEqual(len(invoice.orders), 1)
-        self.assertEqual(invoice.invoice_items.count(), 1)
+        self.assertEqual(len(invoice.get_orders()), 1)
+        self.assertEqual(len(invoice.get_invoice_items()), 1)
 
     def test_save_invoice(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -73,6 +73,8 @@ class TestInvoiceClient(BaseTestCase):
         self.try_add_entities([
             Product(id='0001', name='Product 1', name_english='P1', weight=10),
             Invoice(id='INV-2020-00-00',
+                    country_id='c1',
+                    customer='Customer 1',
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
             InvoiceItem(invoice_id='INV-2020-00-00', product_id='0001', price=10, quantity=1),
@@ -113,6 +115,7 @@ class TestInvoiceClient(BaseTestCase):
         self.try_add_entities([
             Product(id=gen_id, name='Product 1', weight=10),
             Invoice(id=gen_id,
+                    country_id='c1',
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0)),
             Order(id=gen_id, invoice_id=gen_id, country_id='c1')
@@ -156,7 +159,7 @@ class TestInvoiceClient(BaseTestCase):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
             Product(id=gen_id, weight=1),
-            Invoice(id=gen_id),
+            Invoice(id=gen_id, country_id='c1'),
             Order(id=gen_id, invoice_id=gen_id, country_id='c1'),
             InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
         ])
@@ -167,7 +170,7 @@ class TestInvoiceClient(BaseTestCase):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
             Product(id=gen_id, weight=1),
-            Invoice(id=gen_id),
+            Invoice(id=gen_id, country_id='c1'),
             Order(id=gen_id, invoice_id=gen_id, country_id='c1'),
             InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
         ])

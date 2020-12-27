@@ -17,7 +17,7 @@ from app.tools import prepare_datatables_query
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
-def create_invoice(usd_rate):
+def create_bank_invoice(usd_rate):
     '''
     Creates invoice for provided orders
     '''
@@ -27,7 +27,12 @@ def create_invoice(usd_rate):
     orders = Order.query.filter(Order.id.in_(payload['order_ids'])).all()
     if not orders:
         abort(Response("No orders with provided IDs were found ", status=400))
-    invoice = Invoice()
+    invoice = Invoice(
+        customer=orders[0].customer_name,
+        address=orders[0].address,
+        country_id=orders[0].country_id,
+        phone=orders[0].phone
+    )
     # invoice_items = []
     invoice.when_created = datetime.now()
     cumulative_order_products = map_reduce(
@@ -91,7 +96,7 @@ def get_invoices(invoice_id):
 
 def get_invoice_order_products(invoice):
     cumulative_order_products = map_reduce(
-        invoice.invoice_items,
+        invoice.get_invoice_items(),
         keyfunc=lambda ii: (
             ii.product_id,
             ii.product.name_english if ii.product.name_english \
@@ -122,19 +127,19 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
     ws.cell(7, 2, reference_invoice.id)
     ws.cell(7, 5, reference_invoice.when_created)
     ws.cell(13, 4, reference_invoice.customer)
-    ws.cell(17, 4, reference_invoice.orders[0].address)
+    ws.cell(17, 4, reference_invoice.address)
     ws.cell(21, 4, '') # city
-    ws.cell(23, 5, reference_invoice.orders[0].country.name)
-    ws.cell(25, 4, reference_invoice.orders[0].phone)
+    ws.cell(23, 5, reference_invoice.country.name)
+    ws.cell(25, 4, reference_invoice.phone)
 
     # Set packing list header
     pl.cell(7, 2, reference_invoice.id)
     pl.cell(7, 5, reference_invoice.when_created)
     pl.cell(13, 4, reference_invoice.customer)
-    pl.cell(17, 4, reference_invoice.orders[0].address)
+    pl.cell(17, 4, reference_invoice.address)
     pl.cell(21, 4, '') # city
-    pl.cell(23, 5, reference_invoice.orders[0].country.name)
-    pl.cell(25, 4, reference_invoice.orders[0].phone)
+    pl.cell(23, 5, reference_invoice.country.name)
+    pl.cell(25, 4, reference_invoice.phone)
 
     # Set invoice footer
     ws.cell(305, 5, total)
@@ -213,9 +218,8 @@ def get_invoice_cumulative_excel():
     cumulative_invoice = Invoice()
     for invoice_id in request.args.getlist('invoices'):
         invoice = Invoice.query.get(invoice_id)
-        if not cumulative_invoice.customer:
-            cumulative_invoice.customer = invoice.customer
-        cumulative_invoice.orders += invoice.orders
+        if invoice:
+            cumulative_invoice.add_invoice_component(invoice)
 
     invoice_file_name = 'cumulative_invoice.xlsx'
     create_invoice_excel(
@@ -238,9 +242,11 @@ def save_invoice_item(invoice_id, invoice_item_id):
     if not invoice:
         abort(Response(f'No invoice <{invoice_id}> was found', status=404))
     if invoice_item_id != 'new':
-        invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
-        if not invoice_item:
+        invoice_item = [ii for ii in invoice.get_invoice_items()
+                           if ii.id == int(invoice_item_id)]
+        if len(invoice_item) == 0:
             abort(Response(f'No invoice item <{invoice_item_id}> was found', status=404))
+        invoice_item = invoice_item[0]
     else:
         invoice_item = InvoiceItem(invoice=invoice, when_created=datetime.now())
     
@@ -262,10 +268,11 @@ def delete_invoice_item(invoice_id, invoice_item_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f'No invoice <{invoice_id}> was found', status=404))
-    invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
-    if not invoice_item:
+    invoice_items = [ii for ii in invoice.get_invoice_items() 
+                        if ii.id == int(invoice_item_id)]
+    if len(invoice_items) == 0:
         abort(Response(f'No invoice item<{invoice_item_id}> was found', status=404))
-    db.session.delete(invoice_item)
+    db.session.delete(invoice_items[0])
     db.session.commit()
     return jsonify({
         'status': 'success'

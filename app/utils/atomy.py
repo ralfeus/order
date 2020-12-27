@@ -46,4 +46,7 @@ def atomy_login(username, password, browser=None):
                 local_browser.quit()
 
 def __ignore_change_password(browser):
-    browser.get_element_by_id('btnRelayPassword').click()
+    try:
+        browser.get_element_by_id('btnRelayPassword').click()
+    except Exception as ex:
+        logging.exception("Couldn't ignore change password")
