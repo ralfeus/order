@@ -5,6 +5,7 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 from functools import reduce
+import openpyxl
 
 from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
 # from sqlalchemy.ext.hybrid import hybrid_property
@@ -37,8 +38,6 @@ class Order(db.Model, BaseModel):
     user = relationship('User', foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
-    customer_invoice_id = Column(String(16), ForeignKey('invoices.id'), unique=True)
-    customer_invoice = relationship('Invoice', foreign_keys=[customer_invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
@@ -254,3 +253,57 @@ class Order(db.Model, BaseModel):
         self.total_krw = self.subtotal_krw + self.shipping_krw
         self.total_rur = self.subtotal_rur + self.shipping_rur
         self.total_usd = self.subtotal_usd + self.shipping_usd
+
+
+    def create_order_excel(self):
+        order_wb = openpyxl.open('/var/www/order/app/static/orders/order_template.xlsx')
+        ws = order_wb.worksheets[0]
+
+        # Set order header
+        ws.cell(3, 2, self.id)
+        ws.cell(3, 3, self.when_created)
+        ws.cell(5, 2, self.customer)
+        ws.cell(6, 2, self.address + '\n' + self.zip)
+        ws.cell(7, 2, self.phone)
+        ws.cell(23, 5, self.country.name) #TODO
+
+        ws.cell(7, 6, self.subtotal_krw)
+        ws.cell(7, 7, self.total_weight)
+        ws.cell(7, 8, self.shipping_krw)
+        ws.cell(7, 9, self.total_krw)
+        ws.cell(7, 10, reduce(lambda acc, op: acc + op.points, self.order_products, 0))
+        ws.cell(9, 6, self.subtotal_usd)
+        ws.cell(9, 7, self.total_weight)
+        ws.cell(9, 8, self.shipping_usd)
+        ws.cell(9, 9, self.total_usd)
+        ws.cell(10, 6, self.subtotal_rur)
+        ws.cell(10, 7, self.total_weight)
+        ws.cell(10, 8, self.shipping_rur)
+        ws.cell(10, 9, self.total_rurs)
+        
+
+        # Set packing list footer
+        pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
+        pl.cell(312, 2, invoice_dict['weight'] / 1000)
+
+        # Set order product lines
+        row = 31
+        last_row = 304
+
+        for op in order_products:
+            # Set invoice product item
+            ws.cell(row, 1, op['id'])
+            ws.cell(row, 2, op['name'])
+            ws.cell(row, 3, op['quantity'])
+            ws.cell(row, 4, op['price'])
+            ws.cell(row, 5, op['subtotal'])
+
+            # Set packing list product item
+            pl.cell(row, 1, op['id'])
+            pl.cell(row, 2, op['name'])
+            pl.cell(row, 4, op['quantity'])
+
+            row += 1
+        ws.delete_rows(row, last_row - row + 1)
+        pl.delete_rows(row, last_row - row + 1)
+        invoice_wb.save(f'/var/www/order/app/static/invoices/{invoice_file_name}')

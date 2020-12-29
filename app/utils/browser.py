@@ -21,6 +21,10 @@ class Browser:
         self.__config['SELENIUM_HEADLESS'] = headless
         self.__browser_kwargs = kwargs
         self.__create_browser_instanse()
+
+    def __del__(self):
+        self.__browser.quit()
+        del self.__browser
     
     def __create_browser_instanse(self):
         options = Options()

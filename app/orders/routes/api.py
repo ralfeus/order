@@ -9,14 +9,14 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
 from app.exceptions import SubcustomerParseError
-from app.models import Country, User
+from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query, modify_object
+from app.tools import download_and_delete, prepare_datatables_query, modify_object
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -652,3 +652,18 @@ def get_order_product(order_product_id):
             Suborder.order.has(Order.user == current_user)))
     order_product = order_product.filter_by(id=order_product_id).first()
     return order_product
+
+@bp_api_user.route('/<order_id>/excel')
+@login_required
+def user_get_order_excel(order_id):
+    '''
+    Generates an Excel file for an order
+    '''
+    order = Order.query.get(order_id)
+    if not order:
+        abort(Response(f"The order <{order_id}> was not found", status=404))
+    if len(order.order_items) == 0:
+        abort(Response(f"The order <{order_id}> has no items", status=406))
+    order.create_order_excel()
+
+    return download_and_delete(f'static/orders/{order_id}.xlsx')

@@ -7,9 +7,4 @@ class BrowserTest(BaseTestCase):
         a = Browser(config=app.config)
         self.assertIsNotNone(a)
         a.get('about:blank')
-        a.quit()
-        sleep(1)
-        self.assertRaises(Exception, lambda: a.get('about:blank'))
-        a = Browser(config=app.config)
-        a.get('about:blank')
-        a.quit()
+        del a
