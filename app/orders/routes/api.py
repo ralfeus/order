@@ -270,7 +270,7 @@ def user_save_order(order_id):
         abort(Response("No order data was provided", status=400))
 
     errors = []
-    if payload.get('customer_name') and order.name != payload['customer_name']:
+    if payload.get('customer_name') and order.customer_name != payload['customer_name']:
         order.customer_name = payload['customer_name']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
