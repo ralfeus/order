@@ -45,6 +45,12 @@ class Suborder(db.Model, BaseModel):
             self.get_actual_order_products(), 0) + \
             (self.local_shipping if self.local_shipping else 0)
 
+    def get_subtotal(self, currency=None):
+        rate = 1 if currency is None else currency.rate
+        return reduce(
+            lambda acc, op: acc + op.price * op.quantity,
+            self.get_actual_order_products(), 0) * rate
+
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         if order:
             self.order = order

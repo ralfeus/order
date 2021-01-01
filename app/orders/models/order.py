@@ -6,6 +6,8 @@ from datetime import datetime
 from decimal import Decimal
 from functools import reduce
 import openpyxl
+import os.path
+from tempfile import NamedTemporaryFile
 
 from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
 # from sqlalchemy.ext.hybrid import hybrid_property
@@ -187,7 +189,6 @@ class Order(db.Model, BaseModel):
             'address': self.address,
             'phone': self.phone,
             'invoice_id': self.invoice_id,
-            'customer_invoice_id': self.customer_invoice_id,
             'subtotal_krw': self.subtotal_krw,
             'shipping_krw': self.shipping_krw,
             'total': self.total_krw,
@@ -256,54 +257,52 @@ class Order(db.Model, BaseModel):
 
 
     def create_order_excel(self):
-        order_wb = openpyxl.open('/var/www/order/app/static/orders/order_template.xlsx')
+        package_path = os.path.dirname(__file__) + '/..'
+        order_wb = openpyxl.open(f'{package_path}/templates/order_template.xlsx')
         ws = order_wb.worksheets[0]
 
         # Set order header
         ws.cell(3, 2, self.id)
         ws.cell(3, 3, self.when_created)
-        ws.cell(5, 2, self.customer)
+        ws.cell(5, 2, self.customer_name)
         ws.cell(6, 2, self.address + '\n' + self.zip)
         ws.cell(7, 2, self.phone)
-        ws.cell(23, 5, self.country.name) #TODO
+        # Set currency rates
+        ws.cell(9, 4, 1 / Currency.query.get('RUR').rate)
+        ws.cell(10, 4, 1 / Currency.query.get('USD').rate)
 
         ws.cell(7, 6, self.subtotal_krw)
         ws.cell(7, 7, self.total_weight)
         ws.cell(7, 8, self.shipping_krw)
         ws.cell(7, 9, self.total_krw)
-        ws.cell(7, 10, reduce(lambda acc, op: acc + op.points, self.order_products, 0))
-        ws.cell(9, 6, self.subtotal_usd)
-        ws.cell(9, 7, self.total_weight)
-        ws.cell(9, 8, self.shipping_usd)
-        ws.cell(9, 9, self.total_usd)
-        ws.cell(10, 6, self.subtotal_rur)
-        ws.cell(10, 7, self.total_weight)
-        ws.cell(10, 8, self.shipping_rur)
-        ws.cell(10, 9, self.total_rurs)
-        
-
-        # Set packing list footer
-        pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
-        pl.cell(312, 2, invoice_dict['weight'] / 1000)
+        ws.cell(7, 10, reduce(lambda acc, op: acc + op.product.points, self.order_products, 0))
+        # Set shipping
+        ws.cell(1, 13, self.shipping.name)
+        ws.cell(2, 13, self.country.name)
 
         # Set order product lines
-        row = 31
-        last_row = 304
-
-        for op in order_products:
-            # Set invoice product item
-            ws.cell(row, 1, op['id'])
-            ws.cell(row, 2, op['name'])
-            ws.cell(row, 3, op['quantity'])
-            ws.cell(row, 4, op['price'])
-            ws.cell(row, 5, op['subtotal'])
-
-            # Set packing list product item
-            pl.cell(row, 1, op['id'])
-            pl.cell(row, 2, op['name'])
-            pl.cell(row, 4, op['quantity'])
-
+        row = 12
+        for suborder in self.suborders:
+            # suborder_shipping = \
+            #     self.shipping_krw / self.total_weight * suborder.total_weight
+            while ws.cell(row, 1).value == '': # Skip till next suborder
+                row += 1
+            ws.cell(row, 1, suborder.seq_num)
+            ws.cell(row, 2, f'{suborder.subcustomer.username}: {suborder.subcustomer.name}')
             row += 1
-        ws.delete_rows(row, last_row - row + 1)
-        pl.delete_rows(row, last_row - row + 1)
-        invoice_wb.save(f'/var/www/order/app/static/invoices/{invoice_file_name}')
+            for op in suborder.order_products:
+                ws.cell(row, 1, op.product_id)
+                ws.cell(row, 2, op.product.name_english)
+                ws.cell(row, 3, op.product.name_russian)
+                ws.cell(row, 4, op.quantity)
+                ws.cell(row, 5, op.price)
+                ws.cell(row, 6, op.price * op.quantity)
+                ws.cell(row, 7, op.product.weight * op.quantity)
+                ws.cell(row, 8, self.shipping_krw / self.total_weight * \
+                    op.product.weight * op.quantity)
+            row += 1
+        # filename = f'{package_path}/{self.id}.xlsx'
+        file = NamedTemporaryFile()
+        order_wb.save(file.name)
+        file.seek(0)
+        return file

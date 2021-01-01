@@ -1,7 +1,7 @@
 ''' Handful tools '''
 import enum
 from datetime import datetime
-from flask import current_app
+from flask import current_app, send_file
 from functools import reduce
 import logging
 import os
@@ -157,16 +157,3 @@ def modify_object(entity, payload, editable_attributes):
                 setattr(entity, attr, payload[attr])
             entity.when_changed = datetime.now()
     return entity
-
-def download_and_delete(filename):
-    file_handle = open(filename, 'r')
-
-    def stream_and_remove_file():
-        yield from file_handle
-        file_handle.close()
-        os.remove(filename)
-
-    return current_app.response_class(
-        stream_and_remove_file(),
-        headers={'Content-Disposition': 'attachment', 'filename': filename}
-    )
