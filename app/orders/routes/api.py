@@ -308,7 +308,11 @@ def user_save_order(order_id):
                                             if op.product_id == item['item_code']]
                         if len(order_product) > 0:
                             update_order_product(order, order_product[0], item)
-                            order_products.remove(order_product[0])
+                            try:
+                                order_products.remove(order_product[0])
+                            except ValueError:
+                                current_app.logger.exception("Couldn't remove <OP: %s> from the list",
+                                    order_product[0].id)
                         else:
                             try:
                                 add_order_product(suborder, item, errors)
