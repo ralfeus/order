@@ -336,7 +336,7 @@ function submit_order() {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify({
-            name: $('#name').val(),
+            customer_name: $('#name').val(),
             address: $('#address').val(),
             country: $('#country').val(),
             zip: $('#zip').val(),

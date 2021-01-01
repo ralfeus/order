@@ -127,7 +127,7 @@ def user_create_order():
         abort(Response(f"The country <{request_data['country']}> was not found", status=400))
     order = Order(
         user=current_user,
-        customer_name=request_data['name'],
+        customer_name=request_data['customer_name'],
         address=request_data['address'],
         country_id=request_data['country'],
         country=country,
@@ -270,8 +270,8 @@ def user_save_order(order_id):
         abort(Response("No order data was provided", status=400))
 
     errors = []
-    if payload.get('name') and order.name != payload['name']:
-        order.customer_name = payload['name']
+    if payload.get('customer_name') and order.name != payload['customer_name']:
+        order.customer_name = payload['customer_name']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
     if payload.get('country') and order.country_id != payload['country']:
