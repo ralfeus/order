@@ -159,7 +159,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_mobile_consent(self):
         self.__logger.info("AtomyQuick: Setting mobile consent")
-        self.__browser.get_element_by_id('chkAgree_tax_gubun2').click()
+        self.__browser.click(self.__browser.get_element_by_id('chkAgree_tax_gubun2'))
 
     def __set_sender_name(self):
         self.__log("AtomyQuick: Setting sender name")
