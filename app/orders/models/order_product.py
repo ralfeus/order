@@ -1,6 +1,7 @@
-import copy
 from datetime import datetime
 import enum
+
+from flask_security import current_user
 
 from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
@@ -16,8 +17,8 @@ class OrderProductStatus(enum.Enum):
     unavailable = 3
     purchased = 4
     shipped = 5
-    complete = 6
-    cancelled = 7
+    # complete = 6
+    # cancelled = 7
 
 class OrderProductStatusEntry(db.Model):
     __tablename__ = 'order_product_status_history'
@@ -25,7 +26,9 @@ class OrderProductStatusEntry(db.Model):
 
     order_product_id = Column('order_product_id', Integer,
         ForeignKey('order_products.id'), primary_key=True)
-    status = Column('status', Enum(OrderProductStatus))
+    order_product = relationship('OrderProduct', foreign_keys=[order_product_id])
+    status = Column('status', Enum(OrderProductStatus),
+        default=OrderProductStatus.pending)
     user_id = Column('user_id', Integer, ForeignKey('users.id'))
     user = relationship("User", foreign_keys=[user_id])
     when_created = Column('when_created', DateTime, primary_key=True)
@@ -55,8 +58,7 @@ class OrderProduct(db.Model, BaseModel):
     quantity = Column(Integer)
     private_comment = Column(String(256))
     public_comment = Column(String(256))
-    status = Column(Enum(OrderProductStatus),
-        server_default=OrderProductStatus.pending.name)
+    status = Column(Enum(OrderProductStatus))
     status_history = relationship("OrderProductStatusEntry", lazy='dynamic')
 
     def __init__(self, **kwargs):
@@ -78,7 +80,13 @@ class OrderProduct(db.Model, BaseModel):
         return "<OrderProduct: Suborder: {}, Product: {}, Status: {}".format(
             self.suborder.id, self.product_id, self.status)
 
-    def postpone(self, user):
+    def delete(self):
+        for op_status_entry in self.status_history:
+            db.session.delete(op_status_entry)
+        db.session.delete(self)
+        self.suborder.order.update_total()
+
+    def postpone(self):
         from . import Order, OrderStatus, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
             Order.user_id == self.suborder.order.user_id,
@@ -114,20 +122,21 @@ class OrderProduct(db.Model, BaseModel):
         )
         db.session.add(postponed_order_product)
         postponed_order.update_total()
-        self.set_status(OrderProductStatus.cancelled, user)
+        self.delete()
         db.session.commit()
         return postponed_order_product
     
-    def set_status(self, status, user):
+    def set_status(self, status, user=None):
         self.status = status
         db.session.add(OrderProductStatusEntry(
-            order_product_id=self.id,
+            order_product=self,
             status=status,
-            user=user,
+            user=user \
+                if user is not None else \
+                None if current_user.is_anonymous else \
+                current_user,
             when_created=datetime.now()
         ))
-        if status == OrderProductStatus.cancelled:
-            self.suborder.order.update_total()
 
     def to_dict(self):
         return {

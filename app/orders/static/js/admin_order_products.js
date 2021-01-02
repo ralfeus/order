@@ -198,7 +198,7 @@ function set_status(target, newStatus) {
         for (var i = 0; i < target.count(); i++) {
             order_products.push(target.data()[i].id);
             $.ajax({
-                url: '/api/v1/order/product/' + 
+                url: '/api/v1/admin/order/product/' + 
                     target.data()[i].id + '/status/' + newStatus,
                 method: 'POST',
                 success: function(response, status, xhr) {
