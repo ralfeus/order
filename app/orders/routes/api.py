@@ -27,7 +27,7 @@ def delete_order(order_id):
     order = Order.query.get(order_id)
     if order is None:
         abort(Response(f"No order <{order_id}> was found", status=404))
-    if order.status in [OrderStatus.paid, OrderStatus.po_created, OrderStatus.shipped]:
+    if order.status in [OrderStatus.po_created, OrderStatus.shipped]:
         abort(Response(f"Can't delete order in status <{order.status.name}>", status=409))
     if order.invoice is not None:
         abort(Response(f"""
@@ -87,7 +87,7 @@ def user_get_orders(order_id):
         orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
     if request.values.get('to_attach') is not None:
         orders = orders.join(PostponeShipping).filter(
-            not_(Order.status.in_([OrderStatus.shipped, OrderStatus.complete])))
+            Order.status != OrderStatus.shipped)
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
     if orders.count() == 0:
@@ -127,7 +127,7 @@ def user_create_order():
         abort(Response(f"The country <{request_data['country']}> was not found", status=400))
     order = Order(
         user=current_user,
-        customer_name=request_data['name'],
+        customer_name=request_data['customer_name'],
         address=request_data['address'],
         country_id=request_data['country'],
         country=country,
@@ -270,8 +270,8 @@ def user_save_order(order_id):
         abort(Response("No order data was provided", status=400))
 
     errors = []
-    if payload.get('name') and order.name != payload['name']:
-        order.customer_name = payload['name']
+    if payload.get('customer_name') and order.customer_name != payload['customer_name']:
+        order.customer_name = payload['customer_name']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
     if payload.get('country') and order.country_id != payload['country']:
@@ -308,7 +308,12 @@ def user_save_order(order_id):
                                             if op.product_id == item['item_code']]
                         if len(order_product) > 0:
                             update_order_product(order, order_product[0], item)
-                            order_products.remove(order_product[0])
+                            try:
+                                order_products.remove(order_product[0])
+                            except ValueError:
+                                current_app.logger.exception(
+                                    "Couldn't remove <OP: %s> from the list. Apparently it's not there anymore",
+                                    order_product[0].id)
                         else:
                             try:
                                 add_order_product(suborder, item, errors)
@@ -327,7 +332,7 @@ def user_save_order(order_id):
     
         # Remove order products
         for order_product in order_products:
-            delete_order_product(order, order_product)
+            order_product.delete()
 
     order.update_total()
 
@@ -373,10 +378,26 @@ def save_order_product(order_product_id):
     except Exception as ex:
         abort(Response(str(ex), status=500))
 
-@bp_api_user.route('/product/<int:order_product_id>/status/<order_product_status>',
-                   methods=['POST'])
+@bp_api_user.route('/product/<int:order_product_id>',
+                   methods=['DELETE'])
 @login_required
-def user_set_order_product_status(order_product_id, order_product_status):
+def user_delete_order_product(order_product_id):
+    '''Deletes selected order product'''
+    order_product = get_order_product(order_product_id)
+    if not order_product:
+        abort(Response(f"No order product <{order_product_id}> was found", status=404))
+
+    order_product.delete()
+
+    return jsonify({
+        'id': order_product_id,
+        'status': 'success'
+    })
+
+@bp_api_admin.route('/product/<int:order_product_id>/status/<order_product_status>',
+                   methods=['POST'])
+@roles_required('admin')
+def admin_set_order_product_status(order_product_id, order_product_status):
     '''
     Sets new status of the selected order product
     '''
@@ -384,13 +405,7 @@ def user_set_order_product_status(order_product_id, order_product_status):
     if not order_product:
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
-    user_allowed_statuses = [OrderProductStatus.cancelled]
     order_product_status = OrderProductStatus[order_product_status]
-    if not current_user.has_role('admin') \
-        and order_product_status not in user_allowed_statuses:
-        abort(Response(f"You are not allowed to set status <{order_product_status}>",
-            status=409
-        ))
     order_product.set_status(order_product_status, current_user)
     db.session.commit()
 
@@ -424,7 +439,7 @@ def postpone_order_product(order_product_id):
     order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"No product <{order_product_id}> was found", status=404))
-    postponed_order_product = order_product.postpone(current_user)
+    postponed_order_product = order_product.postpone()
     
     return jsonify({
         'new_id': postponed_order_product.id,
@@ -439,12 +454,6 @@ def update_order_product(order, order_product, item):
         order_product.quantity = int(item['quantity'])
         order_product.when_changed = datetime.now()
         order.when_changed = datetime.now()
-
-def delete_order_product(order, order_product):
-    db.session.delete(order_product)
-    order.total_weight -= order_product.product.weight * order_product.quantity
-    order.subtotal_krw -= order_product.price * order_product.quantity
-    order.when_changed = datetime.now()
 
 @bp_api_admin.route('/<order_id>', methods=['POST'])
 @roles_required('admin')

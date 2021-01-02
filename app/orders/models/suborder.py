@@ -36,13 +36,13 @@ class Suborder(db.Model, BaseModel):
     def total_weight(self):
         return reduce(
                 lambda acc, op: acc + op.product.weight * op.quantity,
-                self.get_actual_order_products(), 0)
+                self.order_products, 0)
 
     @property
     def total_krw(self):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
-            self.get_actual_order_products(), 0) + \
+            self.order_products, 0) + \
             (self.local_shipping if self.local_shipping else 0)
 
     def get_subtotal(self, currency=None):
@@ -78,10 +78,6 @@ class Suborder(db.Model, BaseModel):
     def __repr__(self):
         return "<Suborder: {}>".format(self.id)
 
-    def get_actual_order_products(self):
-        return self.order_products.filter(
-            OrderProduct.status != OrderProductStatus.cancelled)
-
     def get_purchase_order(self):
         from app.purchase.models import PurchaseOrder
         return PurchaseOrder.query.filter_by(suborder_id=self.id).first()
@@ -112,7 +108,7 @@ class Suborder(db.Model, BaseModel):
         free_local_shipment_eligibility_amount = reduce(
             calc_op_total, filter(
                 lambda op: not op.product.separate_shipping,
-                self.get_actual_order_products()
+                self.order_products
             ), 0)
         self.local_shipping = \
             current_app.config['LOCAL_SHIPPING_COST'] \

@@ -90,10 +90,9 @@ $(document).ready( function () {
 
 function cancel(target) {
     target.data().toArray().forEach(op => {
-        $.post('/api/v1/order/product/' + op.id + '/status/cancelled')
+        $.delete('/api/v1/order/product/' + op.id)
             .then(response => {
-                target.cell(parseInt(response.id), 8)
-                    .data(response.order_product_status).draw();
+                target.raw(parseInt(response.id)).data().draw();
             });
     });
 }
@@ -119,8 +118,13 @@ function postpone(target) {
     target.data().toArray().forEach(op => {
         $.post('/api/v1/order/product/' + op.id + '/postpone')
             .then(response => {
+                modal("Postpone order product", 
+                 "The product is moved to sale order " + response.new_order_id);
                 target.cell(parseInt(response.id), 8)
                     .data(response.order_product_status).draw();
+            })
+            .fail(error => {
+                modal('Postpone order product', error.responseText);
             });
     });
 }

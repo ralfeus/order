@@ -40,7 +40,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
-                "name":"User1",
+                "customer_name":"User1",
                 "address":"Address1",
                 "country":"c1",
                 'zip': '0000',
@@ -69,7 +69,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
-                "name":"User1",
+                "customer_name":"User1",
                 "address":"Address1",
                 "country":"c1",
                 'zip': '0000',
@@ -95,7 +95,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
-                "name":"User1",
+                "customer_name":"User1",
                 "address":"Address1",
                 "country":"c1",
                 'zip': '00000',
@@ -115,7 +115,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(Subcustomer.query.filter_by(username='A000').count(), 1)
         res = self.client.post('/api/v1/order', json={
-            "name":"User1",
+            "customer_name":"User1",
             "address":"Address1",
             "country":"c1",
             'zip': '0000',
@@ -140,7 +140,7 @@ class TestOrdersApi(BaseTestCase):
     def test_delete_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
-        order1 = Order(id=gen_id + '1', user=self.user, status=OrderStatus.paid)
+        order1 = Order(id=gen_id + '1', user=self.user, status=OrderStatus.shipped)
         order2 = Order(id=gen_id + '2', user=self.user)
         suborder = Suborder(order=order)
         self.try_add_entities([
@@ -304,7 +304,7 @@ class TestOrdersApi(BaseTestCase):
                 price=10, quantity=10)
         ])
         self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/product/{op_id}/status/pending'))
+            lambda: self.client.post(f'/api/v1/admin/order/product/{op_id}/status/pending'))
 
     def test_get_order_product_status_history(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -375,7 +375,7 @@ class TestOrdersApi(BaseTestCase):
         postponed_order1.update_total()
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order', json={
-                "name":"User1",
+                "customer_name":"User1",
                 "address":"Address1",
                 "country":"c1",
                 'zip': '0000',
@@ -416,7 +416,7 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={
-                'status': 'paid'
+                'status': 'shipped'
             })
         )
         self.assertEqual(res.status_code, 200)

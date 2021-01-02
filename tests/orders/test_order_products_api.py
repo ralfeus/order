@@ -53,11 +53,11 @@ class TestOrderProductsApi(BaseTestCase):
             op1, op2
         ])
         res = self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/product/{op_id}/status/cancelled')
+            lambda: self.client.delete(f'/api/v1/order/product/{op_id}')
         )
         self.assertEqual(res.status_code, 200)
-        order = OrderProduct.query.get(op_id).suborder.order
-        self.assertEqual(order.total_krw, 3350)
+        op = OrderProduct.query.get(op_id)
+        self.assertEqual(op, None)
         
     def test_postpone_order_product(self):
         op_id = datetime.now().microsecond

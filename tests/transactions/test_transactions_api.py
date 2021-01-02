@@ -70,7 +70,7 @@ class TestTransactionApi(BaseTestCase):
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={
-                'status': 'paid'
+                'status': 'shipped'
             })
         )
         self.assertEqual(res.status_code, 200)

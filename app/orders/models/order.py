@@ -25,9 +25,9 @@ class OrderStatus(enum.Enum):
     pending = 1
     can_be_paid = 2
     po_created = 3
-    paid = 4
+    # paid = 4
     shipped = 5
-    complete = 6
+    # complete = 6
 
 class Order(db.Model, BaseModel):
     ''' System's order '''
@@ -62,7 +62,7 @@ class Order(db.Model, BaseModel):
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
     status = Column(Enum(OrderStatus),
-        server_default=OrderStatus.pending.name)
+        default=OrderStatus.pending.name)
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
     when_created = Column(DateTime)
@@ -104,7 +104,7 @@ class Order(db.Model, BaseModel):
         if value == OrderStatus.shipped:
             for ao in self.attached_orders:
                 ao.set_status(value, actor)
-        if value == OrderStatus.paid:
+        if value == OrderStatus.shipped:
             self.__pay(actor)
 
     def __init__(self, **kwargs):

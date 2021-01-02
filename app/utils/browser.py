@@ -55,6 +55,9 @@ class Browser:
             raise ex
         except Exception as ex:
             raise Exception(f"No element with {criterium} {value} was found", ex)
+    
+    def click_by_id(self, element_id):
+        self.__browser.execute_script(f'$("#{element_id}").click()')
 
     def doubleclick(self, element):
         ActionChains(self.__browser).double_click(element).perform()

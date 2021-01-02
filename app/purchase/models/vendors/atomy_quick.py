@@ -73,6 +73,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__set_payment_mobile(purchase_order.payment_phone)
             self.__set_payment_destination(purchase_order.bank_id)
             self.__set_tax_info(purchase_order.company.tax_id)
+            self.__set_mobile_consent()
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
@@ -155,6 +156,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__browser.get_element_by_id('cPackingMemo2').click()
             self.__browser.get_element_by_id('all-agree').click()
             self.__browser.get_element_by_class('btnInsert').click()
+
+    def __set_mobile_consent(self):
+        self.__logger.info("AtomyQuick: Setting mobile consent")
+        self.__browser.click_by_id('chkAgree_tax_gubun2')
 
     def __set_sender_name(self):
         self.__log("AtomyQuick: Setting sender name")

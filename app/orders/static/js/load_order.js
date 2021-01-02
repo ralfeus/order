@@ -31,7 +31,7 @@ function get_order(order_id) {
 
 async function populate_order(order_data) {
     cleanup();
-    $('#name').val(order_data.customer);
+    $('#name').val(order_data.customer_name);
     $('#address').val(order_data.address);
     $('#phone').val(order_data.phone);
     $('#zip').val(order_data.zip);
