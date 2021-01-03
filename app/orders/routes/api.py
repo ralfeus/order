@@ -4,11 +4,11 @@ import re
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
-from sqlalchemy import and_, or_, not_
+from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
-from app.exceptions import SubcustomerParseError
+from app.exceptions import EmptySuborderError, SubcustomerParseError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
@@ -176,14 +176,23 @@ def user_create_order():
     return jsonify(result)
 
 def add_suborders(order, suborders, errors):
+    suborders_count = 0
     for suborder_data in suborders:
-        add_suborder(order, suborder_data, errors)
+        try:
+            add_suborder(order, suborder_data, errors)
+            suborders_count += 1
+        except EmptySuborderError as ex:
+            errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")
+    if suborders_count == 0:
+        abort(Response("The order is empty. Please add at least one product.", status=409))
 
 def add_suborder(order, suborder_data, errors):
     try:
         subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
         if is_new:
             db.session.add(subcustomer)
+        if len(suborder_data['items']) == 1 and suborder_data['items'][0]['item_code'] == '':
+            raise EmptySuborderError(subcustomer.username)
         suborder = Suborder(
             order=order,
             seq_num=suborder_data.get('seq_num'),
