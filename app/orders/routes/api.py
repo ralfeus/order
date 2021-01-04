@@ -9,7 +9,8 @@ from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
-from app.exceptions import EmptySuborderError, OrderError, SubcustomerParseError
+from app.exceptions import AtomyLoginError, EmptySuborderError, OrderError, \
+    SubcustomerParseError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
@@ -660,8 +661,8 @@ def validate_subcustomer():
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
-    except:
-        current_app.logger.exception("Couldn't validate subcustomer %s", payload)
+    except AtomyLoginError:
+        current_app.logger.info("Couldn't validate subcustomer %s", payload)
         return jsonify({'result': 'failure'})
 
 def get_order_product(order_product_id):
