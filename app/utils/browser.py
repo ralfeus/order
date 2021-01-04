@@ -26,7 +26,7 @@ class Browser:
         if self.__browser:
             self.__browser.quit()
             logging.info("%s: Quitted browser at __del__()", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
-        del self.__browser
+            del self.__browser
     
     def __create_browser_instanse(self):
         options = Options()
