@@ -1,7 +1,8 @@
 ''' Singleton of web browser '''
 import logging
 from selenium.common.exceptions import NoSuchElementException,\
-    StaleElementReferenceException, UnexpectedAlertPresentException
+    StaleElementReferenceException, TimeoutException, \
+    UnexpectedAlertPresentException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -56,8 +57,8 @@ class Browser:
                     EC.presence_of_element_located((criterium, value)))
         except UnexpectedAlertPresentException as ex:
             raise ex
-        except Exception as ex:
-            raise Exception(f"No element with {criterium} {value} was found", ex)
+        except TimeoutException as ex:
+            raise NoSuchElementException(f"No element with {criterium} {value} was found", ex)
     
     def click_by_id(self, element_id):
         self.__browser.execute_script(f'$("#{element_id}").click()')
@@ -111,6 +112,8 @@ class Browser:
             WebDriverWait(self.__browser, 20).until(
                 EC.url_to_be(url)
             )
+        except UnexpectedAlertPresentException as ex:
+            raise UnexpectedAlertPresentException(f"Didn't get URL {url}", ex.alert_text)
         except Exception as ex:
             raise Exception(f"Didn't get URL {url}", ex)
 
