@@ -204,7 +204,10 @@ function init_orders_table() {
                 "defaultContent": ' \
                     <button \
                         class="btn btn-sm btn-secondary btn-open" \
-                        onclick="open_order(this);">Open</button>'
+                        onclick="open_order(this);">Open</button> \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-invoice" \
+                        onclick="open_order_invoice(this);">Invoice</button>'
             },            
             {data: 'id'},
             {data: 'user'},
@@ -234,6 +237,11 @@ function init_orders_table() {
         select: true,
         serverSide: true,
         processing: true,
+        createdRow: (row, data) => {
+            if (data.status != 'shipped') {
+                $('.btn-invoice', row).remove();
+            }
+        },
         initComplete: function () {
             // Apply the search
             this.api().columns().every(function() { 
@@ -249,10 +257,16 @@ function init_orders_table() {
                     })
                     .val('');
             });
-        }
+        }    
     });
 }
 
 function open_order(target) {
     window.location = g_orders_table.row($(target).parents('tr')).data().id;
+}
+
+function open_order_invoice(target) {
+    window.location = '/api/v1/order/' + 
+        g_orders_table.row($(target).parents('tr')).data().id +
+        '/excel';
 }

@@ -5,9 +5,10 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 from functools import reduce
-import openpyxl
 import os.path
 from tempfile import NamedTemporaryFile
+import openpyxl
+from openpyxl.styles import PatternFill
 
 from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
 # from sqlalchemy.ext.hybrid import hybrid_property
@@ -15,6 +16,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.exceptions import OrderError
 from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
@@ -190,6 +192,7 @@ class Order(db.Model, BaseModel):
             'phone': self.phone,
             'invoice_id': self.invoice_id,
             'subtotal_krw': self.subtotal_krw,
+            'total_weight': self.total_weight,
             'shipping_krw': self.shipping_krw,
             'total': self.total_krw,
             'total_krw': self.total_krw,
@@ -256,41 +259,65 @@ class Order(db.Model, BaseModel):
         self.total_usd = self.subtotal_usd + self.shipping_usd
 
 
-    def create_order_excel(self):
+    def get_order_excel(self):
+        if len(self.order_products) == 0:
+            raise OrderError("The order has no products")
+        self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
+        suborder_fill = PatternFill(
+            start_color='00FFFF00', end_color='00FFFF00', fill_type='solid')
         order_wb = openpyxl.open(f'{package_path}/templates/order_template.xlsx')
         ws = order_wb.worksheets[0]
 
         # Set order header
-        ws.cell(3, 2, self.id)
-        ws.cell(3, 3, self.when_created)
-        ws.cell(5, 2, self.customer_name)
-        ws.cell(6, 2, self.address + '\n' + self.zip)
-        ws.cell(7, 2, self.phone)
+        ws.cell(2, 2, self.id)
+        ws.cell(2, 3, self.when_created.strftime('%Y-%m-%d'))
+        ws.cell(4, 2, self.customer_name)
+        ws.cell(5, 2, str(self.address) + '\n' + str(self.zip))
+        ws.cell(6, 2, self.phone)
         # Set currency rates
-        ws.cell(9, 4, 1 / Currency.query.get('RUR').rate)
-        ws.cell(10, 4, 1 / Currency.query.get('USD').rate)
+        ws.cell(8, 5, float(1 / Currency.query.get('RUR').rate))
+        ws.cell(9, 5, float(1 / Currency.query.get('USD').rate))
 
-        ws.cell(7, 6, self.subtotal_krw)
-        ws.cell(7, 7, self.total_weight)
-        ws.cell(7, 8, self.shipping_krw)
-        ws.cell(7, 9, self.total_krw)
-        ws.cell(7, 10, reduce(lambda acc, op: acc + op.product.points, self.order_products, 0))
+        ws.cell(6, 6, self.subtotal_krw)
+        ws.cell(6, 7, self.total_weight + self.shipping_box_weight)
+        ws.cell(6, 8, self.shipping_krw)
+        ws.cell(6, 9, self.total_krw)
+        ws.cell(6, 13, reduce(lambda acc, op: acc + op.product.points, 
+                              self.order_products, 0))
         # Set shipping
-        ws.cell(1, 13, self.shipping.name)
-        ws.cell(2, 13, self.country.name)
+        ws.cell(1, 6, self.shipping.name)
+        ws.cell(2, 6, self.country.name)
+        # Set packaging
+        ws.cell(11, 7, self.shipping_box_weight)
 
         # Set order product lines
-        row = 12
+        op_shipping = {}
+        row = 11
         for suborder in self.suborders:
-            # suborder_shipping = \
-            #     self.shipping_krw / self.total_weight * suborder.total_weight
-            while ws.cell(row, 1).value == '': # Skip till next suborder
-                row += 1
-            ws.cell(row, 1, suborder.seq_num)
-            ws.cell(row, 2, f'{suborder.subcustomer.username}: {suborder.subcustomer.name}')
+            if suborder.order_products.count() == 0:
+                continue
             row += 1
+            suborder_row = row
+            ws.merge_cells(f"B{row}:C{row}")
+            for cell in ws[f'A{row}:M{row}'][0]:
+                cell.fill = suborder_fill
+            ws.cell(row, 2, f'{suborder.subcustomer.username}: {suborder.subcustomer.name}')
+            ws.cell(row, 6, suborder.total_krw)
+            ws.cell(row, 7, suborder.total_weight)
+            # ws.cell(row, 8, suborder_shipping)
+            ws.cell(row, 9, f'=F{row} + H{row}')
+            ws.cell(row, 10, f'=I{row} / $E$8')
+            ws.cell(row, 11, f'=I{row} / $E$9')
+            ws.cell(row, 13,
+                reduce(
+                    lambda acc, op: acc + op.product.points * op.quantity,
+                    suborder.order_products, 0)
+            )
             for op in suborder.order_products:
+                row += 1
+                op_shipping[row] = round(self.shipping_krw / self.total_weight * \
+                    op.product.weight * op.quantity)
                 ws.cell(row, 1, op.product_id)
                 ws.cell(row, 2, op.product.name_english)
                 ws.cell(row, 3, op.product.name_russian)
@@ -298,10 +325,28 @@ class Order(db.Model, BaseModel):
                 ws.cell(row, 5, op.price)
                 ws.cell(row, 6, op.price * op.quantity)
                 ws.cell(row, 7, op.product.weight * op.quantity)
-                ws.cell(row, 8, self.shipping_krw / self.total_weight * \
-                    op.product.weight * op.quantity)
-            row += 1
-        # filename = f'{package_path}/{self.id}.xlsx'
+                ws.cell(row, 8, op_shipping[row])
+                ws.cell(row, 9, ws.cell(row, 6).value + ws.cell(row, 8).value)
+                ws.cell(row, 10, f'=I{row} / $E$8')
+                ws.cell(row, 11, f'=I{row} / $E$9')
+                ws.cell(row, 12, op.product.points)
+                ws.cell(row, 13, op.product.points * op.quantity)
+            if suborder.local_shipping != 0:
+                row += 1
+                ws.cell(row, 2, "Local shipping")
+                ws.cell(row, 4, 1)
+                ws.cell(row, 5, 2500)
+                ws.cell(row, 6, 2500)
+            ws.cell(suborder_row, 8, f'=SUM(H{suborder_row + 1}:H{row})')
+        # Compensate rounding error
+        if len(op_shipping) > 0:
+            diff = self.shipping_krw - \
+                reduce(lambda acc, op_ship: acc + op_ship[1], op_shipping.items(), 0)
+            if op_shipping.get(row) is None:
+                row -= 1
+            ws.cell(row, 8).value += diff
+            ws.cell(row, 9).value += diff
+        
         file = NamedTemporaryFile()
         order_wb.save(file.name)
         file.seek(0)

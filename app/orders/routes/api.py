@@ -1,3 +1,4 @@
+'''API endpoints for sale order management'''
 from datetime import datetime
 import re
 
@@ -8,7 +9,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
-from app.exceptions import EmptySuborderError, SubcustomerParseError
+from app.exceptions import EmptySuborderError, OrderError, SubcustomerParseError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
@@ -16,7 +17,7 @@ from app.orders.models import Order, OrderProduct, OrderProductStatus, \
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query, modify_object
+from app.tools import prepare_datatables_query, modify_object, stream_and_close
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -677,15 +678,15 @@ def user_get_order_excel(order_id):
     '''
     Generates an Excel file for an order
     '''
-    
     order = Order.query.get(order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
-    file = order.create_order_excel()
-    def stream_and_close_file():
-        yield from file
-        file.close()
-    return current_app.response_class(stream_and_close_file(), headers={
-        'Content-Disposition': f'attachment; filename="{order_id}.xlsx"',
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    })
+    try:
+        file = order.get_order_excel()
+        return current_app.response_class(stream_and_close(file), headers={
+            'Content-Disposition': f'attachment; filename="{order_id}.xlsx"',
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+    except OrderError as ex:
+        abort(Response(
+            f"Couldn't generate an order Excel due to following error: {';'.join(ex.args)}"))

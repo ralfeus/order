@@ -10,6 +10,9 @@ class NoPurchaseOrderError(Exception):
 class NoShippingRateError(Exception):
     pass
 
+class OrderError(Exception):
+    pass
+
 class PaymentNoReceivedAmountException(Exception):
     pass
 

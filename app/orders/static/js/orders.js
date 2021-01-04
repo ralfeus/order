@@ -25,7 +25,10 @@ $(document).ready( function () {
                 "defaultContent": ' \
                     <button \
                         class="btn btn-sm btn-secondary btn-open" \
-                        onclick="open_order(this);">Open</button>'
+                        onclick="open_order(this);">Open</button> \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-invoice" \
+                        onclick="open_order_invoice(this);">Invoice</button>'
             },
             {data: 'id'},
             {data: 'customer_name'},
@@ -39,7 +42,12 @@ $(document).ready( function () {
         order: [[7, 'desc']],
         select: true,
         serverSide: true,
-        processing: true
+        processing: true,
+        createdRow: (row, data) => {
+            if (data.status != 'shipped') {
+                $('.btn-invoice', row).remove();
+            }
+        }
     });
 
     // $('#orders tbody').on('click', 'td.details-control', function () {
@@ -122,4 +130,10 @@ function get_excel(rows) {
 
 function open_order(target) {
     window.location = order_table.row($(target).parents('tr')).data().id;
+}
+
+function open_order_invoice(target) {
+    window.location = '/api/v1/order/' + 
+        order_table.row($(target).parents('tr')).data().id +
+        '/excel';
 }

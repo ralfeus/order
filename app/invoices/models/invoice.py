@@ -57,14 +57,7 @@ class Invoice(BaseModel, db.Model):
         self._invoice_items.append = invoice.get_invoice_items()
 
     def get_orders(self):
-        if Order.query.filter_by(customer_invoice_id=self.id).count() > 0:
-            return None
         return Order.query.filter_by(invoice_id=self.id).all()
-
-    def get_order(self):
-        if Order.query.filter_by(invoice_id=self.id).count() > 0:
-            return None
-        return Order.query.filter_by(customer_invoice_id=self.id).first()
 
     def get_invoice_items(self):
         if self._invoice_items.count() > 0:

@@ -19,7 +19,7 @@ class Product(db.Model, BaseModel):
     category = Column(String(64))
     weight = Column(Integer, default=0)
     price = Column(Integer)
-    points = Column(Integer)
+    points = Column(Integer, default=0)
     separate_shipping = Column(Boolean, default=False)
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)

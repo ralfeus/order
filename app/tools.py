@@ -157,3 +157,7 @@ def modify_object(entity, payload, editable_attributes):
                 setattr(entity, attr, payload[attr])
             entity.when_changed = datetime.now()
     return entity
+
+def stream_and_close(file_handle):
+    yield from file_handle
+    file_handle.close()
