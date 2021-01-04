@@ -655,6 +655,7 @@ def validate_subcustomer():
     if not payload or not payload.get('subcustomer'):
         abort(Response('No subcustomer data was provided', status=400))
     
+    current_app.logger.debug(f"Validating subcustomer {payload}")
     try:
         subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
         atomy_login(subcustomer.username, subcustomer.password)
