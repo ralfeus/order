@@ -29,33 +29,32 @@ def atomy_login(username, password, browser=None):
     password_field.send_keys(password)
     current_app.logger.debug("atomy.atomy_login(): Submitting credentials")
     password_field.submit()
-    for _attempt in range(2):
+    try:
+        current_app.logger.debug("atomy.atomy_login(): Waiting for home page")
+        local_browser.wait_for_url('https://www.atomy.kr/v2/Home')
+        current_app.logger.debug('atomy.atomy_login(): Login is successful')
+        return
+    except UnexpectedAlertPresentException as ex:
+        current_app.logger.debug("atomy.atomy_login(): Alert is %s. Login is failed", ex.args)
+        raise AtomyLoginError(ex)
+    except Exception as ex:
+        current_app.logger.debug("atomy.atomy_login(): Couldn't get home page")
         try:
-            current_app.logger.debug("atomy.atomy_login(): Waiting for home page")
-            local_browser.wait_for_url('https://www.atomy.kr/v2/Home')
-            current_app.logger.debug('atomy.atomy_login(): Login is successful')
-            return
-        except UnexpectedAlertPresentException as ex:
-            current_app.logger.debug("atomy.atomy_login(): Alert is %s. Login is failed", ex.args)
-            raise AtomyLoginError(ex)
-        except Exception as ex:
-            current_app.logger.debug("atomy.atomy_login(): Couldn't get home page")
-            try:
-                if local_browser.get_element_by_id('btnRelayPassword'):
-                    current_app.logger.debug("atomy.atomy_login(): Password change request is found. Dismissing")
-                    __ignore_change_password(local_browser)
-                else:
-                    current_app.logger.debug("atomy.atomy_login(): The reason is unknown. Login is failed")
-                    raise AtomyLoginError(ex)
-            except AtomyLoginError as ex:
-                current_app.logger.debug('atomy.atomy_login(): Login is failed: %s', ex.args)
-                raise ex
-            except NoSuchElementException:
-                current_app.logger.debug("atomy.atomy_login(): No password change request is found. Login is failed")
-                raise AtomyLoginError()
-        finally:
-            if not browser:
-                local_browser.quit()
+            if local_browser.get_element_by_id('btnRelayPassword'):
+                current_app.logger.debug("atomy.atomy_login(): Password change request is found. Dismissing")
+                __ignore_change_password(local_browser)
+            else:
+                current_app.logger.debug("atomy.atomy_login(): The reason is unknown. Login is failed")
+                raise AtomyLoginError(ex)
+        except AtomyLoginError as ex:
+            current_app.logger.debug('atomy.atomy_login(): Login is failed: %s', ex.args)
+            raise ex
+        except NoSuchElementException:
+            current_app.logger.debug("atomy.atomy_login(): No password change request is found. Login is failed")
+            raise AtomyLoginError()
+    finally:
+        if not browser:
+            local_browser.quit()
 
 def __ignore_change_password(browser):
     try:
