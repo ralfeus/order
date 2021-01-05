@@ -2,8 +2,6 @@ from flask import current_app
 
 from selenium.common.exceptions import NoAlertPresentException, \
     NoSuchElementException, UnexpectedAlertPresentException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from app.exceptions import AtomyLoginError
 from app.utils.browser import Browser
@@ -13,8 +11,6 @@ def atomy_login(username, password, browser=None):
     if browser:
         local_browser = browser
     else:
-        service_log_path = None
-        service_args = None
         local_browser = Browser(config=current_app.config)
     current_app.logger.debug("atomy.atomy_login(): Getting loging page")
     local_browser.get('https://www.atomy.kr/v2/Home/Account/Login')

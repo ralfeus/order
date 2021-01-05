@@ -53,8 +53,8 @@ class TestInvoiceClient(BaseTestCase):
         )
         self.assertEqual(res.json['invoice_id'], f'{id_prefix}0001')
         invoice = Invoice.query.get(res.json['invoice_id'])
-        self.assertEqual(len(invoice.get_orders()), 1)
-        self.assertEqual(len(invoice.get_invoice_items()), 1)
+        self.assertEqual(len(invoice.orders), 1)
+        self.assertEqual(invoice.invoice_items_count, 1)
 
     def test_save_invoice(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

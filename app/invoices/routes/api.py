@@ -1,9 +1,12 @@
 from datetime import datetime
 from functools import reduce
+import os.path
+from tempfile import NamedTemporaryFile
+
 from more_itertools import map_reduce
 import openpyxl
 
-from flask import Response, abort, jsonify, request, send_file
+from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
 from sqlalchemy import or_
@@ -13,7 +16,7 @@ from app.invoices import bp_api_admin
 from app.invoices.models.invoice import Invoice
 from app.invoices.models.invoice_item import InvoiceItem
 from app.orders.models.order import Order
-from app.tools import prepare_datatables_query
+from app.tools import prepare_datatables_query, stream_and_close
 
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
@@ -110,8 +113,9 @@ def get_invoice_order_products(invoice):
     }, cumulative_order_products.items()))
     return result
 
-def create_invoice_excel(reference_invoice, invoice_file_name):
-    invoice_wb = openpyxl.open('/var/www/order/app/static/invoices/invoice_template.xlsx')
+def create_invoice_excel(reference_invoice):
+    package_path = os.path.dirname(__file__) + '/..'
+    invoice_wb = openpyxl.open(f'{package_path}/templates/invoice_template.xlsx')
     invoice_dict = reference_invoice.to_dict()
     order_products = get_invoice_order_products(reference_invoice)
     total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
@@ -165,7 +169,10 @@ def create_invoice_excel(reference_invoice, invoice_file_name):
         row += 1
     ws.delete_rows(row, last_row - row + 1)
     pl.delete_rows(row, last_row - row + 1)
-    invoice_wb.save(f'/var/www/order/app/static/invoices/{invoice_file_name}')
+    file = NamedTemporaryFile()
+    invoice_wb.save(file.name)
+    file.seek(0)
+    return file
 
 @bp_api_admin.route('/<invoice_id>', methods=['POST'])
 @roles_required('admin')
@@ -196,11 +203,12 @@ def get_invoice_excel(invoice_id):
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
     if invoice.invoice_items_count == 0:
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
-    create_invoice_excel(
-        reference_invoice=invoice, invoice_file_name=f'{invoice_id}.xlsx')
 
-    return send_file(f'static/invoices/{invoice_id}.xlsx',
-                     as_attachment=True, attachment_filename=invoice_id + '.xlsx')
+    file = create_invoice_excel(reference_invoice=invoice)
+    return current_app.response_class(stream_and_close(file), headers={
+        'Content-Disposition': f'attachment; filename="{invoice_id}.xlsx"',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
 
 @bp_api_admin.route('/excel')
 @roles_required('admin')
@@ -217,12 +225,11 @@ def get_invoice_cumulative_excel():
             cumulative_invoice.customer = invoice.customer
         cumulative_invoice.orders += invoice.orders
 
-    invoice_file_name = 'cumulative_invoice.xlsx'
-    create_invoice_excel(
-        reference_invoice=cumulative_invoice,
-        invoice_file_name=invoice_file_name)
-    return send_file(f'static/invoices/{invoice_file_name}',
-        as_attachment=True, attachment_filename=invoice_file_name)
+    file = create_invoice_excel(reference_invoice=cumulative_invoice)
+    return current_app.response_class(stream_and_close(file), headers={
+        'Content-Disposition': 'attachment; filename="cumulative_invoice.xlsx"',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
 
 @bp_api_admin.route('/<invoice_id>/item/<invoice_item_id>', methods=['POST'])
 @roles_required('admin')

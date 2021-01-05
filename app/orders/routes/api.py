@@ -331,8 +331,8 @@ def user_save_order(order_id):
                             except:
                                 pass
                     if suborder.buyout_date and (
-                        not order.purchase_date or order.purchase_date > suborder.buyout_date):
-                            order.set_purchase_date(suborder.buyout_date)
+                       not order.purchase_date or order.purchase_date > suborder.buyout_date):
+                        order.set_purchase_date(suborder.buyout_date)
             except SubcustomerParseError:
                 abort(Response(f"""Couldn't find subcustomer and provided data
                                 doesn't allow to create new one. Please provide
