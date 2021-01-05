@@ -26,7 +26,7 @@ class Browser:
     def __del__(self):
         if self.__browser:
             self.__browser.quit()
-            logging.info("%s: Quitted browser at __del__()", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
+            logging.debug("%s: Quitted browser at __del__()", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
             del self.__browser
     
     def __create_browser_instanse(self):
@@ -46,8 +46,7 @@ class Browser:
         if not self.__browser_kwargs.get('executable_path'):
             self.__browser_kwargs['executable_path'] = '/usr/bin/chromedriver'
         self.__browser = Chrome(options=options, **self.__browser_kwargs)
-        logging.info("%s: Created browser instance", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
-        logging.debug(self.__browser)
+        logging.debug("%s: Created browser instance", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
 
     def __get_by(self, criterium, value):
         ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
@@ -123,7 +122,7 @@ class Browser:
     def quit(self):
         if self.__browser:
             self.__browser.quit()
-            logging.info("%s: Quitted browser at quit()", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
+            logging.debug("%s: Quitted browser at quit()", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
             del self.__browser
 
     @property

@@ -168,7 +168,7 @@ $(document).ready( function () {
             {
                 data: 'status',
                 fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
-                    if (oData.status == 'failed') {
+                    if (['failed', 'partially_posted'].includes(oData.status)) {
                         $(nTd).html("<a href='#' onclick='show_po_status(\"" + oData.id + "\")'>" + oData.status + "</a>");
                     }
                 },
