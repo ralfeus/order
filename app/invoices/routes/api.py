@@ -262,7 +262,7 @@ def delete_invoice_item(invoice_id, invoice_item_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f'No invoice <{invoice_id}> was found', status=404))
-    invoice_item = invoice.invoice_items.filter_by(id=invoice_item_id).first()
+    invoice_item = invoice.get_invoice_items().filter_by(id=invoice_item_id).first()
     if not invoice_item:
         abort(Response(f'No invoice item<{invoice_item_id}> was found', status=404))
     db.session.delete(invoice_item)
