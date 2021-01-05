@@ -49,6 +49,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
+        rowId: 'id',
         select: true
     });
 
@@ -133,10 +134,11 @@ function update_user(row, update_data) {
 
 function change_user_status(rows, status) {
     $('.wait').show();
-    var to_do = rows.length;
-    for (var i = 0; i < rows.length; i++) {
+    var users = rows.data().map(row => row.id).toArray();
+    var to_do = users.length;
+    users.forEach(user_id => {
         $.ajax({
-            url: '/api/v1/admin/user/' + rows.data()[i].id,
+            url: '/api/v1/admin/user/' + user_id,
             method: 'post',
             dataType: 'json',
             contentType: 'application/json',
@@ -148,8 +150,8 @@ function change_user_status(rows, status) {
                 }
             },
             success: function(data) {
-                rows.data(data).draw();
+                rows.row("#" + data.id).data(data).draw();
             }
         });
-    }
+    });
 }
