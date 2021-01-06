@@ -54,8 +54,10 @@ def post_purchase_orders(po_id=None):
                     posted_ops_count = po.order_products.filter_by(status='Purchased').count()
                     if posted_ops_count == po.order_products.count():
                         po.status = PurchaseOrderStatus.posted
+                        po.when_changed = datetime.now()
                     elif posted_ops_count > 0:
                         po.status = PurchaseOrderStatus.partially_posted
+                        po.when_changed = datetime.now()
                         failed_order_products = po.order_products.filter(
                             OrderProduct.status != 'Purchased')
                         po.status_details = "Not posted products:\n" + \
@@ -64,6 +66,7 @@ def post_purchase_orders(po_id=None):
                                 failed_order_products))
                     else:
                         po.status = PurchaseOrderStatus.failed
+                        po.when_changed = datetime.now()
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                     logger.info("Posted a purchase order %s", po.id)
                 except Exception as ex:
@@ -71,6 +74,7 @@ def post_purchase_orders(po_id=None):
                     # logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
                     po.status_details = str(ex)
+                    po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')
     except Exception as ex:

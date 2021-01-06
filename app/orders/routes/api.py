@@ -180,11 +180,14 @@ def user_create_order():
 def add_suborders(order, suborders, errors):
     suborders_count = 0
     for suborder_data in suborders:
-        try:
-            add_suborder(order, suborder_data, errors)
-            suborders_count += 1
-        except EmptySuborderError as ex:
-            errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")
+        suborder_data_subset = suborder_data.copy()
+        for index in range(0, len(suborder_data['items']), 10):
+            suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
+            try:
+                add_suborder(order, suborder_data_subset, errors)
+                suborders_count += 1
+            except EmptySuborderError as ex:
+                errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")
     if suborders_count == 0:
         abort(Response("The order is empty. Please add at least one product.", status=409))
 
@@ -217,6 +220,7 @@ def add_suborder(order, suborder_data, errors):
                         <ID>, <Name>, <Password>
                         Erroneous data is: {suborder_data['subcustomer']}""",
                     status=400))
+
 
     for item in suborder_data['items']:
         try:
@@ -281,65 +285,13 @@ def user_save_order(order_id):
         abort(Response("No order data was provided", status=400))
 
     errors = []
-    if payload.get('customer_name') and order.customer_name != payload['customer_name']:
-        order.customer_name = payload['customer_name']
-    if payload.get('address') and order.address != payload['address']:
-        order.address = payload['address']
-    if payload.get('country') and order.country_id != payload['country']:
-        order.country_id = payload['country']
-    if payload.get('zip') and order.zip != payload['zip']:
-        order.zip = payload['zip']
-    if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
-        order.shipping_method_id = payload['shipping']
-    if payload.get('phone') and order.phone != payload['phone']:
-        order.phone = payload['phone']
-    if payload.get('comment') and order.comment != payload['comment']:
-        order.comment = payload['comment']
-    if payload.get('attached_orders'):
-        order.attach_orders(payload['attached_orders'])
+    _update_order(order, payload)
 
     # Edit or add order products
     if payload.get('suborders'):
         order_products = list(order.order_products)
         for suborder_data in payload['suborders']:
-            try:
-                suborder = order.suborders.filter(and_(
-                    Suborder.order_id == order.id,
-                    Suborder.seq_num == suborder_data.get('seq_num')
-                )).first()
-                if suborder is None:
-                    add_suborder(order, suborder_data, errors)
-                else:
-                    subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
-                    suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
-                        if suborder_data.get('buyout_date') else None
-                    suborder.subcustomer = subcustomer
-                    for item in suborder_data['items']:
-                        order_product = [op for op in suborder.order_products
-                                            if op.product_id == item['item_code']]
-                        if len(order_product) > 0:
-                            update_order_product(order, order_product[0], item)
-                            try:
-                                order_products.remove(order_product[0])
-                            except ValueError:
-                                current_app.logger.exception(
-                                    "Couldn't remove <OP: %s> from the list. Apparently it's not there anymore",
-                                    order_product[0].id)
-                        else:
-                            try:
-                                add_order_product(suborder, item, errors)
-                            except:
-                                pass
-                    if suborder.buyout_date and (
-                       not order.purchase_date or order.purchase_date > suborder.buyout_date):
-                        order.set_purchase_date(suborder.buyout_date)
-            except SubcustomerParseError:
-                abort(Response(f"""Couldn't find subcustomer and provided data
-                                doesn't allow to create new one. Please provide
-                                new subcustomer data in format: 
-                                <ID>, <Name>, <Password>
-                                Erroneous data is: {suborder_data['subcustomer']}""",
-                            status=400))
+            _update_suborder(order, order_products, suborder_data, errors)
     
         # Remove order products
         for order_product in order_products:
@@ -361,6 +313,66 @@ def user_save_order(order_id):
             'message': "Couldn't modify order due to input error. Check your form and try again."
         }
     return jsonify(result)
+
+def _update_order(order, payload):
+    if payload.get('customer_name') and order.customer_name != payload['customer_name']:
+        order.customer_name = payload['customer_name']
+    if payload.get('address') and order.address != payload['address']:
+        order.address = payload['address']
+    if payload.get('country') and order.country_id != payload['country']:
+        order.country_id = payload['country']
+    if payload.get('zip') and order.zip != payload['zip']:
+        order.zip = payload['zip']
+    if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
+        order.shipping_method_id = payload['shipping']
+    if payload.get('phone') and order.phone != payload['phone']:
+        order.phone = payload['phone']
+    if payload.get('comment') and order.comment != payload['comment']:
+        order.comment = payload['comment']
+    if payload.get('attached_orders'):
+        order.attach_orders(payload['attached_orders'])
+
+def _update_suborder(order, order_products, suborder_data, errors):
+    try:
+        suborder = order.suborders.filter(and_(
+            Suborder.order_id == order.id,
+            Suborder.seq_num == suborder_data.get('seq_num')
+        )).first()
+        if suborder is None:
+            add_suborder(order, suborder_data, errors)
+        else:
+            subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
+            suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
+                if suborder_data.get('buyout_date') else None
+            suborder.subcustomer = subcustomer
+            if len(suborder_data['items']) > 10:
+                errors.append(f'The suborder for {subcustomer.name} has more than 10 products')
+            for item in suborder_data['items']:
+                order_product = [op for op in suborder.order_products
+                                    if op.product_id == item['item_code']]
+                if len(order_product) > 0:
+                    update_order_product(order, order_product[0], item)
+                    try:
+                        order_products.remove(order_product[0])
+                    except ValueError:
+                        current_app.logger.exception(
+                            "Couldn't remove <OP: %s> from the list. Apparently it's not there anymore",
+                            order_product[0].id)
+                else:
+                    try:
+                        add_order_product(suborder, item, errors)
+                    except:
+                        pass
+            if suborder.buyout_date and (
+                not order.purchase_date or order.purchase_date > suborder.buyout_date):
+                order.set_purchase_date(suborder.buyout_date)
+    except SubcustomerParseError:
+        abort(Response(f"""Couldn't find subcustomer and provided data
+                        doesn't allow to create new one. Please provide
+                        new subcustomer data in format: 
+                        <ID>, <Name>, <Password>
+                        Erroneous data is: {suborder_data['subcustomer']}""",
+                    status=400))
 
 @bp_api_admin.route('/product/<int:order_product_id>', methods=['POST'])
 @roles_required('admin')

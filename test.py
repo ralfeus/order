@@ -9,7 +9,7 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    po = PurchaseOrder.query.get('PO-2020-10-0023-001')
+    po = PurchaseOrder.query.get('PO-2021-01-0016-001')
     po.status = PurchaseOrderStatus.pending
     # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
     # browser = Browser(config=current_app.config)
@@ -17,5 +17,5 @@ with create_app().app_context():
     #     po.vendor, logger=logging.getLogger(),
     #     browser=browser)
     # vendor.post_purchase_order(po)
-    post_purchase_orders(po_id='PO-2020-10-0023-001')
+    post_purchase_orders(po_id='PO-2021-01-0016-001')
     print(po.to_dict())

@@ -63,6 +63,73 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.shipping.name, 'Shipping1')
 
+    def test_create_order_over_10_products(self):
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10),
+            Product(id='0002', name='Product 2', price=10, weight=10),
+            Product(id='0003', name='Product 3', price=10, weight=10),
+            Product(id='0004', name='Product 4', price=10, weight=10),
+            Product(id='0005', name='Product 5', price=10, weight=10),
+            Product(id='0006', name='Product 6', price=10, weight=10),
+            Product(id='0007', name='Product 7', price=10, weight=10),
+            Product(id='0008', name='Product 8', price=10, weight=10),
+            Product(id='0009', name='Product 9', price=10, weight=10),
+            Product(id='0010', name='Product 10', price=10, weight=10),
+            Product(id='0011', name='Product 11', price=10, weight=10),
+            Product(id='0012', name='Product 12', price=10, weight=10),
+            Product(id='0013', name='Product 13', price=10, weight=10),
+            Product(id='0014', name='Product 14', price=10, weight=10),
+            Product(id='0015', name='Product 15', price=10, weight=10),
+            Product(id='0016', name='Product 16', price=10, weight=10),
+            Product(id='0017', name='Product 17', price=10, weight=10),
+            Product(id='0018', name='Product 18', price=10, weight=10),
+            Product(id='0019', name='Product 19', price=10, weight=10),
+            Product(id='0020', name='Product 20', price=10, weight=10)
+        ])        
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"},
+                            {"item_code":"2", "quantity": "1"},
+                            {"item_code":"3", "quantity": "1"},
+                            {"item_code":"4", "quantity": "1"},
+                            {"item_code":"5", "quantity": "1"},
+                            {"item_code":"6", "quantity": "1"},
+                            {"item_code":"7", "quantity": "1"},
+                            {"item_code":"8", "quantity": "1"},
+                            {"item_code":"9", "quantity": "1"},
+                            {"item_code":"10", "quantity": "1"},
+                            {"item_code":"11", "quantity": "1"},
+                            {"item_code":"12", "quantity": "1"},
+                            {"item_code":"13", "quantity": "1"},
+                            {"item_code":"14", "quantity": "1"},
+                            {"item_code":"15", "quantity": "1"},
+                            {"item_code":"16", "quantity": "1"},
+                            {"item_code":"17", "quantity": "1"},
+                            {"item_code":"18", "quantity": "1"},
+                            {"item_code":"19", "quantity": "1"},
+                            {"item_code":"20", "quantity": "1"}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        created_order_id = res.json['order_id']
+        order = Order.query.get(created_order_id)
+        self.assertEqual(len(order.order_products), 21)
+        self.assertEqual(order.suborders.count(), 3)
+
     def test_handle_wrong_subcustomer_data(self):
         self.try_add_entities([
             Product(id='0001', name='Product 1', price=10, weight=10)
