@@ -30,7 +30,8 @@ $(document).ready(function() {
 
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer);
-    $('#submit').on('click', submit_order)
+    $('#submit').on('click', submit_order);
+    $('#save_draft').on('click', save_order_draft);
     $('.common-purchase-date')
         .datepicker({
             format: 'yyyy-mm-dd',
@@ -235,8 +236,6 @@ function get_shipping_methods(country, weight) {
             if ($('#shipping option').toArray().map(i => i.value).includes(g_selected_shipping_method)) {
                 $('#shipping').val(g_selected_shipping_method);
             }
-            // console.log("Shipping methods are set:", $('#shipping').html());
-            // console.log(xhr);
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
                 complete: () => {
@@ -319,6 +318,10 @@ function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this)); });
 }
 
+function save_order_draft() {
+    submit_order(null, draft=true);
+}
+
 async function set_total_weight(total_weight) {
     totalWeight = total_weight;
     await get_shipping_methods($('#country').val(), total_weight);
@@ -328,8 +331,11 @@ function shipping_changed() {
     get_shipping_cost($('#shipping').val(), totalWeight);
 }
 
-function submit_order() {
+function submit_order(_sender, draft=false) {
     $('.wait').show();
+    if (typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
+        g_order_id = undefined;
+    }
     $.ajax({
         url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
         method: 'post',
@@ -343,6 +349,7 @@ function submit_order() {
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
             comment: $('#comment').val(),
+            draft: draft,
             attached_orders: $('#attached_orders').val(),
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
@@ -574,7 +581,6 @@ async function update_grand_subtotal() {
 }
 
 function validate_subcustomer(sender) {
-    console.log("Validating subcustomer " + sender.value);
     $.ajax({
         url: '/api/v1/order/subcustomer/validate',
         method: 'post',

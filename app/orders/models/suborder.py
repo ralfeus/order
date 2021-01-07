@@ -45,6 +45,11 @@ class Suborder(db.Model, BaseModel):
             self.order_products, 0) + \
             (self.local_shipping if self.local_shipping else 0)
 
+    def delete(self):
+        for op in self.order_products:
+            op.delete()
+        super().delete()
+
     def get_subtotal(self, currency=None):
         rate = 1 if currency is None else currency.rate
         return reduce(

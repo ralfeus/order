@@ -110,6 +110,15 @@ def filter_orders(orders, filter_params):
         'data': list(map(lambda entry: entry.to_dict(), orders))
     })
 
+def _set_draft(order, payload):
+    if payload.get('draft'):
+        draft_order_id = f'ORD-draft-{current_user.id}'
+        draft = Order.query.get(draft_order_id)
+        if draft:
+            draft.delete()
+            db.session.commit()
+        order.id = draft_order_id
+        order.when_created = datetime(1, 1, 1)
 
 @bp_api_user.route('', methods=['POST'])
 @login_required
@@ -141,6 +150,8 @@ def user_create_order():
         status=OrderStatus.pending,
         when_created=datetime.now()
     )
+    _set_draft(order, request_data)
+
     order.attach_orders(request_data.get('attached_orders'))
     db.session.add(order)
     # order_products = []
@@ -149,6 +160,7 @@ def user_create_order():
     add_suborders(order, request_data['suborders'], errors)
 
     try:
+        db.session.commit()
         order.update_total()
         db.session.commit()
         result = {
@@ -173,7 +185,7 @@ def user_create_order():
         result = {
             'status': 'error',
             'message': f"""Couldn't add order due to input error. Check your form and try again.
-                           {str(ex)}"""
+                           {str(ex.args)}"""
         }
     return jsonify(result)
 

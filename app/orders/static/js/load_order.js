@@ -1,9 +1,10 @@
-const g_order_id = window.location.href.slice(-16);
+var g_order_id ;
 (function() { // Isolating variables
 
 $(document).ready(startup);
 
 function startup() {
+    g_order_id = $('#order_id').val();
     get_order(g_order_id);
 }
 

@@ -156,6 +156,11 @@ class Order(db.Model, BaseModel):
         self.transaction = transaction
         db.session.add(transaction)
 
+    def delete(self):
+        for suborder in self.suborders:
+            suborder.delete()
+        super().delete()
+
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
         from app.payments.models.payment_method import PaymentMethod

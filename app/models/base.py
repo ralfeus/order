@@ -6,6 +6,8 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Integer
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
+from app import db
+
 class BaseModel:
     '''
     Base model
@@ -26,6 +28,9 @@ class BaseModel:
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
         raise NotImplementedError(f'get_filter() is not implemented for {cls}')
+
+    def delete(self):
+        db.session.delete(self)
 
 
     # @classmethod

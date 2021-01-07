@@ -22,11 +22,18 @@ def user_order_products():
 
 @bp_client_user.route('/new')
 @login_required
-def new_order():
-    '''
-    New order form
-    '''
+def user_new_order():
+    '''New order form'''
     return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
+
+@bp_client_user.route('/draft')
+@login_required
+def user_open_draft():
+    '''Opens draft order'''
+    if Order.query.get(f'ORD-draft-{current_user.id}'):
+        return render_template('new_order.html', order_id=f'ORD-draft-{current_user.id}')
+    
+    return render_template('new_order.html')
 
 @bp_client_user.route('/<order_id>')
 @login_required
