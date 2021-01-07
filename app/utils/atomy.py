@@ -7,15 +7,16 @@ from app.exceptions import AtomyLoginError
 from app.utils.browser import Browser
 
 def atomy_login(username, password, browser=None):
+    logger = current_app.logger.getChild('atomy_login')
     local_browser = None
     if browser:
         local_browser = browser
     else:
         local_browser = Browser(config=current_app.config)
-    current_app.logger.debug("atomy.atomy_login(): Getting loging page")
+    logger.debug("Getting loging page")
     local_browser.get('https://www.atomy.kr/v2/Home/Account/Login')
     try:
-        current_app.logger.debug("atomy.atomy_login(): Dismissing any alerts")
+        logger.debug("Dismissing any alerts")
         local_browser.switch_to_alert().dismiss()
     except NoAlertPresentException:
         pass
@@ -23,30 +24,30 @@ def atomy_login(username, password, browser=None):
     password_field = local_browser.get_element_by_id('userPw')
     user_field.send_keys(username)
     password_field.send_keys(password)
-    current_app.logger.debug("atomy.atomy_login(): Submitting credentials")
+    logger.debug("Submitting credentials")
     password_field.submit()
     try:
-        current_app.logger.debug("atomy.atomy_login(): Waiting for home page")
+        logger.debug("Waiting for home page")
         local_browser.wait_for_url('https://www.atomy.kr/v2/Home')
-        current_app.logger.debug('atomy.atomy_login(): Login is successful')
+        logger.debug('Login is successful')
         return
     except UnexpectedAlertPresentException as ex:
-        current_app.logger.debug("atomy.atomy_login(): Alert is %s. Login is failed", ex.args)
+        logger.debug("Alert is %s. Login is failed", ex.args)
         raise AtomyLoginError(ex)
     except Exception as ex:
-        current_app.logger.debug("atomy.atomy_login(): Couldn't get home page")
+        logger.debug("Couldn't get home page")
         try:
             if local_browser.get_element_by_id('btnRelayPassword'):
-                current_app.logger.debug("atomy.atomy_login(): Password change request is found. Dismissing")
+                logger.debug("Password change request is found. Dismissing")
                 __ignore_change_password(local_browser)
             else:
-                current_app.logger.debug("atomy.atomy_login(): The reason is unknown. Login is failed")
+                logger.debug("The reason is unknown. Login is failed")
                 raise AtomyLoginError(ex)
         except AtomyLoginError as ex:
-            current_app.logger.debug('atomy.atomy_login(): Login is failed: %s', ex.args)
+            logger.debug('Login is failed: %s', ex.args)
             raise ex
         except NoSuchElementException:
-            current_app.logger.debug("atomy.atomy_login(): No password change request is found. Login is failed")
+            logger.debug("No password change request is found. Login is failed")
             raise AtomyLoginError()
     finally:
         if not browser:

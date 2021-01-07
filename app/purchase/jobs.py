@@ -1,5 +1,6 @@
 ''' Background jobs for Purchase module'''
 from datetime import datetime, timedelta
+import logging
 from more_itertools import map_reduce
 from pytz import timezone
 
@@ -23,6 +24,8 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @celery.task
 def post_purchase_orders(po_id=None):
+    logger = get_task_logger(__name__)
+    logger.setLevel(current_app.config['LOG_LEVEL'])
     pending_purchase_orders = PurchaseOrder.query
     if po_id:
         pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
@@ -31,9 +34,6 @@ def post_purchase_orders(po_id=None):
     try: 
         # Wrap whole operation in order to
         # mark all pending POs as failed in case of any failure
-        logger = get_task_logger(__name__)
-        logger.debug("Using config %s", str(current_app.config))
-
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
         tz = timezone('Asia/Seoul')
         today = datetime.now().astimezone(tz).date()
@@ -86,6 +86,7 @@ def post_purchase_orders(po_id=None):
 @celery.task
 def update_purchase_orders_status(po_id=None, browser=None):
     logger = get_task_logger(__name__)
+    logger.setLevel(current_app.config['LOG_LEVEL'])
     logger.info("Starting update of PO statuses")
     pending_purchase_orders = PurchaseOrder.query
     if po_id:

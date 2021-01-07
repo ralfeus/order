@@ -1,6 +1,7 @@
 '''
 Initialization of the application
 '''
+import logging
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -27,7 +28,7 @@ def create_app(config=Config):
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
     flask_app.config.from_object(config)
-    flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
+    init_logging(flask_app)
 
     Bootstrap(flask_app)
     db.init_app(flask_app)
@@ -93,3 +94,13 @@ def init_debug(flask_app):
             # Add the line profiling
             # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
         flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')
+
+def init_logging(flask_app):
+    logger = logging.getLogger()
+    logger.setLevel(flask_app.config['LOG_LEVEL'])
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        fmt="%(asctime)s\t%(levelname)s\t%(name)s: %(message)s"))
+    logger.addHandler(handler)
+    logger.info("Log level is %s", logging.getLevelName(logger.level))
+    flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])

@@ -7,6 +7,9 @@ def get_celery(app_name):
         backend='rpc://',
         include=['app.jobs', 'app.purchase.jobs']
     )
+    celery.conf.update({
+        'worker_hijack_root_logger': False
+    })
     # celery.conf.add_defaults(flask_app.config)
     # celery.conf.task_default_queue = 'order'
     return celery
