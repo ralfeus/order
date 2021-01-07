@@ -33,7 +33,7 @@ def atomy_login(username, password, browser=None):
         return
     except UnexpectedAlertPresentException as ex:
         logger.debug("Alert is %s. Login is failed", ex.args)
-        raise AtomyLoginError(ex)
+        raise AtomyLoginError(ex.args[0])
     except Exception as ex:
         logger.debug("Couldn't get home page")
         try:

@@ -112,7 +112,7 @@ class Browser:
                 EC.url_to_be(url)
             )
         except UnexpectedAlertPresentException as ex:
-            raise UnexpectedAlertPresentException(f"Didn't get URL {url}", ex.alert_text)
+            raise UnexpectedAlertPresentException(ex.alert_text, f"Didn't get URL {url}")
         except Exception as ex:
             raise Exception(f"Didn't get URL {url}", ex)
 

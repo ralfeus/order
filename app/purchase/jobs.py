@@ -70,10 +70,10 @@ def post_purchase_orders(po_id=None):
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                     logger.info("Posted a purchase order %s", po.id)
                 except Exception as ex:
-                    logger.exception("Failed to post the purchase order %s.", po.id)
+                    logger.warning("Failed to post the purchase order %s.", po.id)
                     # logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
-                    po.status_details = str(ex)
+                    po.status_details = str(ex.args)
                     po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')
