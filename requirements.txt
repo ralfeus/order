@@ -10,7 +10,7 @@ Flask-Migrate==2.5.3
 Flask-Security==3.0.0
 Flask-SQLAlchemy==2.4.4
 Flask-WTF==0.14.3
-lxml==4.5.2
+lxml==4.6.2
 more-itertools==8.4.0
 mysqlclient==2.0.1
 openpyxl==3.0.4
