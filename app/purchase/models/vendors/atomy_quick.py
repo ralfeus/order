@@ -24,7 +24,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __init__(self, browser=None, logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__logger = logger.getChild('AtomyQuick')
+        self.__logger = logger.getChild('AtomyQuick') if logger is not None else None
         self.__config = config
 
     def __del__(self):
