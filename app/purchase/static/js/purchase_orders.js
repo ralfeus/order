@@ -1,5 +1,6 @@
 var g_companies;
 var g_create_editor;
+var g_edit_editor;
 var g_orders;
 var g_purchase_orders_table;
 var g_po_statuses = [
@@ -72,7 +73,7 @@ $(document).ready( function () {
         backday += 2; 
     }
     min_date.setDate(min_date.getDate() - backday);
-    g_editor  = new $.fn.dataTable.Editor({
+    g_edit_editor  = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
             var url = '/api/v1/admin/purchase/order/' + Object.entries(data.data)[0][0];
             $.ajax({
@@ -104,6 +105,7 @@ $(document).ready( function () {
                     disableDays: [0, 6]
                 }
             },
+            {name: 'vendor', type: 'select2'},
             {label: 'Vendor PO ID', name: 'vendor_po_id'},
             {label: 'Payment account', name: 'payment_account'},
             {
@@ -115,10 +117,58 @@ $(document).ready( function () {
         ]
     });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
-        g_editor.inline(this, { submitOnBlur: true });
+        g_edit_editor.inline(this, { submitOnBlur: true });
     }); 
+    get_vendors();
+    init_table();
+});
 
+function cancel_purchase_order(target) {
+    g_create_editor
+        .edit($(target).parents('tr')[0], false)
+        .val('status', 'cancelled')
+        .submit();
+}
 
+function get_companies() {
+    $.ajax({
+        url: '/api/v1/admin/purchase/company',
+        success: data => {
+            g_companies = data;
+            g_create_editor.field('company_id').update(data.map(c => ({
+                label: c.name,
+                value: c.id
+            })));
+        }
+    });
+}
+
+function get_orders_to_purchase() {
+    $.ajax({
+        url: '/api/v1/admin/order?status=can_be_paid&status=paid',
+        success: data => {
+            // g_orders = data;
+            g_create_editor.field('order_id').update(data.map(o => o.id));
+        }
+    })
+}
+
+function get_vendors() {
+    $.ajax({
+        url: '/api/v1/admin/purchase/vendor',
+        success: data => {
+            var vendors = data.map(i => {
+                entry = Object.entries(i)[0]; 
+                return {value:entry[0], label:entry[1]};
+            });
+            g_create_editor.field('vendor').update(vendors);
+            g_create_editor.field('vendor').val('AtomyQuick');
+            g_edit_editor.field('vendor').update(vendors);
+        }
+    })
+}
+
+function init_table() {
     g_purchase_orders_table = $('#purchase_orders').DataTable({
         dom: 'lfrBtip',
         ajax: {
@@ -162,7 +212,7 @@ $(document).ready( function () {
             },
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
-            {data: 'vendor', orderable: false},
+            {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
             {
@@ -189,57 +239,11 @@ $(document).ready( function () {
             }
         }
     });
-});
-
-function cancel_purchase_order(target) {
-    g_create_editor
-        .edit($(target).parents('tr')[0], false)
-        .val('status', 'cancelled')
-        .submit();
 }
-
-function get_companies() {
-    $.ajax({
-        url: '/api/v1/admin/purchase/company',
-        success: data => {
-            g_companies = data;
-            g_create_editor.field('company_id').update(data.map(c => ({
-                label: c.name,
-                value: c.id
-            })));
-        }
-    });
-}
-
-function get_orders_to_purchase() {
-    $.ajax({
-        url: '/api/v1/admin/order?status=can_be_paid&status=paid',
-        success: data => {
-            // g_orders = data;
-            g_create_editor.field('order_id').update(data.map(o => o.id));
-        }
-    })
-}
-
-function get_vendors() {
-    $.ajax({
-        url: '/api/v1/admin/purchase/vendor',
-        success: data => {
-            g_create_editor.field('vendor').update(data.map(i => {
-                entry = Object.entries(i)[0]; 
-                return {value:entry[0], label:entry[1]};
-            }));
-            g_create_editor.field('vendor').val('AtomyQuick');
-        }
-    })
-}
-
-
 
 function on_editor_open() {
     get_orders_to_purchase();
     get_companies();
-    get_vendors();
 }
 
 function on_company_change() {

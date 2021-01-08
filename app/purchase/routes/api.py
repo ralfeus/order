@@ -129,7 +129,7 @@ def update_purchase_order(po_id):
             result = (jsonify(po.to_dict()), 202)
         else:
             editable_attributes = ['payment_account', 'purchase_date',
-                'status', 'vendor_po_id']
+                'status', 'vendor', 'vendor_po_id']
             po = modify_object(po, request.get_json(), editable_attributes)
             result = jsonify(po.to_dict())
     except:
