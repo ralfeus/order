@@ -109,7 +109,7 @@ def user_create_payment():
     if payload.get('evidences') and len(payload['evidences']) > 0:
         evidence_src_file = get_tmp_file_by_id(payload['evidences'][0][0])
         evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
-        os.rename(evidence_src_file, evidence_file)
+        os.rename(evidence_src_file, os.path.abspath(evidence_file))
 
     payment = Payment(
         user=user,
