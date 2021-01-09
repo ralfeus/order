@@ -164,7 +164,10 @@ function init_payments_table() {
                 label: 'Evidence',
                 name: 'evidences',
                 type: 'uploadMany',
-                ajax: '/api/v1/payment/evidence'
+                ajax: '/api/v1/payment/evidence',
+                display: (files, file_num) => {
+                    return '<img src="/upload/tmp/payment-evidence-' + files[file_num] + '" />';
+                }
             }
         ]
     });

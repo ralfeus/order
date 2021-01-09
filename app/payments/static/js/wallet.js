@@ -116,7 +116,7 @@ function init_payments_table() {
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
                 display: (value, file_num) => {
-                    return '<img src="/static/tmp/payment-evidence-' + value[file_num] + '" />';
+                    return '<img src="/upload/tmp/payment-evidence-' + value[file_num] + '" />';
                 }
             }
         ]

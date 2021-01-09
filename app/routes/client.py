@@ -102,10 +102,11 @@ def user_logout():
     return redirect(url_for('client.user_login'))
 
 @client.route('/upload/<path:path>')
+@login_required
 def send_from_upload(path):
     return send_file(os.path.join(os.getcwd(), current_app.config['UPLOAD_PATH'], path))
 
-@client.route('/static/tmp/<file_id>')
+@client.route('/upload/tmp/<file_id>')
 @login_required
 def get_tmp_file(file_id):
     files = glob(f'/tmp/{file_id}*')
