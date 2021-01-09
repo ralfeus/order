@@ -292,6 +292,9 @@ def user_save_order(order_id):
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
         abort(Response(f"No order <{order_id}> was found", status=404))
+    if not order.is_editable():
+        abort(Response(f"The order <{order_id}> isn't in editable state", status=405))
+
     payload = request.get_json()
     if not payload:
         abort(Response("No order data was provided", status=400))

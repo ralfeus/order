@@ -2,7 +2,10 @@
 Contains client routes of the application
 '''
 from datetime import datetime
-from flask import Blueprint, current_app, redirect, render_template, send_from_directory, flash, url_for
+from glob import glob
+import os, os.path
+from flask import Blueprint, abort, current_app, redirect, render_template, \
+    send_from_directory, send_file, flash, url_for
 from flask_security import login_required, current_user, login_user, logout_user
 
 from app.forms import LoginForm, SignupForm
@@ -46,7 +49,7 @@ def user_signup():
                 username=form.username.data, 
                 password=form.password.data, 
                 email=form.email.data,
-                when_created = datetime.now(),
+                when_created=datetime.now(),
                 active=False)
             # user = User(
             #     username=form.username.data,
@@ -100,7 +103,15 @@ def user_logout():
 
 @client.route('/upload/<path:path>')
 def send_from_upload(path):
-    return send_from_directory('upload', path)
+    return send_file(os.path.join(os.getcwd(), current_app.config['UPLOAD_PATH'], path))
+
+@client.route('/static/tmp/<file_id>')
+@login_required
+def get_tmp_file(file_id):
+    files = glob(f'/tmp/{file_id}*')
+    if len(files) == 0:
+        abort(404)
+    return send_file(files[0])
 
 @client.route('/test', defaults={'task_id': None})
 @client.route('/test/<task_id>')

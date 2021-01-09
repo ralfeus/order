@@ -20,7 +20,7 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show(); 
-    $('#evidence', payment_details).attr('src', data.evidence_image);
+    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
     return payment_details;
 }
 
@@ -114,7 +114,10 @@ function init_payments_table() {
                 label: 'Evidence',
                 name: 'evidences',
                 type: 'uploadMany',
-                ajax: '/api/v1/payment/evidence'
+                ajax: '/api/v1/payment/evidence',
+                display: (value, file_num) => {
+                    return '<img src="/static/tmp/payment-evidence-' + value[file_num] + '" />';
+                }
             }
         ]
     });

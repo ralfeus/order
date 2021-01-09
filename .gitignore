@@ -57,7 +57,8 @@ docs/_build/
 static/invoices/*
 app/upload
 app/upload/**
-
+upload/*
 .vscode/**
 config.py
 pylintrc
+

@@ -57,7 +57,7 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show();
-    $('#evidence', payment_details).attr('src', data.evidence_image);
+    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
     $('#currency_code', payment_details).text(data.currency_code);
     $('#amount_original', payment_details).val(data.amount_original);
     $('#amount_krw', payment_details).val(data.amount_krw);

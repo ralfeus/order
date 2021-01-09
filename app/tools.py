@@ -1,6 +1,7 @@
 ''' Handful tools '''
 import enum
 from datetime import datetime
+from glob import glob
 from flask import current_app, send_file
 from functools import reduce
 import logging
@@ -10,7 +11,7 @@ import re
 from werkzeug.datastructures import MultiDict
 
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
 __app_abs_dir_name = os.path.abspath(os.path.dirname(__file__))
 
@@ -22,6 +23,11 @@ __app_abs_dir_name = os.path.abspath(os.path.dirname(__file__))
 #         free_path = f"{os.path.basename(path)}-{i}"
 #         i += 1
 #     return os.path.join(os.path.dirname(path), free_path)
+def get_tmp_file_by_id(file_id):
+    files = glob(f'/tmp/*{file_id}*')
+    if len(files) == 0:
+        raise FileNotFoundError
+    return files[0]
 
 def rm(path, not_exist_raise=False):
     abspath = os.path.join(__app_abs_dir_name, path)

@@ -107,7 +107,9 @@ def create_purchase_order():
 def update_purchase_order(po_id):
     po = PurchaseOrder.query.get(po_id)
     if po is None:
-        abort(Response("No Purchase Order <{po_id}> was found", status=404))
+        abort(Response("No purchase order <{po_id}> was found", status=404))
+    if not po.is_editable():
+        abort(Response(f"The purchase order <{po_id}> isn't in editable state", status=405))
 
     from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:

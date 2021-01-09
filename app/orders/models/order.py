@@ -175,6 +175,8 @@ class Order(db.Model, BaseModel):
                 if column.key == 'user' else \
             base_filter.filter(column.like(f'%{filter_value}%'))
 
+    def is_editable(self):
+        return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
 
     def to_dict(self, details=False):
         is_order_updated = False

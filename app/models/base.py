@@ -32,6 +32,9 @@ class BaseModel:
     def delete(self):
         db.session.delete(self)
 
+    def is_editable(self):
+        return True
+
 
     # @classmethod
     # def from_dict(cls, attr):

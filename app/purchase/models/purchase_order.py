@@ -95,6 +95,9 @@ class PurchaseOrder(db.Model, BaseModel):
     def __repr__(self):
         return "<PurchaseOrder: {}>".format(self.id)
 
+    def is_editable(self):
+        return self.status in [PurchaseOrderStatus.pending, PurchaseOrderStatus.failed]
+
     def to_dict(self):
         purchase_date = self.purchase_date
         return {
