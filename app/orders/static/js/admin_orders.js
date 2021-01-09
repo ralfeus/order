@@ -149,6 +149,7 @@ function format ( row, data ) {
     $('#status', order_details).val(data.status);
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);
+    $('#comment', order_details).val(data.comment);
     return order_details;
 }
 
@@ -198,6 +199,21 @@ function init_orders_table() {
                 "defaultContent": ''
             },
             {
+                'orderable': false,
+                'data': null,
+                fnCreatedCell: function(cell, sData, oData, iRow, iCol) {
+                    if (oData.comment) {
+                        $(cell).html("" +
+                            "<span " +
+                            "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "    style=\"color: blue; font-weight:bolder; font-size:large;\"" +
+                            "    title=\"" + oData.comment + "\">C</span>");
+                    } else {
+                        $(cell).html('');
+                    }      
+                }
+            },
+            {
                 "className":      'order-actions',
                 "orderable":      false,
                 "data":           null,
@@ -233,7 +249,7 @@ function init_orders_table() {
                 }
             }
         ],
-        order: [[12, 'desc']],
+        order: [[13, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

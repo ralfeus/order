@@ -197,6 +197,7 @@ class Order(db.Model, BaseModel):
             'customer_name': self.customer_name,
             'address': self.address,
             'phone': self.phone,
+            'comment': self.comment,
             'invoice_id': self.invoice_id,
             'subtotal_krw': self.subtotal_krw,
             'total_weight': self.total_weight,
