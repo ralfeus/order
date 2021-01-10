@@ -98,7 +98,7 @@ class Suborder(db.Model, BaseModel):
             'id': self.id,
             'order_id': self.order_id,
             'seq_num': self.seq_num,
-            'subcustomer': f"{self.subcustomer.username}, {self.subcustomer.name}" \
+            'subcustomer': f"{self.subcustomer.username}, {self.subcustomer.name}, {self.subcustomer.password}" \
                 if self.subcustomer else None,
             'buyout_date': self.buyout_date.strftime('%Y-%m-%d') if self.buyout_date else None,
             'order_products': [op.to_dict() for op in self.order_products],
