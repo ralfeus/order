@@ -94,7 +94,7 @@ def import_products():
 
 @celery.task
 def add_together(a, b):
-    for i in range(100):
-        sleep(1)
+#    for i in range(100):
+#        sleep(1)
     return a + b
 

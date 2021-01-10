@@ -17,6 +17,9 @@ class Browser:
     __config = {}
     __refs_num = 0
 
+    def get_browser(self):
+        return self.__browser
+
     def __init__(self, headless=True, config={}, **kwargs):
         self.__config = config
         self.__config['SELENIUM_HEADLESS'] = headless

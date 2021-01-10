@@ -3,7 +3,7 @@ from celery import Celery
 def get_celery(app_name):
     celery = Celery(
         app_name,
-        broker='pyamqp://172.17.0.1',
+        broker='pyamqp://127.0.0.1',
         backend='rpc://',
         include=['app.jobs', 'app.purchase.jobs']
     )
