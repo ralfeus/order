@@ -11,6 +11,7 @@
     <table id="orders" class="table">
         <thead>
             <th></th>
+            <th></th>
             <th scope="col" style="width: 2em;">Order ID</th>
             <th scope="col" style="width: 100%;">Customer name</th>
             <th scope="col" style="width: 2em;">Total (KRW)</th>
@@ -22,5 +23,21 @@
         </thead>
         <tbody />
     </table>
+</div>
+
+<div class="row order-details container-fluid" style="display: none;">
+    <div id='tracking-id-input-group' class="input-group input-group-sm mb-2">
+        <div class="input-group-prepend">
+            <label id="label" class="input-group-text" for="tracking-id">Tracking ID</label>
+        </div>
+        <input id="tracking-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+    </div>
+    <div id='tracking-url-input-group' class="input-group input-group-sm mb-2">
+        <div class="input-group-prepend">
+            <label id="label" class="input-group-text" for="tracking-url">Tracking URL</label>
+        </div>
+        <input id="tracking-url" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+    </div>
+    <input id="comment" class="form-control" aria-label="Small" aria-describedby="label" disabled/>
 </div>
 {% endblock %}

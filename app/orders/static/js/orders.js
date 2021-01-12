@@ -1,4 +1,4 @@
-var order_table;
+var g_orders_table;
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
@@ -6,7 +6,7 @@ $.fn.dataTable.ext.buttons.xls = {
 };
 
 $(document).ready( function () {
-    order_table = $('#orders').DataTable({
+    g_orders_table = $('#orders').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/order',
@@ -17,6 +17,12 @@ $(document).ready( function () {
             // { extend: 'xls', text: 'Download' }
         ],
         columns: [
+            {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ''
+            },
             {
                 "className":      'order-actions',
                 "orderable":      false,
@@ -39,7 +45,7 @@ $(document).ready( function () {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[7, 'desc']],
+        order: [[8, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
@@ -50,28 +56,28 @@ $(document).ready( function () {
         }
     });
 
-    // $('#orders tbody').on('click', 'td.details-control', function () {
-    //     var tr = $(this).closest('tr');
-    //     var row = table.row( tr );
+    $('#orders tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest('tr');
+        var row = g_orders_table.row( tr );
  
-    //     if ( row.child.isShown() ) {
-    //         // This row is already open - close it
-    //         row.child.hide();
-    //         tr.removeClass('shown');
-    //     }
-    //     else {
-    //         // First close all open rows
-    //         $('tr.shown').each(function() {
-    //             table.row(this).child.hide();
-    //             $(this).removeClass('shown');
-    //         })
-    //         // Open this row
-    //         var order_details = format(row, row.data());
-    //         row.child( order_details ).show();
+        if ( row.child.isShown() ) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        }
+        else {
+            // First close all open rows
+            $('tr.shown').each(function() {
+                g_orders_table.row(this).child.hide();
+                $(this).removeClass('shown');
+            })
+            // Open this row
+            var order_details = format(row, row.data());
+            row.child( order_details ).show();
 
-    //         tr.addClass('shown');
-    //     }
-    // } );
+            tr.addClass('shown');
+        }
+    } );
 });
 
 /**
@@ -79,40 +85,15 @@ $(document).ready( function () {
  * @param {object} row - row object 
  * @param {object} data - data object for the row
  */
-// function format ( row, data ) {
-//     var order_details = $('.order-details')
-//         .clone()
-//         .show();
-    // var editor = new $.fn.dataTable.Editor({
-    //     table: '#order-items',
-    //     idSrc: 'product_id',
-    //     fields: [
-    //         {label: 'Product ID', name: 'product_id'},
-    //         {label: 'Price', name: 'price'},
-    //         {label: 'Quantity', name: 'quantity'}
-    //     ]
-    // });
-    // $('#order-items', order_details).on( 'click', 'td.editable', function (e) {
-    //     editor.inline(this);
-    // } );
-    // $('#order-items', order_details).DataTable({
-    //     dom: 'tp',
-    //     ajax: {
-    //         url: '/api/v1/admin/order/' + data.id,
-    //         dataSrc: json => json[0].order_items
-    //     },
-    //     columns: [
-    //         {data: 'product_id', className: 'editable'},
-    //         {data: 'name', class: 'wrapok'},
-    //         {data: 'price', className: 'editable'},
-    //         {data: 'quantity', className: 'editable'},
-    //         {data: 'subtotal'}
-    //     ],
-    //     select: true
-    // });
-    // $('#total', order_details).val(data.total);
-    // return order_details;
-// }
+function format ( row, data ) {
+    var order_details = $('.order-details')
+        .clone()
+        .show();
+        $('#tracking-id', order_details).val(data.tracking_id);
+        $('#tracking-url', order_details).val(data.tracking_url);
+        $('#comment', order_details).val(data.comment);
+        return order_details;
+}
 
 function get_excel(rows) {
     $('.wait').show();
@@ -129,11 +110,11 @@ function get_excel(rows) {
 }
 
 function open_order(target) {
-    window.location = order_table.row($(target).parents('tr')).data().id;
+    window.location = g_orders_table.row($(target).parents('tr')).data().id;
 }
 
 function open_order_invoice(target) {
     window.location = '/api/v1/order/' + 
-        order_table.row($(target).parents('tr')).data().id +
+        g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
 }
