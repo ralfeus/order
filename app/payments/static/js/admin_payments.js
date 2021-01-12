@@ -206,6 +206,7 @@ function init_payments_table() {
             {data: 'id'},
             {data: 'user_name'},
             {data: 'orders'},
+            {data: 'payment_method.name'},
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
             {data: 'amount_received_krw'},
@@ -213,7 +214,7 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[8, 'desc']],
+        order: [[9, 'desc']],
         select: true,
         footerCallback: function(row, data, start, end, display) {
             var api = this.api(), data;
@@ -239,22 +240,22 @@ function init_payments_table() {
             totalSentOriginalString = Object.entries(totalSentOriginal)
                 .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
             totalSentKRW = api
-                .column( 5 )
+                .column( 6 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;
                 }, 0 );
             totalReceivedKRW = api
-                .column( 6 )
+                .column( 7 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;
                 }, 0 );
 
             // Update footer
-            $(api.column(4).footer()).html(totalSentOriginalString);
-            $( api.column(5).footer() ).html('₩' + totalSentKRW.toLocaleString());        
-            $( api.column(6).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+            $(api.column(5).footer()).html(totalSentOriginalString);
+            $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+            $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
