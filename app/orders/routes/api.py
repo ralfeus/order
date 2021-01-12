@@ -119,6 +119,7 @@ def _set_draft(order, payload):
             db.session.commit()
         order.id = draft_order_id
         order.when_created = datetime(1, 1, 1)
+        order.purchase_date_sort = datetime(9999, 12, 31)
 
 @bp_api_user.route('', methods=['POST'])
 @login_required
@@ -158,6 +159,8 @@ def user_create_order():
     errors = []
     # ordertotal_weight = 0
     add_suborders(order, request_data['suborders'], errors)
+    if request_data.get('draft'):
+        order.purchase_date_sort = datetime(9999, 12, 31)
 
     try:
         db.session.commit()
