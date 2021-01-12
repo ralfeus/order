@@ -19,6 +19,7 @@ class Transaction(BaseModel, db.Model):
     amount = Column(Integer())
     user_id = Column(Integer(), ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
+    order = relationship('Order', uselist=False)
 
     def __init__(self, amount, customer_id=None, customer=None, user_id=None,
                  user=None, **kwargs):
@@ -43,6 +44,7 @@ class Transaction(BaseModel, db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'order_id': self.order.id if self.order else None,
             'customer': self.customer.username,
             'amount': self.amount,
             'customer_balance': self.customer_balance,

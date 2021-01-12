@@ -18,6 +18,7 @@ function init_transactions_table() {
         },
         columns: [
             {data: 'id'},
+            {data: 'order_id'},
             {data: 'customer'},
             {data: 'amount'},
             {data: 'customer_balance'},
