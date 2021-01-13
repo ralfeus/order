@@ -435,9 +435,9 @@ async function update_item_subtotal(sender) {
         g_cart[product_id].user = '';
         g_cart[product_id].quantity = sender.val();
         g_cart[product_id].costKRW = g_cart[product_id].price * g_cart[product_id].quantity;
-        $('td:nth-child(5)', itemObject).html(g_cart[product_id].costKRW);
-        $('td:nth-child(6)', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
-        $('td:nth-child(12)', itemObject).html(g_cart[product_id].points * g_cart[product_id].quantity);
+        $('td.cost-krw', itemObject).html(g_cart[product_id].costKRW);
+        $('td.total-weight', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
+        $('td.total-points', itemObject).html(g_cart[product_id].points * g_cart[product_id].quantity);
     } else {
         $('.cost-krw', itemObject).html('');
         $('.total-weight', itemObject).html('');

@@ -15,121 +15,121 @@
 {% block content %}
 {{ super() }}
     <!-- <form method='post'> -->
-        <div class="container-fluid row">
-            <div class="col-3">
-                <input class="form-control" id="name" placeholder="Customer name"/>
-                <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
+    <div class="container-fluid row">
+        <div class="col-3 width-adjusted">
+            <input class="form-control" id="name" placeholder="Customer name"/>
+            <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
+        </div>
+        <div class="col-4 width-adjusted">
+            <input class="form-control" id="address" placeholder="Address" />
+            <input class="form-control" id="zip" placeholder="Zip code"/>
+            <select class="form-control" id="country" onchange="country_changed()"></select>
+            <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
+            <input class="form-control" id="phone" placeholder="+(country code) phone" />
+        </div>
+        <div class="col-3 width-adjusted" style="font-size: 94%;">
+            <select class="form-control" id="attached_orders" 
+                data-placeholder="Attach postponed orders" multiple></select>
+        </div>
+    </div>
+    <div class="container-fluid row">&nbsp;</div>
+    <div class="container-fluid">
+        <div class="card card-header">
+            <div class="row input-group">
+                <div class="col-9">            
+                    <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
+                    <input class="btn btn-secondary" type="button" value="Clear form" onclick="clear_form()" />
+                    <input class="btn btn-secondary" type="button" id="save_draft" value="Save draft" />
+                </div>    
+                <div class="col-2 width-adjusted">
+                    <input class="form-control common-purchase-date" type="text" placeholder="Common purchase date" />
+                </div>  
             </div>
-            <div class="col-4">
-                <input class="form-control" id="address" placeholder="Address" />
-                <input class="form-control" id="zip" placeholder="Zip code"/>
-                <select class="form-control" id="country" onchange="country_changed()"></select>
-                <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
-                <input class="form-control" id="phone" placeholder="+(country code) phone" />
+        </div>    
+    </div>
+    <div class="container-fluid box-weight my-1" style="display: none;">
+        <div class="card-header card flex-row">
+            Box weight:
+            <span id="box-weight" class="mx-1"></span>
+        </div>
+    </div>        
+    <div id="accordion" class="container-fluid">
+        <div class="card subcustomer-card">
+            <div class="input-group card-header" id="userItemsHeader0">
+                <input class="form-control subcustomer-identity col-9" placeholder="Number, name, password" onchange="validate_subcustomer(this)"/>
+                <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Purchase date" />
+                <input class="subcustomer-seq-num" type="hidden" />
+                <button class="btn btn-primary" type="button" 
+                    data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
+                    aria-controls="userItems0">Toggle</button>
+                <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
             </div>
-            <div class="col-3" style="font-size: 94%;">
-                <select class="form-control" id="attached_orders" 
-                    data-placeholder="Attach postponed orders" multiple></select>
+            <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
+                <table class="table-sm table-bordered table-hover col-12">
+                    <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col" style="width: 8em;">Item code</th>
+                            <th scope="col" style="width: 30em;">Item name</th>
+                            <th scope="col" style="width: 5em;">Quantity</th>
+                            <th scope="col">Price</th>
+                            <th scope="col" style="width: 10em;">Items cost (KRW)</th>
+                            <th scope="col" style="width: 0em;">Weight</th>
+                            <th scope="col">Shipping cost (KRW)</th>
+                            <th scope="col">Total (KRW)</th>
+                            <th scope="col">Total (RUR)</th>
+                            <th scope="col">Total (USD)</th>
+                            <th scope="col">Item points</th>
+                            <th scope="col">Total points</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userItemsList0">
+                        <tr id="userItems0_0" class="item">
+                            <td>
+                                <input type="button" class="btn btn-primary" id="del_userItems0_0"
+                                    value="-" onclick="delete_product(this)"/>
+                            </td>
+                            <td><input class="form-control form-control-sm item-code" /></td>
+                            <td class="item-name"></td>
+                            <td><input class="form-control form-control-sm item-quantity" value="1"/></td>
+                            <td class="item-price"></td>
+                            <td class="cost-krw"></td>
+                            <td class="total-weight"></td>
+                            <td class="shipping-cost-krw"></td>
+                            <td class="total-krw"></td>
+                            <td class="total-rur"></td>
+                            <td class="total-usd"></td>
+                            <td class="item-points"></td>
+                            <td class="total-points"></td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr id="userItemsTotal0" class="table-dark subcustomer-total">
+                            <td>                                
+                                <input type="button" class="btn btn-primary" 
+                                    id="add_userItems0" value="+" />
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td id="subtotalCostKRW"></td>
+                            <td id="subtotalWeight"></td>
+                            <td>
+                                <div class="local-shipping"></div>
+                                <div id="subtotalShippingCostKRW"></div>
+                            </td>
+                            <td id="subtotalTotalKRW"></td>
+                            <td id="subtotalTotalRUR"></td>
+                            <td id="subtotalTotalUSD"></td>
+                            <td></td>
+                            <td id="subtotalTotalPoints"></td>
+                        </tr>
+                    </tfoot>
+                </table>                        
             </div>
         </div>
-        <div class="container-fluid row">&nbsp;</div>
-        <div class="container-fluid">
-            <div class="card card-header">
-                <div class="row input-group">
-                    <div class="col-9">            
-                        <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
-                        <input class="btn btn-secondary" type="button" value="Clear form" onclick="clear_form()" />
-                        <input class="btn btn-secondary" type="button" id="save_draft" value="Save draft" />
-                    </div>    
-                    <div class="col-2">
-                        <input class="form-control common-purchase-date" type="text" placeholder="Common purchase date" />
-                    </div>  
-                </div>
-            </div>    
-        </div>
-        <div class="container-fluid box-weight my-1" style="display: none;">
-            <div class="card-header card flex-row">
-                Box weight:
-                <span id="box-weight" class="mx-1"></span>
-            </div>
-        </div>        
-        <div id="accordion" class="container-fluid">
-            <div class="card subcustomer-card">
-                <div class="input-group card-header" id="userItemsHeader0">
-                    <input class="form-control subcustomer-identity col-9" placeholder="Number, name, password" onchange="validate_subcustomer(this)"/>
-                    <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Purchase date" />
-                    <input class="subcustomer-seq-num" type="hidden" />
-                    <button class="btn btn-primary" type="button" 
-                        data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
-                        aria-controls="userItems0">Toggle</button>
-                    <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
-                </div>
-                <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
-                    <table class="table-sm table-bordered table-hover col-12">
-                        <thead>
-                            <tr>
-                                <th scope="col" style="width: 8em;">Item code</th>
-                                <th scope="col" style="width: 30em;">Item name</th>
-                                <th scope="col" style="width: 5em;">Quantity</th>
-                                <th scope="col">Price</th>
-                                <th scope="col" style="width: 10em;">Items cost (KRW)</th>
-                                <th scope="col" style="width: 0em;">Weight</th>
-                                <th scope="col">Shipping cost (KRW)</th>
-                                <th scope="col">Total (KRW)</th>
-                                <th scope="col">Total (RUR)</th>
-                                <th scope="col">Total (USD)</th>
-                                <th scope="col">Item points</th>
-                                <th scope="col">Total points</th>
-                                <th scope="col">
-                                    <input type="button" class="btn btn-primary" 
-                                        id="add_userItems0" value="+" />
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="userItemsList0">
-                            <tr id="userItems0_0" class="item">
-                                <td><input class="form-control form-control-sm item-code" /></td>
-                                <td class="item-name"></td>
-                                <td><input class="form-control form-control-sm item-quantity" value="1"/></td>
-                                <td class="item-price"></td>
-                                <td class="cost-krw"></td>
-                                <td class="total-weight"></td>
-                                <td class="shipping-cost-krw"></td>
-                                <td class="total-krw"></td>
-                                <td class="total-rur"></td>
-                                <td class="total-usd"></td>
-                                <td class="item-points"></td>
-                                <td class="total-points"></td>
-                                <td>
-                                    <input type="button" class="btn btn-primary" id="del_userItems0_0"
-                                        value="-" onclick="delete_product(this)"/>
-                                </td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr id="userItemsTotal0" class="table-dark subcustomer-total">
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td></td>
-                                <td id="subtotalCostKRW"></td>
-                                <td id="subtotalWeight"></td>
-                                <td>
-                                    <div class="local-shipping"></div>
-                                    <div id="subtotalShippingCostKRW"></div>
-                                </td>
-                                <td id="subtotalTotalKRW"></td>
-                                <td id="subtotalTotalRUR"></td>
-                                <td id="subtotalTotalUSD"></td>
-                                <td></td>
-                                <td id="subtotalTotalPoints"></td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>                        
-                </div>
-            </div>
-        </div>
+    </div>
     <!-- </form> -->
     <div class="position-fixed cart" style="top:0; right:0">
         <table class="table-sm table-bordered table-light">

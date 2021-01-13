@@ -68,6 +68,10 @@ tr.red-line {
     margin-left: -249px;
 }
 
+.width-adjusted {
+    min-width: 100%;
+}
+
 table {
     font-size: 11px;
 }
