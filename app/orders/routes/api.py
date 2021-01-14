@@ -5,7 +5,7 @@ import re
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, not_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
@@ -60,6 +60,8 @@ def admin_get_orders(order_id):
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
             return jsonify(orders.first().to_dict(details=True))
+    else:
+        orders = orders.filter(not_(Order.id.like('%draft%')))
     if request.values.get('status'):
         orders = orders.filter(
             Order.status.in_(request.values.getlist('status')))
@@ -85,6 +87,8 @@ def user_get_orders(order_id):
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
             return jsonify(orders.first().to_dict(details=True))
+    else:
+        orders = orders.filter(not_(Order.id.like('%draft%')))
     if request.values.get('status'):
         orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
     if request.values.get('to_attach') is not None:
@@ -159,8 +163,6 @@ def user_create_order():
     errors = []
     # ordertotal_weight = 0
     add_suborders(order, request_data['suborders'], errors)
-    if request_data.get('draft'):
-        order.purchase_date_sort = datetime(9999, 12, 31)
 
     try:
         db.session.commit()
@@ -244,7 +246,7 @@ def add_suborder(order, suborder_data, errors):
             # current_app.logger.exception("Couldn't add product %s", item['item_code'])
             pass
 
-def parse_subcustomer(subcustomer_data) -> (Subcustomer, bool):
+def parse_subcustomer(subcustomer_data):
     '''Returns a tuple of customer from raw data
     and indication whether customer is existing one or created'''
     parts = subcustomer_data.split(',')
