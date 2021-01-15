@@ -1,0 +1,33 @@
+version: '3.5'
+#networks:
+# zbx_net:
+#  driver: bridge
+
+services:
+ selenium-chrome-server:
+  image: selenium/standalone-chrome
+  ports:
+   - "4444"
+  volumes:
+   - /dev/shm:/dev/shm
+  ulimits:
+   nproc: 65535
+   nofile:
+    soft: 20000
+    hard: 40000
+    #  deploy:
+    #   resources:
+    #    limits:
+    #      cpus: '0.70'
+    #      memory: 1G
+    #    reservations:
+    #      cpus: '0.5'
+    #      memory: 512M
+ nginx:
+  image: nginx:latest
+  volumes:
+   - ./nginx-balancer.conf:/etc/nginx/nginx.conf:ro
+  depends_on:
+      - selenium-chrome-server
+  ports:
+   - "4444:4444"

@@ -68,8 +68,15 @@ tr.red-line {
     margin-left: -249px;
 }
 
-.width-adjusted {
-    min-width: 100%;
+@media screen and (min-width: 769px) {
+    .width-adjusted {
+        min-width: 300px;
+    }   
+}
+@media screen and (max-width: 768px) {
+    .width-adjusted {
+        min-width: 100%;
+    }  
 }
 
 table {

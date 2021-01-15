@@ -4,7 +4,7 @@ from selenium.common.exceptions import NoSuchElementException,\
     StaleElementReferenceException, TimeoutException, \
     UnexpectedAlertPresentException
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver import Chrome
+from selenium.webdriver import Chrome, Remote
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -24,7 +24,10 @@ class Browser:
         self.__config = config
         self.__config['SELENIUM_HEADLESS'] = headless
         self.__browser_kwargs = kwargs
-        self.__create_browser_instanse()
+        if self.__config.get('SELENIUM_URL'):
+            self.__create_browser_session()
+        else:
+            self.__create_browser_instanse()
 
     def __del__(self):
         if self.__browser:
@@ -50,6 +53,13 @@ class Browser:
             self.__browser_kwargs['executable_path'] = '/usr/bin/chromedriver'
         self.__browser = Chrome(options=options, **self.__browser_kwargs)
         logging.debug("%s: Created browser instance", self.__config['CELERY_TASK_DEFAULT_QUEUE'])
+
+    def __create_browser_session(self):
+        options = Options()
+        if self.__config.get('SELENIUM_HEADLESS'):
+            options.headless = True
+        self.__browser = Remote(command_executor=self.__config['SELENIUM_URL'], options=options)
+        logging.debug("Connected to remote browser")
 
     def __get_by(self, criterium, value):
         ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
