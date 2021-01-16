@@ -108,8 +108,6 @@ def update_purchase_order(po_id):
     po = PurchaseOrder.query.get(po_id)
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
-    if not po.is_editable():
-        abort(Response(f"The purchase order <{po_id}> isn't in editable state", status=405))
 
     from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:
@@ -130,6 +128,8 @@ def update_purchase_order(po_id):
             current_app.logger.info("Update POs status task ID is %s", task.id)
             result = (jsonify(po.to_dict()), 202)
         else:
+            if not po.is_editable():
+                abort(Response(f"The purchase order <{po_id}> isn't in editable state", status=405))
             editable_attributes = ['payment_account', 'purchase_date',
                 'status', 'vendor', 'vendor_po_id']
             po = modify_object(po, request.get_json(), editable_attributes)
