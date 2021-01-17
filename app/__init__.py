@@ -1,6 +1,7 @@
 '''
 Initialization of the application
 '''
+import inspect
 import logging
 
 from flask import Flask
@@ -71,7 +72,6 @@ def register_components(flask_app):
     app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
-
 def init_debug(flask_app):
     import flask_debugtoolbar
     from flask_debugtoolbar import DebugToolbarExtension
@@ -104,3 +104,8 @@ def init_logging(flask_app):
     logger.addHandler(handler)
     logger.info("Log level is %s", logging.getLevelName(logger.level))
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
+
+__frm = inspect.stack()
+__command = __frm[len(__frm) - 1].filename
+if __command.endswith('celery'):
+    create_app()

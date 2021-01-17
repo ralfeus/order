@@ -11,7 +11,6 @@ def get_celery(app_name):
         'worker_hijack_root_logger': False
     })
     # celery.conf.add_defaults(flask_app.config)
-    # celery.conf.task_default_queue = 'order'
     return celery
 
 def init_celery(celery, flask_app):
@@ -20,6 +19,7 @@ def init_celery(celery, flask_app):
             with flask_app.app_context():
                 return self.run(*args, **kwargs)
 
-    celery.config_from_object(flask_app.config)
+    # celery.config_from_object(flask_app.config)
+    celery.conf.task_default_queue = flask_app.config['CELERY_TASK_DEFAULT_QUEUE']
     celery.Task = ContextTask
     return celery
