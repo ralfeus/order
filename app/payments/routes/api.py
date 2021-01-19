@@ -96,6 +96,7 @@ def user_create_payment():
     payload = request.get_json()
     if not payload:
         abort(Response('No payment data was provided', status=400))
+    payload['amount_original'] = payload['amount_original'].replace(',', '.')
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
