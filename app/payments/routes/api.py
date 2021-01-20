@@ -96,7 +96,8 @@ def user_create_payment():
     payload = request.get_json()
     if not payload:
         abort(Response('No payment data was provided', status=400))
-    payload['amount_original'] = payload['amount_original'].replace(',', '.')
+    if isinstance(payload['amount_original'], str):
+        payload['amount_original'] = payload['amount_original'].replace(',', '.')
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
@@ -117,9 +118,10 @@ def user_create_payment():
         changed_by=current_user,
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all(),
         currency=currency,
-        amount_sent_original=payload['amount_original'],
-        amount_sent_krw=float(payload['amount_original']) / float(currency.rate),
-        payment_method_id=payload['payment_method'],
+        amount_sent_original=payload.get('amount_original'),
+        amount_sent_krw=float(payload.get('amount_original')) / float(currency.rate),
+        payment_method_id=payload.get('payment_method'),
+        additional_info=payload.get('additional_info'),
         evidence_image=evidence_file,
         status=PaymentStatus.pending,
         when_created=datetime.now()

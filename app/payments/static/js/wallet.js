@@ -110,6 +110,7 @@ function init_payments_table() {
                 type: 'select2'
             },
             {label: 'Amount', name: 'amount_original'},
+            {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
                 name: 'evidences',

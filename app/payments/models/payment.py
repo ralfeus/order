@@ -2,7 +2,7 @@ from datetime import datetime
 import enum
 from functools import reduce
 
-from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String
+from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -46,6 +46,7 @@ class Payment(db.Model, BaseModel):
     transaction = relationship("Transaction", foreign_keys=[transaction_id])
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
+    additional_info = Column(Text)
 
     def set_status(self, value, messages):
         if isinstance(value, str):
@@ -106,6 +107,7 @@ class Payment(db.Model, BaseModel):
             # 'payee': self.payment_method.payee.to_dict() \
             #     if self.payment_method and self.payment_method.payee else None,
             'evidence_image': self.evidence_image,
+            'additional_info': self.additional_info,
             'status': self.status.name,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,

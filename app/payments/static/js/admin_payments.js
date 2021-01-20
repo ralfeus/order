@@ -14,38 +14,6 @@ $.fn.dataTable.ext.buttons.status = {
 $(document).ready( function () {
     get_dictionaries()
         .then(init_payments_table);
-
-    // table.on('select', function(e, dt, type, indexes) {
-    //         // Total over all pages
-    //         totalSentOriginal = dt.data()
-    //             .reduce(function (accumulator, i) {
-    //                 if (!accumulator[i.currency_code]) { 
-    //                     accumulator[dt.data()[i].currency_code] = 0;
-    //                 }
-    //                 accumulator[dt.data()[i].currency_code] += dt.data()[i].amount_original;
-    //                 return accumulator;
-    //             }, {})
-    //         totalSentOriginalString = Object.entries(totalSentOriginal)
-    //             .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
-    //         totalSentKRW = api
-    //             .column( 4 )
-    //             .data()
-    //             .reduce( function (a, b) {
-    //                 return intVal(a) + intVal(b);
-    //             }, 0 );
-    //         totalReceivedKRW = api
-    //             .column( 5 )
-    //             .data()
-    //             .reduce( function (a, b) {
-    //                 return intVal(a) + intVal(b);
-    //             }, 0 );
- 
-    //         // Update footer
-    //         $(api.column(3).footer()).html(totalSentOriginalString);
-    //         $( api.column(4).footer() ).html('₩' + totalSentKRW.toLocaleString());        
-    //         $( api.column(5).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-    // });
-
 });
 
 /**
@@ -62,6 +30,7 @@ function format ( row, data ) {
     $('#amount_original', payment_details).val(data.amount_original);
     $('#amount_krw', payment_details).val(data.amount_krw);
     $('#amount_received_krw', payment_details).val(data.amount_received_krw);
+    $('#additional_info', payment_details).text(data.additional_info);
 
     $('.currency-dropdown', payment_details).on('hidden.bs.dropdown', function(target) {
         $('#currency_code', payment_details).text(target.clickEvent.target.innerText);
@@ -160,6 +129,7 @@ function init_payments_table() {
                 }))
             },
             {label: 'Amount', name: 'amount_original'},
+            {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
                 name: 'evidences',
