@@ -58,7 +58,7 @@ async function populate_order(order_data) {
             }
             var current_row = $('.item-code', current_node).last().closest('tr')[0];
 
-            await fill_product_row(current_row, order_products[op])
+            await update_product(current_row, order_products[op])
         }
     }
     shipping_changed();
