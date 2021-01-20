@@ -116,7 +116,8 @@ class Suborder(db.Model, BaseModel):
                 self.order_products
             ), 0)
         self.local_shipping = \
-            current_app.config['LOCAL_SHIPPING_COST'] \
+            0 if self.order_products.count() == 0 \
+            else current_app.config['LOCAL_SHIPPING_COST'] \
                 if free_local_shipment_eligibility_amount < \
                     current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \
                 else 0
