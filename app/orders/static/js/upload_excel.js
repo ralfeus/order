@@ -71,7 +71,7 @@ function load_excel(data) {
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
     $('#country').val(countries[ws['L2'].v]);
-    get_shipping_methods(countries[ws['L2'].v], 0)
+    update_shipping_methods(countries[ws['L2'].v], 0)
         .then(() => {
             if (ws['L2'].v == 0) {
                 $('#shipping').val(4); // No shipping

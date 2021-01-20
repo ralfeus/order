@@ -41,7 +41,7 @@ async function populate_order(order_data) {
         $('#attached_orders')
             .append(new Option(ao.id, ao.id, false, true)).trigger('change');
     });
-    get_shipping_methods(order_data.country.id, 0)
+    update_shipping_methods(order_data.country.id, 0)
     .then(() => { $('#shipping').val(order_data.shipping.id); });
 
     var current_node;
