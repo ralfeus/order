@@ -10,16 +10,18 @@ const box_weights = {
 const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
 const LOCAL_SHIPPING_COST = 2500;
 
-var g_selected_shipping_method;
-var g_products;
+var g_box_weight = 0;
 var g_cart = {};
+var g_products;
+var g_selected_shipping_method;
+var g_total_local_shipping = 0;
+var g_total_weight = 0;
 
 var itemsCount = {};
 var currencyRates = {};
 var users = 1;
 
 var subtotal_krw = 0;
-var totalWeight = 0;
 
 var subcustomerTemplate;
 var itemTemplate;
@@ -108,7 +110,7 @@ function clear_form() {
     itemsCount = {};
     users = 1;
     subtotal_krw = 0;
-    totalWeight = 0;
+    g_total_weight = 0;
 
     $('.subcustomer-card').remove();
     add_subcustomer();
@@ -142,7 +144,7 @@ function delete_product(target) {
     }
 }
 
-async function fill_product_row(product_row, product) {
+async function update_product(product_row, product) {
     if (product.product_id) {
         $('.item-code', product_row).val(product.product_id);
     }
@@ -165,7 +167,7 @@ function get_countries() {
         url: '/api/v1/country',
         success: function(data) {
             $('#country').html(data.map(c => '<option value="' + c.id + '">' + c.name + '</option>'))
-            get_shipping_methods($('#country').val(), 0)
+            update_shipping_methods($('#country').val(), 0)
             .then(() => {
                 promise.resolve();
             });
@@ -217,13 +219,13 @@ function get_products() {
  */
 function get_shipping_cost(shipping_method, weight) {
     if (weight == 0) {
-        update_all_grand_totals(0, 0);
+        update_shipping_cost(0, 0);
     } else {
-        update_all_grand_totals(shipping_rates[shipping_method], weight);
+        update_shipping_cost(shipping_rates[shipping_method], weight);
     }
 }
 
-function get_shipping_methods(country, weight) {
+function update_shipping_methods(country, weight) {
     var promise = $.Deferred();
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
@@ -286,7 +288,7 @@ function get_product(line_input) {
     if (line_input.value) {
         $.ajax({
             url: '/api/v1/product/' + line_input.value,
-            success: data => fill_product_row(product_line, data[0]),
+            success: data => update_product(product_line, data[0]),
             error: (data) => {
                 $('.modal-body').text(data.responseText);
                 $('#modal').modal();
@@ -322,13 +324,30 @@ function save_order_draft() {
     submit_order(null, draft=true);
 }
 
-async function set_total_weight(total_weight) {
-    totalWeight = total_weight;
-    await get_shipping_methods($('#country').val(), total_weight);
+async function update_total_weight(products) {
+    var total_weight = 0;
+    if (products) {
+        total_weight = products.reduce(
+            (acc, product) => acc + product[1].weight * product[1].quantity, 0);
+    }
+    var box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
+        .sort((a, b) => b[0] - a[0])
+        .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
+    if (box_weight) {
+        g_box_weight = box_weight;
+        $('.box-weight').show();
+        $('#box-weight').text(box_weight);
+    } else {
+        $('.box-weight').hide();
+    }
+    $('.total-weight').html(total_weight + box_weight);
+        
+    g_total_weight = total_weight;
+    await update_shipping_methods($('#country').val(), total_weight + box_weight);
 }
 
 function shipping_changed() {
-    get_shipping_cost($('#shipping').val(), totalWeight);
+    get_shipping_cost($('#shipping').val(), g_total_weight);
 }
 
 function submit_order(_sender, draft=false) {
@@ -436,22 +455,23 @@ async function update_item_subtotal(sender) {
         g_cart[product_id].quantity = sender.val();
         g_cart[product_id].costKRW = g_cart[product_id].price * g_cart[product_id].quantity;
         $('td.cost-krw', itemObject).html(g_cart[product_id].costKRW);
-        $('td.total-weight', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
+        $('td.total-item-weight', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
         $('td.total-points', itemObject).html(g_cart[product_id].points * g_cart[product_id].quantity);
     } else {
         $('.cost-krw', itemObject).html('');
-        $('.total-weight', itemObject).html('');
+        $('.total-item-weight', itemObject).html('');
         $('.total-points', itemObject).html('');
     }
 
-    update_subcustomer_local_shipping(sender);
-    await update_all_totals();
+    await update_subcustomer_local_shipping(sender);
 }
 
 function update_item_total() {
     $('.total-krw').each(function() {
-        if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(g_cart[$(this).parent().attr('id')].totalKRW);
+        var item_id = $(this).parent().attr('id');
+        if (g_cart[item_id]) {
+            g_cart[item_id].totalKRW = g_cart[item_id].costKRW + g_cart[item_id].shippingCostKRW;
+            $(this).html(g_cart[item_id].totalKRW);
         } else {
             $(this).html('');
         }
@@ -475,19 +495,24 @@ function update_item_total() {
 /**
  * Updates shipping cost in total and distribute one for each ordered item proportionally
  * @param {number} cost - total shipping cost
- * @param {number} totalWeight - total cart weight
  */
-function update_shipping_cost(cost, totalWeight) {
+function update_shipping_cost(cost) {
     $('#totalShippingCostKRW').html(cost);
     $('#totalShippingCostRUR').html(round_up(cost * currencyRates.RUR, 2));
     $('#totalShippingCostUSD').html(round_up(cost * currencyRates.USD, 2));
-    var product_weight = totalWeight - parseInt($('#box-weight').text())
 
+    update_grand_totals();
+    distribute_shipping_cost(cost);
+}
+
+function distribute_shipping_cost(cost) {
     // Distribute shipping cost among items
+    var user_products = Object.entries(g_cart);
+    total_weight = user_products.reduce(
+        (acc, product) => acc + product[1].weight * product[1].quantity, 0);
     for (product in g_cart) {
         g_cart[product].shippingCostKRW = 
-            round_up(cost / product_weight * g_cart[product].weight * g_cart[product].quantity, 0);
-        g_cart[product].totalKRW = g_cart[product].costKRW + g_cart[product].shippingCostKRW;
+            round_up(cost / total_weight * g_cart[product].weight * g_cart[product].quantity, 0);
     }
     $('.shipping-cost-krw').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
@@ -496,9 +521,11 @@ function update_shipping_cost(cost, totalWeight) {
             $(this).html('');
         }
     });
+    update_item_total();
+    update_subcustomer_totals();
 }
 
-function update_subcustomer_local_shipping(node) {
+async function update_subcustomer_local_shipping(node) {
     var subcustomer_card = $(node).closest('.subcustomer-card');
     var subcustomer_total = $('.subcustomer-total', subcustomer_card)[0];
     var userId = parseInt(subcustomer_total.id.substr(14));
@@ -516,6 +543,13 @@ function update_subcustomer_local_shipping(node) {
     } else {
         $('.local-shipping', $(subcustomer_total)).html("");
         local_shipping = 0;
+    var local_shipping_fees = $('.local-shipping').text()
+        .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
+    g_total_local_shipping = local_shipping_fees 
+        ? local_shipping_fees.reduce((acc, cost) => acc + parseInt(cost), 0)
+        : 0;
+    await update_grand_subtotal();
+    // await update_all_totals();
 }}
 
 /**
@@ -555,29 +589,19 @@ function update_subcustomer_totals() {
 }
 
 async function update_grand_subtotal() {
-    var userProducts = Object.entries(g_cart);
-    subtotal_krw = userProducts.reduce((acc, product) => acc + product[1].costKRW, 0);
-    var local_shipping_fees = $('.local-shipping').text()
-        .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
-    var local_shipping_cost = local_shipping_fees 
-        ? local_shipping_fees.reduce((acc, cost) => acc + parseInt(cost), 0)
-        : 0;
-    var total_weight = userProducts.reduce((acc, product) => acc + product[1].weight * product[1].quantity, 0);
-    box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
-        .sort((a, b) => b[0] - a[0])
-        .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
-    await set_total_weight(total_weight + box_weight);
-    var total_with_local_shipping_krw = subtotal_krw + local_shipping_cost
+    var user_products = Object.entries(g_cart);
+    subtotal_krw = user_products.reduce((acc, product) => acc + product[1].costKRW, 0);
+    // var local_shipping_fees = $('.local-shipping').text()
+    //     .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
+    // var local_shipping_cost = local_shipping_fees 
+    //     ? local_shipping_fees.reduce((acc, cost) => acc + parseInt(cost), 0)
+    //     : 0;
+    var total_with_local_shipping_krw = subtotal_krw + g_total_local_shipping;
     $('#totalItemsCostKRW').html(total_with_local_shipping_krw);
     $('#totalItemsCostRUR').html(round_up(total_with_local_shipping_krw * currencyRates.RUR, 2));
     $('#totalItemsCostUSD').html(round_up(total_with_local_shipping_krw * currencyRates.USD, 2));
-    $('[id^=totalItemsWeight]').html(totalWeight);
-    if (box_weight) {
-        $('.box-weight').show();
-        $('#box-weight').text(box_weight);
-    } else {
-        $('.box-weight').hide();
-    }
+
+    await update_total_weight(user_products);
 }
 
 function validate_subcustomer(sender) {

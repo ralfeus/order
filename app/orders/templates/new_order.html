@@ -89,12 +89,12 @@
                                 <input type="button" class="btn btn-primary" id="del_userItems0_0"
                                     value="-" onclick="delete_product(this)"/>
                             </td>
-                            <td><input class="form-control form-control-sm item-code" /></td>
+                            <td><input class="form-control form-control-sm item-code" value=""/></td>
                             <td class="item-name"></td>
                             <td><input class="form-control form-control-sm item-quantity" value="1"/></td>
                             <td class="item-price"></td>
                             <td class="cost-krw"></td>
-                            <td class="total-weight"></td>
+                            <td class="total-item-weight"></td>
                             <td class="shipping-cost-krw"></td>
                             <td class="total-krw"></td>
                             <td class="total-rur"></td>
@@ -144,21 +144,21 @@
                 <tr>
                     <td>KRW</td>
                     <td id="totalItemsCostKRW"></td>
-                    <td id="totalItemsWeightKRW"></td>
+                    <td class="total-weight"></td>
                     <td id="totalShippingCostKRW"></td>
                     <td id="totalGrandTotalKRW"></td>
                 </tr>
                 <tr>
                     <td>RUR</td>
                     <td id="totalItemsCostRUR"></td>
-                    <td id="totalItemsWeightRUR"></td>
+                    <td class="total-weight"></td>
                     <td id="totalShippingCostRUR"></td>
                     <td id="totalGrandTotalRUR"></td>
                 </tr>
                 <tr>
                     <td>USD</td>
                     <td id="totalItemsCostUSD"></td>
-                    <td id="totalItemsWeightUSD"></td>
+                    <td class="total-weight"></td>
                     <td id="totalShippingCostUSD"></td>
                     <td id="totalGrandTotalUSD"></td>
                 </tr>
