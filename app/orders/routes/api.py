@@ -381,8 +381,8 @@ def _update_suborder(order, order_products, suborder_data, errors):
                 else:
                     try:
                         add_order_product(suborder, item, errors)
-                    except:
-                        pass
+                    except Exception as ex:
+                        current_app.logger.debug("Didn't add product: %s", ex)
             if suborder.buyout_date and (
                 not order.purchase_date or order.purchase_date > suborder.buyout_date):
                 order.set_purchase_date(suborder.buyout_date)
