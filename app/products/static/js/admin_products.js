@@ -100,14 +100,15 @@ $(document).ready( function () {
             {data: 'weight'},
             {data: 'price'},
             {data: 'points'},
-            {data: 'available'}
+            {data: 'available'},
+            {data: 'purchase'}
         ],
         columnDefs: [
             {
                 searchPanes: {
                     show: true
                 },
-                targets: [1, 2, 3, 4, 7]
+                targets: [1, 2, 3, 4, 7, 8]
             }, 
             {
                 searchPanes: {
