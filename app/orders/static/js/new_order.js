@@ -139,7 +139,7 @@ function delete_product(target) {
     var userItemId = target.id.substr(4);
     if(!userItemId.match(/userItems\d+_0/)) {
         delete g_cart[userItemId];
-        update_all_totals();
+        update_subcustomer_local_shipping(target);
         $(target).parent().parent().remove();
     }
 }
@@ -151,6 +151,17 @@ async function update_product(product_row, product) {
     if (!isNaN(product.quantity)) {
         $('.item-quantity', product_row).val(product.quantity);
     }
+    if (product.available) {
+        $('.item-code', product_row).attr('title', '');
+        $('.item-code', product_row).addClass('is-valid');
+        $('.item-code', product_row).removeClass('is-invalid');
+    } else {
+        $('.item-code', product_row).attr('data-toggle', 'tooltip');
+        $('.item-code', product_row).attr('data-delay', '{show:5000, hide: 3000}');
+        $('.item-code', product_row).attr('title', 'The product is not available');
+        $('.item-code', product_row).addClass('is-invalid');
+        $('.item-code', product_row).removeClass('is-valid');
+    }
     $('.item-name', product_row).html(
         product.name_english == null
             ? product.name
@@ -158,7 +169,7 @@ async function update_product(product_row, product) {
     $('.item-price', product_row).html(product.price);
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
-    await update_item_subtotal($('.item-quantity', product_row));
+    await update_item_subtotal(product_row);
 }
 
 function get_countries() {
@@ -204,6 +215,7 @@ function get_products() {
                     price: product.price,
                     points: product.points,
                     separate_shipping: product.separate_shipping,
+                    available: product.available,
                     weight: product.weight
                 }));
             }
@@ -288,19 +300,22 @@ function get_product(line_input) {
     if (line_input.value) {
         $.ajax({
             url: '/api/v1/product/' + line_input.value,
-            success: data => update_product(product_line, data[0]),
+            success: data => {
+                update_product(product_line, data[0])
+                promise.resolve();
+            },
             error: (data) => {
                 $('.modal-body').text(data.responseText);
                 $('#modal').modal();
-            },
-            complete: () => { promise.resolve(); }
+                promise.resolve();
+            }
         });
     } else {
         $('.item-name', product_line).html('');
         $('.item-price', product_line).html('');
         $('.item-points', product_line).html('');
         delete g_cart[product_line.id];
-        update_item_subtotal($('.item-quantity', product_line));
+        update_item_subtotal(product_line);
         promise.resolve();
     }
     return promise;
@@ -317,7 +332,7 @@ function load_dictionaries() {
 }
 
 function product_quantity_change(target) {
-    target.on('change', function() { update_item_subtotal($(this)); });
+    target.on('change', function() { update_item_subtotal($(this).closest('tr')[0]); });
 }
 
 function save_order_draft() {
@@ -447,23 +462,21 @@ function update_grand_totals() {
         parseFloat($('#totalItemsCostUSD').html()) + parseFloat($('#totalShippingCostUSD').html()), 2));
 }
 
-async function update_item_subtotal(sender) {
-    var itemObject = sender.parent().parent(); // tr
-    var product_id = itemObject.attr('id');
-    if (g_cart[product_id]) {
-        g_cart[product_id].user = '';
-        g_cart[product_id].quantity = sender.val();
-        g_cart[product_id].costKRW = g_cart[product_id].price * g_cart[product_id].quantity;
-        $('td.cost-krw', itemObject).html(g_cart[product_id].costKRW);
-        $('td.total-item-weight', itemObject).html(g_cart[product_id].weight * g_cart[product_id].quantity);
-        $('td.total-points', itemObject).html(g_cart[product_id].points * g_cart[product_id].quantity);
+async function update_item_subtotal(item) {
+    if (g_cart[item.id]) {
+        g_cart[item.id].user = '';
+        g_cart[item.id].quantity = parseInt($('.item-quantity', item).val());
+        g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
+        $('td.cost-krw', item).html(g_cart[item.id].costKRW);
+        $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
+        $('td.total-points', item).html(g_cart[item.id].points * g_cart[item.id].quantity);
     } else {
-        $('.cost-krw', itemObject).html('');
-        $('.total-item-weight', itemObject).html('');
-        $('.total-points', itemObject).html('');
+        $('.cost-krw', item).html('');
+        $('.total-item-weight', item).html('');
+        $('.total-points', item).html('');
     }
 
-    await update_subcustomer_local_shipping(sender);
+    await update_subcustomer_local_shipping(item);
 }
 
 function update_item_total() {
@@ -543,6 +556,7 @@ async function update_subcustomer_local_shipping(node) {
     } else {
         $('.local-shipping', $(subcustomer_total)).html("");
         local_shipping = 0;
+    }
     var local_shipping_fees = $('.local-shipping').text()
         .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
     g_total_local_shipping = local_shipping_fees 
@@ -550,7 +564,7 @@ async function update_subcustomer_local_shipping(node) {
         : 0;
     await update_grand_subtotal();
     // await update_all_totals();
-}}
+}
 
 /**
  * Update subtotal for single customer

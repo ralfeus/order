@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
 from app.exceptions import AtomyLoginError, EmptySuborderError, OrderError, \
-    SubcustomerParseError
+    SubcustomerParseError, ProductNotFoundError, ProductNotAvailableError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
@@ -460,21 +460,23 @@ def admin_set_order_product_status(order_product_id, order_product_status):
 
 def add_order_product(suborder, item, errors):
     with db.session.no_autoflush:
-        product = Product.get_product_by_id(item['item_code'])
-        if product:
-            order_product = OrderProduct(
-                suborder=suborder,
-                product=product,
-                price=product.price,
-                quantity=int(item['quantity']),
-                status=OrderProductStatus.pending)
-            db.session.add(order_product)
-            suborder.order.total_weight += product.weight * order_product.quantity
-            suborder.order.subtotal_krw += product.price * order_product.quantity
-            return order_product
-
-        errors.append(f'{item["item_code"]}: no such product')
-        raise Exception(f'{item["item_code"]}: no such product')
+        try:
+            product = Product.get_product_by_id(item['item_code'])
+            if product:
+                order_product = OrderProduct(
+                    suborder=suborder,
+                    product=product,
+                    price=product.price,
+                    quantity=int(item['quantity']),
+                    status=OrderProductStatus.pending)
+                db.session.add(order_product)
+                suborder.order.total_weight += product.weight * order_product.quantity
+                suborder.order.subtotal_krw += product.price * order_product.quantity
+                return order_product
+            raise ProductNotFoundError(item['item_code'])
+        except Exception as ex:
+            errors.append(ex.args)
+            raise ex
 
 @bp_api_user.route('/product/<int:order_product_id>/postpone', methods=['POST'])
 @login_required

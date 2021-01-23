@@ -2,39 +2,31 @@ from datetime import datetime
 from decimal import Decimal
 
 from flask import Response, abort, jsonify, request
-from flask_security import current_user, login_required, roles_required
+from flask_security import login_required, roles_required
 
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db
-from app.currencies.models import Currency
 from app.products import bp_api_admin, bp_api_user
-from app.orders.models import Order, OrderProduct, \
-    Suborder, Subcustomer
 from app.products.models import Product
-from app.shipping.models import Shipping
 
-
-@bp_api_user.route('/', defaults={'product_id': None}, strict_slashes=False)
+@bp_api_user.route('', defaults={'product_id': None})
 @bp_api_user.route('/<product_id>')
 @login_required
 def get_product(product_id):
-    '''
-    Returns list of products in JSON
-    '''
+    '''Returns list of products in JSON'''
     product_query = None
     error_message = None
     if product_id:
         error_message = f"No product with code <{product_id}> was found"
         stripped_id = product_id.lstrip('0')
-        product_query = Product.query.filter_by(available=True). \
-            filter(Product.id.endswith(stripped_id)).all()
+        product_query = Product.query.filter(Product.id.endswith(stripped_id))
         product_query = [product for product in product_query
                         if product.id.lstrip('0') == stripped_id]
     else:
-        error_message = "There are no available products in store now"
-        product_query = Product.query.filter_by(available=True).all()
+        error_message = "There are no products in store now"
+        product_query = Product.query.all()
     if len(product_query) != 0:
         return jsonify(Product.get_products(product_query))
     abort(Response(error_message, status=404))
@@ -53,7 +45,7 @@ def get_product_by_term(term):
     return jsonify(Product.get_products(product_query))
 
 
-@bp_api_admin.route('/', defaults={'product_id': None}, strict_slashes=False)
+@bp_api_admin.route('', defaults={'product_id': None})
 @bp_api_admin.route('/<product_id>')
 @roles_required('admin')
 def admin_get_product(product_id):
@@ -67,7 +59,7 @@ def admin_get_product(product_id):
         product_query = Product.query.all()
     return jsonify(Product.get_products(product_query))
 
-@bp_api_admin.route('/', defaults={'product_id': None}, methods=['POST'], strict_slashes=False)
+@bp_api_admin.route('', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<product_id>', methods=['POST'])
 @roles_required('admin')
 def save_product(product_id):
