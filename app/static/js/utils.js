@@ -7,7 +7,7 @@ function round_up(number, signs) {
 function modal(title, text, type='info') {
     var promise = $.Deferred();
     $('.modal-title').text(title);
-    $('.modal-body').text(text);
+    $('.modal-body').html(text);
     if (type == 'confirmation') {
         $('.modal-footer').html(
             '<button type="button" id="btn-yes" class="btn btn-danger"  data-dismiss="modal">Yes</button>' +

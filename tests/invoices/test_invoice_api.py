@@ -89,6 +89,7 @@ class TestInvoiceClient(BaseTestCase):
             'address': None,
             'country': 'country1',
             'customer': 'Customer 1',
+            'payee': None,
             'id': 'INV-2020-00-00',
             'invoice_items': [{
                 'id': 1,
@@ -133,6 +134,7 @@ class TestInvoiceClient(BaseTestCase):
             'address': None,
             'country': 'country1',
             'customer': None,
+            'payee': None,
             'id': gen_id,
             'invoice_items': [{
                 'id': 1,

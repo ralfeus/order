@@ -166,7 +166,11 @@ function create_invoice(rows) {
             $('.wait').hide();
         },
         success: function (data) {
-            alert('Invoice ' + data.invoice_id + ' is created for orders ' + orders.join());
+            modal(
+                'Invoice', 
+                'Invoice ' + data.invoice_id + ' is created for orders ' + orders.join()
+                + '<br />' +
+                '<a href="/admin/invoices">Goto Invoices</a>');
         },
         error: function (ex) {
             console.log(ex);

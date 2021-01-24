@@ -30,6 +30,10 @@
       <td>{{ order.phone }}</td>
     </tr>
     <tr>
+      <td><h5>Counterpart company</h5>:</td>
+      <td>{{ order.get_payee() }}</td>
+    </tr>
+    <tr>
       <td><h3>Orders to be shipped with this one:</h3></td>
       <td>
         {% for ao in order.attached_orders %}

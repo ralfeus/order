@@ -175,6 +175,10 @@ class Order(db.Model, BaseModel):
                 if column.key == 'user' else \
             base_filter.filter(column.like(f'%{filter_value}%'))
 
+    def get_payee(self):
+        return self.payment_method.payee if self.payment_method \
+            else None
+
     def is_editable(self):
         return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
 
