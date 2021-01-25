@@ -82,12 +82,20 @@ function get_orders_to_pay(user) {
 function init_payments_table() {
     g_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
+            var payment_id = Object.entries(data.data)[0][0];
+            var target = Object.entries(data.data)[0][1];
+            var method = 'post';
+            var url = '/api/v1/payment/' + payment_id;
+            if (data.action === 'create') {
+                url = '/api/v1/payment';
+                payment_id = target.id;
+            }
             $.ajax({
-                url: '/api/v1/payment',
-                method: 'post',
+                url: url,
+                method: method,
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
+                data: JSON.stringify(target),
                 success: data => {success(({data: [data]}))},
                 error: error
             });
@@ -152,6 +160,7 @@ function init_payments_table() {
     var table = $('#payments').DataTable({
         dom: 'lfrBtip',
         buttons: [
+            { extend: 'edit', editor: g_editor, text: "Edit payment"},
             { extend: 'create', editor: g_editor, text: 'Create new payment' },
             { 
                 extend: 'collection', 
