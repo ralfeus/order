@@ -78,39 +78,6 @@ def prepare_datatables_query(query, args, filter_clause):
             if sort_column_input['dir'] == 'desc':
                 sort_column = sort_column.desc()
             query_filtered = query_filtered.order_by(sort_column)
-    # # Search panes preparation
-    # from sqlalchemy.orm.relationships import RelationshipProperty
-    # from app import db
-    # search_panes = {}
-    # for column_data in columns.items():
-    #     if column_data[1]['data'] == '' or column_data[1]['searchable'] != 'true':
-    #         continue
-
-    #     column = get_column(query, column_data[1]['data'])
-    #     filtered_values_query = None
-    #     if isinstance(column.property, RelationshipProperty):
-    #         local_column = column.property.local_columns.pop()
-    #         remote_column = column
-    #         filtered_values_query = query_filtered.join(column.property.table) \
-    #             .with_entities(remote_column, db.func.count(local_column)) \
-    #                 .group_by(remote_column)
-    #     else:
-    #         filtered_values_query = query_filtered.with_entities(
-    #             column, db.func.count(column)).group_by(column) 
-
-    #     search_panes[f'{column.expression.table.name}.{column.name}'] = [ 
-    #         {
-    #             'label': value[0],
-    #             'value': value[0],
-    #             'total': query.filter(column == value[0]).count(),
-    #             'count': value[1]
-    #         } for value in filtered_values_query
-    #     ]
-    # search_panes = {
-    #     'searchPanes': {
-    #         'options': search_panes
-    #     }
-    # }
     # Limiting to page
     query_filtered = query_filtered.offset(args['start']). \
                                            limit(args['length'])

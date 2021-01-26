@@ -163,17 +163,19 @@ class Order(db.Model, BaseModel):
 
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
-        from app.payments.models.payment_method import PaymentMethod
         from app.models.user import User
         part_filter = f'%{filter_value}%'
         return \
-            base_filter.filter(column.has(PaymentMethod.name.like(part_filter))) \
+            base_filter.filter(Order.payment_method_id.in_(filter_value.split(','))) \
                 if column.key == 'payment_method' else \
-            base_filter.filter(column.has(Shipping.name.like(part_filter))) \
+            base_filter.filter(Order.shipping_method_id.in_(filter_value.split(','))) \
                 if column.key == 'shipping' else \
             base_filter.filter(column.has(User.username.like(part_filter))) \
                 if column.key == 'user' else \
-            base_filter.filter(column.like(f'%{filter_value}%'))
+            base_filter.filter(column.in_([OrderStatus[status]
+                               for status in filter_value.split(',')])) \
+                if column.key == 'status' \
+            else base_filter.filter(column.like(f'%{filter_value}%'))
 
     def get_payee(self):
         return self.payment_method.payee if self.payment_method \

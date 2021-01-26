@@ -51,6 +51,31 @@ async function get_users() {
     return await get_list('/api/v1/admin/user');
 }
 
+function init_search_input(target, column) {
+    $(target).on('keyup change clear', function () {
+        if ( column.search() !== this.value ) {
+            column
+                .search( this.value )
+                .draw();
+        }
+    });
+}
+
+function init_search_select(target, column, list) {
+    $(target).select2({
+        data: list,
+        multiple: true
+    })
+    .on('change', function() {
+        var selected_items = $(target).select2('data').map(e => e.id);
+        if (column.search() !== selected_items) {
+            column
+                .search(selected_items)
+                .draw();
+        }
+    });    
+}
+
 $(document).ready(function(){
     $('.dropdown-submenu>a').on("click", function(e){
       $(this).next('ul').toggle();
