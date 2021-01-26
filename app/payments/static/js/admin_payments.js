@@ -4,6 +4,7 @@ var g_currencies = [];
 var g_customers = [];
 var g_editor;
 var g_payment_methods = [];
+var g_payment_statuses = [];
 
 $.fn.dataTable.ext.buttons.status = {
     action: function(_e, dt, _node, _config) {
@@ -72,6 +73,11 @@ async function get_dictionaries() {
     g_currencies = await get_currencies();
     g_customers = await get_users();
     g_payment_methods = await get_payment_methods();
+    g_payment_statuses = (await get_list('/api/v1/payment/status'))
+    g_filter_sources = {
+        'payment_method.name': g_payment_methods.map(e => e.name),
+        'status': g_payment_statuses
+    };
 }
 
 function get_orders_to_pay(user) {
@@ -226,7 +232,8 @@ function init_payments_table() {
             $(api.column(5).footer()).html(totalSentOriginalString);
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-        }
+        },
+        initComplete: function() { init_search(this); }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -270,6 +277,21 @@ function init_payments_table() {
             // });
         }
     } );
+}
+
+function init_search(table) {
+    table.api().columns().every(function() { 
+        column = this;
+        $('td:nth-child(' + (this.index() + 1) + ') input', 
+            $(this.header()).closest('thead'))
+            .each((_idx, item) => init_search_input(item, column))
+            .val('');
+        $('td:nth-child(' + (this.index() + 1) + ') select', 
+            $(this.header()).closest('thead'))
+            .each((_idx, item) => init_search_select(
+                item, column, g_filter_sources[column.dataSrc()]))
+            .val('');
+    });
 }
 
 function on_currency_change() {
