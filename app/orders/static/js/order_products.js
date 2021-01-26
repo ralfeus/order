@@ -1,6 +1,46 @@
+var g_filter_sources;
+var g_order_product_statuses;
+
 $(document).ready( function () {
+    get_dictionaries().then(init_order_products_table);
+});
+
+function cancel(target) {
+    target.data().toArray().forEach(op => {
+        $.delete('/api/v1/order/product/' + op.id)
+            .then(response => {
+                target.raw(parseInt(response.id)).data().draw();
+            });
+    });
+}
+
+/**
+ * Draws order product details
+ * @param {object} row - row object 
+ * @param {object} data - data object for the row
+ */
+function format ( row, data ) {
+    return '<div class="container product-details">'+
+        '<div class="row container">'+
+            '<label class="col-5" for="public_comment">Public comment:</label>' +
+            '<input type="button" class="button btn-primary btn-save col-1" value="Save" />' +
+        '</div>' +
+        '<div class="row container">' +
+            '<textarea id="public_comment" class="form-control col-4">' + data.public_comment + '</textarea>' +
+        '</div>'+
+    '</div>';
+}
+
+async function get_dictionaries() {
+    g_order_product_statuses = await get_list('/api/v1/order/product/status')
+    g_filter_sources = {
+        'status': g_order_product_statuses
+    };
+}
+
+function init_order_products_table() {
     var table = $('#order_products').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             'print',
             { 
@@ -42,7 +82,8 @@ $(document).ready( function () {
 
         select: true,
         serverSide: true,
-        processing: true
+        processing: true,
+        initComplete: function() { init_search(this, g_filter_sources) }
     });
 
     $('#order_products tbody').on('click', 'td.details-control', function () {
@@ -86,32 +127,6 @@ $(document).ready( function () {
             })
         }
     } );
-});
-
-function cancel(target) {
-    target.data().toArray().forEach(op => {
-        $.delete('/api/v1/order/product/' + op.id)
-            .then(response => {
-                target.raw(parseInt(response.id)).data().draw();
-            });
-    });
-}
-
-/**
- * Draws order product details
- * @param {object} row - row object 
- * @param {object} data - data object for the row
- */
-function format ( row, data ) {
-    return '<div class="container product-details">'+
-        '<div class="row container">'+
-            '<label class="col-5" for="public_comment">Public comment:</label>' +
-            '<input type="button" class="button btn-primary btn-save col-1" value="Save" />' +
-        '</div>' +
-        '<div class="row container">' +
-            '<textarea id="public_comment" class="form-control col-4">' + data.public_comment + '</textarea>' +
-        '</div>'+
-    '</div>';
 }
 
 function postpone(target) {

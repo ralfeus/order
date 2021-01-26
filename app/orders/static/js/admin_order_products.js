@@ -1,3 +1,4 @@
+var g_filter_sources;
 var g_order_product_statuses;
 
 $.fn.dataTable.ext.buttons.status = {
@@ -7,138 +8,7 @@ $.fn.dataTable.ext.buttons.status = {
 };
 
 $(document).ready( function () {
-    get_statuses().then(() => {
-        var editor = new $.fn.dataTable.Editor({
-            ajax: (_method, _url, data, success_callback, error) => {
-                for (var order_product_id in data.data) {
-                    $.ajax({
-                        url: '/api/v1/admin/order/product/' + order_product_id,
-                        method: 'post',
-                        dataType: 'json',
-                        contentType: 'application/json',
-                        data: JSON.stringify(data.data[order_product_id]),
-                        success: server_data => success_callback(({data: [server_data]})),
-                        error: error
-                    });     
-                }    
-            },
-            table: '#order_products',
-            idSrc: 'id',
-            fields: [
-                {label: 'Order product ID', name: 'id'},
-                // {label: 'Customer', name: 'customer'},
-                {label: 'Subcustomer', name: 'subcustomer'},
-                {label: 'Product ID', name: 'product_id'},
-                // {label: 'Product', name: 'product'},
-                {label: 'Price', name: 'price'},
-                {label: 'Quantity', name: 'quantity'},
-                {label: 'Status', name: 'status'},
-                {label: 'Private Comment', name: 'private_comment'},
-                {label: 'Public Comment', name: 'public_comment'},
-            ],
-            // formOptions: {
-            //     inline: {
-            //         onBlur: 'submit'
-            //     }
-            // }
-        });
-        $('#order_products').on( 'click', 'tbody td.editable', function (e) {
-            editor.inline( this);
-        } );
-        var table = $('#order_products').DataTable({
-            dom: 'lfrBtip',
-            buttons: [
-                'print',
-                {extend: 'edit', editor: editor},
-                { 
-                    extend: 'collection', 
-                    text: 'Set status',
-                    buttons: [ g_order_product_statuses.map(s => {
-                        return {
-                            extend: 'status',
-                            text: s
-                        }
-                    })]
-                }
-            ],        
-            ajax: {
-                url: '/api/v1/admin/order/product',
-                dataSrc: 'data'
-            },
-            columns: [
-                {
-                    "className":      'details-control',
-                    "orderable":      false,
-                    "data":           null,
-                    "defaultContent": ''
-                },
-                {data: 'id'},
-                {data: 'order_id'},
-                {data: 'customer'},
-                {data: 'subcustomer', className: 'editable'},
-                {data: 'buyout_date'},
-                {data: 'product_id', className: 'editable'},
-                {data: 'product'},
-                {data: 'price', className: 'editable'},
-                {data: 'quantity', className: 'editable'},
-                {data: 'status'},
-                {data: 'when_created'}
-            ],
-            order: [[11, 'desc']],
-            keys: {
-                columns: '.editable',
-                keys: [ 9 ],
-                editor: editor,
-                editOnFocus: true
-            },
-            select: true,
-            serverSide: true,
-            processing: true
-        });
-
-        $('#order_products tbody').on('click', 'td.details-control', function () {
-            var tr = $(this).closest('tr');
-            var row = table.row( tr );
-    
-            if ( row.child.isShown() ) {
-                // This row is already open - close it
-                row.child.hide();
-                tr.removeClass('shown');
-            }
-            else {
-                // First close all open rows
-                $('tr.shown').each(function() {
-                    table.row(this).child.hide();
-                    $(this).removeClass('shown');
-                })
-                // Open this row
-                row.child( format(row, row.data()) ).show();
-                tr.addClass('shown');
-                $('.btn-save').on('click', function() {
-                    var product_node = $(this).closest('.product-details');
-                    var update = {
-                        id: row.data().id,
-                        private_comment: $('#private_comment', product_node).val(),
-                        public_comment: $('#public_comment', product_node).val()
-                    };
-                    $('.wait').show();
-                    $.ajax({
-                        url: '/api/v1/admin/order/product/' + update.id,
-                        method: 'post',
-                        dataType: 'json',
-                        contentType: 'application/json',
-                        data: JSON.stringify(update),
-                        complete: function() {
-                            $('.wait').hide();
-                        },
-                        success: function(data) {
-                            row.data(data).draw();
-                        }
-                    })
-                })
-            }
-        } );
-    });
+    get_dictionaries().then(init_order_products_table);
 });
 
 /**
@@ -169,6 +39,13 @@ function format ( row, data ) {
     '</div>';
 }
 
+async function get_dictionaries() {
+    g_order_product_statuses = await get_list('/api/v1/order/product/status')
+    g_filter_sources = {
+        'status': g_order_product_statuses
+    };
+}
+
 /**
  * Gets status history of the order product by its ID
  * @param {int} order_product_id 
@@ -182,9 +59,133 @@ function get_history(order_product_id, callback) {
     });
 }
 
-async function get_statuses() {
-    data = await $.get('/api/v1/order/product/status');
-    g_order_product_statuses = data;
+function init_order_products_table() {
+    var editor = new $.fn.dataTable.Editor({
+        ajax: (_method, _url, data, success_callback, error) => {
+            for (var order_product_id in data.data) {
+                $.ajax({
+                    url: '/api/v1/admin/order/product/' + order_product_id,
+                    method: 'post',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data.data[order_product_id]),
+                    success: server_data => success_callback(({data: [server_data]})),
+                    error: error
+                });     
+            }    
+        },
+        table: '#order_products',
+        idSrc: 'id',
+        fields: [
+            {label: 'Order product ID', name: 'id'},
+            // {label: 'Customer', name: 'customer'},
+            {label: 'Subcustomer', name: 'subcustomer'},
+            {label: 'Product ID', name: 'product_id'},
+            // {label: 'Product', name: 'product'},
+            {label: 'Price', name: 'price'},
+            {label: 'Quantity', name: 'quantity'},
+            {label: 'Status', name: 'status'},
+            {label: 'Private Comment', name: 'private_comment'},
+            {label: 'Public Comment', name: 'public_comment'},
+        ]
+    });
+    $('#order_products').on( 'click', 'tbody td.editable', function (e) {
+        editor.inline( this);
+    } );
+    var table = $('#order_products').DataTable({
+        dom: 'lrBtip',
+        buttons: [
+            'print',
+            {extend: 'edit', editor: editor},
+            { 
+                extend: 'collection', 
+                text: 'Set status',
+                buttons: [ g_order_product_statuses.map(s => {
+                    return {
+                        extend: 'status',
+                        text: s
+                    }
+                })]
+            }
+        ],        
+        ajax: {
+            url: '/api/v1/admin/order/product',
+            dataSrc: 'data'
+        },
+        columns: [
+            {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "defaultContent": ''
+            },
+            {data: 'id'},
+            {data: 'order_id'},
+            {data: 'customer'},
+            {data: 'subcustomer', className: 'editable'},
+            {data: 'buyout_date'},
+            {data: 'product_id', className: 'editable'},
+            {data: 'product'},
+            {data: 'price', className: 'editable'},
+            {data: 'quantity', className: 'editable'},
+            {data: 'status'},
+            {data: 'when_created'}
+        ],
+        order: [[11, 'desc']],
+        keys: {
+            columns: '.editable',
+            keys: [ 9 ],
+            editor: editor,
+            editOnFocus: true
+        },
+        select: true,
+        serverSide: true,
+        processing: true,
+        initComplete: function() { init_search(this, g_filter_sources) }
+    });
+
+    $('#order_products tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest('tr');
+        var row = table.row( tr );
+
+        if ( row.child.isShown() ) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        }
+        else {
+            // First close all open rows
+            $('tr.shown').each(function() {
+                table.row(this).child.hide();
+                $(this).removeClass('shown');
+            })
+            // Open this row
+            row.child( format(row, row.data()) ).show();
+            tr.addClass('shown');
+            $('.btn-save').on('click', function() {
+                var product_node = $(this).closest('.product-details');
+                var update = {
+                    id: row.data().id,
+                    private_comment: $('#private_comment', product_node).val(),
+                    public_comment: $('#public_comment', product_node).val()
+                };
+                $('.wait').show();
+                $.ajax({
+                    url: '/api/v1/admin/order/product/' + update.id,
+                    method: 'post',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    data: JSON.stringify(update),
+                    complete: function() {
+                        $('.wait').hide();
+                    },
+                    success: function(data) {
+                        row.data(data).draw();
+                    }
+                })
+            })
+        }
+    });
 }
 
 /**

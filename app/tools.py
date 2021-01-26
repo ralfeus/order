@@ -46,7 +46,10 @@ def write_to_file(path, data):
 
 def prepare_datatables_query(query, args, filter_clause):
     def get_column(query, column_name):
-        return getattr(query.column_descriptions[0]['type'], column_name)
+        try:
+            return getattr(query.column_descriptions[0]['type'], column_name)
+        except AttributeError:
+            return column_name
 
     if not isinstance(args, MultiDict):
         raise AttributeError("Arguments aren't of MultiDict type")
