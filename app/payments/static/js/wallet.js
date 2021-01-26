@@ -2,6 +2,9 @@ var editor;
 var g_currencies;
 var g_amount = 0;
 var g_amount_set_manually = false;
+var g_filter_sources;
+var g_payment_methods;
+var g_payment_statuses;
 
 $(document).ready( function () {
     get_dictionaries()
@@ -27,7 +30,6 @@ function format ( row, data ) {
 /**
  * Cancels payment request
  * @param {*} target - table rows representing orders whose status is to be changed
- * @param {string} status - new status
  */
 function cancel(row) {
     $('.wait').show();
@@ -50,6 +52,13 @@ function cancel(row) {
 
 async function get_dictionaries() {
     g_currencies = await get_currencies();
+    g_payment_methods = (await get_payment_methods()).map(
+        pm => ({value: pm.id, label: pm.name}));
+    g_payment_statuses = await get_list('/api/v1/payment/status')
+    g_filter_sources = {
+        'payment_method.name': g_payment_methods.map(pm => pm.label),
+        'status': g_payment_statuses
+    }
 }
 
 function get_orders_to_pay() {
@@ -57,18 +66,6 @@ function get_orders_to_pay() {
         url: '/api/v1/order?status=pending',
         success: data => {
             editor.field('orders').update(data.map(o => o.id));
-        }
-    })
-}
-
-function get_payment_methods() {
-    $.ajax({
-        url: '/api/v1/payment/method',
-        success: data => {
-            editor.field('payment_method').update(data.map(pm => ({
-                label: pm.name,
-                value: pm.id
-            })));
         }
     })
 }
@@ -107,7 +104,8 @@ function init_payments_table() {
             {
                 label: 'Payment method', 
                 name: 'payment_method',
-                type: 'select2'
+                type: 'select2',
+                options: g_payment_methods
             },
             {label: 'Amount', name: 'amount_original'},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
@@ -129,7 +127,7 @@ function init_payments_table() {
     editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
     var table = $('#payments').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: editor, text: 'Create new payment request' },
         ],        
@@ -154,7 +152,8 @@ function init_payments_table() {
             {data: 'when_changed'}
         ],
         order: [[7, 'desc']],
-        select: true
+        select: true,
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 
 
@@ -262,5 +261,4 @@ function on_amount_original_blur(data) {
 function on_editor_open() {
     g_amount_set_manually = false;
     get_orders_to_pay();
-    get_payment_methods();
 }
