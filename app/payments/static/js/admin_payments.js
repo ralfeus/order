@@ -156,7 +156,7 @@ function init_payments_table() {
     g_editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
     var table = $('#payments').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: g_editor, text: 'Create new payment' },
             { 
@@ -233,7 +233,7 @@ function init_payments_table() {
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         },
-        initComplete: function() { init_search(this); }
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -277,21 +277,6 @@ function init_payments_table() {
             // });
         }
     } );
-}
-
-function init_search(table) {
-    table.api().columns().every(function() { 
-        column = this;
-        $('td:nth-child(' + (this.index() + 1) + ') input', 
-            $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_input(item, column))
-            .val('');
-        $('td:nth-child(' + (this.index() + 1) + ') select', 
-            $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_select(
-                item, column, g_filter_sources[column.dataSrc()]))
-            .val('');
-    });
 }
 
 function on_currency_change() {

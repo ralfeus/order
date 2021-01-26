@@ -274,22 +274,7 @@ function init_orders_table() {
                 $('.btn-invoice', row).remove();
             }
         },
-        initComplete: function() { init_search(this); }
-    });
-}
-
-function init_search(table) {
-    table.api().columns().every(function() { 
-        column = this;
-        $('td:nth-child(' + (this.index() + 1) + ') input', 
-            $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_input(item, column))
-            .val('');
-        $('td:nth-child(' + (this.index() + 1) + ') select', 
-            $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_select(
-                item, column, g_filter_sources[column.dataSrc()]))
-            .val('');
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 }
 
