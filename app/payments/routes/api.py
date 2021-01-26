@@ -216,3 +216,8 @@ def user_upload_payment_evidence(payment_id):
 def get_payment_methods():
     payment_methods = PaymentMethod.query
     return jsonify(list(map(lambda pm: pm.to_dict(), payment_methods)))
+
+@bp_api_user.route('/status')
+@login_required
+def user_get_payment_statuses():
+    return jsonify(list(map(lambda i: i.name, PaymentStatus)))
