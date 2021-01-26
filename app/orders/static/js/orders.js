@@ -1,4 +1,3 @@
-var g_orders_table;
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
@@ -6,7 +5,48 @@ $.fn.dataTable.ext.buttons.xls = {
 };
 
 $(document).ready( function () {
-    g_orders_table = $('#orders').DataTable({
+    get_dictionaries()
+        .then(init_orders_table);
+});
+
+/**
+ * Draws order details
+ * @param {object} row - row object 
+ * @param {object} data - data object for the row
+ */
+function format ( row, data ) {
+    var order_details = $('.order-details')
+        .clone()
+        .show();
+        $('#tracking-id', order_details).val(data.tracking_id);
+        $('#tracking-url', order_details).val(data.tracking_url);
+        $('#comment', order_details).val(data.comment);
+        return order_details;
+}
+
+async function get_dictionaries() {
+    g_order_statuses = await get_list('/api/v1/order/status');
+    g_filter_sources = {
+        'status': g_order_statuses
+    };
+}
+
+function get_excel(rows) {
+    $('.wait').show();
+    if (rows.count() == 1) {
+        window.open('/api/v1/admin/order/' + rows.data()[0].id + '/excel');
+    } else {
+        var orders = '';
+        for (var i = 0; i < rows.count(); i++) {
+            orders += 'orders=' + rows.data()[i].id + '&';
+        }
+        window.open('/api/v1/admin/order/excel?' + orders);
+    }
+    $('.wait').hide()
+}
+
+function init_orders_table() {
+    $('#orders').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/order',
@@ -53,7 +93,8 @@ $(document).ready( function () {
             if (data.status != 'shipped') {
                 $('.btn-invoice', row).remove();
             }
-        }
+        },
+        initComplete: function() { init_search(this, g_filter_sources) }
     });
 
     $('#orders tbody').on('click', 'td.details-control', function () {
@@ -78,35 +119,7 @@ $(document).ready( function () {
             tr.addClass('shown');
         }
     } );
-});
 
-/**
- * Draws order details
- * @param {object} row - row object 
- * @param {object} data - data object for the row
- */
-function format ( row, data ) {
-    var order_details = $('.order-details')
-        .clone()
-        .show();
-        $('#tracking-id', order_details).val(data.tracking_id);
-        $('#tracking-url', order_details).val(data.tracking_url);
-        $('#comment', order_details).val(data.comment);
-        return order_details;
-}
-
-function get_excel(rows) {
-    $('.wait').show();
-    if (rows.count() == 1) {
-        window.open('/api/v1/admin/order/' + rows.data()[0].id + '/excel');
-    } else {
-        var orders = '';
-        for (var i = 0; i < rows.count(); i++) {
-            orders += 'orders=' + rows.data()[i].id + '&';
-        }
-        window.open('/api/v1/admin/order/excel?' + orders);
-    }
-    $('.wait').hide()
 }
 
 function open_order(target) {
