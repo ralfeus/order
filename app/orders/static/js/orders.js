@@ -1,3 +1,5 @@
+var g_orders_tables;
+
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
@@ -46,7 +48,7 @@ function get_excel(rows) {
 }
 
 function init_orders_table() {
-    $('#orders').DataTable({
+    g_order_tables = $('#orders').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/order',
