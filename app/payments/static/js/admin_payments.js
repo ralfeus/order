@@ -4,6 +4,7 @@ var g_currencies = [];
 var g_customers = [];
 var g_editor;
 var g_payment_methods = [];
+var g_payment_statuses = [];
 
 $.fn.dataTable.ext.buttons.status = {
     action: function(_e, dt, _node, _config) {
@@ -72,6 +73,11 @@ async function get_dictionaries() {
     g_currencies = await get_currencies();
     g_customers = await get_users();
     g_payment_methods = await get_payment_methods();
+    g_payment_statuses = (await get_list('/api/v1/payment/status'))
+    g_filter_sources = {
+        'payment_method.name': g_payment_methods.map(e => e.name),
+        'status': g_payment_statuses
+    };
 }
 
 function get_orders_to_pay(user) {
@@ -158,7 +164,7 @@ function init_payments_table() {
     g_editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
     var table = $('#payments').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             { extend: 'edit', editor: g_editor, text: "Edit payment"},
             { extend: 'create', editor: g_editor, text: 'Create new payment' },
@@ -235,7 +241,8 @@ function init_payments_table() {
             $(api.column(5).footer()).html(totalSentOriginalString);
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-        }
+        },
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');

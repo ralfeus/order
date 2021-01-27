@@ -1,5 +1,8 @@
+var g_filter_sources;
 var g_order_statuses;
 var g_orders_table;
+var g_payment_methods;
+var g_shipping_methods;
 
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
@@ -62,6 +65,15 @@ function delete_order(_target, row) {
 
 async function get_dictionaries() {
     g_order_statuses = await get_list('/api/v1/order/status');
+    g_payment_methods = (await get_payment_methods()).map(
+        item => ({ id: item.id, text: item.name }));
+    g_shipping_methods = (await get_list('/api/v1/shipping')).map(
+        item => ({ id: item.id, text: item.name }));
+    g_filter_sources = {
+        'status': g_order_statuses,
+        'payment_method': g_payment_methods,
+        'shipping': g_shipping_methods
+    }
 }
 
 function save_order(target, row) {
@@ -168,9 +180,8 @@ function create_invoice(rows) {
         success: function (data) {
             modal(
                 'Invoice', 
-                'Invoice ' + data.invoice_id + ' is created for orders ' + orders.join()
-                + '<br />' +
-                '<a href="/admin/invoices">Goto Invoices</a>');
+                'Invoice <a href="/admin/invoices/' + data.invoice_id + '">' 
+                + data.invoice_id + '</a> is created for orders ' + orders.join());
         },
         error: function (ex) {
             console.log(ex);
@@ -195,6 +206,7 @@ function init_orders_table() {
             url: '/api/v1/admin/order',
             dataSrc: 'data'
         },
+        searchBuilder: {},
         columns: [
             {
                 "className":      'details-control',
@@ -247,7 +259,7 @@ function init_orders_table() {
         ],
         columnDefs: [
             {
-                targets: [10, 11, 12],
+                targets: [12, 13, 14],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
@@ -262,22 +274,7 @@ function init_orders_table() {
                 $('.btn-invoice', row).remove();
             }
         },
-        initComplete: function () {
-            // Apply the search
-            this.api().columns().every(function() { 
-                var column = this;
-                $('td:nth-child(' + (this.index() + 1) + ') input', 
-                    $(this.header()).closest('thead'))
-                    .on( 'keyup change clear', function () {
-                        if ( column.search() !== this.value ) {
-                            column
-                                .search( this.value )
-                                .draw();
-                        }
-                    })
-                    .val('');
-            });
-        }    
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 }
 

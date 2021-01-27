@@ -1,17 +1,12 @@
 var g_companies;
 var g_create_editor;
 var g_edit_editor;
+var g_filter_sources;
 var g_orders;
 var g_purchase_orders_table;
-var g_po_statuses = [
-    'posted',
-    'shipped',
-    'payment_past_due',
-    'paid',
-    'cancelled',
-    'delivered',
-    'failed'
-];
+var g_po_statuses;
+var g_vendors;
+
 $.fn.dataTable.ext.buttons.repost = {
     action: function(_e, dt, _node, _config) {
         repost_failed(dt.rows({selected: true}));
@@ -119,8 +114,8 @@ $(document).ready( function () {
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
         g_edit_editor.inline(this, { submitOnBlur: true });
     }); 
-    get_vendors();
-    init_table();
+    get_dictionaries()
+        .then(init_table);
 });
 
 function cancel_purchase_order(target) {
@@ -143,6 +138,15 @@ function get_companies() {
     });
 }
 
+async function get_dictionaries() {
+    g_vendors = await get_vendors();
+    g_po_statuses = await get_list('/api/v1/admin/purchase/status')
+    g_filter_sources = {
+        'vendor': g_vendors.map(v => ({id: v.value, text: v.label})),
+        'status': g_po_statuses
+    };
+}
+
 function get_orders_to_purchase() {
     $.ajax({
         url: '/api/v1/admin/order?status=can_be_paid&status=paid',
@@ -153,24 +157,21 @@ function get_orders_to_purchase() {
     })
 }
 
-function get_vendors() {
-    $.ajax({
-        url: '/api/v1/admin/purchase/vendor',
-        success: data => {
-            var vendors = data.map(i => {
-                entry = Object.entries(i)[0]; 
-                return {value:entry[0], label:entry[1]};
-            });
-            g_create_editor.field('vendor').update(vendors);
-            g_create_editor.field('vendor').val('AtomyQuick');
-            g_edit_editor.field('vendor').update(vendors);
-        }
-    })
+async function get_vendors() {
+    var vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
+        i => {
+            entry = Object.entries(i)[0]; 
+            return {value:entry[0], label:entry[1]};
+        });
+    g_create_editor.field('vendor').update(vendors);
+    g_create_editor.field('vendor').val('AtomyQuick');
+    g_edit_editor.field('vendor').update(vendors);
+    return vendors;
 }
 
 function init_table() {
     g_purchase_orders_table = $('#purchase_orders').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/purchase/order',
             error: xhr => { modal('No purchase orders', xhr.responseText) },
@@ -237,7 +238,8 @@ function init_table() {
             } else if (data.status == 'partially_posted') {
                 $(row).addClass('orange-line');
             }
-        }
+        },
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 }
 

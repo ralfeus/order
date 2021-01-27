@@ -86,6 +86,36 @@ class OrderProduct(db.Model, BaseModel):
         db.session.delete(self)
         self.suborder.order.update_total()
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        from app.orders.models.order import Order
+        from app.products.models.product import Product
+        from app.orders.models.subcustomer import Subcustomer
+        from app.orders.models.suborder import Suborder
+        part_filter = f'%{filter_value}%'
+        if isinstance(column, InstrumentedAttribute):
+            return \
+                base_filter.filter(OrderProduct.suborder.has(
+                    Suborder.order_id.like(part_filter))) \
+                    if column.key == 'order_id' \
+                else base_filter.filter(column.in_([OrderProductStatus[status]
+                                        for status in filter_value.split(',')])) \
+                    if column.key == 'status' \
+                else base_filter.filter(column.has(Product.name_english.like(part_filter))) \
+                    if column.key == 'product' \
+                else base_filter.filter(column.like(part_filter))
+        return \
+            base_filter.filter(OrderProduct.suborder.has(
+                Suborder.order.has(Order.customer_name.like(part_filter)))) \
+                if column == 'customer' \
+            else base_filter.filter(OrderProduct.suborder.has(
+                Suborder.buyout_date == filter_value)) \
+                if column == 'buyout_date' \
+            else base_filter.filter(OrderProduct.suborder.has(
+                Suborder.subcustomer.has(Subcustomer.name.like(part_filter)))) \
+                if column == 'subcustomer' \
+            else base_filter
+
     def postpone(self):
         from . import Order, OrderStatus, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(

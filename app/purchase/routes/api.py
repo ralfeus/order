@@ -150,6 +150,11 @@ def get_companies():
         list(map(lambda entry: entry.to_dict(), companies)),
         key=itemgetter('name')))
 
+@bp_api_admin.route('/status')
+@roles_required('admin')
+def get_statuses():
+    return jsonify(list(map(lambda i: i.name, PurchaseOrderStatus)))
+
 @bp_api_admin.route('/vendor')
 @roles_required('admin')
 def get_vendors():

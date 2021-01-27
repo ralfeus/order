@@ -1,6 +1,6 @@
 ''' Singleton of web browser '''
 import logging
-from selenium.common.exceptions import NoSuchElementException,\
+from selenium.common.exceptions import NoAlertPresentException, NoSuchElementException,\
     StaleElementReferenceException, TimeoutException, \
     UnexpectedAlertPresentException
 from selenium.webdriver.common.action_chains import ActionChains
@@ -80,6 +80,12 @@ class Browser:
 
     def execute_script(self, script, *args):
         return self.__browser.execute_script(script, *args)
+
+    def dismiss_alert(self):
+        try:
+            self.__browser.switch_to_alert().dismiss()
+        except NoAlertPresentException:
+            pass
 
     def find_element_by_xpath(self, xpath):
         return self.__browser.find_element_by_xpath(xpath)
