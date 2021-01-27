@@ -166,7 +166,7 @@ function init_payments_table() {
     var table = $('#payments').DataTable({
         dom: 'lrBtip',
         buttons: [
-            { extend: 'edit', editor: g_editor, text: "Edit payment"},
+            // { extend: 'edit', editor: g_editor, text: "Edit payment"},
             { extend: 'create', editor: g_editor, text: 'Create new payment' },
             { 
                 extend: 'collection', 
