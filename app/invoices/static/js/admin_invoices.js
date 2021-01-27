@@ -30,7 +30,7 @@ $(document).ready( function () {
         editor.inline(this);
     });  
     g_invoice_table = $('#invoices').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/invoice'
         },
@@ -50,7 +50,7 @@ $(document).ready( function () {
             },
             {data: 'id'},
             {data: 'customer', className: 'editable'},
-            {data: row => row.orders.join()},
+            {name: 'orders', data: row => row.orders.join()},
             {data: 'total'},
             {data: 'when_created'},
             {data: 'when_changed'}
@@ -58,7 +58,8 @@ $(document).ready( function () {
         order: [[5, 'desc']],
         select: true,
         serverSide: true,
-        processing: true
+        processing: true,
+        initComplete: function() { init_search(this); }
     });
 });
 

@@ -63,7 +63,9 @@ def prepare_datatables_query(query, args, filter_clause):
     else:
         for column_data in columns:
             if column_data['search']['value'] != '':
-                column = get_column(query_filtered, column_data['data'])
+                column = get_column(
+                    query_filtered, 
+                    column_data['name'] if column_data['name'] else column_data['data'])
                 try:
                     target_model = query_filtered.column_descriptions[0]['entity']
                     query_filtered = target_model \

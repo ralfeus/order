@@ -84,6 +84,15 @@ class Invoice(db.Model):
     def __repr__(self):
         return f"<Invoice: {self.id}>"
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        from app.orders.models.order import Order
+        part_filter = f'%{filter_value}%'
+        return \
+            base_filter.filter(column.any(Order.id.like(part_filter))) \
+                if column.key == 'orders' \
+            else base_filter.filter(column.like(f'%{filter_value}%'))
+
     def to_dict(self):
         '''
         Returns dictionary of the invoice ready to be jsonified
