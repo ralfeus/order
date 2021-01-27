@@ -82,9 +82,10 @@ class Payment(db.Model, BaseModel):
         )
         if self.amount_received_krw >= total_orders_amount:
             for order in self.orders:
-                order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
                 order.payment_method_id = self.payment_method_id
-                messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
+                if order.status == OrderStatus.pending:
+                    order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
+                    messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
 
     def to_dict(self):
         '''

@@ -91,6 +91,25 @@ class TestPaymentApi(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.status, OrderStatus.can_be_paid)
 
+    def test_pay_po_created_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        currency = Currency(code='KRW', rate=1)
+        order = Order(id=gen_id, total_krw=90, user=self.user,
+                      status=OrderStatus.po_created)
+        payment = Payment(amount_sent_original=100, currency=currency,
+            amount_received_krw=100,
+            user=self.user, status=PaymentStatus.pending,
+            orders=[order])
+        self.try_add_entities([order, payment, currency])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/payment/{payment.id}', json={
+                'status': 'approved'
+            }))
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.status, OrderStatus.po_created)
+
+
     def test_get_payment_methods(self):
         self.try_add_entities([
             PaymentMethod(name='Payment method 1')
