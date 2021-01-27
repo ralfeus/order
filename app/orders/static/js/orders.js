@@ -1,4 +1,4 @@
-var g_orders_tables;
+var g_orders_table;
 
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
