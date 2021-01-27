@@ -110,12 +110,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
+                self.__logger.debug('Dismissing alerts')
+                self.__browser.dismiss_alert()
+                self.__logger.debug('Typing product code %s', op.product_id)
                 product_code_input.send_keys(op.product_id)
                 while product_code_input.get_attribute('value') == op.product_id:
+                    self.__logger.debug('The value is not entered so far')
                     sleep(0.5)
                     product_code_input.send_keys(Keys.RETURN)
                     sleep(1)
-                
+                self.__logger.debug("The product code %s is entered. Entering quantity...",
+                    op.product_id)
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
