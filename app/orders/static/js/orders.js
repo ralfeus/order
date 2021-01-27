@@ -48,7 +48,7 @@ function get_excel(rows) {
 }
 
 function init_orders_table() {
-    g_order_tables = $('#orders').DataTable({
+    g_orders_table = $('#orders').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/order',
