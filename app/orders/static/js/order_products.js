@@ -76,14 +76,30 @@ function init_order_products_table() {
             {data: 'product_id'},
             {data: 'product'},
             {data: 'quantity'},
-            {data: 'status'},
+            {name: 'status', data: 'status'},
             {data: 'public_comment', visible: false}
         ],
-
+        searchCols: [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {search: 'po_created'},
+            null
+        ],
         select: true,
         serverSide: true,
         processing: true,
-        initComplete: function() { init_search(this, g_filter_sources) }
+        initComplete: function() { 
+            init_search(this, g_filter_sources) 
+            $('td:nth-child(' + (table.column('status:name').index() + 1) + ') select', 
+                $(table.column('status:name').header()).closest('thead'))
+                .val('po_created').trigger('change');
+        }
     });
 
     $('#order_products tbody').on('click', 'td.details-control', function () {

@@ -592,10 +592,10 @@ function update_subcustomer_totals() {
             userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping));
         $('#subtotalTotalRUR', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 
-                acc + product.totalKRW, 0) * currencyRates.RUR, 2));
+                acc + product.totalKRW, local_shipping) * currencyRates.RUR, 2));
         $('#subtotalTotalUSD', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 
-                acc + product.totalKRW, 0) * currencyRates.USD, 2));
+                acc + product.totalKRW, local_shipping) * currencyRates.USD, 2));
         $('#subtotalTotalPoints', $(this)).html(
             userProducts.reduce((acc, product) => 
                 acc + product.points * product.quantity, 0));
