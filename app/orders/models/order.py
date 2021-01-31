@@ -4,6 +4,7 @@ Order model
 import enum
 from datetime import datetime
 from decimal import Decimal
+import logging
 from functools import reduce
 import os.path
 from tempfile import NamedTemporaryFile
@@ -239,6 +240,8 @@ class Order(db.Model, BaseModel):
         '''
         Updates totals of the order
         '''
+        # logging.getLogger().setLevel(logging.DEBUG)
+        logging.debug("The order %s has %s suborders", self.id, self.suborders.count())
         for suborder in self.suborders:
             suborder.update_total()
 
