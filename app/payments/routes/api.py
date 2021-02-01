@@ -17,7 +17,7 @@ from app.payments.models.payment_method import PaymentMethod
 from app.models.user import User
 
 from app.exceptions import PaymentNoReceivedAmountException
-from app.tools import get_tmp_file_by_id, rm, write_to_file
+from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
 
 @bp_api_admin.route('', defaults={'payment_id': None})
 @bp_api_admin.route('/<int:payment_id>')
@@ -216,6 +216,38 @@ def user_upload_payment_evidence(payment_id):
 def get_payment_methods():
     payment_methods = PaymentMethod.query
     return jsonify(list(map(lambda pm: pm.to_dict(), payment_methods)))
+
+@bp_api_admin.route('/method/<payment_method_id>', methods=['POST'])
+@bp_api_admin.route('/method', methods=['POST'], defaults={'payment_method_id': None})
+@roles_required('admin')
+def save_payment_method(payment_method_id):
+    payment_method = PaymentMethod.query.get(payment_method_id)
+    if payment_method_id:
+        if not payment_method:
+            abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
+    else:
+        payment_method = PaymentMethod()
+        db.session.add(payment_method)
+    payload = request.get_json()
+    if not payload:
+        abort(Response("No payment method details are provided", status=400))
+    modify_object(payment_method, payload, ['name', 'payee_id', 'instructions'])
+    db.session.commit()
+    return jsonify(payment_method.to_dict())    
+
+@bp_api_admin.route('/method/<payment_method_id>', methods=['DELETE'])
+@roles_required('admin')
+def delete_payment_method(payment_method_id):
+    payment_method = PaymentMethod.query.get(payment_method_id)
+    if not payment_method:
+        abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
+    try:
+        db.session.delete(payment_method)
+        db.session.commit()
+        return jsonify({'status': 'success'})
+    except:
+        abort(Response("Can't delete the payment method <{payment_method}> as it's used",
+              status=409))
 
 @bp_api_user.route('/status')
 @login_required

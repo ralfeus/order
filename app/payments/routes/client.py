@@ -15,6 +15,12 @@ def admin_balances():
     ''' Customers balances '''
     return render_template('admin_balances.html')
 
+@bp_client_admin.route('/methods')
+@roles_required('admin')
+def admin_payment_methods():
+    ''' Payment methods management '''
+    return render_template('admin_payment_methods.html')
+
 @bp_client_admin.route('/')
 @roles_required('admin')
 def admin_payments():

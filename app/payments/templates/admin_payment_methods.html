@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_payment_methods.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="payment_methods" class="table">
+        <thead>
+            <th scope="col" style="width: 2em;">ID</th>
+            <th scope="col" style="width: 2em;">Name</th>
+            <th scope="col" style="width: 2em;">Payee</th>
+        </thead>
+        <tbody />
+    </table>
+</div>
+{% endblock %}
