@@ -67,9 +67,9 @@ class Suborder(db.Model, BaseModel):
         self.order_id = order_id
 
         prefix = self.__id_pattern.format(order_num=order_id[4:16])
-        if not seq_num:
-            suborders = order.suborders.count()
-            seq_num = suborders + 1
+        # if not seq_num:
+        suborders = order.suborders.count()
+        seq_num = suborders + 1
         self.seq_num = seq_num
         self.id = prefix + '{:03d}'.format(int(self.seq_num))
 
