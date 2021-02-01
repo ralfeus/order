@@ -115,7 +115,8 @@ function init_table() {
                 label: 'Vendor',
                 name: 'vendor',
                 type: 'select2',
-                def: 'AtomyQuick'
+                def: 'AtomyQuick',
+                options: g_vendors
             }
         ]
     });
