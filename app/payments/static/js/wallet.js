@@ -150,7 +150,7 @@ function init_payments_table() {
                 fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
                     $(nTd).html(
                         "<a href='#' onclick=\"modal('How to pay', '" 
-                        + oData.payment_method.instructions.replace('\n', '<br />') 
+                        + oData.payment_method.instructions.replace(/\n/g, '<br />') 
                         + "')\">" + oData.payment_method.name + "</a>");
                 }
             },
