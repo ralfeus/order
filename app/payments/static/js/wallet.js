@@ -144,7 +144,16 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'orders'},
-            {data: 'payment_method.name', defaultContent: ''},
+            {
+                data: 'payment_method.name',
+                defaultContent: '',
+                fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
+                    $(nTd).html(
+                        "<a href='#' onclick=\"modal('How to pay', '" 
+                        + oData.payment_method.instructions.replace('\n', '<br />') 
+                        + "')\">" + oData.payment_method.name + "</a>");
+                }
+            },
             {data: 'amount_original_string'},
             {data: 'amount_krw'},
             {data: 'status'},
