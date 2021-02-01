@@ -121,5 +121,5 @@ class Suborder(db.Model, BaseModel):
                 if free_local_shipment_eligibility_amount < \
                     current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \
                 else 0
-        db.session.commit()
+        # db.session.commit()
 
