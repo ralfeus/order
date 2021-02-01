@@ -1,4 +1,5 @@
 var g_filter_sources;
+var g_order_statuses;
 var g_order_product_statuses;
 
 $.fn.dataTable.ext.buttons.status = {
@@ -40,8 +41,10 @@ function format ( row, data ) {
 }
 
 async function get_dictionaries() {
+    g_order_statuses = await get_list('/api/v1/order/status')
     g_order_product_statuses = await get_list('/api/v1/order/product/status')
     g_filter_sources = {
+        'order_status': g_order_statuses,
         'status': g_order_product_statuses
     };
 }
@@ -128,10 +131,11 @@ function init_order_products_table() {
             {data: 'product'},
             {data: 'price', className: 'editable'},
             {data: 'quantity', className: 'editable'},
+            {data: 'order_status'},
             {data: 'status'},
             {data: 'when_created'}
         ],
-        order: [[11, 'desc']],
+        order: [[12, 'desc']],
         keys: {
             columns: '.editable',
             keys: [ 9 ],
