@@ -233,7 +233,7 @@ def save_payment_method(payment_method_id):
         abort(Response("No payment method details are provided", status=400))
     modify_object(payment_method, payload, ['name', 'payee_id', 'instructions'])
     db.session.commit()
-    return jsonify(payment_method.to_dict())    
+    return jsonify({'data': [payment_method.to_dict()]})
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['DELETE'])
 @roles_required('admin')
