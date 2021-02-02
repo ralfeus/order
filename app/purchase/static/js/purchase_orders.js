@@ -165,7 +165,7 @@ function init_table() {
         ]
     });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
-        g_edit_editor.inline(this, { submitOnBlur: true });
+        g_edit_editor.inline(this, { submitOnBlur: true, drawType: 'none'});
     }); 
 
     g_purchase_orders_table = $('#purchase_orders').DataTable({
@@ -197,7 +197,7 @@ function init_table() {
             },
             {data: 'id'},
             {
-                data: 'customer', 
+                data: 'customer.name', 
                 orderable: false,
                 fnCreatedCell: function(nTd, sData, oData, iRow, iCol) {
                     $(nTd).html("" +

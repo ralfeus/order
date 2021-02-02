@@ -121,7 +121,7 @@ def update_purchase_order(po_id):
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
             current_app.logger.info("Post purchase orders task ID is %s", task.id)
-            result = (jsonify(po.to_dict()), 202)
+            result = jsonify({'data': [po.to_dict()]})
         elif request.values.get('action') == 'update_status':
             current_app.logger.info("Updating POs status")
             task = update_purchase_orders_status.apply_async(
