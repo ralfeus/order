@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 class Browser:
+    __AWAIT_TIMEOUT = 60
     __browser = None
     __browser_kwargs = {}
     __config = {}
@@ -64,7 +65,7 @@ class Browser:
     def __get_by(self, criterium, value):
         ignored_exceptions = (NoSuchElementException, StaleElementReferenceException,)
         try:
-            return WebDriverWait(self.__browser, 20,
+            return WebDriverWait(self.__browser, self.__AWAIT_TIMEOUT,
                 ignored_exceptions=ignored_exceptions).until(
                     EC.presence_of_element_located((criterium, value)))
         except UnexpectedAlertPresentException as ex:
