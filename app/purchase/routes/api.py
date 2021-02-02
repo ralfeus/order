@@ -127,7 +127,7 @@ def update_purchase_order(po_id):
             task = update_purchase_orders_status.apply_async(
                 kwargs={'po_id': po_id}, retry=False, connect_timeout=1)
             current_app.logger.info("Update POs status task ID is %s", task.id)
-            result = (jsonify(po.to_dict()), 202)
+            result = jsonify({'data': [po.to_dict()]})
         else:
             if not po.is_editable():
                 return jsonify({

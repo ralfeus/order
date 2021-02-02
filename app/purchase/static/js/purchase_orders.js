@@ -137,7 +137,7 @@ function init_table() {
             data: d => JSON.stringify(Object.entries(d.data)[0][1]),
             error: (xhr, _e, _a) => {
                 modal("Purchase Order update failure", xhr.responseText);
-            }   
+            }
         },
         table: '#purchase_orders',
         idSrc: 'id',
@@ -153,7 +153,7 @@ function init_table() {
                     disableDays: [0, 6]
                 }
             },
-            {name: 'vendor', type: 'select2'},
+            {name: 'vendor', type: 'select2', options: g_vendors},
             {label: 'Vendor PO ID', name: 'vendor_po_id'},
             {label: 'Payment account', name: 'payment_account'},
             {
