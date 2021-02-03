@@ -83,10 +83,19 @@ function init_search_select(target, column, list) {
     })
     .on('change', function() {
         var selected_items = $(target).select2('data').map(e => e.id);
-        if (column.search() !== selected_items) {
-            column
-                .search(selected_items)
-                .draw();
+        var search_term = column.table().settings()[0].oInit.serverSide
+            ? selected_items.join(',')
+            : selected_items.join('|');
+        if (column.search() !== search_term) {
+            if (column.table().settings()[0].oInit.serverSide) {
+                column
+                    .search(selected_items)
+                    .draw();
+            } else {
+                column
+                    .search(search_term, true, false)
+                    .draw();
+            }
         }
     });    
 }
