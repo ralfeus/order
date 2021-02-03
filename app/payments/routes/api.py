@@ -46,7 +46,7 @@ def admin_save_payment(payment_id):
     payment = Payment.query.get(payment_id)
     if not payment:
         abort(Response(f"No payment <{payment_id}> was found", status=404))
-    if payment.status in (PaymentStatus.approved, PaymentStatus.cancelled):
+    if not payment.is_editable():
         abort(Response(f"Can't update payment in state <{payment.status}>", status=409))
     if not payload:
         abort(Response("No payment data was provided", status=400))
@@ -142,7 +142,7 @@ def user_save_payment(payment_id):
     if not payment:
         abort(404)
 
-    if payment.status in (PaymentStatus.approved, PaymentStatus.cancelled):
+    if not payment.is_editable():
         abort(Response(
             f"Can't update payment in state <{payment.status}>", status=409))
     if payload['status'] == 'cancelled':

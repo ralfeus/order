@@ -48,6 +48,9 @@ class Payment(db.Model, BaseModel):
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
 
+    def is_editable(self):
+        return self.status != PaymentStatus.approved
+
     def set_status(self, value, messages):
         if isinstance(value, str):
             value = PaymentStatus[value]
