@@ -5,6 +5,8 @@ from datetime import datetime
 from hashlib import md5
 import os, os.path
 import shutil
+from tempfile import NamedTemporaryFile
+
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -171,10 +173,11 @@ def _upload_payment_evidence():
     file_ids = []
     file_names = {}
     for uploaded_file in request.files.items():
-        file_id = f'{session_id}-{file_num}'
-        file_name = "/tmp/payment-evidence-{}{}".format(
-            file_id,
-            os.path.splitext(uploaded_file[1].filename)[1])
+        # file_id = None
+        file = NamedTemporaryFile()
+        # file_id = f'{session_id}-{file_num}'
+        file_name = file.name + os.path.splitext(uploaded_file[1].filename)[1]
+        file_id = os.path.basename(file.name)
         uploaded_file[1].save(dst=file_name)
         file_ids.append(file_id)
         file_names[file_id] = {'filename': uploaded_file[1].filename}

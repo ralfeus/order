@@ -94,6 +94,10 @@ function init_payments_table() {
         ajax: (_method, _url, data, success, error) => {
             var payment_id = Object.entries(data.data)[0][0];
             var target = Object.entries(data.data)[0][1];
+            target.evidences = target.evidences.map(e => ({
+                id: e[0],
+                file_name: g_editor.files().files[e].filename
+            }));
             var method = 'post';
             var url = '/api/v1/payment/' + payment_id;
             if (data.action === 'create') {
@@ -123,13 +127,6 @@ function init_payments_table() {
                 }))
             },
             {
-                label: 'Currency',
-                name: 'currency_code',
-                type: 'select2',
-                def: 'USD',
-                options: g_currencies.map(c => c.code)
-            },
-            {
                 label: 'Orders', 
                 name: 'orders',
                 type: 'select2',
@@ -139,14 +136,23 @@ function init_payments_table() {
             },
             {
                 label: 'Payment method', 
-                name: 'payment_method',
+                name: 'payment_method.id',
                 type: 'select2',
                 options: g_payment_methods.map(pm => ({
                     value: pm.id,
                     label: pm.name
                 }))
             },
+            {
+                label: 'Currency',
+                name: 'currency_code',
+                type: 'select2',
+                def: 'USD',
+                options: g_currencies.map(c => c.code)
+            },
             {label: 'Amount', name: 'amount_original'},
+            {label: 'Amount (KRW)', name: 'amount_krw'},
+            {label: 'Amount received', name: 'amount_received_krw'},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
@@ -154,7 +160,7 @@ function init_payments_table() {
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
                 display: (value, _file_num) => {
-                    if (g_editor.files().files) {
+                    if (g_editor.files() && g_editor.files().files) {
                         return "" +
                             "<span class=\"small\">" + 
                             g_editor.files().files[value[0]].filename + 
