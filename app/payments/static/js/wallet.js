@@ -165,10 +165,13 @@ function init_payments_table() {
                 data: 'payment_method.name',
                 defaultContent: '',
                 fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
+                    var instructions = oData.payment_method && oData.payment_method.instructions
+                        ? oData.payment_method.instructions.replace(/\n/g, '<br />')
+                        : "";
+                    var method_name = oData.payment_method ? oData.payment_method.name : '';
                     $(nTd).html(
                         "<a href='#' onclick=\"modal('How to pay', '" 
-                        + oData.payment_method.instructions.replace(/\n/g, '<br />') 
-                        + "')\">" + oData.payment_method.name + "</a>");
+                        + instructions + "')\">" + method_name + "</a>");
                 }
             },
             {data: 'amount_original_string'},
