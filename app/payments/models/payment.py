@@ -15,6 +15,10 @@ payments_orders = db.Table('payments_orders',
         db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
         db.Column('order_id', db.String(16), db.ForeignKey('orders.id')))
 
+payments_files = db.Table('payments_files',
+    db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
+    db.Column('file_id', db.Integer(), db.ForeignKey('files.id')))
+
 class PaymentStatus(enum.Enum):
     pending = 1
     approved = 2
@@ -39,7 +43,7 @@ class Payment(db.Model, BaseModel):
     amount_received_krw = Column(Integer)
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
-    evidence_image = Column(String(256))
+    evidences = relationship("File", secondary=payments_files, lazy='dynamic')
     status = Column('status', Enum(PaymentStatus), 
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
@@ -110,7 +114,8 @@ class Payment(db.Model, BaseModel):
             'payment_method': self.payment_method.to_dict() if self.payment_method else None,
             # 'payee': self.payment_method.payee.to_dict() \
             #     if self.payment_method and self.payment_method.payee else None,
-            'evidence_image': self.evidence_image,
+            'evidences': [{**evidence.to_dict(), **{'url': '/' + evidence.path}} 
+                          for evidence in self.evidences],
             'additional_info': self.additional_info,
             'status': self.status.name,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \

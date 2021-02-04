@@ -26,7 +26,11 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show();
-    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
+    data.evidences.forEach(evidence => {
+        $('#evidences', payment_details).append(
+            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
+            evidence.file_name + "</a></li>");
+    });
     $('#currency_code', payment_details).text(data.currency_code);
     $('#amount_original', payment_details).val(data.amount_original);
     $('#amount_krw', payment_details).val(data.amount_krw);
@@ -149,8 +153,20 @@ function init_payments_table() {
                 name: 'evidences',
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
-                display: (files, file_num) => {
-                    return '<img src="/upload/tmp/payment-evidence-' + files[file_num] + '" />';
+                display: (value, _file_num) => {
+                    if (g_editor.files().files) {
+                        return "" +
+                            "<span class=\"small\">" + 
+                            g_editor.files().files[value[0]].filename + 
+                            "</span>";
+                    } else {
+                        return "\
+                            <span class=\"small\"> \
+                                <a target=\"_blank\" href=\"" + value.url + "\"> \
+                                    " + value.file_name + " \
+                                </a> \
+                            </span>";
+                    }
                 }
             }
         ]
@@ -167,7 +183,8 @@ function init_payments_table() {
         dom: 'lrBtip',
         buttons: [
             // { extend: 'edit', editor: g_editor, text: "Edit payment"},
-            { extend: 'create', editor: g_editor, text: 'Create new payment' },
+            { extend: 'create', editor: g_editor, text: 'Create' },
+            { extend: 'edit', editor: g_editor, text: 'Edit' },
             { 
                 extend: 'collection', 
                 text: 'Set status',

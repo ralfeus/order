@@ -23,7 +23,11 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show(); 
-    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
+    data.evidences.forEach(evidence => {
+        $('#evidences', payment_details).append(
+            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
+            evidence.file_name + "</a></li>");
+    });
     return payment_details;
 }
 
@@ -78,7 +82,17 @@ function init_payments_table() {
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
+                data: JSON.stringify({
+                    additional_info: data.data[0].additional_info,
+                    amount_original: data.data[0].amount_original,
+                    currency_code: data.data[0].currency_code,
+                    evidences: data.data[0].evidences.map(e => ({
+                        id: e[0],
+                        file_name: editor.files().files[e].filename
+                    })),
+                    orders: data.data[0].orders,
+                    payment_method: data.data[0].payment_method
+                }),
                 success: data => {success(({data: [data]}))},
                 error: error
             });
@@ -114,8 +128,11 @@ function init_payments_table() {
                 name: 'evidences',
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
-                display: (value, file_num) => {
-                    return '<img src="/upload/tmp/payment-evidence-' + value[file_num] + '" />';
+                display: (value, _file_num) => {
+                    return "" +
+                        "<span class=\"small\">" + 
+                        editor.files().files[value[0]].filename + 
+                        "</span>";
                 }
             }
         ]

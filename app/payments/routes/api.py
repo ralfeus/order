@@ -4,6 +4,7 @@ Contains API endpoint routes of the payment services
 from datetime import datetime
 from hashlib import md5
 import os, os.path
+import shutil
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -14,6 +15,7 @@ from app.currencies.models.currency import Currency
 from app.orders.models.order import Order
 from app.payments.models.payment import Payment, PaymentStatus
 from app.payments.models.payment_method import PaymentMethod
+from app.models.file import File
 from app.models.user import User
 
 from app.exceptions import PaymentNoReceivedAmountException
@@ -107,11 +109,15 @@ def user_create_payment():
         if user is None:
             abort(Response(f"No user <{payload['user_id']}> was found", status=400))
 
-    evidence_file = None
-    if payload.get('evidences') and len(payload['evidences']) > 0:
-        evidence_src_file = get_tmp_file_by_id(payload['evidences'][0][0])
+    evidences = []
+    for evidence in payload.get('evidences'):
+        evidence_src_file = get_tmp_file_by_id(evidence['id'])
         evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
-        os.rename(evidence_src_file, os.path.abspath(evidence_file))
+        shutil.move(evidence_src_file, os.path.abspath(evidence_file))
+        evidences.append(File(
+            file_name=evidence['file_name'],
+            path=evidence_file
+        ))
 
     payment = Payment(
         user=user,
@@ -122,7 +128,7 @@ def user_create_payment():
         amount_sent_krw=float(payload.get('amount_original')) / float(currency.rate),
         payment_method_id=payload.get('payment_method'),
         additional_info=payload.get('additional_info'),
-        evidence_image=evidence_file,
+        evidences=evidences,
         status=PaymentStatus.pending,
         when_created=datetime.now()
     )
@@ -163,6 +169,7 @@ def _upload_payment_evidence():
     session_id = md5(request.cookies[current_app.session_cookie_name].encode()).hexdigest()
     file_num = 0
     file_ids = []
+    file_names = {}
     for uploaded_file in request.files.items():
         file_id = f'{session_id}-{file_num}'
         file_name = "/tmp/payment-evidence-{}{}".format(
@@ -170,18 +177,22 @@ def _upload_payment_evidence():
             os.path.splitext(uploaded_file[1].filename)[1])
         uploaded_file[1].save(dst=file_name)
         file_ids.append(file_id)
+        file_names[file_id] = {'filename': uploaded_file[1].filename}
         file_num += 1
-    return file_ids
+    return file_ids, file_names
 
 @bp_api_user.route('/evidence', defaults={'payment_id': None}, methods=['POST'])
 @bp_api_user.route('/<int:payment_id>/evidence', methods=['POST'])
 @login_required
 def user_upload_payment_evidence(payment_id):
     if payment_id is None:
-        file_ids = _upload_payment_evidence()
+        file_ids, file_names = _upload_payment_evidence()
         return jsonify({
             'upload': {
-                'id': file_ids
+                'id': file_ids,
+            },
+            'files': {
+                'files': file_names
             }
         })
 
