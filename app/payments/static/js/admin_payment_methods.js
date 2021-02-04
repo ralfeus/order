@@ -46,7 +46,7 @@ function init_payment_methods_table() {
         ]
     });
     $('#payment_methods').DataTable({
-        dom: 'Bt',
+        dom: 'Btp',
         ajax: {
             url: '/api/v1/payment/method',
             dataSrc: ''
