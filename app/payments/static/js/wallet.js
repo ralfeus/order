@@ -154,7 +154,8 @@ function init_payments_table() {
                     $(nTd).html(
                         "<a href='#' onclick=\"modal('How to pay', '" 
                         + instructions 
-                        + "')\">" + oData.payment_method.name + "</a>");
+                        + "')\">" + (oData.payment_method ? oData.payment_method.name : '') 
+                        + "</a>");
                 }
             },
             {data: 'amount_original_string'},
