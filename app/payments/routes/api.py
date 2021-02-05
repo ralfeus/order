@@ -1,7 +1,7 @@
 '''
 Contains API endpoint routes of the payment services
 '''
-from app.payments.validators.payment import PaymentInput
+from app.payments.validators.payment import PaymentValidator
 from datetime import datetime
 from hashlib import md5
 import os, os.path
@@ -155,7 +155,7 @@ def user_save_payment(payment_id):
     if not payment.is_editable():
         abort(Response(
             f"Can't update payment in state <{payment.status}>", status=409))
-    with PaymentInput(request) as validator:
+    with PaymentValidator(request) as validator:
         if not validator.validate():
             abort(jsonify(validator.errors))
         # return jsonify({

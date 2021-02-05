@@ -5,7 +5,7 @@ def is_int(form, field):
     if int(field.data) is None:
         raise ValidationError(f'{field.id}: The value must be integer')
 
-class PaymentInput(Inputs):
+class PaymentValidator(Inputs):
     json = {
         'amount_received_krw': [is_int]
     }
