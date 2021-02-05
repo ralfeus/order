@@ -46,7 +46,8 @@ def upgrade():
             conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
                 .format(evidence_image[0], res.inserted_primary_key()))
         op.drop_column('payments', 'evidence_image')
-    except:
+    except Exception as ex:
+        print(ex)
         op.execute('DROP table payments_files')
         op.execute('DROP table files')
     # ### end Alembic commands ###
