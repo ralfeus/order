@@ -6,6 +6,7 @@ Create Date: 2021-02-03 20:12:44.752619
 
 """
 from alembic import op
+import logging
 import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
@@ -46,8 +47,8 @@ def upgrade():
             conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
                 .format(evidence_image[0], res.inserted_primary_key()))
         op.drop_column('payments', 'evidence_image')
-    except Exception as ex:
-        print(ex)
+    except:
+        logging.exception("Couldn't migrate evidence images. Rolling back")
         op.execute('DROP table payments_files')
         op.execute('DROP table files')
     # ### end Alembic commands ###
