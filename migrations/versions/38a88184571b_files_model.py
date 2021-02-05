@@ -41,13 +41,14 @@ def upgrade():
     results = res.fetchall()
     try:
         for evidence_image in results:
+            logger.info(evidence_image)
             res = conn.execute(
                 "INSERT INTO files (when_created, file_name, path) VALUES (NOW(), '{0}', '{0}')"
                 .format(evidence_image[1])
             )
-            logger.info(res.inserted_primary_key())
+            logger.info(res.lastrowid)
             conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
-                .format(evidence_image[0], res.inserted_primary_key()))
+                .format(evidence_image[0], res.lastrowid))
         op.drop_column('payments', 'evidence_image')
     except Exception as ex:
         logger.error("Couldn't migrate evidence images. Rolling back. \n %s", ex)
