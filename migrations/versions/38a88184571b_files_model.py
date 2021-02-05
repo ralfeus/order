@@ -47,8 +47,8 @@ def upgrade():
             conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
                 .format(evidence_image[0], res.inserted_primary_key()))
         op.drop_column('payments', 'evidence_image')
-    except:
-        logging.exception("Couldn't migrate evidence images. Rolling back")
+    except Exception as ex:
+        logging.error("Couldn't migrate evidence images. Rolling back. \n %s", ex)
         op.execute('DROP table payments_files')
         op.execute('DROP table files')
     # ### end Alembic commands ###
