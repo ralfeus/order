@@ -1,6 +1,7 @@
 '''
 Contains API endpoint routes of the payment services
 '''
+from app.payments.validators.payment import PaymentInput
 from datetime import datetime
 from hashlib import md5
 import os, os.path
@@ -10,6 +11,7 @@ from tempfile import NamedTemporaryFile
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
+from sqlalchemy import not_
 
 from app import db
 from app.payments import bp_api_admin, bp_api_user
@@ -112,14 +114,12 @@ def user_create_payment():
             abort(Response(f"No user <{payload['user_id']}> was found", status=400))
 
     evidences = []
-    for evidence in payload.get('evidences'):
-        evidence_src_file = get_tmp_file_by_id(evidence['id'])
-        evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
-        shutil.move(evidence_src_file, os.path.abspath(evidence_file))
-        evidences.append(File(
-            file_name=evidence['file_name'],
-            path=evidence_file
-        ))
+    if payload.get('evidences'):
+        for evidence in payload['evidences']:
+            evidences.append(File(
+                file_name=evidence['file_name'],
+                path=_move_uploaded_file(evidence['id'])
+            ))
 
     payment = Payment(
         user=user,
@@ -139,37 +139,71 @@ def user_create_payment():
     db.session.commit()
     return jsonify(payment.to_dict())
 
+def _move_uploaded_file(file_id):
+    evidence_src_file = get_tmp_file_by_id(file_id)
+    evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
+    shutil.move(evidence_src_file, os.path.abspath(evidence_file))
+    return evidence_file
+
 @bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
 def user_save_payment(payment_id):
-    '''
-    Saves updates in payment
-    '''
-    payload = request.get_json()
+    '''Saves updates in payment'''
     payment = Payment.query.get(payment_id)
     if not payment:
         abort(404)
-
     if not payment.is_editable():
         abort(Response(
             f"Can't update payment in state <{payment.status}>", status=409))
-    if payload['status'] == 'cancelled':
-        payment.status = PaymentStatus.cancelled
+    with PaymentInput(request) as validator:
+        if not validator.validate():
+            abort(jsonify(validator.errors))
+        # return jsonify({
+        #     'id': payment_id,
+        #     'data': [payment.to_dict()],
+        #     'cancelled': [payment_id],
+        #     'error': "Couldn't update a Payment",
+        #     'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+        #                     for message in payload.errors]
+        # })
+    payload = request.get_json()
+    if current_user.has_role('admin'):
+        modify_object(payment, payload,
+            ['additional_info', 'amount_sent_krw', 'amount_original', 'amount_received_krw',
+            'currency_code', 'status', 'user_id'])
+        if payload.get('payment_method') \
+            and payment.payment_method_id != payload['payment_method']['id']:
+            payment.payment_method_id = payload['payment_method']['id']
+            payment.when_changed = datetime.now()
+        evidences = {e.path: e for e in payment.evidences}
+        payment.evidences = []
+        for evidence in payload.get('evidences'):
+            if evidence.get('id'):
+                payment.evidences.append(File(
+                    file_name=evidence['file_name'],
+                    path=_move_uploaded_file(evidence['id'])
+                ))
+            elif evidence.get('path'):
+                payment.evidences.append(evidences[evidence['path']])
+        # removed_evidences = payment.evidences.filter(
+        #     File.path.notin_(remaining_evidences))
+        # for evidence in removed_evidences:
+        #     payment.evidences.filter_by(id=evidence.id).delete()
+        #     db.session.delete(evidence)
+        if payload.get('orders'):
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
+    else:
+        modify_object(payment, payload, ['status'])
 
-    payment.when_changed = datetime.now()
     payment.changed_by = current_user
-
     db.session.commit()
-
-    return jsonify(payment.to_dict())
+    return jsonify({'data': [payment.to_dict()]})
 
 
 def _upload_payment_evidence():
     if not request.files or len(request.files) == 0:
         return
 
-    session_id = md5(request.cookies[current_app.session_cookie_name].encode()).hexdigest()
-    file_num = 0
     file_ids = []
     file_names = {}
     for uploaded_file in request.files.items():
@@ -181,7 +215,6 @@ def _upload_payment_evidence():
         uploaded_file[1].save(dst=file_name)
         file_ids.append(file_id)
         file_names[file_id] = {'filename': uploaded_file[1].filename}
-        file_num += 1
     return file_ids, file_names
 
 @bp_api_user.route('/evidence', defaults={'payment_id': None}, methods=['POST'])

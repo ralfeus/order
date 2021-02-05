@@ -5,6 +5,7 @@ var g_customers = [];
 var g_editor;
 var g_payment_methods = [];
 var g_payment_statuses = [];
+var g_table;
 
 $.fn.dataTable.ext.buttons.status = {
     action: function(_e, dt, _node, _config) {
@@ -32,8 +33,8 @@ function format ( row, data ) {
             evidence.file_name + "</a></li>");
     });
     $('#currency_code', payment_details).text(data.currency_code);
-    $('#amount_original', payment_details).val(data.amount_original);
-    $('#amount_krw', payment_details).val(data.amount_krw);
+    $('#amount_sent_original', payment_details).val(data.amount_sent_original);
+    $('#amount_sent_krw', payment_details).val(data.amount_sent_krw);
     $('#amount_received_krw', payment_details).val(data.amount_received_krw);
     $('#additional_info', payment_details).text(data.additional_info);
 
@@ -41,11 +42,11 @@ function format ( row, data ) {
         $('#currency_code', payment_details).text(target.clickEvent.target.innerText);
         update_amount_krw(payment_details, data);
     });
-    $('#amount_original', payment_details).on('change', function() {
+    $('#amount_sent_original', payment_details).on('change', function() {
         update_amount_krw(payment_details, data);
     });
-    $('#amount_krw', payment_details).on('change', function() {
-        data.amount_krw = this.value;
+    $('#amount_sent_krw', payment_details).on('change', function() {
+        data.amount_sent_krw = this.value;
         
     });
     $('#amount_received_krw', payment_details).on('change', function() {
@@ -85,8 +86,13 @@ async function get_dictionaries() {
 }
 
 function get_orders_to_pay(user) {
-    get_list('/api/v1/admin/order?status=pending&user_id=' + user)
-        .then(data => {g_editor.field('orders').update(data.map(o => o.id))});
+    return new Promise(function (resolve, reject) {
+        get_list('/api/v1/admin/order?status=pending&user_id=' + user)
+            .then(data => { 
+                g_editor.field('orders').update(data.map(o => o.id));
+                resolve();
+            });
+    });
 }
 
 function init_payments_table() {
@@ -94,9 +100,13 @@ function init_payments_table() {
         ajax: (_method, _url, data, success, error) => {
             var payment_id = Object.entries(data.data)[0][0];
             var target = Object.entries(data.data)[0][1];
-            target.evidences = target.evidences.map(e => ({
-                id: e[0],
-                file_name: g_editor.files().files[e].filename
+            target.evidences = target.evidences.map(e => (e.url 
+                ? {
+                    path: e.path
+                }
+                : {
+                    id: e[0],
+                    file_name: g_editor.files().files[e].filename
             }));
             var method = 'post';
             var url = '/api/v1/payment/' + payment_id;
@@ -110,7 +120,7 @@ function init_payments_table() {
                 dataType: 'json',
                 contentType: 'application/json',
                 data: JSON.stringify(target),
-                success: data => {success(({data: [data]}))},
+                success: data => { success(data); },
                 error: error
             });
         },
@@ -150,8 +160,8 @@ function init_payments_table() {
                 def: 'USD',
                 options: g_currencies.map(c => c.code)
             },
-            {label: 'Amount', name: 'amount_original'},
-            {label: 'Amount (KRW)', name: 'amount_krw'},
+            {label: 'Amount', name: 'amount_sent_original'},
+            {label: 'Amount (KRW)', name: 'amount_sent_krw'},
             {label: 'Amount received', name: 'amount_received_krw'},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
@@ -160,18 +170,18 @@ function init_payments_table() {
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
                 display: (value, _file_num) => {
-                    if (g_editor.files() && g_editor.files().files) {
-                        return "" +
-                            "<span class=\"small\">" + 
-                            g_editor.files().files[value[0]].filename + 
-                            "</span>";
-                    } else {
+                    if (value.file_name) {
                         return "\
                             <span class=\"small\"> \
                                 <a target=\"_blank\" href=\"" + value.url + "\"> \
                                     " + value.file_name + " \
                                 </a> \
                             </span>";
+                    } else {
+                        return "" +
+                            "<span class=\"small\">" + 
+                            g_editor.files().files[value[0]].filename + 
+                            "</span>";
                     }
                 }
             }
@@ -181,11 +191,11 @@ function init_payments_table() {
     g_editor.field('user_id').input().on('change', on_customer_change);
     g_editor.field('currency_code').input().on('change', on_currency_change);
     g_editor.field('orders').input().on('change', on_orders_change);
-    g_editor.field('amount_original').input().on('focus', function() {
+    g_editor.field('amount_sent_original').input().on('focus', function() {
         this.old_value = this.value});
-    g_editor.field('amount_original').input().on('blur', on_amount_original_blur);
+    g_editor.field('amount_sent_original').input().on('blur', on_amount_original_blur);
 
-    var table = $('#payments').DataTable({
+    g_table = $('#payments').DataTable({
         dom: 'lrBtip',
         buttons: [
             // { extend: 'edit', editor: g_editor, text: "Edit payment"},
@@ -216,7 +226,7 @@ function init_payments_table() {
             {data: 'orders'},
             {data: 'payment_method.name'},
             {data: 'amount_original_string'},
-            {data: 'amount_krw'},
+            {name: 'amount_sent_krw', data: 'amount_sent_krw'},
             {data: 'amount_received_krw'},
             {data: 'status'},
             {data: 'when_created'},
@@ -242,7 +252,7 @@ function init_payments_table() {
                     if (!accumulator[current.currency_code]) { 
                         accumulator[current.currency_code] = 0;
                     }
-                    accumulator[current.currency_code] += current.amount_original;
+                    accumulator[current.currency_code] += current.amount_sent_original;
                     return accumulator;
                 }, {})
             totalSentOriginalString = Object.entries(totalSentOriginal)
@@ -269,7 +279,7 @@ function init_payments_table() {
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
-        var row = table.row( tr );
+        var row = g_table.row( tr );
  
         if ( row.child.isShown() ) {
             // This row is already open - close it
@@ -279,7 +289,7 @@ function init_payments_table() {
         else {
             // First close all open rows
             $('tr.shown').each(function() {
-                table.row(this).child.hide();
+                g_table.row(this).child.hide();
                 $(this).removeClass('shown');
             })
             // Open this row
@@ -316,7 +326,7 @@ function on_currency_change() {
         var currency_code = g_editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            g_editor.field('amount_original').val(g_amount * currency.rate);
+            g_editor.field('amount_sent_original').val(g_amount * currency.rate);
         }
     }
     return {};
@@ -330,7 +340,8 @@ function on_amount_original_blur(data) {
 
 function on_customer_change() {
     if (g_editor.field('user_id').val()) {
-        get_orders_to_pay(g_editor.field('user_id').val());
+        get_orders_to_pay(g_editor.field('user_id').val())
+            .then(() => g_editor.field('orders').val(g_table.row({selected: true}).data().orders));
     }
 }
 
@@ -367,8 +378,8 @@ function save_payment(row) {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify({
-            amount_original: row.data().amount_original,
-            amount_krw: row.data().amount_krw,
+            amount_sent_original: row.data().amount_sent_original,
+            amount_sent_krw: row.data().amount_sent_krw,
             amount_received_krw: row.data().amount_received_krw,
             currency_code: row.data().currency_code
         }),
@@ -443,8 +454,8 @@ function set_status(target, newStatus) {
 
 function update_amount_krw(target, target_data) {
     target_data.currency_code = $('#currency_code', target).text();
-    target_data.amount_original = $('#amount_original', target).val();
-    target_data.amount_krw = parseFloat(target_data.amount_original) / g_currencies[target_data.currency_code];
-    $('#amount_krw', target).val(target_data.amount_krw);
+    target_data.amount_sent_original = $('#amount_sent_original', target).val();
+    target_data.amount_sent_krw = parseFloat(target_data.amount_sent_original) / g_currencies[target_data.currency_code];
+    $('#amount_sent_krw', target).val(target_data.amount_sent_krw);
     //target_data.draw();
 }

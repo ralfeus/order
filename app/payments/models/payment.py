@@ -38,13 +38,13 @@ class Payment(db.Model, BaseModel):
                              lazy='dynamic')
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
-    amount_sent_original = Column(Numeric(scale=2))
-    amount_sent_krw = Column(Integer)
-    amount_received_krw = Column(Integer)
+    amount_sent_original = Column(Numeric(scale=2), default=0)
+    amount_sent_krw = Column(Integer, default=0)
+    amount_received_krw = Column(Integer, default=0)
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
     evidences = relationship("File", secondary=payments_files, lazy='dynamic')
-    status = Column('status', Enum(PaymentStatus), 
+    status = Column('status', Enum(PaymentStatus),
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship("Transaction", foreign_keys=[transaction_id])
@@ -107,9 +107,11 @@ class Payment(db.Model, BaseModel):
             'user_id': self.user_id,
             'user_name': self.user.username,
             'amount_original': float(self.amount_sent_original),
+            'amount_sent_original': float(self.amount_sent_original),
             'amount_original_string': self.currency.format(self.amount_sent_original),
-            'amount_krw': self.amount_sent_krw,
-            'amount_received_krw': self.amount_received_krw,
+            'amount_krw': self.amount_sent_krw or 0,
+            'amount_sent_krw': self.amount_sent_krw or 0,
+            'amount_received_krw': self.amount_received_krw or 0,
             'currency_code': self.currency.code,
             'payment_method': self.payment_method.to_dict() if self.payment_method else None,
             # 'payee': self.payment_method.payee.to_dict() \

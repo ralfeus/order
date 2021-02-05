@@ -132,7 +132,10 @@ def modify_object(entity, payload, editable_attributes):
             if isinstance(getattr(entity, attr), enum.Enum):
                 setattr(entity, attr, type(getattr(entity, attr))[payload[attr]])
             else:
-                setattr(entity, attr, payload[attr])
+                try:
+                    setattr(entity, attr, payload[attr])
+                except Exception as ex:
+                    raise type(ex)(attr, ex)
             entity.when_changed = datetime.now()
     return entity
 

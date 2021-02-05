@@ -130,7 +130,6 @@ class TestPaymentApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(PaymentMethod.query.count(), 1)
-
     
     def test_modify_payment_method(self):
         self.try_add_entities([
