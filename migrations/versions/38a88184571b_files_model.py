@@ -36,14 +36,19 @@ def upgrade():
     conn = op.get_bind()
     res = conn.execute("SELECT id, evidence_image FROM payments WHERE evidence_image IS NOT NULL")
     results = res.fetchall()
-    for evidence_image in results:
-        res = conn.execute(
-            "INSERT INTO files (when_created, file_name, path) VALUES (NOW(), '{0}', '{0}')"
-            .format(evidence_image[1])
-        )
-        conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
-            .format(evidence_image[0], res.inserted_primary_key()))
-    op.drop_column('payments', 'evidence_image')
+    try:
+        for evidence_image in results:
+            res = conn.execute(
+                "INSERT INTO files (when_created, file_name, path) VALUES (NOW(), '{0}', '{0}')"
+                .format(evidence_image[1])
+            )
+
+            conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
+                .format(evidence_image[0], res.inserted_primary_key()))
+        op.drop_column('payments', 'evidence_image')
+    except:
+        op.execute('DROP table payments_files')
+        op.execute('DROP table files')
     # ### end Alembic commands ###
 
 
