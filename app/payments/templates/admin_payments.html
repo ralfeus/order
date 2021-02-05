@@ -60,15 +60,16 @@
 </div>
 
 <div class="row payment-details container-fluid" style="display: none;">
-    <div class="col-4">
-        <img id="evidence" src="" class="" style="max-width: 20em;">
+    <div class="col-5">
+        <h5>Payment evidences</h5>
+        <ul id="evidences"></ul>
     </div>
-    <div class="col-8">
+    <div class="col-6">
         <div class="input-group">
             <div class="input-group-prepend">
                 <span class="input-group-text">Amount</span>
             </div>
-            <input id="amount_original" class="form-control" />
+            <input id="amount_sent_original" class="form-control" />
             <div class="input-group-append currency-dropdown">
                 <button id="currency_code" class="btn btn-outline-secondary dropdown-toggle" 
                     type="button" data-toggle="dropdown" aria-haspopup="true" 
@@ -86,7 +87,7 @@
             <div class="input-group-prepend">
                 <span class="input-group-text">Amount (KRW)</span>
             </div>
-            <input id="amount_krw" class="form-control" />
+            <input id="amount_sent_krw" class="form-control" />
             <div class="input-group-append">
                 <span class="input-group-text">₩</span>
             </div>
