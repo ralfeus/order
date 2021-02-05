@@ -34,7 +34,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['payment_id'], ['payments.id'], )
     )
     conn = op.get_bind()
-    res = conn.execute("SELECT id, evidence_image WHERE evidence_image IS NOT NULL")
+    res = conn.execute("SELECT id, evidence_image FROM payments WHERE evidence_image IS NOT NULL")
     results = res.fetchall()
     for evidence_image in results:
         res = conn.execute(
