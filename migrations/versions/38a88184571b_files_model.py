@@ -45,7 +45,7 @@ def upgrade():
                 "INSERT INTO files (when_created, file_name, path) VALUES (NOW(), '{0}', '{0}')"
                 .format(evidence_image[1])
             )
-
+            logger.info(res.inserted_primary_key())
             conn.execute("INSERT INTO payments_files VALUES ({0}, {1})"
                 .format(evidence_image[0], res.inserted_primary_key()))
         op.drop_column('payments', 'evidence_image')
