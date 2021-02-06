@@ -113,6 +113,9 @@ function save_order_action(order_node, row) {
         },
         success: function(data) {
             row.data(data).draw();
+        },
+        error: xhr => {
+            modal('Order save error', xhr.responseText);
         }
     });
 }

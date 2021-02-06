@@ -14,6 +14,10 @@ function modal(title, text, type='info') {
             '<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>'
         );
         $('#btn-yes').on('click', () => {promise.resolve('yes')});
+    } else {
+        $('.modal-footer').html(
+            '<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>'
+        );
     }
     $('.modal').modal();
     return promise;

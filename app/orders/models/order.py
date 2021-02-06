@@ -17,7 +17,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.exceptions import OrderError
+from app.exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
@@ -101,14 +101,24 @@ class Order(db.Model, BaseModel):
         elif isinstance(value, int):
             value = OrderStatus(value)
 
-        self.status = value
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
         if value == OrderStatus.shipped:
+            from app.orders.models.order_product import OrderProductStatus
+            unfinished_ops = []
+            for suborder in self.suborders:
+                for order_product in suborder.order_products:
+                    if order_product.status not in [OrderProductStatus.unavailable,
+                                                    OrderProductStatus.purchased]:
+                        unfinished_ops.append("{} - {}: {}".format(
+                            suborder.id, order_product.product_id, order_product.status
+                        ))
+            if len(unfinished_ops) > 0:
+                raise UnfinishedOrderError(unfinished_ops)
             for ao in self.attached_orders:
                 ao.set_status(value, actor)
-        if value == OrderStatus.shipped:
             self.__pay(actor)
+        self.status = value
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -254,7 +264,7 @@ class Order(db.Model, BaseModel):
                     self.shipping = NoShipping()
         self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
                                    self.suborders, 0) + \
-                            reduce(lambda acc, ao: acc + ao.total_weight, 
+                            reduce(lambda acc, ao: acc + ao.total_weight,
                                    self.attached_orders, 0)
         self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
 
@@ -331,7 +341,7 @@ class Order(db.Model, BaseModel):
                     lambda acc, op: acc + op.product.points * op.quantity,
                     suborder.order_products, 0)
             )
-            for op in suborder.order_products:
+            for op in suborder.get_order_products():
                 row += 1
                 op_shipping[row] = round(self.shipping_krw / self.total_weight * \
                     op.product.weight * op.quantity)

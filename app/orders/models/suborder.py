@@ -13,6 +13,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from app import db
 from app.models.base import BaseModel
 from app.orders.models import Order, OrderProduct, OrderProductStatus
+from app.products.models import Product
 
 class Suborder(db.Model, BaseModel):
     ''' Suborder '''
@@ -36,13 +37,13 @@ class Suborder(db.Model, BaseModel):
     def total_weight(self):
         return reduce(
                 lambda acc, op: acc + op.product.weight * op.quantity,
-                self.order_products, 0)
+                self.get_order_products(), 0)
 
     @property
     def total_krw(self):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
-            self.order_products, 0) + \
+            self.get_order_products(), 0) + \
             (self.local_shipping if self.local_shipping else 0)
 
     def delete(self):
@@ -50,11 +51,15 @@ class Suborder(db.Model, BaseModel):
             op.delete()
         super().delete()
 
+    def get_order_products(self):
+        return self.order_products.filter(
+            OrderProduct.status != OrderProductStatus.unavailable)
+
     def get_subtotal(self, currency=None):
         rate = 1 if currency is None else currency.rate
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
-            self.get_actual_order_products(), 0) * rate
+            self.get_order_products(), 0) * rate
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         if order:
@@ -110,13 +115,15 @@ class Suborder(db.Model, BaseModel):
         def calc_op_total(acc, op):
             return acc + op.price * op.quantity
 
+        bulk_shipping_products = self.get_order_products().filter(
+            OrderProduct.product.has(~Product.separate_shipping))
         free_local_shipment_eligibility_amount = reduce(
             calc_op_total, filter(
                 lambda op: not op.product.separate_shipping,
-                self.order_products
+                bulk_shipping_products
             ), 0)
         self.local_shipping = \
-            0 if self.order_products.count() == 0 \
+            0 if bulk_shipping_products.count() == 0 \
             else current_app.config['LOCAL_SHIPPING_COST'] \
                 if free_local_shipment_eligibility_amount < \
                     current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \

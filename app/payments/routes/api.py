@@ -104,6 +104,7 @@ def user_create_payment():
     with PaymentValidator(request) as validator:
         if not validator.validate():
             return jsonify({
+                'data': [],
                 'error': "Couldn't update a Payment",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]

@@ -34,3 +34,11 @@ class ProductNotFoundError(Exception):
 
 class SubcustomerParseError(Exception):
     pass
+
+class UnfinishedOrderError(Exception):
+    def __init__(self, items):
+        super().__init__()
+        self.__items = items
+   
+    def __str__(self):
+        return "The order is not finished: \n" + "\n".join(self.__items)

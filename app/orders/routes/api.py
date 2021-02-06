@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
 from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
-    OrderError, SubcustomerParseError, ProductNotFoundError, ProductNotAvailableError
+    OrderError, SubcustomerParseError, ProductNotFoundError, ProductNotAvailableError, UnfinishedOrderError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
@@ -529,7 +529,10 @@ def admin_save_order(order_id):
         abort(Response(f'No order {order_id} was found', status=404))
 
     if order_input.get('status') is not None:
-        order.set_status(order_input['status'], current_user)
+        try:
+            order.set_status(order_input['status'], current_user)
+        except UnfinishedOrderError as ex:
+            abort(Response(str(ex), status=409))
 
     if order_input.get('tracking_id') is not None:
         order.tracking_id = order_input['tracking_id']
