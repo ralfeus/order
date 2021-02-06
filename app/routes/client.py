@@ -25,7 +25,10 @@ def index():
     Entry point to the application.
     Takes no arguments
     '''
-    return redirect('orders')
+    if current_user.has_role('admin'):
+        return redirect('/admin/orders')
+    else:
+        return redirect('/orders')
 
 @client.route('/favicon.ico')
 def favicon():

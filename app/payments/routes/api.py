@@ -60,12 +60,12 @@ def admin_save_payment(payment_id):
     messages = []
     payment.when_changed = datetime.now()
     payment.changed_by = current_user
-    if payload.get('amount_original'):
-        payment.amount_sent_original = payload['amount_original']
+    if payload.get('amount_sent_original'):
+        payment.amount_sent_original = payload['amount_sent_original']
     if payload.get('currency_code'):
         payment.currency = Currency.query.get(payload['currency_code'])
-    if payload.get('amount_krw'):
-        payment.amount_sent_krw = payload['amount_krw']
+    if payload.get('amount_sent_krw'):
+        payment.amount_sent_krw = payload['amount_sent_krw']
     if payload.get('amount_received_krw'):
         payment.amount_received_krw = payload['amount_received_krw']
     if payload.get('status'):
@@ -89,7 +89,7 @@ def user_get_payments(payment_id):
     if not current_user.has_role('admin'):
         payments = payments.filter_by(user=current_user)
     if payment_id is not None:
-        payment = payment.filter_by(id=payment_id)
+        payments = payments.filter_by(id=payment_id)
     if request.values.get('order_id'):
         payments = payments.filter(
             Payment.orders.any(Order.id == request.values['order_id']))
@@ -99,20 +99,22 @@ def user_get_payments(payment_id):
 @bp_api_user.route('', methods=['POST'])
 @login_required
 def user_create_payment():
+    if not current_user.has_role('admin') or 'user_id' not in request.json.keys():
+        request.json['user_id'] = current_user.id
+    with PaymentValidator(request) as validator:
+        if not validator.validate():
+            return jsonify({
+                'error': "Couldn't update a Payment",
+                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                for message in validator.errors]
+            }), 400
     payload = request.get_json()
-    if not payload:
-        abort(Response('No payment data was provided', status=400))
-    if isinstance(payload['amount_original'], str):
-        payload['amount_original'] = payload['amount_original'].replace(',', '.')
+    if isinstance(payload['amount_sent_original'], str):
+        payload['amount_sent_original'] = payload['amount_sent_original'].replace(',', '.')
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
-    user = current_user
-    if current_user.has_role('admin') and payload.get('user_id'):
-        user = User.query.get(payload['user_id'])
-        if user is None:
-            abort(Response(f"No user <{payload['user_id']}> was found", status=400))
-
+    user = User.query.get(payload['user_id'])
     evidences = []
     if payload.get('evidences'):
         for evidence in payload['evidences']:
@@ -126,9 +128,9 @@ def user_create_payment():
         changed_by=current_user,
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all(),
         currency=currency,
-        amount_sent_original=payload.get('amount_original'),
-        amount_sent_krw=float(payload.get('amount_original')) / float(currency.rate),
-        payment_method_id=payload.get('payment_method'),
+        amount_sent_original=payload.get('amount_sent_original'),
+        amount_sent_krw=float(payload.get('amount_sent_original')) / float(currency.rate),
+        payment_method_id=payload.get('payment_method').get('id'),
         additional_info=payload.get('additional_info'),
         evidences=evidences,
         status=PaymentStatus.pending,
@@ -137,7 +139,7 @@ def user_create_payment():
 
     db.session.add(payment)
     db.session.commit()
-    return jsonify(payment.to_dict())
+    return jsonify({'data': [payment.to_dict()]})
 
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
@@ -169,7 +171,7 @@ def user_save_payment(payment_id):
     payload = request.get_json()
     if current_user.has_role('admin'):
         modify_object(payment, payload,
-            ['additional_info', 'amount_sent_krw', 'amount_original', 'amount_received_krw',
+            ['additional_info', 'amount_sent_krw', 'amount_sent_original', 'amount_received_krw',
             'currency_code', 'status', 'user_id'])
         if payload.get('payment_method') \
             and payment.payment_method_id != payload['payment_method']['id']:

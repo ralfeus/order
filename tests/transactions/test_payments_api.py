@@ -38,9 +38,9 @@ class TestPaymentApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/payment', json={
                 'orders': [gen_id],
-                'amount_original': 100,
+                'amount_sent_original': 100,
                 'currency_code': 'USD',
-                'payment_method': gen_id_int
+                'payment_method': {'id': gen_id_int}
             }))
         self.assertEqual(Payment.query.count(), 1)
         transaction = Payment.query.first()

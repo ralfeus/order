@@ -93,7 +93,7 @@ function init_payments_table() {
                     orders: data.data[0].orders,
                     payment_method: data.data[0].payment_method
                 }),
-                success: data => {success(({data: [data]}))},
+                success: data => {success(data)},
                 error: error
             });
         },
@@ -117,11 +117,11 @@ function init_payments_table() {
             },
             {
                 label: 'Payment method', 
-                name: 'payment_method',
+                name: 'payment_method.id',
                 type: 'select2',
                 options: g_payment_methods
             },
-            {label: 'Amount', name: 'amount_original'},
+            {label: 'Amount', name: 'amount_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',

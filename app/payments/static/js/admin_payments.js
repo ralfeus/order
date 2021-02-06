@@ -97,7 +97,7 @@ function get_orders_to_pay(user) {
 
 function init_payments_table() {
     g_editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
+        ajax: (_method, _url, data, success, error_callback) => {
             var payment_id = Object.entries(data.data)[0][0];
             var target = Object.entries(data.data)[0][1];
             target.evidences = target.evidences.map(e => (e.url 
@@ -121,7 +121,20 @@ function init_payments_table() {
                 contentType: 'application/json',
                 data: JSON.stringify(target),
                 success: data => { success(data); },
-                error: error
+                error: (xhr, error, status) => {
+                    if (xhr.responseJSON) {
+                        var error_data = xhr.responseJSON
+                        if (error_data.error) {
+                            g_editor.error(error_data.error);
+                        }
+                        error_data.fieldErrors.forEach(e => {
+                            if (g_editor.fields().includes(e.name)) {
+                                g_editor.error(e.name, e.status);
+                            }
+                        });
+                    }
+                    error_callback(xhr, error, status);
+                }
             });
         },
         table: '#payments',
@@ -160,9 +173,9 @@ function init_payments_table() {
                 def: 'USD',
                 options: g_currencies.map(c => c.code)
             },
-            {label: 'Amount', name: 'amount_sent_original'},
-            {label: 'Amount (KRW)', name: 'amount_sent_krw'},
-            {label: 'Amount received', name: 'amount_received_krw'},
+            {label: 'Amount', name: 'amount_sent_original', def: 0},
+            {label: 'Amount (KRW)', name: 'amount_sent_krw', def: 0},
+            {label: 'Amount received', name: 'amount_received_krw', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
@@ -341,13 +354,16 @@ function on_amount_original_blur(data) {
 function on_customer_change() {
     if (g_editor.field('user_id').val()) {
         get_orders_to_pay(g_editor.field('user_id').val())
-            .then(() => g_editor.field('orders').val(g_table.row({selected: true}).data().orders));
+        .then(() => {
+            if (g_editor.mode() == 'edit') {
+                g_editor.field('orders').val(g_table.row({selected: true}).data().orders);
+            }
+        });
     }
 }
 
-function on_editor_open() {
-    g_amount_set_manually = false;
-    //get_orders_to_pay();
+function on_editor_open(_e, _mode, action) {
+    g_amount_set_manually = action == 'edit';
 }
 
 function on_orders_change() {
