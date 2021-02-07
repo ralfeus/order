@@ -327,7 +327,7 @@ def user_save_order(order_id):
         try:
             order.update_total()
         except NoShippingRateError:
-            abort(Response(f"No shipping rate available", status=409))
+            abort(Response("No shipping rate available", status=409))
 
 
     result = None

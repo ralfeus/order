@@ -59,7 +59,7 @@ class OrderProduct(db.Model, BaseModel):
     quantity = Column(Integer)
     private_comment = Column(String(256))
     public_comment = Column(String(256))
-    status = Column(Enum(OrderProductStatus))
+    status = Column(Enum(OrderProductStatus), default=OrderProductStatus.pending)
     status_history = relationship("OrderProductStatusEntry", lazy='dynamic')
 
     def __init__(self, **kwargs):

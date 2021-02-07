@@ -373,7 +373,8 @@ class TestOrdersApi(BaseTestCase):
         suborder = Suborder(id=op_id, order=order)
         self.try_add_entities([
             order, suborder,
-            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000', price=10, quantity=10)
+            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000', price=10,
+                quantity=10, status='pending')
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/product/{op_id}', json={
@@ -504,7 +505,8 @@ class TestOrdersApi(BaseTestCase):
         suborder = Suborder(order=order)
         self.try_add_entities([
             order, suborder,
-            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+            OrderProduct(suborder=suborder, product_id='0000', price=10,
+                quantity=10, status='purchased')
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={
@@ -579,3 +581,52 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.get(f'/api/v1/order/{order.id}/excel')
         )
         self.assertEqual(res.status_code, 200)
+
+    def test_finish_order_with_unfinished_products(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10),
+            Product(id='0002', name='Product 2', price=10, weight=10),
+            Product(id='0003', name='Product 3', price=10, weight=10),
+            Order(id=gen_id)
+        ])
+        self.try_add_entities([
+            Suborder(id=gen_id, order_id=gen_id),
+            OrderProduct(suborder_id=gen_id, product_id='0001', quantity=1,
+                status=OrderProductStatus.pending),
+            OrderProduct(suborder_id=gen_id, product_id='0002', quantity=1,
+                status=OrderProductStatus.pending),
+            OrderProduct(suborder_id=gen_id, product_id='0003', quantity=1,
+                status=OrderProductStatus.pending)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                 'status':  'shipped'
+        }))
+        self.assertEqual(res.status_code, 409)
+
+    def test_finish_order_with_unavailable_products(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10, points=10),
+            Product(id='0002', name='Product 2', price=10, weight=10, points=10),
+            Product(id='0003', name='Product 3', price=10, weight=10, points=10),
+            Order(id=gen_id, country_id='c1', shipping_method_id=1, user=self.user)
+        ])
+        self.try_add_entities([
+            Suborder(id=gen_id, order_id=gen_id),
+            OrderProduct(suborder_id=gen_id, product_id='0001', quantity=1,
+                status=OrderProductStatus.purchased),
+            OrderProduct(suborder_id=gen_id, product_id='0002', quantity=1,
+                status=OrderProductStatus.purchased),
+            OrderProduct(suborder_id=gen_id, product_id='0003', quantity=1,
+                status=OrderProductStatus.unavailable)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                 'status':  'shipped'
+        }))
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.total_krw, 2620)
+        self.assertEqual(order.get_total_points(), 20)

@@ -66,7 +66,8 @@ class TestTransactionApi(BaseTestCase):
         suborder = Suborder(order=order)
         self.try_add_entities([
             order, suborder,
-            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+            OrderProduct(suborder=suborder, product_id='0000', price=10,
+                quantity=10, status='purchased')
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/{order.id}', json={

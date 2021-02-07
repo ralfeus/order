@@ -192,6 +192,11 @@ class Order(db.Model, BaseModel):
         return self.payment_method.payee if self.payment_method \
             else None
 
+    def get_total_points(self):
+        return reduce(
+            lambda acc, sub: acc + sub.get_total_points(),
+            self.suborders, 0)
+
     def is_editable(self):
         return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
 
@@ -254,6 +259,10 @@ class Order(db.Model, BaseModel):
         logging.debug("The order %s has %s suborders", self.id, self.suborders.count())
         for suborder in self.suborders:
             suborder.update_total()
+            logging.debug("The suborder %s:", suborder.id)
+            logging.debug("\tLocal shipping (KRW): %s", suborder.local_shipping)
+            logging.debug("\tSubtotal (KRW): %s", suborder.total_krw)
+            logging.debug("\tTotal weight: %s", suborder.total_weight)
 
         if self.shipping is None:
             if self.shipping_method_id is not None:
@@ -262,26 +271,31 @@ class Order(db.Model, BaseModel):
                 self.shipping = NoShipping.query.first()
                 if self.shipping is None:
                     self.shipping = NoShipping()
+        logging.debug("%s: Shipping: %s", self.id, self.shipping)
         self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
                                    self.suborders, 0) + \
                             reduce(lambda acc, ao: acc + ao.total_weight,
                                    self.attached_orders, 0)
+        logging.debug("%s: Total weight: %s", self.id, self.total_weight)
         self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
-
+        logging.debug("%s: Box weight: %s", self.id, self.shipping_box_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)
         self.subtotal_krw = reduce(
             lambda acc, sub: acc + sub.total_krw, self.suborders, 0)
+        logging.debug("%s: Subtotal: %s", self.id, self.subtotal_krw)
         self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None, 
             self.total_weight + self.shipping_box_weight)))
+        logging.debug("%s: Shipping (KRW): %s", self.id, self.shipping_krw)
         self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate
         self.shipping_usd = self.shipping_krw * Currency.query.get('USD').rate
 
         self.total_krw = self.subtotal_krw + self.shipping_krw
+        logging.debug("%s: Total (KRW): %s", self.id, self.total_krw)
         self.total_rur = self.subtotal_rur + self.shipping_rur
         self.total_usd = self.subtotal_usd + self.shipping_usd
 
@@ -310,7 +324,7 @@ class Order(db.Model, BaseModel):
         ws.cell(6, 7, self.total_weight + self.shipping_box_weight)
         ws.cell(6, 8, self.shipping_krw)
         ws.cell(6, 9, self.total_krw)
-        ws.cell(6, 13, reduce(lambda acc, op: acc + op.product.points, 
+        ws.cell(6, 13, reduce(lambda acc, op: acc + op.product.points,
                               self.order_products, 0))
         # Set shipping
         ws.cell(1, 6, self.shipping.name)
@@ -322,7 +336,7 @@ class Order(db.Model, BaseModel):
         op_shipping = {}
         row = 11
         for suborder in self.suborders:
-            if suborder.order_products.count() == 0:
+            if len(suborder.get_order_products()) == 0:
                 continue
             row += 1
             suborder_row = row
@@ -336,15 +350,14 @@ class Order(db.Model, BaseModel):
             ws.cell(row, 9, f'=F{row} + H{row}')
             ws.cell(row, 10, f'=I{row} / $E$8')
             ws.cell(row, 11, f'=I{row} / $E$9')
-            ws.cell(row, 13,
-                reduce(
-                    lambda acc, op: acc + op.product.points * op.quantity,
-                    suborder.order_products, 0)
-            )
+            ws.cell(row, 13, suborder.get_total_points())
             for op in suborder.get_order_products():
                 row += 1
-                op_shipping[row] = round(self.shipping_krw / self.total_weight * \
-                    op.product.weight * op.quantity)
+                op_shipping[row] = round(self.shipping_krw / self.total_weight * 
+                    op.product.weight * op.quantity) \
+                        if self.total_weight > 0 else \
+                            round(self.shipping_krw / self.total_krw * 
+                                op.price * op.quantity)
                 ws.cell(row, 1, op.product_id)
                 ws.cell(row, 2, op.product.name_english)
                 ws.cell(row, 3, op.product.name_russian)

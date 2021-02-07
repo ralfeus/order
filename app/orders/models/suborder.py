@@ -52,14 +52,20 @@ class Suborder(db.Model, BaseModel):
         super().delete()
 
     def get_order_products(self):
-        return self.order_products.filter(
-            OrderProduct.status != OrderProductStatus.unavailable)
+        return list(filter(
+            lambda op: op.status != OrderProductStatus.unavailable,
+            self.order_products))
 
     def get_subtotal(self, currency=None):
         rate = 1 if currency is None else currency.rate
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) * rate
+
+    def get_total_points(self):
+        return reduce(
+            lambda acc, op: acc + op.product.points * op.quantity, 
+            self.get_order_products(), 0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         if order:
@@ -115,15 +121,16 @@ class Suborder(db.Model, BaseModel):
         def calc_op_total(acc, op):
             return acc + op.price * op.quantity
 
-        bulk_shipping_products = self.get_order_products().filter(
-            OrderProduct.product.has(~Product.separate_shipping))
+        bulk_shipping_products = list(filter(
+            lambda op: not op.product.separate_shipping,
+            self.get_order_products()))
         free_local_shipment_eligibility_amount = reduce(
             calc_op_total, filter(
                 lambda op: not op.product.separate_shipping,
                 bulk_shipping_products
             ), 0)
         self.local_shipping = \
-            0 if bulk_shipping_products.count() == 0 \
+            0 if len(bulk_shipping_products) == 0 \
             else current_app.config['LOCAL_SHIPPING_COST'] \
                 if free_local_shipment_eligibility_amount < \
                     current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \
