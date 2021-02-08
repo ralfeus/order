@@ -11,7 +11,6 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-from app.config import Config
 import app.tools
 from app.utils.services import get_celery, init_celery
 
@@ -21,14 +20,14 @@ migrate = Migrate()
 from app.forms import LoginForm
 security = Security()
 
-def create_app(config=Config):
+def create_app(config='config.json'):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_object(config)
+    flask_app.config.from_json(config)
     init_logging(flask_app)
 
     Bootstrap(flask_app)
