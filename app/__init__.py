@@ -3,6 +3,7 @@ Initialization of the application
 '''
 import inspect
 import logging
+import os
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -20,14 +21,14 @@ migrate = Migrate()
 from app.forms import LoginForm
 security = Security()
 
-def create_app(config='config.json'):
+def create_app(config=None):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_json(config)
+    flask_app.config.from_json(config or os.environ['OM_CONFIG_FILE'])
     init_logging(flask_app)
 
     Bootstrap(flask_app)

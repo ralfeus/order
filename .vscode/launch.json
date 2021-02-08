@@ -81,7 +81,9 @@
             "env": {
                 "FLASK_APP": "app:create_app()",
                 "FLASK_ENV": "development",
-                "FLASK_DEBUG": "1"
+                "FLASK_DEBUG": "1",
+                "OM_APP_NAME": "order_master",
+                "OM_CONFIG_FILE": "config.json"
             },
             "args": [
                 "run",
