@@ -104,7 +104,7 @@ def init_logging(flask_app):
     logger.info("Log level is %s", logging.getLevelName(logger.level))
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
-__frm = inspect.stack()
-__command = __frm[len(__frm) - 1].filename
-if __command.endswith('celery'):
-    create_app()
+# __frm = inspect.stack()
+# __command = __frm[len(__frm) - 1].filename
+# if __command.endswith('celery'):
+#     create_app()
