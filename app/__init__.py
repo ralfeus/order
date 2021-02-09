@@ -28,7 +28,7 @@ def create_app(config=None):
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_json(config or os.environ['OM_CONFIG_FILE'])
+    flask_app.config.from_json(config or os.environ.get('OM_CONFIG_FILE') or 'config.json')
     init_logging(flask_app)
 
     Bootstrap(flask_app)
@@ -57,6 +57,7 @@ def register_components(flask_app):
     import app.payments, app.payments.routes
     import app.products, app.products.routes
     import app.purchase, app.purchase.routes
+    import app.settings, app.settings.routes
     import app.shipping, app.shipping.routes
 
     flask_app.register_blueprint(api)
@@ -69,6 +70,7 @@ def register_components(flask_app):
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
     app.purchase.register_blueprints(flask_app)
+    app.settings.register_blueprints(flask_app)
     app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
