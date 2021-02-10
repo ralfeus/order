@@ -74,7 +74,7 @@ def register_components(flask_app):
     app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
-    # load_modules(flask_app)
+    load_modules(flask_app)
 
 def init_debug(flask_app):
     import flask_debugtoolbar
@@ -109,9 +109,9 @@ def init_logging(flask_app):
     logger.info("Log level is %s", logging.getLevelName(logger.level))
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
-# def load_modules(flask_app):
-#     from app.modules.crisp import init
-#     init(flask_app)
+def load_modules(flask_app):
+    from app.modules.crisp import init
+    init(flask_app)
 
 # __frm = inspect.stack()
 # __command = __frm[len(__frm) - 1].filename

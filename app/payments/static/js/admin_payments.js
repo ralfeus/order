@@ -206,7 +206,7 @@ function init_payments_table() {
     g_editor.field('orders').input().on('change', on_orders_change);
     g_editor.field('amount_sent_original').input().on('focus', function() {
         this.old_value = this.value});
-    g_editor.field('amount_sent_original').input().on('blur', on_amount_original_blur);
+    g_editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
 
     g_table = $('#payments').DataTable({
         dom: 'lrBtip',
@@ -238,7 +238,7 @@ function init_payments_table() {
             {data: 'user_name'},
             {data: 'orders'},
             {data: 'payment_method.name'},
-            {data: 'amount_original_string'},
+            {data: 'amount_sent_original_string'},
             {name: 'amount_sent_krw', data: 'amount_sent_krw'},
             {data: 'amount_received_krw'},
             {data: 'status'},
@@ -345,7 +345,7 @@ function on_currency_change() {
     return {};
 }
 
-function on_amount_original_blur(data) {
+function on_amount_sent_original_blur(data) {
     if (data.target.value != data.target.old_value) {
         g_amount_set_manually = true;
     }

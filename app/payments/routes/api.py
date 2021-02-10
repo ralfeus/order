@@ -99,8 +99,15 @@ def user_get_payments(payment_id):
 @bp_api_user.route('', methods=['POST'])
 @login_required
 def user_create_payment():
+    user = None
+    payload = request.get_json()
     if not current_user.has_role('admin') or 'user_id' not in request.json.keys():
         request.json['user_id'] = current_user.id
+        user = current_user
+    elif int(payload['user_id']) == current_user.id:
+        user = current_user
+    else:
+        user = User.query.get(payload['user_id'])
     with PaymentValidator(request) as validator:
         if not validator.validate():
             return jsonify({
@@ -109,13 +116,11 @@ def user_create_payment():
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             }), 400
-    payload = request.get_json()
     if isinstance(payload['amount_sent_original'], str):
         payload['amount_sent_original'] = payload['amount_sent_original'].replace(',', '.')
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
-    user = User.query.get(payload['user_id'])
     evidences = []
     if payload.get('evidences'):
         for evidence in payload['evidences']:
