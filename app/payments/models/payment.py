@@ -108,7 +108,7 @@ class Payment(db.Model, BaseModel):
             'user_name': self.user.username,
             'amount_original': float(self.amount_sent_original),
             'amount_sent_original': float(self.amount_sent_original),
-            'amount_original_string': self.currency.format(self.amount_sent_original),
+            'amount_sent_original_string': self.currency.format(self.amount_sent_original),
             'amount_krw': self.amount_sent_krw or 0,
             'amount_sent_krw': self.amount_sent_krw or 0,
             'amount_received_krw': self.amount_received_krw or 0,
