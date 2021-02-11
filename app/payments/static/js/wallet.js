@@ -84,7 +84,7 @@ function init_payments_table() {
                 contentType: 'application/json',
                 data: JSON.stringify({
                     additional_info: data.data[0].additional_info,
-                    amount_sent_original: data.data[0].amount_sent_original,
+                    amount_original: data.data[0].amount_original,
                     currency_code: data.data[0].currency_code,
                     evidences: data.data[0].evidences.map(e => ({
                         id: e[0],
@@ -121,7 +121,7 @@ function init_payments_table() {
                 type: 'select2',
                 options: g_payment_methods
             },
-            {label: 'Amount', name: 'amount_sent_original', def: 0},
+            {label: 'Amount', name: 'amount_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
@@ -140,8 +140,8 @@ function init_payments_table() {
     editor.on('open', on_editor_open);
     editor.field('currency_code').input().on('change', on_currency_change);
     editor.field('orders').input().on('change', on_orders_change);
-    editor.field('amount_sent_original').input().on('focus', function(){this.old_value = this.value})
-    editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
+    editor.field('amount_original').input().on('focus', function(){this.old_value = this.value})
+    editor.field('amount_original').input().on('blur', on_amount_original_blur);
 
     var table = $('#payments').DataTable({
         dom: 'lrBtip',
@@ -174,7 +174,7 @@ function init_payments_table() {
                         + instructions + "')\">" + method_name + "</a>");
                 }
             },
-            {data: 'amount_sent_original_string'},
+            {data: 'amount_original_string'},
             {data: 'amount_krw'},
             {data: 'status'},
             {data: 'when_created'},
@@ -275,13 +275,13 @@ function on_currency_change() {
         var currency_code = editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            editor.field('amount_sent_original').val(g_amount * currency.rate);
+            editor.field('amount_original').val(g_amount * currency.rate);
         }
     }
     return {};
 }
 
-function on_amount_sent_original_blur(data) {
+function on_amount_original_blur(data) {
     if (data.target.value != data.target.old_value) {
         g_amount_set_manually = true;
     }
