@@ -1,9 +1,11 @@
+import os
 from celery import Celery
 
 def get_celery(app_name):
+    queue_server = os.environ.get('OM_QUEUE_SERVER') or '127.0.0.1'
     celery = Celery(
         app_name,
-        broker='pyamqp://127.0.0.1',
+        broker=f'pyamqp://{queue_server}',
         backend='rpc://',
         include=['app.jobs', 'app.purchase.jobs']
     )

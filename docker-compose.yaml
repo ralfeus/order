@@ -23,9 +23,9 @@ services:
    - "5672:5672"
    - "15672:15672"
 
-     # celery:
-     #  image: ralfeus/order-master
-     #  depends_on:
-     #   - selenium-chrome-server
-     #   - rabbitmq
-     #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
+ celery:
+  image: ralfeus/order-master
+  depends_on:
+    - selenium-chrome-server
+    - rabbitmq
+  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
