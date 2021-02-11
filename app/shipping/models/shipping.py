@@ -3,7 +3,7 @@ Shipping method model
 '''
 from functools import reduce
 
-from sqlalchemy import Column, String
+from sqlalchemy import Boolean, Column, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -29,6 +29,7 @@ class Shipping(db.Model, BaseModel):
     __tablename__ = 'shipping'
 
     name = Column(String(16))
+    enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
     rates = relationship('ShippingRate', lazy='dynamic')
 
@@ -62,7 +63,8 @@ class Shipping(db.Model, BaseModel):
     def to_dict(self):
         return {
             'id': self.id,
-            'name': self.name
+            'name': self.name,
+            'enabled': self.enabled
         }
 
     @staticmethod
