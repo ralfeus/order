@@ -74,7 +74,7 @@ def register_components(flask_app):
     app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
-    # load_modules(flask_app)
+    load_modules(flask_app)
 
 def init_debug(flask_app):
     import flask_debugtoolbar
