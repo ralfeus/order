@@ -21,7 +21,7 @@ from app.exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
-from app.shipping.models.shipping import Shipping, NoShipping
+from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
@@ -277,7 +277,9 @@ class Order(db.Model, BaseModel):
                             reduce(lambda acc, ao: acc + ao.total_weight,
                                    self.attached_orders, 0)
         logging.debug("%s: Total weight: %s", self.id, self.total_weight)
-        self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight)
+        self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight) \
+            if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
+            else 0
         logging.debug("%s: Box weight: %s", self.id, self.shipping_box_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)
@@ -311,7 +313,7 @@ class Order(db.Model, BaseModel):
         ws = order_wb.worksheets[0]
 
         # Set order header
-        ws.cell(2, 2, self.id)
+        ws.cell(2, 2, "\n".join([self.id] + [ao.id for ao in self.attached_orders]))
         ws.cell(2, 3, self.when_created.strftime('%Y-%m-%d'))
         ws.cell(4, 2, self.customer_name)
         ws.cell(5, 2, str(self.address) + '\n' + str(self.zip))
@@ -353,11 +355,7 @@ class Order(db.Model, BaseModel):
             ws.cell(row, 13, suborder.get_total_points())
             for op in suborder.get_order_products():
                 row += 1
-                op_shipping[row] = round(self.shipping_krw / self.total_weight * 
-                    op.product.weight * op.quantity) \
-                        if self.total_weight > 0 else \
-                            round(self.shipping_krw / self.total_krw * 
-                                op.price * op.quantity)
+                op_shipping[row] = self._get_shipping_per_product(op)
                 ws.cell(row, 1, op.product_id)
                 ws.cell(row, 2, op.product.name_english)
                 ws.cell(row, 3, op.product.name_russian)
@@ -378,8 +376,10 @@ class Order(db.Model, BaseModel):
                 ws.cell(row, 5, 2500)
                 ws.cell(row, 6, 2500)
             ws.cell(suborder_row, 8, f'=SUM(H{suborder_row + 1}:H{row})')
-        # Compensate rounding error
-        if len(op_shipping) > 0:
+        #TODO: Modify compensation to take into account attached orders
+        # # Compensate rounding error
+        if len(op_shipping) > 0 \
+            and self.attached_order is None and self.attached_orders.count() == 0:
             diff = self.shipping_krw - \
                 reduce(lambda acc, op_ship: acc + op_ship[1], op_shipping.items(), 0)
             if op_shipping.get(row) is None:
@@ -391,3 +391,13 @@ class Order(db.Model, BaseModel):
         order_wb.save(file.name)
         file.seek(0)
         return file
+
+    def _get_shipping_per_product(self, op):
+        if isinstance(self.shipping, PostponeShipping):
+            return self.attached_order._get_shipping_per_product(op)
+
+        return round(self.shipping_krw / self.total_weight *
+            op.product.weight * op.quantity) \
+                if self.total_weight > 0 else \
+                    round(self.shipping_krw / self.total_krw *
+                        op.price * op.quantity)
