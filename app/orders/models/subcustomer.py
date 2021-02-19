@@ -18,7 +18,7 @@ class Subcustomer(db.Model, BaseModel):
 
     name = Column(String(128))
     username = Column(String(16))
-    password = Column(String(16))
+    password = Column(String(32))
     suborders = relationship("Suborder", lazy='dynamic')
 
     def __repr__(self):
