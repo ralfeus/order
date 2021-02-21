@@ -19,12 +19,10 @@ depends_on = None
 def upgrade():
     op.execute("""
         DELETE FROM shipping_rates 
-        WHERE 
-            shipping_method_id=1 
-            AND destination IN ('ru', 'us', 'ca', 'jp', 'tw', 'hk', 'in', 'ae', 'sg', 'cn', 'fr', 'pl', 'de', 'es')
+        WHERE shipping_method_id=1 
     """)
     op.execute("""
-        INSERT INTO shipping_rates (rate, weight, destination, shipping_method_id) VALUES
+        INSERT INTO shipping_rates (weight, rate, destination, shipping_method_id) VALUES
             (0.5 * 1000, 33550, 'ru', 1),
             (1.0 * 1000, 40600, 'ru', 1),
             (1.5 * 1000, 44120, 'ru', 1),

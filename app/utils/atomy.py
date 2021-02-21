@@ -99,6 +99,8 @@ def get_document_from_url(url, headers=None, raw_data=None):
     if re.search('HTTP.*? 200', output.stderr):
         doc = lxml.html.fromstring(output.stdout)
         return doc
+    if 'Could not resolve host' in output.stderr:
+        return get_document_from_url(url, headers, raw_data)
     if re.search('HTTP.* 302', output.stderr) and \
         re.search('location: /v2/Home/Account/Login', output.stderr):
         raise AtomyLoginError()
