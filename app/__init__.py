@@ -53,6 +53,7 @@ def register_components(flask_app):
     from app.routes.api_admin import admin_api
     import app.currencies, app.currencies.routes
     import app.invoices, app.invoices.routes
+    import app.network, app.network.routes
     import app.orders, app.orders.routes
     import app.payments, app.payments.routes
     import app.products, app.products.routes
@@ -66,6 +67,7 @@ def register_components(flask_app):
     flask_app.register_blueprint(client)
     app.currencies.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
+    app.network.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)

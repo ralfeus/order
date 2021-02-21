@@ -1,3 +1,8 @@
+import itertools
+import re
+import subprocess
+
+import lxml.html
 from flask import current_app
 
 from selenium.common.exceptions import NoAlertPresentException, \
@@ -6,7 +11,23 @@ from selenium.common.exceptions import NoAlertPresentException, \
 from app.exceptions import AtomyLoginError
 from app.utils.browser import Browser
 
-def atomy_login(username, password, browser=None):
+def _atomy_login_curl(username, password):
+    '''    Logins to Atomy customer section    '''
+    output = subprocess.run([
+        '/usr/bin/curl',
+        'https://www.atomy.kr/v2/Home/Account/Login',
+        '--data-raw',
+        f'src=&userId={username}&userPw={password}&idSave=on&rpage=',
+        '-v'
+        ],
+        encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
+    if re.search('< location: /V2', output.stderr):
+        return re.findall('set-cookie: (.*)', output.stderr)
+    return None
+
+def atomy_login(username, password, browser=None, run_browser=True):
+    if not run_browser:
+        return _atomy_login_curl(username, password)
     logger = current_app.logger.getChild('atomy_login')
     local_browser = None
     if browser:
@@ -58,3 +79,28 @@ def __ignore_change_password(browser):
         browser.get_element_by_id('btnRelayPassword').click()
     except:
         AtomyLoginError("Couldn't ignore change password")
+
+def get_document_from_url(url, headers=None, raw_data=None):
+    # headers_list = [
+    #     header for set in list(map(
+    #         lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
+    # ]
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
+    ]))
+    raw_data = ['--data-raw', raw_data] if raw_data else None
+    output = subprocess.run([
+        '/usr/bin/curl',
+        url,
+        '-v'
+        ] + headers_list + raw_data,
+        encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+    if re.search('HTTP.*? 200', output.stderr):
+        doc = lxml.html.fromstring(output.stdout)
+        return doc
+    if re.search('HTTP.* 302', output.stderr) and \
+        re.search('location: /v2/Home/Account/Login', output.stderr):
+        raise AtomyLoginError()
+
+    raise Exception("Couldn't get page", output.stderr)
