@@ -192,7 +192,7 @@ def _get_children(node, current_node, traversing_nodes, node_element,
                 left_element = element
                 is_left_found = True
     if node_element_top == last_level_top and len(elements) != 0:
-        if node.id not in page_nodes:
+        # if node.id not in page_nodes:
             traversing_nodes.append(node)
             node.built_tree = False
     else:
@@ -259,8 +259,8 @@ def _get_node(element, parent, is_left):
     return node
 
 def _update_nodes(current_node, traversing_nodes, elements, last_level_top):
-    desc = f"Traversing node {current_node} of {len(traversing_nodes)}"
-    for element in tqdm(elements, desc=desc):
+    print(f"Traversing node {current_node} of {len(traversing_nodes)}")
+    for element in elements:
         # node = [n for n in nodes if n.id == element.attrib['id'][1:]][0]
         node = Node.query.get(element.attrib['id'][1:])
         if node:
