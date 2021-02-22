@@ -125,7 +125,6 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
     else:
         nodes, traversing_nodes = _init_network(root, incremental=incremental)
     c = 0
-    traversing_nodes_set = set(traversing_nodes)
     try:
         for node in traversing_nodes:
             c += 1
@@ -143,6 +142,7 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
                             username=username, password=password, run_browser=False)
                 members = sel_members(page)
                 if len(members) > 0:
+                    page_nodes = set()
                     last_level_top = max(map_reduce(
                         members,
                         keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
@@ -151,10 +151,9 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
                         _update_nodes(c, traversing_nodes, members, last_level_top)
                     else:
                         _get_children(
-                            node, c, traversing_nodes, traversing_nodes_set, members[0], 
-                            members[1:],
+                            node, c, traversing_nodes, members[0], members[1:],
                             level_distance=_get_levels_distance(members),
-                            last_level_top=last_level_top
+                            last_level_top=last_level_top, page_nodes=page_nodes
                         )
                     db.session.commit()
                     break
@@ -165,8 +164,8 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
     # print(nodes)
     print("Total %s items" % len(nodes))
 
-def _get_children(node, current_node, traversing_nodes, tn_search, node_element,
-    elements, level_distance, last_level_top):
+def _get_children(node, current_node, traversing_nodes, node_element,
+    elements, level_distance, last_level_top, page_nodes):
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
     node_element_left = int(node_element_style_items['left'][:-2])
@@ -197,9 +196,9 @@ def _get_children(node, current_node, traversing_nodes, tn_search, node_element,
                 is_left_found = True
     if node_element_top == last_level_top and len(elements) != 0:
         # if len([e for e in traversing_nodes if e.id == node.id]) == 0:
-        if node not in tn_search:
-            tn_search.add(node)
+        if node not in page_nodes:
             traversing_nodes.append(node)
+            page_nodes.add(node)
             node.built_tree = False
             # db.session.add(node)
     else:
@@ -209,11 +208,13 @@ def _get_children(node, current_node, traversing_nodes, tn_search, node_element,
             # db.session.add(node)
         node.built_tree = True
         if left is not None:
-            _get_children(left, current_node, traversing_nodes, tn_search, left_element, elements,
-                level_distance=level_distance, last_level_top=last_level_top)
+            _get_children(left, current_node, traversing_nodes, left_element, elements,
+                level_distance=level_distance, last_level_top=last_level_top,
+                page_nodes=page_nodes)
         if right is not None:
-            _get_children(right, current_node, traversing_nodes, tn_search, right_element, elements,
-            level_distance=level_distance, last_level_top=last_level_top)
+            _get_children(right, current_node, traversing_nodes, right_element, elements,
+                level_distance=level_distance, last_level_top=last_level_top,
+                page_nodes=page_nodes)
 
 def _get_element_style_items(element):
     style_items = element.attrib['style'].split(';')
