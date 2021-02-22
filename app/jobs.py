@@ -116,19 +116,17 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
 
     sel_members = CSSSelector('div#dLine table')
     session_cookies = atomy_login(username=username, password=password, run_browser=False)
-    # add_session = sessionmaker(bind=db.session.bind)()
     tree_url = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
     data_template = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
     if update:
-        nodes = []
         traversing_nodes = [Node.query.get(root)]
     else:
-        nodes, traversing_nodes = _init_network(root, incremental=incremental)
+        traversing_nodes = _init_network(root, incremental=incremental)
     c = 0
     try:
         for node in traversing_nodes:
             c += 1
-            print(f"{c} of {len(traversing_nodes)}", end="\r")
+            print(f"\r{c} of {len(traversing_nodes)} \033[s", end="")
             for levels in [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]:
                 while True:
                     try:
@@ -137,12 +135,12 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
                             raw_data=data_template.format(levels, node.id))
                         break
                     except AtomyLoginError:
-                        print("Session expired. Logging in...")
+                        print("\033[uSession expired. Logging in...", end="")
                         session_cookies = atomy_login(
                             username=username, password=password, run_browser=False)
                 members = sel_members(page)
                 if len(members) > 0:
-                    page_nodes = set()
+                    print(f"\033[uGot {levels} levels. Processing...          ", end="")
                     last_level_top = max(map_reduce(
                         members,
                         keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
@@ -153,19 +151,21 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
                         _get_children(
                             node, c, traversing_nodes, members[0], members[1:],
                             level_distance=_get_levels_distance(members),
-                            last_level_top=last_level_top, page_nodes=page_nodes
+                            last_level_top=last_level_top
                         )
                     db.session.commit()
                     break
-                print(f"\nCouldn't get {levels} levels. Decreasing...")
+                line = f"\033[uCouldn't get {levels} levels. Decreasing..."
+                print(line, end='')
+            # if c == 50:
+            #     break
     except Exception as ex:
         raise ex
-    nodes += traversing_nodes
-    # print(nodes)
-    print("Total %s items" % len(nodes))
+    print("\nDone.")
 
 def _get_children(node, current_node, traversing_nodes, node_element,
-    elements, level_distance, last_level_top, page_nodes):
+    elements, level_distance, last_level_top, page_nodes=set()):
+    page_nodes.add(node.id)
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
     node_element_left = int(node_element_style_items['left'][:-2])
@@ -188,24 +188,15 @@ def _get_children(node, current_node, traversing_nodes, node_element,
         if int(_get_element_style_items(element)['left'][:-2]) > node_element_left:
             break
         if int(_get_element_style_items(element)['left'][:-2]) < node_element_left:
-            # if len([e for e in nodes + traversing_nodes
-            #         if e.id == element_id]) == 0:
-            if not Node.query.get(element_id):
+            if element_id not in page_nodes:
                 left = _get_node(element, node, True)
                 left_element = element
                 is_left_found = True
     if node_element_top == last_level_top and len(elements) != 0:
-        # if len([e for e in traversing_nodes if e.id == node.id]) == 0:
-        if node not in page_nodes:
+        if node.id not in page_nodes:
             traversing_nodes.append(node)
-            page_nodes.add(node)
             node.built_tree = False
-            # db.session.add(node)
     else:
-        # if len([e for e in traversing_nodes if e.id == node.id]) == 0:
-        # if node not in traversing_nodes:
-            # nodes.append(node)
-            # db.session.add(node)
         node.built_tree = True
         if left is not None:
             _get_children(left, current_node, traversing_nodes, left_element, elements,
@@ -242,10 +233,10 @@ def _init_network(root_node_id, incremental=True):
         traversing_nodes = [root_node]
         db.session.add(root_node)
         db.session.commit()
-    nodes = Node.query.filter_by(built_tree=True) \
-        if incremental \
-        else Node.query.filter(or_(Node.left_id != None, Node.right_id != None)).all()
-    return nodes, traversing_nodes
+    # nodes = Node.query.filter_by(built_tree=True) \
+    #     if incremental \
+    #     else Node.query.filter(or_(Node.left_id != None, Node.right_id != None)).all()
+    return traversing_nodes
 
 def _get_node(element, parent, is_left):
     id = element.attrib['id'][1:]
