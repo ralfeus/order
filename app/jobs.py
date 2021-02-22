@@ -6,7 +6,6 @@ from time import sleep
 from celery.utils.log import get_task_logger
 from lxml.cssselect import CSSSelector
 from sqlalchemy import or_
-from tqdm import tqdm
 
 from app import celery, db
 from app.exceptions import AtomyLoginError
