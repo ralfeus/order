@@ -21,6 +21,7 @@ from app.exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
+from app.settings.models.setting import Setting
 from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
@@ -213,6 +214,7 @@ class Order(db.Model, BaseModel):
             is_order_updated = True
         if is_order_updated:
             db.session.commit()
+        need_to_check_outsiders = Setting.query.get('check_outsiders') is not None
         result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
@@ -236,6 +238,10 @@ class Order(db.Model, BaseModel):
                 if self.payment_method else None,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
+            'has_outsider': not need_to_check_outsiders \
+                or not reduce(
+                    lambda acc, so: acc and so.is_for_internal(), 
+                    self.suborders, True),
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
@@ -290,7 +296,7 @@ class Order(db.Model, BaseModel):
         self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
-            self.country.id if self.country else None, 
+            self.country.id if self.country else None,
             self.total_weight + self.shipping_box_weight)))
         logging.debug("%s: Shipping (KRW): %s", self.id, self.shipping_krw)
         self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate

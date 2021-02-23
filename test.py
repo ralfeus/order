@@ -8,6 +8,7 @@ import logging
 # logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
 from app.purchase.jobs import *
+import cProfile
 
 with create_app().app_context():
     # po = PurchaseOrder.query.get('PO-2021-01-0015-001')
@@ -21,5 +22,6 @@ with create_app().app_context():
     # post_purchase_orders(po_id='PO-2021-01-0015-001')
     # print(po.to_dict())
     print(datetime.now())
-    build_network(update=False, incremental=True)
+    cProfile.run('build_network(update=False, incremental=True)', filename='build_network.stat')
+    # build_network(incremental=True)
     print(datetime.now())

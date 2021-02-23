@@ -8,7 +8,8 @@ from app.settings.models.setting import Setting
 create_app().app_context().push()
 
 settings = [
-    {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' }
+    {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' },
+    {'key': 'check_outsiders', 'value': False, 'description': 'Define whether to check network outsiders'}
 ]
 
 for setting in settings:
@@ -16,6 +17,7 @@ for setting in settings:
         db.session.add(Setting(
             key=setting['key'],
             value=setting['value'],
+            default_value=setting['value'],
             description=setting['description'],
             when_created=datetime.now()
         ))

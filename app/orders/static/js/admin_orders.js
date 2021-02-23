@@ -221,15 +221,22 @@ function init_orders_table() {
                 'orderable': false,
                 'data': null,
                 fnCreatedCell: function(cell, sData, oData, iRow, iCol) {
+                    var html = '';
                     if (oData.comment) {
-                        $(cell).html("" +
+                        html += 
                             "<span " +
                             "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
                             "    style=\"color: blue; font-weight:bolder; font-size:large;\"" +
-                            "    title=\"" + oData.comment + "\">C</span>");
-                    } else {
-                        $(cell).html('');
-                    }      
+                            "    title=\"" + oData.comment + "\">C</span>";
+                    } 
+                    if (oData.has_outsider) {
+                        html +=
+                            "<span " +
+                            "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "    style=\"color: orange; font-weight:bolder; font-size:large;\"" +
+                            "    title=\"The order has outsiders\">O</span>";
+                    }
+                    $(cell).html(html);
                 }
             },
             {

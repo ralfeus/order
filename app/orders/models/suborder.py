@@ -33,6 +33,33 @@ class Suborder(db.Model, BaseModel):
     order_products = relationship('OrderProduct', lazy='dynamic')
     local_shipping = Column(Integer(), default=0)
 
+    def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
+        if order:
+            self.order = order
+            order_id = order.id
+        elif order_id:
+            order = Order.query.get(order_id)
+        else:
+            raise AttributeError("No order is referred")
+        self.order_id = order_id
+
+        prefix = self.__id_pattern.format(order_num=order_id[4:16])
+        # if not seq_num:
+        suborders = order.suborders.count()
+        seq_num = suborders + 1
+        self.seq_num = seq_num
+        self.id = prefix + '{:03d}'.format(int(self.seq_num))
+
+        attributes = [a[0] for a in type(self).__dict__.items()
+                           if isinstance(a[1], InstrumentedAttribute)]
+        for arg in kwargs:
+            if arg in attributes:
+                setattr(self, arg, kwargs[arg])
+        # Here properties are set (attributes start with '__')
+
+    def __repr__(self):
+        return "<Suborder: {}>".format(self.id)
+
     @property
     def total_weight(self):
         return reduce(
@@ -67,32 +94,8 @@ class Suborder(db.Model, BaseModel):
             lambda acc, op: acc + op.product.points * op.quantity, 
             self.get_order_products(), 0)
 
-    def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
-        if order:
-            self.order = order
-            order_id = order.id
-        elif order_id:
-            order = Order.query.get(order_id)
-        else:
-            raise AttributeError("No order is referred")
-        self.order_id = order_id
-
-        prefix = self.__id_pattern.format(order_num=order_id[4:16])
-        # if not seq_num:
-        suborders = order.suborders.count()
-        seq_num = suborders + 1
-        self.seq_num = seq_num
-        self.id = prefix + '{:03d}'.format(int(self.seq_num))
-
-        attributes = [a[0] for a in type(self).__dict__.items()
-                           if isinstance(a[1], InstrumentedAttribute)]
-        for arg in kwargs:
-            if arg in attributes:
-                setattr(self, arg, kwargs[arg])
-        # Here properties are set (attributes start with '__')
-
-    def __repr__(self):
-        return "<Suborder: {}>".format(self.id)
+    def is_for_internal(self):
+        return self.subcustomer.is_internal()
 
     def get_purchase_order(self):
         from app.purchase.models import PurchaseOrder
