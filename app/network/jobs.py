@@ -24,8 +24,7 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
     session_cookies = atomy_login(username=username, password=password, run_browser=False)
     tree_url = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
     data_template = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
-    full = not (cont or incremental or update)
-    if full or cont or incremental:
+    if cont or incremental:
         traversing_nodes = _init_network(root_id, incremental=incremental, cont=cont)
     else:
         root_node = Node.query.get(root_id)
