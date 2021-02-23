@@ -229,12 +229,12 @@ function init_orders_table() {
                             "    style=\"color: blue; font-weight:bolder; font-size:large;\"" +
                             "    title=\"" + oData.comment + "\">C</span>";
                     } 
-                    if (oData.has_outsider) {
+                    if (oData.outsiders.length) {
                         html +=
                             "<span " +
                             "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
                             "    style=\"color: orange; font-weight:bolder; font-size:large;\"" +
-                            "    title=\"The order has outsiders\">O</span>";
+                            "    title=\"The order has outsiders:\n" + oData.outsiders.join("\n") + "\">O</span>";
                     }
                     $(cell).html(html);
                 }

@@ -238,10 +238,11 @@ class Order(db.Model, BaseModel):
                 if self.payment_method else None,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
-            'has_outsider': not need_to_check_outsiders \
-                or not reduce(
-                    lambda acc, so: acc and so.is_for_internal(), 
-                    self.suborders, True),
+            'outsiders': [so.subcustomer.username + ":" + so.subcustomer.name
+                          for so in self.suborders
+                          if not so.is_for_internal()] \
+                         if need_to_check_outsiders \
+                         else [],
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
