@@ -214,7 +214,7 @@ class Order(db.Model, BaseModel):
             is_order_updated = True
         if is_order_updated:
             db.session.commit()
-        need_to_check_outsiders = Setting.query.get('check_outsiders') is not None
+        need_to_check_outsiders = Setting.query.get('check_outsiders')
         result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
