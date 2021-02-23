@@ -137,6 +137,10 @@ def build_network(username='S5832131', password='mkk03020529!', root='S5832131',
                         print("\033[uSession expired. Logging in...", end="")
                         session_cookies = atomy_login(
                             username=username, password=password, run_browser=False)
+                    except Exception as ex:
+                        print("\nSomething bad has happened")
+                        print(tree_url, session_cookies, node.id)
+                        raise ex
                 members = sel_members(page)
                 if len(members) > 0:
                     print(f"\033[uGot {levels} levels. Processing...          ", end="")
