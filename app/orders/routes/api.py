@@ -167,7 +167,7 @@ def user_create_order():
         try:
             order.update_total()
         except NoShippingRateError:
-            abort(Response(f"No shipping rate available", status=409))
+            abort(Response("No shipping rate available", status=409))
 
     try:
         # db.session.commit()
