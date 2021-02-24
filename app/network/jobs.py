@@ -17,11 +17,11 @@ sel_signup_date = CSSSelector('td span:nth-child(7)')
 sel_pv = CSSSelector('td span:nth-child(8)')
 sel_network_pv = CSSSelector('td span:nth-child(9)')
 
-@celery.on_after_finalize.connect
-def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(crontab(hour=0, minute=0, day_of_week=1),
-                             copy_subtree,
-                             name='Copy subtree once a week')
+# @celery.on_after_finalize.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     sender.add_periodic_task(crontab(hour=0, minute=0, day_of_week=1),
+#                              copy_subtree,
+#                              name='Copy subtree once a week')
 
 @celery.task
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
