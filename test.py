@@ -7,6 +7,7 @@ from app.utils.browser import Browser
 import logging
 # logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
+from app.network.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
