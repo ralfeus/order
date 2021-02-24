@@ -152,7 +152,9 @@ function format ( row, data ) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping.name);
-    $('#shipping-cost', order_details).val(data.shipping_krw);
+    $('#subtotal', order_details).val(data.subtotal_krw.toLocaleString());
+    $('#shipping-cost', order_details).val(data.shipping_krw.toLocaleString());
+    $('#total', order_details).val(data.total_krw.toLocaleString());
     $('#status', order_details).select2({
         theme: "bootstrap",
         data: g_order_statuses.map(os => ({

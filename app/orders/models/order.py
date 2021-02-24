@@ -29,9 +29,9 @@ class OrderStatus(enum.Enum):
     pending = 1
     can_be_paid = 2
     po_created = 3
-    # paid = 4
+    packed = 4
     shipped = 5
-    # complete = 6
+    cancelled = 6
 
 class Order(db.Model, BaseModel):
     ''' System's order '''
