@@ -167,7 +167,7 @@ def user_create_order():
         try:
             order.update_total()
         except NoShippingRateError:
-            abort(Response(f"No shipping rate available", status=409))
+            abort(Response("No shipping rate available", status=409))
 
     try:
         # db.session.commit()
@@ -644,7 +644,7 @@ def admin_get_subcustomers():
             'data': outcome
         })
     
-    return jsonify(list(map(lambda entry: entry.to_dict(), subcustomers)))
+    return jsonify([entry.to_dict() for entry in subcustomers])
 
 @bp_api_admin.route('/subcustomer', methods=['POST'])
 @roles_required('admin')
@@ -681,7 +681,7 @@ def admin_save_subcustomer(subcustomer_id):
         abort(Response(
             f"Subcustomer with username <{payload['username']}> already exists",
             status=409))
-    modify_object(subcustomer, payload, ['name', 'username', 'password'])
+    modify_object(subcustomer, payload, ['name', 'username', 'password', 'in_network'])
     db.session.commit()
     return jsonify(subcustomer.to_dict())
 

@@ -152,7 +152,9 @@ function format ( row, data ) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#shipping', order_details).val(data.shipping.name);
-    $('#shipping-cost', order_details).val(data.shipping_krw);
+    $('#subtotal', order_details).val(data.subtotal_krw.toLocaleString());
+    $('#shipping-cost', order_details).val(data.shipping_krw.toLocaleString());
+    $('#total', order_details).val(data.total_krw.toLocaleString());
     $('#status', order_details).select2({
         theme: "bootstrap",
         data: g_order_statuses.map(os => ({
@@ -221,15 +223,22 @@ function init_orders_table() {
                 'orderable': false,
                 'data': null,
                 fnCreatedCell: function(cell, sData, oData, iRow, iCol) {
+                    var html = '';
                     if (oData.comment) {
-                        $(cell).html("" +
+                        html += 
                             "<span " +
                             "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
                             "    style=\"color: blue; font-weight:bolder; font-size:large;\"" +
-                            "    title=\"" + oData.comment + "\">C</span>");
-                    } else {
-                        $(cell).html('');
-                    }      
+                            "    title=\"" + oData.comment + "\">C</span>";
+                    } 
+                    if (oData.outsiders.length) {
+                        html +=
+                            "<span " +
+                            "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "    style=\"color: orange; font-weight:bolder; font-size:large;\"" +
+                            "    title=\"The order has outsiders:\n" + oData.outsiders.join("\n") + "\">O</span>";
+                    }
+                    $(cell).html(html);
                 }
             },
             {

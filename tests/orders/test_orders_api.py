@@ -170,7 +170,7 @@ class TestOrdersApi(BaseTestCase):
                 "comment":"",
                 "suborders": [
                     {
-                        "subcustomer":"A000, Subcustomer1, P@ssw0rd really wrong",
+                        "subcustomer":"A000, Subcustomer1, "  + "P@ssw0rd" * 5,
                         "items": [
                             {"item_code":"0000", "quantity":"1"},
                             {"item_code":"1", "quantity": "1"}

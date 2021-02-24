@@ -9,6 +9,7 @@ import logging
 from app.jobs import *
 from app.network.jobs import *
 from app.purchase.jobs import *
+import cProfile
 
 with create_app().app_context():
     # po = PurchaseOrder.query.get('PO-2021-01-0015-001')

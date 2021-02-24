@@ -18,6 +18,7 @@ for setting in settings:
         db.session.add(Setting(
             key=setting['key'],
             value=setting['value'],
+            default_value=setting['value'],
             description=setting['description'],
             when_created=datetime.now()
         ))

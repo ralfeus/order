@@ -263,6 +263,8 @@ def user_upload_payment_evidence(payment_id):
         payment.changed_by = current_user
         db.session.commit()
     else:
+        current_app.logger.warning("Payment %s upload evidence: no file was uploaded", payment_id)
+        current_app.logger.warning(request.files)
         abort(Response("No file is uploaded", status=400))
     return jsonify({})
 
