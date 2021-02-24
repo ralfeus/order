@@ -15,7 +15,8 @@ from flask_sqlalchemy import SQLAlchemy
 import app.tools
 from app.utils.services import get_celery, init_celery
 
-celery = get_celery(__name__)
+celery = get_celery(__name__, 
+                    job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
 db = SQLAlchemy()
 migrate = Migrate()
 from app.forms import LoginForm

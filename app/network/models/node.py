@@ -21,10 +21,10 @@ class Node(BaseModel, db.Model):
 
     parent_id = Column(String(10), ForeignKey('network_nodes.id'))
     parent = relationship("Node", foreign_keys=[parent_id], uselist=False)
-    left_id = Column(String(10), ForeignKey('network_nodes.id'))
-    left = relationship("Node", foreign_keys=[parent_id], uselist=False)
-    right_id = Column(String(10), ForeignKey('network_nodes.id'))
-    right = relationship("Node", foreign_keys=[parent_id], uselist=False)
+    left_id = Column(String(10))#, ForeignKey('network_nodes.id'))
+    # left = relationship("Node", foreign_keys=[parent_id], uselist=False)
+    right_id = Column(String(10))#, ForeignKey('network_nodes.id'))
+    # right = relationship("Node", foreign_keys=[parent_id], uselist=False)
     built_tree = Column(Boolean(), index=True)
 
     def to_dict(self):

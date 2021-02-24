@@ -1,13 +1,13 @@
 import os
 from celery import Celery
 
-def get_celery(app_name):
+def get_celery(app_name, job_modules=[]):
     queue_server = os.environ.get('OM_QUEUE_SERVER') or '127.0.0.1'
     celery = Celery(
         app_name,
         broker=f'pyamqp://{queue_server}',
         backend='rpc://',
-        include=['app.jobs', 'app.purchase.jobs']
+        include=job_modules
     )
     celery.conf.update({
         'worker_hijack_root_logger': False
