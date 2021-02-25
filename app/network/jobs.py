@@ -221,6 +221,7 @@ def copy_subtree(root_id=None):
         ) SELECT * FROM cte
         ''', {'root_id': root_id})
     if result.rowcount:
+        db.session.commit()
         print("Copied %s rows" % result.rowcount)
     else:
         print(result)

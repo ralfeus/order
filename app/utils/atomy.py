@@ -96,7 +96,7 @@ def get_document_from_url(url, headers=None, raw_data=None):
         ] + headers_list + raw_data,
         encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
-    if re.search('HTTP.*? 200', output.stderr):
+    if re.search('HTTP.*? (200|304)', output.stderr):
         doc = lxml.html.fromstring(output.stdout)
         return doc
     if 'Could not resolve host' in output.stderr:
