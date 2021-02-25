@@ -32,6 +32,15 @@ class ProductNotFoundError(Exception):
     def __str__(self):
         return f"Product {self.product_id} was not found"
 
+class PurchaseOrderError(Exception):
+    def __init__(self, po, vendor, message):
+        self.message = message
+        self.po_id = po.id
+        self.vendor = str(vendor)
+    
+    def __str__(self):
+        return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"
+
 class SubcustomerParseError(Exception):
     pass
 
