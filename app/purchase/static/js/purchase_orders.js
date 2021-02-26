@@ -1,17 +1,12 @@
 var g_companies;
 var g_create_editor;
 var g_edit_editor;
+var g_filter_sources;
 var g_orders;
 var g_purchase_orders_table;
-var g_po_statuses = [
-    'posted',
-    'shipped',
-    'payment_past_due',
-    'paid',
-    'cancelled',
-    'delivered',
-    'failed'
-];
+var g_po_statuses;
+var g_vendors;
+
 $.fn.dataTable.ext.buttons.repost = {
     action: function(_e, dt, _node, _config) {
         repost_failed(dt.rows({selected: true}));
@@ -24,6 +19,66 @@ $.fn.dataTable.ext.buttons.status_update = {
 };
 
 $(document).ready( function () {
+    get_dictionaries().then(init_table);
+});
+
+function cancel_purchase_order(target) {
+    g_create_editor
+        .edit($(target).parents('tr')[0], false)
+        .val('status', 'cancelled')
+        .submit();
+}
+
+function get_companies() {
+    $.ajax({
+        url: '/api/v1/admin/purchase/company',
+        success: data => {
+            g_companies = data;
+            g_create_editor.field('company_id').update(data.map(c => ({
+                label: c.name,
+                value: c.id
+            })));
+        }
+    });
+}
+
+async function get_dictionaries() {
+    // g_vendors = await get_vendors();
+    g_vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
+        i => {
+            entry = Object.entries(i)[0]; 
+            return {value:entry[0], label:entry[1]};
+        });
+    g_po_statuses = await get_list('/api/v1/admin/purchase/status')
+    g_filter_sources = {
+        'vendor': g_vendors.map(v => ({id: v.value, text: v.label})),
+        'status': g_po_statuses
+    };
+}
+
+function get_orders_to_purchase() {
+    $.ajax({
+        url: '/api/v1/admin/order?status=can_be_paid&status=paid',
+        success: data => {
+            // g_orders = data;
+            g_create_editor.field('order_id').update(data.map(o => o.id));
+        }
+    })
+}
+
+async function get_vendors() {
+    var vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
+        i => {
+            entry = Object.entries(i)[0]; 
+            return {value:entry[0], label:entry[1]};
+        });
+    g_create_editor.field('vendor').update(vendors);
+    g_create_editor.field('vendor').val('AtomyQuick');
+    g_edit_editor.field('vendor').update(vendors);
+    return vendors;
+}
+
+function init_table() {
     g_create_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
             var url = '/api/v1/admin/purchase/order';
@@ -34,7 +89,7 @@ $(document).ready( function () {
                 contentType: 'application/json',
                 data: JSON.stringify(data.data[0]),
                 success: (data, _status, xhr) => {
-                    success_callback(({data: [data]}));
+                    success_callback(data);
                     if (xhr.status == 202) {
                         poll_status();
                     }
@@ -59,7 +114,9 @@ $(document).ready( function () {
             {
                 label: 'Vendor',
                 name: 'vendor',
-                type: 'select2'
+                type: 'select2',
+                def: 'AtomyQuick',
+                options: g_vendors
             }
         ]
     });
@@ -74,22 +131,13 @@ $(document).ready( function () {
     }
     min_date.setDate(min_date.getDate() - backday);
     g_edit_editor  = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success_callback, error) => {
-            var url = '/api/v1/admin/purchase/order/' + Object.entries(data.data)[0][0];
-            $.ajax({
-                url: url,
-                method: 'post',
-                dataType: 'json',
-                contentType: 'application/json',
-                data: JSON.stringify(Object.entries(data.data)[0][1]),
-                success: (data, _status, xhr) => {
-                    success_callback(({data: [data]}));
-                    if (xhr.status == 202) {
-                        poll_status();
-                    }
-                },
-                error: error
-            });     
+        ajax: {
+            url: '/api/v1/admin/purchase/order/_id_',
+            contentType: 'application/json',
+            data: d => JSON.stringify(Object.entries(d.data)[0][1]),
+            error: (xhr, _e, _a) => {
+                modal("Purchase Order update failure", xhr.responseText);
+            }
         },
         table: '#purchase_orders',
         idSrc: 'id',
@@ -105,7 +153,7 @@ $(document).ready( function () {
                     disableDays: [0, 6]
                 }
             },
-            {name: 'vendor', type: 'select2'},
+            {name: 'vendor', type: 'select2', options: g_vendors},
             {label: 'Vendor PO ID', name: 'vendor_po_id'},
             {label: 'Payment account', name: 'payment_account'},
             {
@@ -117,60 +165,11 @@ $(document).ready( function () {
         ]
     });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
-        g_edit_editor.inline(this, { submitOnBlur: true });
+        g_edit_editor.inline(this, { submitOnBlur: true, drawType: 'none'});
     }); 
-    get_vendors();
-    init_table();
-});
 
-function cancel_purchase_order(target) {
-    g_create_editor
-        .edit($(target).parents('tr')[0], false)
-        .val('status', 'cancelled')
-        .submit();
-}
-
-function get_companies() {
-    $.ajax({
-        url: '/api/v1/admin/purchase/company',
-        success: data => {
-            g_companies = data;
-            g_create_editor.field('company_id').update(data.map(c => ({
-                label: c.name,
-                value: c.id
-            })));
-        }
-    });
-}
-
-function get_orders_to_purchase() {
-    $.ajax({
-        url: '/api/v1/admin/order?status=can_be_paid&status=paid',
-        success: data => {
-            // g_orders = data;
-            g_create_editor.field('order_id').update(data.map(o => o.id));
-        }
-    })
-}
-
-function get_vendors() {
-    $.ajax({
-        url: '/api/v1/admin/purchase/vendor',
-        success: data => {
-            var vendors = data.map(i => {
-                entry = Object.entries(i)[0]; 
-                return {value:entry[0], label:entry[1]};
-            });
-            g_create_editor.field('vendor').update(vendors);
-            g_create_editor.field('vendor').val('AtomyQuick');
-            g_edit_editor.field('vendor').update(vendors);
-        }
-    })
-}
-
-function init_table() {
     g_purchase_orders_table = $('#purchase_orders').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/purchase/order',
             error: xhr => { modal('No purchase orders', xhr.responseText) },
@@ -198,7 +197,7 @@ function init_table() {
             },
             {data: 'id'},
             {
-                data: 'customer', 
+                data: 'customer.name', 
                 orderable: false,
                 fnCreatedCell: function(nTd, sData, oData, iRow, iCol) {
                     $(nTd).html("" +
@@ -237,7 +236,8 @@ function init_table() {
             } else if (data.status == 'partially_posted') {
                 $(row).addClass('orange-line');
             }
-        }
+        },
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 }
 

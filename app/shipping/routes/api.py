@@ -25,7 +25,7 @@ def get_shipping_methods(country_id, weight):
         if country:
             country_name = country.name
 
-    shipping_methods = Shipping.query
+    shipping_methods = Shipping.query.filter_by(enabled=True)
     result = []
     for shipping in shipping_methods:
         if shipping.can_ship(country, weight):

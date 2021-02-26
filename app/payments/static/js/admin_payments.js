@@ -4,6 +4,8 @@ var g_currencies = [];
 var g_customers = [];
 var g_editor;
 var g_payment_methods = [];
+var g_payment_statuses = [];
+var g_table;
 
 $.fn.dataTable.ext.buttons.status = {
     action: function(_e, dt, _node, _config) {
@@ -25,10 +27,14 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show();
-    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
+    data.evidences.forEach(evidence => {
+        $('#evidences', payment_details).append(
+            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
+            evidence.file_name + "</a></li>");
+    });
     $('#currency_code', payment_details).text(data.currency_code);
-    $('#amount_original', payment_details).val(data.amount_original);
-    $('#amount_krw', payment_details).val(data.amount_krw);
+    $('#amount_sent_original', payment_details).val(data.amount_sent_original);
+    $('#amount_sent_krw', payment_details).val(data.amount_sent_krw);
     $('#amount_received_krw', payment_details).val(data.amount_received_krw);
     $('#additional_info', payment_details).text(data.additional_info);
 
@@ -36,11 +42,11 @@ function format ( row, data ) {
         $('#currency_code', payment_details).text(target.clickEvent.target.innerText);
         update_amount_krw(payment_details, data);
     });
-    $('#amount_original', payment_details).on('change', function() {
+    $('#amount_sent_original', payment_details).on('change', function() {
         update_amount_krw(payment_details, data);
     });
-    $('#amount_krw', payment_details).on('change', function() {
-        data.amount_krw = this.value;
+    $('#amount_sent_krw', payment_details).on('change', function() {
+        data.amount_sent_krw = this.value;
         
     });
     $('#amount_received_krw', payment_details).on('change', function() {
@@ -72,24 +78,63 @@ async function get_dictionaries() {
     g_currencies = await get_currencies();
     g_customers = await get_users();
     g_payment_methods = await get_payment_methods();
+    g_payment_statuses = (await get_list('/api/v1/payment/status'))
+    g_filter_sources = {
+        'payment_method.name': g_payment_methods.map(e => e.name),
+        'status': g_payment_statuses
+    };
 }
 
 function get_orders_to_pay(user) {
-    get_list('/api/v1/admin/order?status=pending&user_id=' + user)
-        .then(data => {g_editor.field('orders').update(data.map(o => o.id))});
+    return new Promise(function (resolve, reject) {
+        get_list('/api/v1/admin/order?status=pending&user_id=' + user)
+            .then(data => { 
+                g_editor.field('orders').update(data.map(o => o.id));
+                resolve();
+            });
+    });
 }
 
 function init_payments_table() {
     g_editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
+        ajax: (_method, _url, data, success, error_callback) => {
+            var payment_id = Object.entries(data.data)[0][0];
+            var target = Object.entries(data.data)[0][1];
+            target.evidences = target.evidences.map(e => (e.url 
+                ? {
+                    path: e.path
+                }
+                : {
+                    id: e[0],
+                    file_name: g_editor.files().files[e].filename
+            }));
+            var method = 'post';
+            var url = '/api/v1/payment/' + payment_id;
+            if (data.action === 'create') {
+                url = '/api/v1/payment';
+                payment_id = target.id;
+            }
             $.ajax({
-                url: '/api/v1/payment',
-                method: 'post',
+                url: url,
+                method: method,
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
-                success: data => {success(({data: [data]}))},
-                error: error
+                data: JSON.stringify(target),
+                success: data => { success(data); },
+                error: (xhr, error, status) => {
+                    if (xhr.responseJSON) {
+                        var error_data = xhr.responseJSON
+                        if (error_data.error) {
+                            g_editor.error(error_data.error);
+                        }
+                        error_data.fieldErrors.forEach(e => {
+                            if (g_editor.fields().includes(e.name)) {
+                                g_editor.error(e.name, e.status);
+                            }
+                        });
+                    }
+                    error_callback(xhr, error, status);
+                }
             });
         },
         table: '#payments',
@@ -105,13 +150,6 @@ function init_payments_table() {
                 }))
             },
             {
-                label: 'Currency',
-                name: 'currency_code',
-                type: 'select2',
-                def: 'USD',
-                options: g_currencies.map(c => c.code)
-            },
-            {
                 label: 'Orders', 
                 name: 'orders',
                 type: 'select2',
@@ -121,22 +159,43 @@ function init_payments_table() {
             },
             {
                 label: 'Payment method', 
-                name: 'payment_method',
+                name: 'payment_method.id',
                 type: 'select2',
                 options: g_payment_methods.map(pm => ({
                     value: pm.id,
                     label: pm.name
                 }))
             },
-            {label: 'Amount', name: 'amount_original'},
+            {
+                label: 'Currency',
+                name: 'currency_code',
+                type: 'select2',
+                def: 'USD',
+                options: g_currencies.map(c => c.code)
+            },
+            {label: 'Amount', name: 'amount_sent_original', def: 0},
+            {label: 'Amount (KRW)', name: 'amount_sent_krw', def: 0},
+            {label: 'Amount received', name: 'amount_received_krw', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
                 name: 'evidences',
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
-                display: (files, file_num) => {
-                    return '<img src="/upload/tmp/payment-evidence-' + files[file_num] + '" />';
+                display: (value, _file_num) => {
+                    if (value.file_name) {
+                        return "\
+                            <span class=\"small\"> \
+                                <a target=\"_blank\" href=\"" + value.url + "\"> \
+                                    " + value.file_name + " \
+                                </a> \
+                            </span>";
+                    } else {
+                        return "" +
+                            "<span class=\"small\">" + 
+                            g_editor.files().files[value[0]].filename + 
+                            "</span>";
+                    }
                 }
             }
         ]
@@ -145,14 +204,16 @@ function init_payments_table() {
     g_editor.field('user_id').input().on('change', on_customer_change);
     g_editor.field('currency_code').input().on('change', on_currency_change);
     g_editor.field('orders').input().on('change', on_orders_change);
-    g_editor.field('amount_original').input().on('focus', function() {
+    g_editor.field('amount_sent_original').input().on('focus', function() {
         this.old_value = this.value});
-    g_editor.field('amount_original').input().on('blur', on_amount_original_blur);
+    g_editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
 
-    var table = $('#payments').DataTable({
-        dom: 'lfrBtip',
+    g_table = $('#payments').DataTable({
+        dom: 'lrBtip',
         buttons: [
-            { extend: 'create', editor: g_editor, text: 'Create new payment' },
+            // { extend: 'edit', editor: g_editor, text: "Edit payment"},
+            { extend: 'create', editor: g_editor, text: 'Create' },
+            { extend: 'edit', editor: g_editor, text: 'Edit' },
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -177,8 +238,8 @@ function init_payments_table() {
             {data: 'user_name'},
             {data: 'orders'},
             {data: 'payment_method.name'},
-            {data: 'amount_original_string'},
-            {data: 'amount_krw'},
+            {data: 'amount_sent_original_string'},
+            {name: 'amount_sent_krw', data: 'amount_sent_krw'},
             {data: 'amount_received_krw'},
             {data: 'status'},
             {data: 'when_created'},
@@ -204,7 +265,7 @@ function init_payments_table() {
                     if (!accumulator[current.currency_code]) { 
                         accumulator[current.currency_code] = 0;
                     }
-                    accumulator[current.currency_code] += current.amount_original;
+                    accumulator[current.currency_code] += current.amount_sent_original;
                     return accumulator;
                 }, {})
             totalSentOriginalString = Object.entries(totalSentOriginal)
@@ -226,11 +287,12 @@ function init_payments_table() {
             $(api.column(5).footer()).html(totalSentOriginalString);
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-        }
+        },
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
-        var row = table.row( tr );
+        var row = g_table.row( tr );
  
         if ( row.child.isShown() ) {
             // This row is already open - close it
@@ -240,7 +302,7 @@ function init_payments_table() {
         else {
             // First close all open rows
             $('tr.shown').each(function() {
-                table.row(this).child.hide();
+                g_table.row(this).child.hide();
                 $(this).removeClass('shown');
             })
             // Open this row
@@ -277,13 +339,13 @@ function on_currency_change() {
         var currency_code = g_editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            g_editor.field('amount_original').val(g_amount * currency.rate);
+            g_editor.field('amount_sent_original').val(g_amount * currency.rate);
         }
     }
     return {};
 }
 
-function on_amount_original_blur(data) {
+function on_amount_sent_original_blur(data) {
     if (data.target.value != data.target.old_value) {
         g_amount_set_manually = true;
     }
@@ -291,13 +353,17 @@ function on_amount_original_blur(data) {
 
 function on_customer_change() {
     if (g_editor.field('user_id').val()) {
-        get_orders_to_pay(g_editor.field('user_id').val());
+        get_orders_to_pay(g_editor.field('user_id').val())
+        .then(() => {
+            if (g_editor.mode() == 'edit') {
+                g_editor.field('orders').val(g_table.row({selected: true}).data().orders);
+            }
+        });
     }
 }
 
-function on_editor_open() {
-    g_amount_set_manually = false;
-    //get_orders_to_pay();
+function on_editor_open(_e, _mode, action) {
+    g_amount_set_manually = action == 'edit';
 }
 
 function on_orders_change() {
@@ -328,8 +394,8 @@ function save_payment(row) {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify({
-            amount_original: row.data().amount_original,
-            amount_krw: row.data().amount_krw,
+            amount_sent_original: row.data().amount_sent_original,
+            amount_sent_krw: row.data().amount_sent_krw,
             amount_received_krw: row.data().amount_received_krw,
             currency_code: row.data().currency_code
         }),
@@ -404,8 +470,8 @@ function set_status(target, newStatus) {
 
 function update_amount_krw(target, target_data) {
     target_data.currency_code = $('#currency_code', target).text();
-    target_data.amount_original = $('#amount_original', target).val();
-    target_data.amount_krw = parseFloat(target_data.amount_original) / g_currencies[target_data.currency_code];
-    $('#amount_krw', target).val(target_data.amount_krw);
+    target_data.amount_sent_original = $('#amount_sent_original', target).val();
+    target_data.amount_sent_krw = parseFloat(target_data.amount_sent_original) / g_currencies[target_data.currency_code];
+    $('#amount_sent_krw', target).val(target_data.amount_sent_krw);
     //target_data.draw();
 }

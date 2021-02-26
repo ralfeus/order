@@ -5,6 +5,7 @@ from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
 from sqlalchemy import or_
+from werkzeug.exceptions import HTTPException
 
 from app import db
 from app.purchase import bp_api_admin
@@ -100,7 +101,7 @@ def create_purchase_order():
     # post_purchase_orders()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
-    return (jsonify(list(map(lambda po: po.to_dict(), purchase_orders))), 202)
+    return (jsonify({'data': list(map(lambda po: po.to_dict(), purchase_orders))}), 202)
 
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
@@ -120,21 +121,24 @@ def update_purchase_order(po_id):
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
             current_app.logger.info("Post purchase orders task ID is %s", task.id)
-            result = (jsonify(po.to_dict()), 202)
+            result = jsonify({'data': [po.to_dict()]})
         elif request.values.get('action') == 'update_status':
             current_app.logger.info("Updating POs status")
             task = update_purchase_orders_status.apply_async(
                 kwargs={'po_id': po_id}, retry=False, connect_timeout=1)
             current_app.logger.info("Update POs status task ID is %s", task.id)
-            result = (jsonify(po.to_dict()), 202)
+            result = jsonify({'data': [po.to_dict()]})
         else:
             if not po.is_editable():
-                abort(Response(f"The purchase order <{po_id}> isn't in editable state", status=405))
+                return jsonify({
+                    'data': po.to_dict(),
+                    'error': f"The purchase order &lt;{po.id}&gt; isn't in editable state"
+                })
             editable_attributes = ['payment_account', 'purchase_date',
                 'status', 'vendor', 'vendor_po_id']
             po = modify_object(po, request.get_json(), editable_attributes)
-            result = jsonify(po.to_dict())
-    except:
+            result = jsonify({'data': [po.to_dict()]})
+    except: # Exception as ex:
         current_app.logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
     db.session.commit()
@@ -149,6 +153,11 @@ def get_companies():
     return jsonify(sorted(
         list(map(lambda entry: entry.to_dict(), companies)),
         key=itemgetter('name')))
+
+@bp_api_admin.route('/status')
+@roles_required('admin')
+def get_statuses():
+    return jsonify(list(map(lambda i: i.name, PurchaseOrderStatus)))
 
 @bp_api_admin.route('/vendor')
 @roles_required('admin')

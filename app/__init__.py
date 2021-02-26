@@ -3,6 +3,7 @@ Initialization of the application
 '''
 import inspect
 import logging
+import os
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -11,24 +12,24 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-from app.config import Config
 import app.tools
 from app.utils.services import get_celery, init_celery
 
-celery = get_celery(__name__)
+celery = get_celery(__name__, 
+                    job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
 db = SQLAlchemy()
 migrate = Migrate()
 from app.forms import LoginForm
 security = Security()
 
-def create_app(config=Config):
+def create_app(config=None):
     '''
     Application factory
     '''
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_object(config)
+    flask_app.config.from_json(config or os.environ.get('OM_CONFIG_FILE') or 'config.json')
     init_logging(flask_app)
 
     Bootstrap(flask_app)
@@ -56,9 +57,12 @@ def register_components(flask_app):
     import app.currencies, app.currencies.routes
     import app.addresses, app.addresses.routes
     import app.invoices, app.invoices.routes
+    import app.network, app.network.routes
+    import app.orders, app.orders.routes
     import app.payments, app.payments.routes
     import app.products, app.products.routes
     import app.purchase, app.purchase.routes
+    import app.settings, app.settings.routes
     import app.shipping, app.shipping.routes
 
     flask_app.register_blueprint(api)
@@ -68,12 +72,16 @@ def register_components(flask_app):
     app.currencies.register_blueprints(flask_app)
     app.addresses.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
+    app.network.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)
     app.purchase.register_blueprints(flask_app)
+    app.settings.register_blueprints(flask_app)
     app.shipping.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
+
+    load_modules(flask_app)
 
 def init_debug(flask_app):
     import flask_debugtoolbar
@@ -108,7 +116,11 @@ def init_logging(flask_app):
     logger.info("Log level is %s", logging.getLevelName(logger.level))
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
-__frm = inspect.stack()
-__command = __frm[len(__frm) - 1].filename
-if __command.endswith('celery'):
-    create_app()
+def load_modules(flask_app):
+    from app.modules.crisp import init
+    init(flask_app)
+
+# __frm = inspect.stack()
+# __command = __frm[len(__frm) - 1].filename
+# if __command.endswith('celery'):
+#     create_app()

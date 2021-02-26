@@ -53,7 +53,7 @@ class Product(db.Model, BaseModel):
     @staticmethod
     def get_product_by_id(product_id):
         stripped_id = product_id.lstrip('0')
-        product_query = Product.query.filter_by(available=True). \
+        product_query = Product.query. \
             filter(Product.id.endswith(stripped_id)).all()
         products = [product for product in product_query
                         if product.id.lstrip('0') == stripped_id]

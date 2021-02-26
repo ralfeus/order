@@ -126,6 +126,7 @@ def create_invoice_excel(reference_invoice):
     ws.cell(7, 2, reference_invoice.id)
     ws.cell(7, 5, reference_invoice.when_created)
     ws.cell(13, 4, reference_invoice.customer)
+    ws.cell(15, 2, reference_invoice.payee)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
     ws.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -135,6 +136,7 @@ def create_invoice_excel(reference_invoice):
     pl.cell(7, 2, reference_invoice.id)
     pl.cell(7, 5, reference_invoice.when_created)
     pl.cell(13, 4, reference_invoice.customer)
+    ws.cell(15, 2, reference_invoice.payee)
     pl.cell(17, 4, reference_invoice.orders[0].address)
     pl.cell(21, 4, '') # city
     pl.cell(23, 5, reference_invoice.orders[0].country.name)
@@ -183,7 +185,7 @@ def save_invoice(invoice_id):
     payload = request.get_json()
     if not payload:
         abort(Response("No invoice data was provided", status=400))
-    editable_attributes = ['customer']
+    editable_attributes = ['customer', 'payee']
     for attr in editable_attributes:
         if payload.get(attr) and getattr(invoice, attr) != payload[attr]:
             setattr(invoice, attr, type(getattr(invoice, attr))(payload[attr]))
@@ -223,6 +225,8 @@ def get_invoice_cumulative_excel():
         invoice = Invoice.query.get(invoice_id)
         if not cumulative_invoice.customer:
             cumulative_invoice.customer = invoice.customer
+        if not cumulative_invoice.payee and invoice.payee:
+            cumulative_invoice.payee = invoice.payee
         cumulative_invoice.orders += invoice.orders
 
     file = create_invoice_excel(reference_invoice=cumulative_invoice)

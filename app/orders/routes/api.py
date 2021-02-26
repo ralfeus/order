@@ -9,12 +9,13 @@ from sqlalchemy import and_, not_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
-from app.exceptions import AtomyLoginError, EmptySuborderError, OrderError, \
-    SubcustomerParseError
+from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
+    OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
+from app.orders.validators.order import OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.utils.atomy import atomy_login
@@ -133,40 +134,44 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
+    with OrderValidator(request) as validator:
+        if not validator.validate():
+            return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
+
     request_data = request.get_json()
-    if not request_data:
-        abort(Response("No data is provided", status=400))
     result = {}
     shipping = Shipping.query.get(request_data['shipping'])
     country = Country.query.get(request_data['country'])
-    if not country:
-        abort(Response(f"The country <{request_data['country']}> was not found", status=400))
-    order = Order(
-        user=current_user,
-        customer_name=request_data['customer_name'],
-        address=request_data['address'],
-        country_id=request_data['country'],
-        country=country,
-        zip=request_data['zip'],
-        shipping=shipping,
-        phone=request_data['phone'],
-        comment=request_data['comment'],
-        subtotal_krw=0,
-        status=OrderStatus.pending,
-        when_created=datetime.now()
-    )
-    _set_draft(order, request_data)
+    with db.session.no_autoflush:
+        order = Order(
+            user=current_user,
+            customer_name=request_data['customer_name'],
+            address=request_data['address'],
+            country_id=request_data['country'],
+            country=country,
+            zip=request_data['zip'],
+            shipping=shipping,
+            phone=request_data['phone'],
+            comment=request_data['comment'],
+            subtotal_krw=0,
+            status=OrderStatus.pending,
+            when_created=datetime.now()
+        )
+        _set_draft(order, request_data)
 
-    order.attach_orders(request_data.get('attached_orders'))
-    db.session.add(order)
-    # order_products = []
-    errors = []
-    # ordertotal_weight = 0
-    add_suborders(order, request_data['suborders'], errors)
+        order.attach_orders(request_data.get('attached_orders'))
+        db.session.add(order)
+        # order_products = []
+        errors = []
+        # ordertotal_weight = 0
+        add_suborders(order, request_data['suborders'], errors)
+        try:
+            order.update_total()
+        except NoShippingRateError:
+            abort(Response("No shipping rate available", status=409))
 
     try:
-        db.session.commit()
-        order.update_total()
+        # db.session.commit()
         db.session.commit()
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
@@ -229,7 +234,9 @@ def add_suborder(order, suborder_data, errors):
                 order.set_purchase_date(suborder.buyout_date)
 
         current_app.logger.debug('Created instance of Suborder %s', suborder)
-        db.session.add(suborder)
+        # db.session.add(suborder)
+        order.suborders.append(suborder)
+        current_app.logger.debug("Order %s suborders count is %s", order.id, order.suborders.count())
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
                         doesn't allow to create new one. Please provide
@@ -299,25 +306,32 @@ def user_save_order(order_id):
         abort(Response(f"No order <{order_id}> was found", status=404))
     if not order.is_editable() and not current_user.has_role('admin'):
         abort(Response(f"The order <{order_id}> isn't in editable state", status=405))
+    with OrderValidator(request) as validator:
+        if not validator.validate():
+            return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
+
 
     payload = request.get_json()
-    if not payload:
-        abort(Response("No order data was provided", status=400))
 
     errors = []
-    _update_order(order, payload)
+    with db.session.no_autoflush:
+        _update_order(order, payload)
 
-    # Edit or add order products
-    if payload.get('suborders'):
-        order_products = list(order.order_products)
-        for suborder_data in payload['suborders']:
-            _update_suborder(order, order_products, suborder_data, errors)
-    
-        # Remove order products
-        for order_product in order_products:
-            order_product.delete()
+        # Edit or add order products
+        if payload.get('suborders'):
+            order_products = list(order.order_products)
+            for suborder_data in payload['suborders']:
+                _update_suborder(order, order_products, suborder_data, errors)
+        
+            # Remove order products
+            for order_product in order_products:
+                order_product.delete()
 
-    order.update_total()
+        try:
+            order.update_total()
+        except NoShippingRateError:
+            abort(Response("No shipping rate available", status=409))
+
 
     result = None
     try:
@@ -418,8 +432,12 @@ def save_order_product(order_product_id):
         order_product.suborder.order.update_total()
         db.session.commit()
         return jsonify(order_product.to_dict())
+    except NoShippingRateError:
+        abort(Response(f"No shipping rate available", status=409))
     except Exception as ex:
         abort(Response(str(ex), status=500))
+
+
 
 @bp_api_user.route('/product/<int:order_product_id>',
                    methods=['DELETE'])
@@ -459,7 +477,8 @@ def admin_set_order_product_status(order_product_id, order_product_status):
     })
 
 def add_order_product(suborder, item, errors):
-    with db.session.no_autoflush:
+    # with db.session.no_autoflush:
+    try:
         product = Product.get_product_by_id(item['item_code'])
         if product:
             order_product = OrderProduct(
@@ -468,13 +487,15 @@ def add_order_product(suborder, item, errors):
                 price=product.price,
                 quantity=int(item['quantity']),
                 status=OrderProductStatus.pending)
-            db.session.add(order_product)
+            # db.session.add(order_product)
+            suborder.order_products.append(order_product)
             suborder.order.total_weight += product.weight * order_product.quantity
             suborder.order.subtotal_krw += product.price * order_product.quantity
             return order_product
-
-        errors.append(f'{item["item_code"]}: no such product')
-        raise Exception(f'{item["item_code"]}: no such product')
+        raise ProductNotFoundError(item['item_code'])
+    except Exception as ex:
+        errors.append(ex.args)
+        raise ex
 
 @bp_api_user.route('/product/<int:order_product_id>/postpone', methods=['POST'])
 @login_required
@@ -511,7 +532,10 @@ def admin_save_order(order_id):
         abort(Response(f'No order {order_id} was found', status=404))
 
     if order_input.get('status') is not None:
-        order.set_status(order_input['status'], current_user)
+        try:
+            order.set_status(order_input['status'], current_user)
+        except UnfinishedOrderError as ex:
+            abort(Response(str(ex), status=409))
 
     if order_input.get('tracking_id') is not None:
         order.tracking_id = order_input['tracking_id']
@@ -623,7 +647,7 @@ def admin_get_subcustomers():
             'data': outcome
         })
     
-    return jsonify(list(map(lambda entry: entry.to_dict(), subcustomers)))
+    return jsonify([entry.to_dict() for entry in subcustomers])
 
 @bp_api_admin.route('/subcustomer', methods=['POST'])
 @roles_required('admin')
@@ -660,7 +684,7 @@ def admin_save_subcustomer(subcustomer_id):
         abort(Response(
             f"Subcustomer with username <{payload['username']}> already exists",
             status=409))
-    modify_object(subcustomer, payload, ['name', 'username', 'password'])
+    modify_object(subcustomer, payload, ['name', 'username', 'password', 'in_network'])
     db.session.commit()
     return jsonify(subcustomer.to_dict())
 

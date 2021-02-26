@@ -2,6 +2,9 @@ var editor;
 var g_currencies;
 var g_amount = 0;
 var g_amount_set_manually = false;
+var g_filter_sources;
+var g_payment_methods;
+var g_payment_statuses;
 
 $(document).ready( function () {
     get_dictionaries()
@@ -20,14 +23,17 @@ function format ( row, data ) {
     var payment_details = $('.payment-details')
         .clone()
         .show(); 
-    $('#evidence', payment_details).attr('src', '/' + data.evidence_image);
+    data.evidences.forEach(evidence => {
+        $('#evidences', payment_details).append(
+            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
+            evidence.file_name + "</a></li>");
+    });
     return payment_details;
 }
 
 /**
  * Cancels payment request
  * @param {*} target - table rows representing orders whose status is to be changed
- * @param {string} status - new status
  */
 function cancel(row) {
     $('.wait').show();
@@ -50,6 +56,13 @@ function cancel(row) {
 
 async function get_dictionaries() {
     g_currencies = await get_currencies();
+    g_payment_methods = (await get_payment_methods()).map(
+        pm => ({value: pm.id, label: pm.name}));
+    g_payment_statuses = await get_list('/api/v1/payment/status')
+    g_filter_sources = {
+        'payment_method.name': g_payment_methods.map(pm => pm.label),
+        'status': g_payment_statuses
+    }
 }
 
 function get_orders_to_pay() {
@@ -57,18 +70,6 @@ function get_orders_to_pay() {
         url: '/api/v1/order?status=pending',
         success: data => {
             editor.field('orders').update(data.map(o => o.id));
-        }
-    })
-}
-
-function get_payment_methods() {
-    $.ajax({
-        url: '/api/v1/payment/method',
-        success: data => {
-            editor.field('payment_method').update(data.map(pm => ({
-                label: pm.name,
-                value: pm.id
-            })));
         }
     })
 }
@@ -81,8 +82,18 @@ function init_payments_table() {
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
-                success: data => {success(({data: [data]}))},
+                data: JSON.stringify({
+                    additional_info: data.data[0].additional_info,
+                    amount_sent_original: data.data[0].amount_sent_original,
+                    currency_code: data.data[0].currency_code,
+                    evidences: data.data[0].evidences.map(e => ({
+                        id: e[0],
+                        file_name: editor.files().files[e].filename
+                    })),
+                    orders: data.data[0].orders,
+                    payment_method: data.data[0].payment_method
+                }),
+                success: data => {success(data)},
                 error: error
             });
         },
@@ -106,18 +117,22 @@ function init_payments_table() {
             },
             {
                 label: 'Payment method', 
-                name: 'payment_method',
-                type: 'select2'
+                name: 'payment_method.id',
+                type: 'select2',
+                options: g_payment_methods
             },
-            {label: 'Amount', name: 'amount_original'},
+            {label: 'Amount', name: 'amount_sent_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
                 label: 'Evidence',
                 name: 'evidences',
                 type: 'uploadMany',
                 ajax: '/api/v1/payment/evidence',
-                display: (value, file_num) => {
-                    return '<img src="/upload/tmp/payment-evidence-' + value[file_num] + '" />';
+                display: (value, _file_num) => {
+                    return "" +
+                        "<span class=\"small\">" + 
+                        editor.files().files[value[0]].filename + 
+                        "</span>";
                 }
             }
         ]
@@ -125,11 +140,11 @@ function init_payments_table() {
     editor.on('open', on_editor_open);
     editor.field('currency_code').input().on('change', on_currency_change);
     editor.field('orders').input().on('change', on_orders_change);
-    editor.field('amount_original').input().on('focus', function(){this.old_value = this.value})
-    editor.field('amount_original').input().on('blur', on_amount_original_blur);
+    editor.field('amount_sent_original').input().on('focus', function(){this.old_value = this.value})
+    editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
 
     var table = $('#payments').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: editor, text: 'Create new payment request' },
         ],        
@@ -146,15 +161,28 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'orders'},
-            {data: 'payment_method.name', defaultContent: ''},
-            {data: 'amount_original_string'},
+            {
+                data: 'payment_method.name',
+                defaultContent: '',
+                fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
+                    var instructions = oData.payment_method && oData.payment_method.instructions
+                        ? oData.payment_method.instructions.replace(/\n/g, '<br />')
+                        : "";
+                    var method_name = oData.payment_method ? oData.payment_method.name : '';
+                    $(nTd).html(
+                        "<a href='#' onclick=\"modal('How to pay', '" 
+                        + instructions + "')\">" + method_name + "</a>");
+                }
+            },
+            {data: 'amount_sent_original_string'},
             {data: 'amount_krw'},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
         order: [[7, 'desc']],
-        select: true
+        select: true,
+        initComplete: function() { init_search(this, g_filter_sources); }
     });
 
 
@@ -247,13 +275,13 @@ function on_currency_change() {
         var currency_code = editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            editor.field('amount_original').val(g_amount * currency.rate);
+            editor.field('amount_sent_original').val(g_amount * currency.rate);
         }
     }
     return {};
 }
 
-function on_amount_original_blur(data) {
+function on_amount_sent_original_blur(data) {
     if (data.target.value != data.target.old_value) {
         g_amount_set_manually = true;
     }
@@ -262,5 +290,4 @@ function on_amount_original_blur(data) {
 function on_editor_open() {
     g_amount_set_manually = false;
     get_orders_to_pay();
-    get_payment_methods();
 }

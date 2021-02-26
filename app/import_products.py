@@ -11,7 +11,7 @@ sel_item_name_sold_out = CSSSelector('td.line_L_r a span')
 sel_item_price = CSSSelector('td.line_C_r:nth-child(4)')
 sel_item_points = CSSSelector('td.line_C_r:nth-child(5)')
 
-def get_document_from_url(url, headers=None):
+def get_document_from_url(url, headers=None, raw_data=None):
     # headers_list = [
     #     header for set in list(map(
     #         lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
@@ -19,18 +19,19 @@ def get_document_from_url(url, headers=None):
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
+    raw_data = ['--data-raw', raw_data] if raw_data else None
     output = subprocess.run([
         '/usr/bin/curl',
         url,
         '-v'
-        ] + headers_list,
+        ] + headers_list + raw_data,
         encoding='euc-kr', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
     if re.search('HTTP.*? 200', output.stderr):
         doc = lxml.html.fromstring(output.stdout)
         return doc
 
-    raise "Couldn't get page"
+    raise "Couldn't get page: " + output.stderr
 
 def get_atomy_products():
     product_url = "https://www.atomy.kr/center/popup_material.asp"
@@ -63,7 +64,7 @@ def get_atomy_products():
         })
     return result
 
-def atomy_login():
+def atomy_login(username='atomy1026', password='5714'):
     '''
     Logins to Atomy customer section
     '''
@@ -73,7 +74,7 @@ def atomy_login():
         '-H',
         'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',
         '--data-raw',
-        'src=&admin_id=atomy1026&passwd=5714',
+        f'src=&admin_id={username}&passwd={password}',
         '-v'
         ],
         encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)

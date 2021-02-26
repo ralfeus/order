@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_settings.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Settings {{ id }}</h1>
+<div class="container row col-12">
+    <table id="settings" class="table" style="width: 100%;">
+        <thead>
+            <th scope="col">Key</th>
+            <th scope="col">Value</th>
+            <th scope="col">Default value</th>
+            <th scope="col">Description</th>
+        </thead>
+        <tbody></tbody>
+    </table>    
+</div>
+{% endblock %}

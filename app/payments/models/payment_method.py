@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -10,6 +10,7 @@ class PaymentMethod(db.Model, BaseModel):
     name = Column(String(32))
     payee_id = Column(Integer, ForeignKey('companies.id'))
     payee = relationship('Company', foreign_keys=[payee_id])
+    instructions = Column(Text)
 
     def __repr__(self):
         return f"<PaymentMethod: {self.id} - {self.name}>"
@@ -22,5 +23,6 @@ class PaymentMethod(db.Model, BaseModel):
             'id': self.id,
             'name': self.name,
             'payee_id': self.payee_id,
-            # 'payee': self.payee.name if self.payee else None
+            'payee': self.payee.name if self.payee else None,
+            'instructions': self.instructions
         }

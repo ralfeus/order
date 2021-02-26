@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_network.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="network" class="table">
+        <thead>
+            <tr>
+                <td><input type="text" placeholder="Search Node ID" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Name" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Parent ID" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Left ID" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Right ID" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Rank" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Highest rank" style="width: 100%;"/></td>
+                <td></td>
+                <td><input type="text" placeholder="Search Center" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Country" style="width: 100%;"/></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th scope="col" style="width: 2em;">Node ID</th>
+                <th scope="col" style="width: 2em;">Name</th>
+                <th scope="col" style="width: 2em;">Parent ID</th>
+                <th scope="col" style="width: 2em;">Left ID</th>
+                <th scope="col" style="width: 2em;">Right ID</th>
+                <th scope="col" style="width: 2em;">Rank</th>
+                <th scope="col" style="width: 2em;">Highest Rank</th>
+                <th scope="col" style="width: 2em;">Signup date</th>
+                <th scope="col" style="width: 2em;">Center</th>
+                <th scope="col" style="width: 2em;">Country</th>
+                <th scope="col" style="width: 2em;">PV</th>
+                <th scope="col" style="width: 2em;">Network PV</th>
+            </tr>
+        </thead>
+        <tbody />
+    </table>
+</div>
+{% endblock %}

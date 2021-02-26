@@ -1,3 +1,4 @@
+from app.orders.models.order import OrderStatus
 from datetime import datetime
 import enum
 
@@ -58,7 +59,7 @@ class OrderProduct(db.Model, BaseModel):
     quantity = Column(Integer)
     private_comment = Column(String(256))
     public_comment = Column(String(256))
-    status = Column(Enum(OrderProductStatus))
+    status = Column(Enum(OrderProductStatus), default=OrderProductStatus.pending)
     status_history = relationship("OrderProductStatusEntry", lazy='dynamic')
 
     def __init__(self, **kwargs):
@@ -85,6 +86,40 @@ class OrderProduct(db.Model, BaseModel):
             db.session.delete(op_status_entry)
         db.session.delete(self)
         self.suborder.order.update_total()
+
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        from app.orders.models.order import Order
+        from app.orders.models.subcustomer import Subcustomer
+        from app.orders.models.suborder import Suborder
+        from app.products.models.product import Product
+        part_filter = f'%{filter_value}%'
+        if isinstance(column, InstrumentedAttribute):
+            return \
+                base_filter.filter(OrderProduct.suborder.has(
+                    Suborder.order_id.like(part_filter))) \
+                    if column.key == 'order_id' \
+                else base_filter.filter(column.in_([OrderProductStatus[status]
+                                        for status in filter_value.split(',')])) \
+                    if column.key == 'status' \
+                else base_filter.filter(column.has(Product.name_english.like(part_filter))) \
+                    if column.key == 'product' \
+                else base_filter.filter(column.like(part_filter))
+        return \
+            base_filter.filter(OrderProduct.suborder.has(
+                Suborder.order.has(Order.customer_name.like(part_filter)))) \
+                if column == 'customer' \
+            else base_filter.filter(OrderProduct.suborder.has(
+                Suborder.buyout_date == filter_value)) \
+                if column == 'buyout_date' \
+            else base_filter.filter(OrderProduct.suborder.has(Suborder.order.has(
+                Order.status.in_([OrderStatus[status] 
+                                 for status in filter_value.split(',')])))) \
+                if column == 'order_status' \
+            else base_filter.filter(OrderProduct.suborder.has(
+                Suborder.subcustomer.has(Subcustomer.name.like(part_filter)))) \
+                if column == 'subcustomer' \
+            else base_filter
 
     def postpone(self):
         from . import Order, OrderStatus, Suborder
@@ -158,9 +193,11 @@ class OrderProduct(db.Model, BaseModel):
             'points': self.product.points,
             # 'comment': self.order.comment,
             'quantity': self.quantity,
+            'order_status': self.suborder.order.status.name,
             'status': self.status.name if self.status else None,
             'weight': self.product.weight,
             'purchase': self.product.purchase,
+            'available': self.product.available,
             'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
         }

@@ -95,6 +95,32 @@ class PurchaseOrder(db.Model, BaseModel):
     def __repr__(self):
         return "<PurchaseOrder: {}>".format(self.id)
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        from app.orders.models.subcustomer import Subcustomer
+        from app.orders.models.suborder import Suborder
+        part_filter = f'%{filter_value}%'
+        if isinstance(column, InstrumentedAttribute):
+            return \
+                base_filter.filter(column.has(
+                    Subcustomer.name.like(part_filter))) \
+                    if column.key == 'customer' \
+                else base_filter.filter(column.in_([PurchaseOrderStatus[status]
+                                        for status in filter_value.split(',')])) \
+                    if column.key == 'status' \
+                else base_filter.filter(column.in_([vendor
+                                        for vendor in filter_value.split(',')])) \
+                    if column.key == 'vendor' \
+                else base_filter.filter(column.like(part_filter))
+        if isinstance(column, property):
+            column = column.fget.__name__
+            return \
+                base_filter.filter(PurchaseOrder.suborder.has(
+                    Suborder.buyout_date == filter_value)) \
+                    if column == 'purchase_date' \
+                else base_filter
+        return base_filter
+
     def is_editable(self):
         return self.status in [PurchaseOrderStatus.pending, PurchaseOrderStatus.failed]
 

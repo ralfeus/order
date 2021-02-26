@@ -19,6 +19,9 @@ class Company(db.Model, BaseModel):
     def __repr__(self):
         return f"<Company {self.id}: {self.name}>"
 
+    def __str__(self):
+        return str(self.name)
+
     @property
     def tax_id(self):
         return (self.tax_id_1, self.tax_id_2, self.tax_id_3)

@@ -15,6 +15,10 @@ payments_orders = db.Table('payments_orders',
         db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
         db.Column('order_id', db.String(16), db.ForeignKey('orders.id')))
 
+payments_files = db.Table('payments_files',
+    db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
+    db.Column('file_id', db.Integer(), db.ForeignKey('files.id')))
+
 class PaymentStatus(enum.Enum):
     pending = 1
     approved = 2
@@ -34,19 +38,22 @@ class Payment(db.Model, BaseModel):
                              lazy='dynamic')
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
-    amount_sent_original = Column(Numeric(scale=2))
-    amount_sent_krw = Column(Integer)
-    amount_received_krw = Column(Integer)
+    amount_sent_original = Column(Numeric(scale=2), default=0)
+    amount_sent_krw = Column(Integer, default=0)
+    amount_received_krw = Column(Integer, default=0)
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
-    evidence_image = Column(String(256))
-    status = Column('status', Enum(PaymentStatus), 
+    evidences = relationship("File", secondary=payments_files, lazy='dynamic')
+    status = Column('status', Enum(PaymentStatus),
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship("Transaction", foreign_keys=[transaction_id])
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
+
+    def is_editable(self):
+        return self.status != PaymentStatus.approved
 
     def set_status(self, value, messages):
         if isinstance(value, str):
@@ -82,9 +89,10 @@ class Payment(db.Model, BaseModel):
         )
         if self.amount_received_krw >= total_orders_amount:
             for order in self.orders:
-                order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
                 order.payment_method_id = self.payment_method_id
-                messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
+                if order.status == OrderStatus.pending:
+                    order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
+                    messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
 
     def to_dict(self):
         '''
@@ -99,14 +107,17 @@ class Payment(db.Model, BaseModel):
             'user_id': self.user_id,
             'user_name': self.user.username,
             'amount_original': float(self.amount_sent_original),
-            'amount_original_string': self.currency.format(self.amount_sent_original),
-            'amount_krw': self.amount_sent_krw,
-            'amount_received_krw': self.amount_received_krw,
+            'amount_sent_original': float(self.amount_sent_original),
+            'amount_sent_original_string': self.currency.format(self.amount_sent_original),
+            'amount_krw': self.amount_sent_krw or 0,
+            'amount_sent_krw': self.amount_sent_krw or 0,
+            'amount_received_krw': self.amount_received_krw or 0,
             'currency_code': self.currency.code,
             'payment_method': self.payment_method.to_dict() if self.payment_method else None,
             # 'payee': self.payment_method.payee.to_dict() \
             #     if self.payment_method and self.payment_method.payee else None,
-            'evidence_image': self.evidence_image,
+            'evidences': [{**evidence.to_dict(), **{'url': '/' + evidence.path}} 
+                          for evidence in self.evidences],
             'additional_info': self.additional_info,
             'status': self.status.name,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \

@@ -29,10 +29,10 @@
                 <td></td>
                 <td></td>
                 <td></td>
-                <td><input type="text" placeholder="Search Status"  style="width: 100%;"/></td>
-                <td><input type="text" placeholder="Search Payment method"  style="width: 100%;"/></td>
-                <td><input type="text" placeholder="Search Shipping method"  style="width: 100%;"/></td>
-                <td><input type="text" placeholder="Search Purchase date"  style="width: 100%;"/></td>
+                <td><select></select></td>
+                <td><select></select></td>
+                <td><select></select></td>
+                <td><input type="date" placeholder="Search Purchase date"  style="width: 100%;"/></td>
                 <td></td>
                 <td></td>
             </tr>
@@ -95,6 +95,15 @@
                 </div>
                 <input id="shipping" class="form-control" aria-label="Small" aria-describedby="label" disabled />
             </div>
+            <div id='subtotal-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="subtotal">Subtotal</label>
+                </div>
+                <input id="subtotal" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+                <div class="input-group-append">
+                    <label id="label" class="input-group-text" for="subtotal">₩</label>
+                </div>            
+            </div>
             <div id='shipping-cost-input-group' class="input-group input-group-sm mb-2">
                 <div class="input-group-prepend">
                     <label id="label" class="input-group-text" for="shipping-cost">Shipping cost</label>
@@ -102,6 +111,15 @@
                 <input id="shipping-cost" class="form-control" aria-label="Small" aria-describedby="label" disabled />
                 <div class="input-group-append">
                     <label id="label" class="input-group-text" for="shipping-cost">₩</label>
+                </div>            
+            </div>
+            <div id='total-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="total">Total</label>
+                </div>
+                <input id="total" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+                <div class="input-group-append">
+                    <label id="label" class="input-group-text" for="total">₩</label>
                 </div>            
             </div>
             <div id='tracking-id-input-group' class="input-group input-group-sm mb-2">

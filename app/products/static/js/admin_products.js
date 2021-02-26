@@ -21,7 +21,12 @@ $(document).ready( function () {
                 contentType: 'application/json',
                 data: JSON.stringify(target),
                 success: data => {success(({data: [data]}))},
-                error: error
+                error: (xhr, err, thrown) => {
+                    modal(
+                        "Product update error", 
+                        xhr.responseJSON.message);
+                    error(xhr, err, thrown);
+                }
             });
         },
         table: '#products',

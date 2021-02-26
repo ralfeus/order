@@ -79,8 +79,21 @@ tr.red-line {
     }  
 }
 
+.select2-dropdown {
+    width: auto !important;
+    white-space: nowrap !important;
+}
+
+.select2-selection {
+    min-height: 25px !important;
+}
+
 table {
     font-size: 11px;
+}
+
+table.dataTable td > input {
+    min-height: 25px;
 }
 
 td { 

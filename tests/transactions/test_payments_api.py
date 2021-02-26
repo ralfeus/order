@@ -38,9 +38,9 @@ class TestPaymentApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/payment', json={
                 'orders': [gen_id],
-                'amount_original': 100,
+                'amount_sent_original': 100,
                 'currency_code': 'USD',
-                'payment_method': gen_id_int
+                'payment_method': {'id': gen_id_int}
             }))
         self.assertEqual(Payment.query.count(), 1)
         transaction = Payment.query.first()
@@ -91,6 +91,24 @@ class TestPaymentApi(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.status, OrderStatus.can_be_paid)
 
+    def test_pay_po_created_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        currency = Currency(code='KRW', rate=1)
+        order = Order(id=gen_id, total_krw=90, user=self.user,
+                      status=OrderStatus.po_created)
+        payment = Payment(amount_sent_original=100, currency=currency,
+            amount_received_krw=100,
+            user=self.user, status=PaymentStatus.pending,
+            orders=[order])
+        self.try_add_entities([order, payment, currency])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/payment/{payment.id}', json={
+                'status': 'approved'
+            }))
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.status, OrderStatus.po_created)
+
     def test_get_payment_methods(self):
         self.try_add_entities([
             PaymentMethod(name='Payment method 1')
@@ -100,3 +118,40 @@ class TestPaymentApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.json), 1)
         self.assertEqual(res.json[0]['name'], 'Payment method 1')
+
+
+    def test_create_payment_method(self):
+        self.try_add_entities([Company(id=1, name='Company 1')])
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/payment/method', json={
+                'name': 'Payment method 1',
+                'payee_id': 1
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(PaymentMethod.query.count(), 1)
+    
+    def test_modify_payment_method(self):
+        self.try_add_entities([
+            Company(id=1, name='Company 1'),
+            PaymentMethod(id=1, name='Payment method 1', payee_id=1)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/payment/method/1', json={
+                'instructions': 'Instructions 1'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(PaymentMethod.query.count(), 1)
+        self.assertEqual(PaymentMethod.query.first().instructions, 'Instructions 1')
+
+    def test_delete_payment_method(self):
+        self.try_add_entities([
+            Company(id=1, name='Company 1'),
+            PaymentMethod(id=1, name='Payment method 1', payee_id=1)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.delete('/api/v1/admin/payment/method/1')
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(PaymentMethod.query.count(), 0)

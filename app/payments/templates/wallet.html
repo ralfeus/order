@@ -25,15 +25,28 @@
     <h4>Payments</h4>
     <table id="payments" class="table">
         <thead>
-            <th></th>
-            <th scope="col" style="width: 2em;">Payment&nbsp;ID</th>
-            <th scope="col">Order&nbsp;ID</th>
-            <th scope="col">Payment&nbsp;method</th>
-            <th scope="col" style="width: 2em;">Amount</th>
-            <th scope="col" style="width: 2em;">Amount (KRW)</th>
-            <th scope="col" style="width: 2em;">Status</th>
-            <th scope="col" style="width: max-content;">When created</th>
-            <th scope="col" style="width: max-content;">When changed</th>
+            <tr>
+                <td></td>
+                <td></td>
+                <td><input /></td>
+                <td><select></select></td>
+                <td></td>
+                <td></td>
+                <td><select></select></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th></th>
+                <th scope="col" style="width: 2em;">Payment&nbsp;ID</th>
+                <th scope="col">Order&nbsp;ID</th>
+                <th scope="col">Payment&nbsp;method</th>
+                <th scope="col" style="width: 2em;">Amount</th>
+                <th scope="col" style="width: 2em;">Amount (KRW)</th>
+                <th scope="col" style="width: 2em;">Status</th>
+                <th scope="col" style="width: max-content;">When created</th>
+                <th scope="col" style="width: max-content;">When changed</th>
+            </tr>
         </thead>
         <tbody />
     </table>
@@ -51,7 +64,10 @@
 </div>
 <div class="container row payment-details" style="display: none;">
     <div class="row container">
-        <img id="evidence" class="col-4" />
+        <div class="col-7">
+            <h5>Payment evidences</h5>
+            <ul id="evidences"></ul>
+        </div>
         <div class="col-1">&nbsp;</div>
         <div class="col-4">
             <button type="button" class="btn btn-primary btn-cancel">Cancel payment request</button>

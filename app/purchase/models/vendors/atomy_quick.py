@@ -7,7 +7,7 @@ import re
 from time import sleep
 from selenium.common.exceptions import StaleElementReferenceException
 
-from app.exceptions import AtomyLoginError, NoPurchaseOrderError
+from app.exceptions import AtomyLoginError, NoPurchaseOrderError, PurchaseOrderError
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
@@ -20,6 +20,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __browser: Browser = None
     __is_browser_created_locally = False
     __logger: Logger = None
+    __purchase_order = None
 
     def __init__(self, browser=None, logger=None, config=None):
         super().__init__()
@@ -51,6 +52,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__logger.info("Skip <%s>: purchase date is %s",
                 purchase_order.id, purchase_order.purchase_date)
             return purchase_order
+        self.__purchase_order = purchase_order
         self.__logger.info("Logging in...")
         try:
             atomy_login(
@@ -78,6 +80,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         except AtomyLoginError as ex:
             self.__logger.warning("Couldn't log on as a customer. %s", str(ex.args))
             raise ex
+        except PurchaseOrderError as ex:
+            self.__logger.warning(ex)
         except Exception as ex:
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
@@ -92,8 +96,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __open_quick_order(self):
         self.__logger.debug(" Open quick order")
         self.__browser.get('https://www.atomy.kr/v2/Home/Product/MallMain')
-        quick_order = self.__browser.get_element_by_id('aQuickOrder2')
-        quick_order.click()
+        # quick_order = self.__browser.get_element_by_id('aQuickOrder2')
+        # quick_order.click()
+        self.__browser.execute_script("laypop('one', '1140', '640', '/v2/Home/Payment/QuickOrder', '빠른주문', 'scroll', '')")
+        try:
+            self.__browser.get_element_by_class('layPop')
+        except:
+            raise PurchaseOrderError(self.__purchase_order, self, "Couldn't open quick order")
         # self.__browser.save_screenshot(realpath('01-quick-order.png'))
 
     def __add_products(self, order_products):
@@ -110,12 +119,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
+                self.__logger.debug('Dismissing alerts')
+                self.__browser.dismiss_alert()
+                self.__logger.debug('Typing product code %s', op.product_id)
                 product_code_input.send_keys(op.product_id)
                 while product_code_input.get_attribute('value') == op.product_id:
+                    self.__logger.debug('The value is not entered so far')
                     sleep(0.5)
                     product_code_input.send_keys(Keys.RETURN)
                     sleep(1)
-                
+                self.__logger.debug("The product code %s is entered. Entering quantity...",
+                    op.product_id)
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
