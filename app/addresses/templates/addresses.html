@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/addresses.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Addresses {{ id }}</h1>
+<div class="container row col-12">
+    <div class="col-8">
+        <table id="addresses" class="table" style="width: 100%;">
+            <thead>
+                <th scope="col">Id</th>
+                <th scope="col">Name</th>
+                <th scope="col">Zip</th>
+                <th scope="col">Address_1</th>
+                <th scope="col">Address_2</th>
+             
+
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+</div>
+{% endblock %}
