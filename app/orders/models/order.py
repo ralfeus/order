@@ -199,8 +199,8 @@ class Order(db.Model, BaseModel):
             self.suborders, 0)
 
     def is_editable(self):
-        return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
-        # return False
+        # return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
+        return False
 
     def to_dict(self, details=False):
         is_order_updated = False
