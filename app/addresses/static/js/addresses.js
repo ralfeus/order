@@ -30,7 +30,7 @@ $(document).ready(() => {
         table: '#addresses',
         idSrc: 'id',
         fields: [
-            {label: 'Id', name: 'id'},
+          
             {label: 'Name', name: 'name'},
             {label: 'Zip', name: 'zip'},
             {label: 'Address_1', name: 'address_1'},
@@ -50,8 +50,8 @@ $(document).ready(() => {
         },
         buttons: [
             {extend: 'create', editor: editor, text: "New item"},
+            {extend: 'edit', editor: editor, text: "Edit item"},
             {extend: 'remove', editor: editor, text: "Remove item"},
-            {extend: 'edit', editor: editor, text: "Edit item"}
         ],
         columns: [
             {data: 'id', className: 'editable'},

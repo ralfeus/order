@@ -58,3 +58,19 @@ def save_addresses_item(addresses_id):
     db.session.commit()
     return jsonify(addresses.to_dict())
 
+
+@bp_api_admin.route('/<addresses_id>', methods=['DELETE'])
+@roles_required('admin')
+def delete_addresses(addresses_id):
+    '''
+    Deletes existing addresses item
+    '''
+    addresses = Address.query.get(addresses_id)
+    if not addresses:
+        abort(Response(f'No addresses <{addresses_id}> was found', status=404))
+
+    db.session.delete(addresses)
+    db.session.commit()
+    return jsonify({
+        'status': 'success'
+    })
