@@ -10,11 +10,12 @@ from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from app import db
 from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
-    OrderError, SubcustomerParseError, ProductNotFoundError, ProductNotAvailableError, UnfinishedOrderError
+    OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
+from app.orders.validators.order import OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.utils.atomy import atomy_login
@@ -133,14 +134,14 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
+    with OrderValidator(request) as validator:
+        if not validator.validate():
+            return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
+
     request_data = request.get_json()
-    if not request_data:
-        abort(Response("No data is provided", status=400))
     result = {}
     shipping = Shipping.query.get(request_data['shipping'])
     country = Country.query.get(request_data['country'])
-    if not country:
-        abort(Response(f"The country <{request_data['country']}> was not found", status=400))
     with db.session.no_autoflush:
         order = Order(
             user=current_user,
@@ -305,10 +306,12 @@ def user_save_order(order_id):
         abort(Response(f"No order <{order_id}> was found", status=404))
     if not order.is_editable() and not current_user.has_role('admin'):
         abort(Response(f"The order <{order_id}> isn't in editable state", status=405))
+    with OrderValidator(request) as validator:
+        if not validator.validate():
+            return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
+
 
     payload = request.get_json()
-    if not payload:
-        abort(Response("No order data was provided", status=400))
 
     errors = []
     with db.session.no_autoflush:

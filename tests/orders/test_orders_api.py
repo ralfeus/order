@@ -1,6 +1,7 @@
 '''
 Tests of sale order functionality API
 '''
+from app.shipping.models.shipping import NoShipping
 from datetime import datetime
 
 from tests import BaseTestCase, db
@@ -32,6 +33,7 @@ class TestOrdersApi(BaseTestCase):
             Shipping(id=1, name='Shipping1'),
             ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=100),
             ShippingRate(shipping_method_id=1, destination='c1', weight=10000, rate=200),
+            NoShipping(id=999)
         ])
 
     def test_create_order(self):
@@ -45,7 +47,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -93,7 +95,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -141,7 +143,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -154,6 +156,72 @@ class TestOrdersApi(BaseTestCase):
                 ]
         }))
         self.assertEqual(res.status_code, 409)
+    
+    def test_create_order_wrong_input(self):
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+
+            })
+        )
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1",
+            'zip': '0000'
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1",
+            'zip': '0000',
+            "shipping":"1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1",
+            'zip': '0000',
+            "shipping":"1",
+            "phone":"1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1",
+            'zip': '0000',
+            "shipping":"1",
+            "phone":"1",
+            'comment': None,
+            "suborders": [
+                {
+                    "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                    "items": [
+                        {"item_code":"0000", "quantity":"1"},
+                        {"item_code":"1", "quantity": "11"}
+                    ]
+                }
+            ]
+        })
+        self.assertEqual(res.status_code, 200)
 
     def test_handle_wrong_subcustomer_data(self):
         self.try_add_entities([
@@ -166,7 +234,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -192,7 +260,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '00000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -212,7 +280,7 @@ class TestOrdersApi(BaseTestCase):
             "country":"c1",
             'zip': '0000',
             "shipping":"1",
-            "phone":"",
+            "phone":"1",
             "comment":"",
             "suborders": [
                 {
@@ -260,7 +328,20 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
-                'customer': 'Test'
+                'address': 'Address1',
+                'country': 'c1',
+                'customer_name': "Customer1",
+                'phone': '1',
+                'zip': '1',
+                'shipping': '1',
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"100"}
+                        ]
+                    }
+                ]
             }))
         self.assertEqual(res.status_code, 200)
 
@@ -271,6 +352,12 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
+                'address': 'Address1',
+                'country': 'c1',
+                'customer_name': "Customer1",
+                'phone': '1',
+                'zip': '1',
+                'shipping': '1',
                 'suborders': [
                     {
                         'subcustomer': 'test, test, test',
@@ -297,6 +384,12 @@ class TestOrdersApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post(f'/api/v1/order/{order.id}', json={
+                'address': 'Address1',
+                'country': 'c1',
+                'customer_name': "Customer1",
+                'phone': '1',
+                'zip': '1',
+                'shipping': '999',
                 'suborders': [
                     {
                         'subcustomer': 'A000',
@@ -310,6 +403,7 @@ class TestOrdersApi(BaseTestCase):
                     }
                 ]
             }))
+        self.assertEqual(res.status_code, 200)
         order = Order.query.get(order.id)
         self.assertEqual(order.total_krw, 30000)
 
@@ -473,7 +567,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {
@@ -492,7 +586,21 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.shipping_krw, 200)
         self.assertEqual(order.total_krw, 3700)
         res = self.client.post(f'/api/v1/order/{order.id}', json={
-            "attached_orders": [postponed_order.id, postponed_order1.id]
+            'address': 'Address1',
+            'country': 'c1',
+            'customer_name': "User1",
+            'phone': '1',
+            'zip': '0000',
+            'shipping': '1',
+            "attached_orders": [postponed_order.id, postponed_order1.id],
+            "suborders": [
+                {
+                    "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                    "items": [
+                        {"item_code":"0000", "quantity":"100"}
+                    ]
+                }
+            ]
         })
         self.assertEqual(order.attached_orders.count(), 2)
         self.assertEqual(order.shipping_krw, 200)
@@ -527,7 +635,7 @@ class TestOrdersApi(BaseTestCase):
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
-                "phone":"",
+                "phone":"1",
                 "comment":"",
                 "suborders": [
                     {

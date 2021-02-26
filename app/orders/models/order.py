@@ -200,6 +200,7 @@ class Order(db.Model, BaseModel):
 
     def is_editable(self):
         return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
+        # return False
 
     def to_dict(self, details=False):
         is_order_updated = False

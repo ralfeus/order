@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 
+{% block styles %}
+{{ super() }}
+<style>
+  html {
+    font-size: 1rem;
+  }
+  table {
+    font-size: 1rem;
+  }
+</style>
+{% endblock %}
+
 {% block navbar %}
 {% endblock %}
 
@@ -54,6 +66,7 @@
   <thead>
     <th scope="col" style="width: 1em;">Product ID</th>
     <th scope="col">Product Name</th>
+    <th scope="col">Weight</th>
     <th scope="col" style="width:1em;">Qty</th>
     <th scope="col">Public comment</th>
     <th scope="col">Private comment</th>
@@ -63,6 +76,7 @@
     <tr>
       <td>{{ order_product.product.id }}</td>
       <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
+      <td>{{ order_product.product.weight }}</td>
       <td>{{ order_product.quantity }}</td>
       <td>{{ order_product.public_comment }}</td>
       <td>{{ order_product.private_comment }}</td>
