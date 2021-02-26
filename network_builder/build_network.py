@@ -1,3 +1,4 @@
+from datetime import datetime
 from more_itertools import map_reduce
 import logging
 from lxml.cssselect import CSSSelector
@@ -24,7 +25,7 @@ db_user = os.environ.get('DB_USER') or 'omc'
 db_password = os.environ.get('DB_PASSWORD') or 'omc'
 db_db = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
-    f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password")
+    f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
 session = Session(engine)
 logging.basicConfig(level=logging.INFO)
 
@@ -173,6 +174,8 @@ def _init_network(root_node_id, incremental=False, cont=False):
     return traversing_nodes
 
 def _get_node(element, parent, is_left):
+    from time import sleep
+    logger = logging.getLogger('_get_node')
     id = element.attrib['id'][1:]
     node = Node(
         id=id, parent_id=parent.id,
@@ -181,12 +184,17 @@ def _get_node(element, parent, is_left):
         highest_rank=sel_highest_rank(element)[0].text,
         center=sel_center(element)[0].text,
         country=sel_country(element)[0].text,
-        signup_date=sel_signup_date(element)[0].text,
+        signup_date=datetime.strptime(sel_signup_date(element)[0].text, '%y-%m-%d'),
         pv=int(re.search('\\d+', sel_pv(element)[0].text).group()),
         network_pv=int(re.search('\\d+', sel_network_pv(element)[0].text).group())
     )
     session.add(node)
-    session.flush()
+    try:
+        session.flush()
+    except UnicodeEncodeError as ex:
+        logger.error("Couldn't add object %s", node.to_dict())
+        logger.error(ex)
+        raise ex
     if is_left:
         parent.left_id = id
     else:
