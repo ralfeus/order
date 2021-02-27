@@ -19,7 +19,7 @@ def get_document_from_url(url, headers=None, raw_data=None):
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
-    raw_data = ['--data-raw', raw_data] if raw_data else None
+    raw_data = ['--data-raw', raw_data] if raw_data else []
     output = subprocess.run([
         '/usr/bin/curl',
         url,
