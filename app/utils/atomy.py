@@ -21,9 +21,10 @@ def _atomy_login_curl(username, password):
         '-v'
         ],
         encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-    if re.search('< location: /V2', output.stderr):
+    if re.search('< location: /V2', output.stderr) or \
+       re.search('btnChangePassword', output.stdout):
         return re.findall('set-cookie: (.*)', output.stderr)
-    return None
+    raise AtomyLoginError(output.stderr)
 
 def atomy_login(username, password, browser=None, run_browser=True):
     if not run_browser:

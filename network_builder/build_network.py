@@ -5,6 +5,7 @@ from lxml.cssselect import CSSSelector
 import os
 import re
 from sqlalchemy.engine import create_engine
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm.session import Session
 
 from app.exceptions import AtomyLoginError
@@ -32,19 +33,17 @@ logging.basicConfig(level=logging.INFO)
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
     update=False, incremental=False, cont=False):
     from app.utils.atomy import atomy_login, get_document_from_url
+    if not root_id:
+        root_id = 'S5832131'
     logger = logging.getLogger('build_network')
     logger.info("Logging in to Atomy")
     session_cookies = atomy_login(username=username, password=password, run_browser=False)
     tree_url = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
     data_template = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
-    if cont or incremental:
-        traversing_nodes = _init_network(root_id, incremental=incremental, cont=cont)
-    else:
-        root_node = session.query(Node).get(root_id)
-        if not root_node:
-            raise Exception(f'No node {root_id} is in tree')
-        traversing_nodes = [root_node]
+    traversing_nodes = _init_network(root_id, incremental=incremental, cont=cont, update=update)
     c = 0
+    nodes = 0
+    initial_nodes_count = len(traversing_nodes)
     try:
         for node in traversing_nodes:
             c += 1
@@ -72,10 +71,12 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
                         keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
                     ).keys())
                     if update:
-                        _update_nodes(c, traversing_nodes, members, last_level_top)
+                        logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
+                        _update_nodes(traversing_nodes, members, last_level_top)
+                        nodes += len(members)
                     else:
                         _get_children(
-                            node, c, traversing_nodes, members[0], members[1:],
+                            node, traversing_nodes, members[0], members[1:],
                             level_distance=_get_levels_distance(members),
                             last_level_top=last_level_top
                         )
@@ -86,9 +87,9 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
             #     break
     except Exception as ex:
         raise ex
-    logger.info("Done.")
+    logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
 
-def _get_children(node, current_node, traversing_nodes, node_element,
+def _get_children(node, traversing_nodes, node_element,
     elements, level_distance, last_level_top, page_nodes=set()):
     page_nodes.add(node.id)
     node_element_style_items = _get_element_style_items(node_element)
@@ -124,11 +125,11 @@ def _get_children(node, current_node, traversing_nodes, node_element,
     else:
         node.built_tree = True
         if left is not None:
-            _get_children(left, current_node, traversing_nodes, left_element, elements,
+            _get_children(left, traversing_nodes, left_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top,
                 page_nodes=page_nodes)
         if right is not None:
-            _get_children(right, current_node, traversing_nodes, right_element, elements,
+            _get_children(right, traversing_nodes, right_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top,
                 page_nodes=page_nodes)
 
@@ -146,8 +147,60 @@ def _get_levels_distance(members):
     second_level = int(_get_element_style_items(members[1])['top'][:-2])
     return second_level - first_level
 
-def _init_network(root_node_id, incremental=False, cont=False):
+def _init_network(root_node_id, incremental=False, cont=False, update=False):
     logger = logging.getLogger("_init_network")
+    root_node = session.query(Node).get(root_node_id)
+    if not root_node:
+        if session.query(Node).count() == 0:
+            logger.info("The network doesn't yet exist. Starting with %s", root_node_id)
+            root_node = Node(id=root_node_id)
+            session.add(root_node)
+            session.flush()
+        else:
+            raise Exception(f'No node {root_node_id} is in tree')
+    if root_node.parent_id:
+        return _init_network_subtree(root_node, incremental=incremental, cont=cont, update=update)
+    else:
+        return _init_network_full(root_node, incremental=incremental, cont=cont, update=update)
+
+def _init_network_subtree(root_node, incremental=False, cont=False, update=False):
+    logger = logging.getLogger('_init_network_subtree')
+    if incremental:
+        logger.info("Resetting leafs progress")
+        session.execute('''
+            UPDATE network_nodes
+            SET built_tree = 0 
+            WHERE id IN (
+                WITH RECURSIVE cte(id) AS (
+                    SELECT id FROM network_nodes WHERE id = :id
+                    UNION
+                    SELECT n.id FROM network_nodes AS n JOIN cte ON n.parent_id = cte.id
+                ) SELECT id FROM cte
+            ) AND left_id IS NULL AND right_id IS NULL
+        ''')
+    logger.info("Getting leafs to crawl")
+    traversing_nodes_query = session.query(Node)
+    cte = session.query(Node.id).filter_by(id=root_node.id).cte(recursive=True)
+    ids = cte.union(session.query(aliased(Node).id).filter_by(parent_id=cte.c.id))
+    if incremental:
+        traversing_nodes_query = traversing_nodes_query.\
+            filter_by(left_id=None, right_id=None).\
+            filter(Node.pv > 10).join(ids, Node.id == ids.c.id)
+    elif cont:
+        traversing_nodes_query = traversing_nodes_query.\
+            filter_by(built_tree=False).join(ids, Node.id == ids.c.id)
+    elif update:
+        logger.info("There are %s nodes to update", session.query(ids).count())
+        traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
+    else:
+        raise Exception("No mode is defined")
+            
+    traversing_nodes = traversing_nodes_query.all()
+    logger.info("Done")
+    return traversing_nodes
+
+def _init_network_full(root_node, incremental=False, cont=False, update=False):
+    logger = logging.getLogger('_init_network_full')
     if incremental:
         logger.info("Resetting leafs progress")
         session.execute('''
@@ -156,20 +209,16 @@ def _init_network(root_node_id, incremental=False, cont=False):
             WHERE left_id IS NULL AND right_id IS NULL
         ''')
     logger.info("Getting leafs to crawl")
-    traversing_nodes_query = \
-        session.query(Node).filter_by(built_tree=False) if cont \
-        else session.query(Node).filter_by(left_id=None, right_id=None) if incremental \
-        else None
-    if traversing_nodes_query and traversing_nodes_query.count() > 0:
-        traversing_nodes = traversing_nodes_query.all()
-    else:
-        root_node = Node(id=root_node_id)
-        traversing_nodes = [root_node]
-        session.add(root_node)
-        session.commit()
-    # nodes = Node.query.filter_by(built_tree=True) \
-    #     if incremental \
-    #     else Node.query.filter(or_(Node.left_id != None, Node.right_id != None)).all()
+    traversing_nodes_query = session.query(Node)
+    if incremental:
+        traversing_nodes_query = traversing_nodes_query.\
+            filter_by(left_id=None, right_id=None).filter(Node.pv > 10)
+    elif cont:
+        traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False)
+    elif update:
+        traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
+            
+    traversing_nodes = traversing_nodes_query.all()
     logger.info("Done")
     return traversing_nodes
 
@@ -201,9 +250,8 @@ def _get_node(element, parent, is_left):
         parent.right_id = id
     return node
 
-def _update_nodes(current_node, traversing_nodes, elements, last_level_top):
+def _update_nodes(traversing_nodes, elements, last_level_top):
     logger = logging.getLogger('_update_nodes')
-    logger.info("Traversing node %s of %s", current_node, len(traversing_nodes))
     for element in elements:
         # node = [n for n in nodes if n.id == element.attrib['id'][1:]][0]
         node = session.query(Node).get(element.attrib['id'][1:])
@@ -212,16 +260,16 @@ def _update_nodes(current_node, traversing_nodes, elements, last_level_top):
             node.highest_rank = sel_highest_rank(element)[0].text
             node.pv = re.search('\\d+', sel_pv(element)[0].text).group()
             node.network_pv = re.search('\\d+', sel_network_pv(element)[0].text).group()
-            if int(_get_element_style_items(element)['top'][:-2]) == last_level_top:
+            if int(_get_element_style_items(element)['top'][:-2]) == last_level_top \
+               and len(elements) > 1 :
                 traversing_nodes.append(node)
-
 
 if __name__ == '__main__':
     import argparse
 
     arg_parser = argparse.ArgumentParser(description="Build network")
     group = arg_parser.add_mutually_exclusive_group()
-    group.add_argument('--root', metavar='ROOT_ID', help="ID of the tree or subtree root")
+    arg_parser.add_argument('--root', metavar='ROOT_ID', help="ID of the tree or subtree root")
     group.add_argument('--update', help='Update data of existing nodes', action='store_true')
     group.add_argument('--incremental', help='Build trees from all leaves',
                     action='store_true')
