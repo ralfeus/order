@@ -11,15 +11,15 @@ from sqlalchemy.orm.session import Session
 from app.exceptions import AtomyLoginError
 from app.network.models.node import Node
 
-sel_name = CSSSelector('td span:nth-child(2)')
-sel_rank = CSSSelector('td span:nth-child(3)')
-sel_highest_rank = CSSSelector('td span:nth-child(4)')
-sel_center = CSSSelector('td span:nth-child(5)')
-sel_country = CSSSelector('td span:nth-child(6)')
+sel_name = lambda e: e.cssselect('td span')[1].attrib['title']
+sel_rank = lambda e: e.cssselect('td span')[2].text
+sel_highest_rank = lambda e: e.cssselect('td span')[3].text
+sel_center = lambda e: e.cssselect('td span')[4].text
+sel_country = lambda e: e.cssselect('td span')[5].text
 sel_members = CSSSelector('div#dLine table')
-sel_signup_date = CSSSelector('td span:nth-child(7)')
-sel_pv = CSSSelector('td span:nth-child(8)')
-sel_network_pv = CSSSelector('td span:nth-child(9)')
+sel_signup_date = lambda e: e.cssselect('td span')[6].text
+sel_pv = lambda e: e.cssselect('td span')[7].text
+sel_network_pv = lambda e: e.cssselect('td span')[8].text
 
 db_host = os.environ.get('DB_HOST') or 'localhost'
 db_user = os.environ.get('DB_USER') or 'omc'
@@ -177,7 +177,7 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
                     SELECT n.id FROM network_nodes AS n JOIN cte ON n.parent_id = cte.id
                 ) SELECT id FROM cte
             ) AND left_id IS NULL AND right_id IS NULL
-        ''')
+        ''', {'id': root_node.id})
     logger.info("Getting leafs to crawl")
     traversing_nodes_query = session.query(Node)
     cte = session.query(Node.id).filter_by(id=root_node.id).cte(recursive=True)
@@ -214,7 +214,8 @@ def _init_network_full(root_node, incremental=False, cont=False, update=False):
         traversing_nodes_query = traversing_nodes_query.\
             filter_by(left_id=None, right_id=None).filter(Node.pv > 10)
     elif cont:
-        traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False)
+        traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False).\
+            filter(Node.pv > 10)
     elif update:
         traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
             
@@ -226,16 +227,21 @@ def _get_node(element, parent, is_left):
     from time import sleep
     logger = logging.getLogger('_get_node')
     id = element.attrib['id'][1:]
+    try:
+        signup_date = datetime.strptime(sel_signup_date(element), '%y-%m-%d')
+    except Exception as ex:
+        logger.error("In %s the error has happened", id)
+        raise ex
     node = Node(
         id=id, parent_id=parent.id,
-        name=sel_name(element)[0].text,
-        rank=sel_rank(element)[0].text,
-        highest_rank=sel_highest_rank(element)[0].text,
-        center=sel_center(element)[0].text,
-        country=sel_country(element)[0].text,
-        signup_date=datetime.strptime(sel_signup_date(element)[0].text, '%y-%m-%d'),
-        pv=int(re.search('\\d+', sel_pv(element)[0].text).group()),
-        network_pv=int(re.search('\\d+', sel_network_pv(element)[0].text).group())
+        name=sel_name(element),
+        rank=sel_rank(element),
+        highest_rank=sel_highest_rank(element),
+        center=sel_center(element),
+        country=sel_country(element),
+        signup_date=signup_date,
+        pv=int(re.search('\\d+', sel_pv(element)).group()),
+        network_pv=int(re.search('\\d+', sel_network_pv(element)).group())
     )
     session.add(node)
     try:

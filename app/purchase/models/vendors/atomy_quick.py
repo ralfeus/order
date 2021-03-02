@@ -5,15 +5,16 @@ from logging import Logger
 from pytz import timezone
 import re
 from time import sleep
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import NoAlertPresentException, StaleElementReferenceException, UnexpectedAlertPresentException
 
-from app.exceptions import AtomyLoginError, NoPurchaseOrderError, PurchaseOrderError
+from app.exceptions import AtomyLoginError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
 ATTEMPTS_TOTAL = 3
 ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
+ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
@@ -82,6 +83,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ex
         except PurchaseOrderError as ex:
             self.__logger.warning(ex)
+            if ex.retry:
+                self.__logger.warning("Retrying %s", purchase_order.id)
+                return self.post_purchase_order(purchase_order)
         except Exception as ex:
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
@@ -105,6 +109,33 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise PurchaseOrderError(self.__purchase_order, self, "Couldn't open quick order")
         # self.__browser.save_screenshot(realpath('01-quick-order.png'))
 
+    def __set_product_code(self, input, value):
+        input.send_keys(Keys.RETURN)
+        sleep(.5)
+        message = ''
+        try:
+            alert = self.__browser.switch_to_alert()
+            message = alert.text
+            alert.dismiss()
+        except NoAlertPresentException:
+            pass
+        if input.get_attribute('value') == value:
+            self.__logger.debug('The value is not entered so far')
+            if ERROR_OUT_OF_STOCK in message:
+                raise ProductNotAvailableError(value, final=True)
+            raise PurchaseOrderError(
+                self.__purchase_order, self,
+                "Couldn't enter %s product code: %s" % (value, message), retry=True)
+
+    def __set_product_quantity(self, input, value):
+        input.clear()
+        input.send_keys(value)
+        if int(input.get_attribute('value')) != value:
+            self.__logger.debug('The quantity value is not entered so far')
+            raise PurchaseOrderError(
+                self.__purchase_order, self,
+                "Couldn't enter %s product quantity" % value, retry=True)
+
     def __add_products(self, order_products):
         self.__logger.debug("Adding products")
         # add_button = self.__browser.get_element_by_id('btnProductListSearch')
@@ -123,27 +154,46 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__browser.dismiss_alert()
                 self.__logger.debug('Typing product code %s', op.product_id)
                 product_code_input.send_keys(op.product_id)
-                while product_code_input.get_attribute('value') == op.product_id:
-                    self.__logger.debug('The value is not entered so far')
-                    sleep(0.5)
-                    product_code_input.send_keys(Keys.RETURN)
-                    sleep(1)
+                self.__try_action(
+                    lambda: self.__set_product_code(product_code_input, op.product_id))
+
                 self.__logger.debug("The product code %s is entered. Entering quantity...",
                     op.product_id)
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
                     './/input[@class="numberic"]')
-                quantity_input.clear()
-                quantity_input.send_keys(op.quantity)
+                self.__try_action(
+                    lambda: self.__set_product_quantity(quantity_input, op.quantity))
                 
                 ordered_products.append(op)
                 self.__logger.debug(f"Added product {op.product_id}")
+            except PurchaseOrderError as ex:
+                raise ex
+            except ProductNotAvailableError:
+                product_code_input.clear()
+                self.__logger.warning("Product %s is not available", op.product_id)
             except Exception:
                 product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
         # self.__browser.save_screenshot(realpath('02-products.png'))
         return ordered_products
+
+    def __try_action(self, action):
+        last_exception = None
+        for _attempt in range(ATTEMPTS_TOTAL):
+            try:
+                action()
+                return
+            except Exception as ex:
+                if not last_exception:
+                    last_exception = ex
+                if ex.final:
+                    break
+                else:
+                    sleep(1)
+        if last_exception:
+            raise last_exception
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')

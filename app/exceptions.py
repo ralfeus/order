@@ -17,9 +17,10 @@ class PaymentNoReceivedAmountException(Exception):
     pass
 
 class ProductNotAvailableError(Exception):
-    def __init__(self, product_id):
+    def __init__(self, product_id, final=False):
         super().__init__()
         self.product_id = product_id
+        self.final = final
 
     def __str__(self):
         return f"Product {self.product_id} is not available"
@@ -33,9 +34,10 @@ class ProductNotFoundError(Exception):
         return f"Product {self.product_id} was not found"
 
 class PurchaseOrderError(Exception):
-    def __init__(self, po, vendor, message):
+    def __init__(self, po, vendor, message, retry=False):
         self.message = message
         self.po_id = po.id
+        self.retry = retry
         self.vendor = str(vendor)
     
     def __str__(self):
