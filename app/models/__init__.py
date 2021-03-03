@@ -2,7 +2,4 @@
 All models of the application
 Each model is in its own file
 '''
-from .address import Address
-from .country import Country
-from .role import Role
-from .user import User
+from app.models.country import Country

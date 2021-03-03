@@ -2,6 +2,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
+from app.models.address import Address
 from app.models.base import BaseModel
 
 class Company(db.Model, BaseModel):

@@ -18,6 +18,7 @@ from app.orders.models import Order, OrderProduct, OrderProductStatus, \
 from app.orders.validators.order import OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
+from app.users.models import User
 from app.utils.atomy import atomy_login
 from app.tools import prepare_datatables_query, modify_object, stream_and_close
 

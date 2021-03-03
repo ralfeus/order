@@ -6,7 +6,7 @@ from operator import itemgetter
 from flask import Blueprint, jsonify
 from flask_login import login_required
 
-from app.models import Country, User
+from app.models import Country
 
 api = Blueprint('api', __name__, url_prefix='/api/v1')
 

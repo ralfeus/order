@@ -19,7 +19,8 @@ celery = get_celery(__name__,
                     job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
 db = SQLAlchemy()
 migrate = Migrate()
-from app.forms import LoginForm
+# login = LoginManager()
+from app.users.forms import LoginForm
 security = Security()
 
 def create_app(config=None):
@@ -37,8 +38,8 @@ def create_app(config=None):
     migrate.init_app(flask_app, db, compare_type=True)
     init_celery(celery, flask_app)
     
-    from app.models.user import User
-    from app.models.role import Role
+    from app.users.models import User
+    from app.users.models import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)
@@ -61,6 +62,7 @@ def register_components(flask_app):
     import app.purchase, app.purchase.routes
     import app.settings, app.settings.routes
     import app.shipping, app.shipping.routes
+    import app.users, app.users.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(admin_api)
@@ -75,6 +77,7 @@ def register_components(flask_app):
     app.purchase.register_blueprints(flask_app)
     app.settings.register_blueprints(flask_app)
     app.shipping.register_blueprints(flask_app)
+    app.users.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
     load_modules(flask_app)
