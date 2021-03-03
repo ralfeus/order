@@ -2,20 +2,24 @@ from datetime import datetime
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from flask import Blueprint, Response, abort, jsonify, request, current_user
+from flask import Blueprint, Response, abort, jsonify, request, send_file
 from flask import redirect, render_template, flash, current_app, url_for, send_from_directory
-from flask_security import login_required, roles_required, login_user, logout_user
+from flask_security import login_required, roles_required, login_user, logout_user, current_user
 
 from app import db, security
 from app.users import bp_client_admin, bp_client_user
 from app.users.forms import SignupForm, LoginForm
 from app.users.models import User
 
+@bp_client_admin.route('/static/<path:file>')
+@bp_client_user.route('/static/<path:file>')
+def get_static(file):
+    return send_file(f"users/static/{file}")
+
 @bp_client_user.route('/signup', methods=['GET', 'POST'])
 def user_signup():
     """
     User sign-up page.
-
     GET requests serve sign-up page.
     POST requests validate form & user creation.
     """
@@ -85,7 +89,7 @@ def user_logout():
 def send_from_upload(path):
     return send_from_directory('upload', path)
 
-@bp_client_user.route('/users', methods=['GET', 'POST'])
+@bp_client_admin.route('/', methods=['GET', 'POST'])
 @roles_required('admin')
 def users():
     '''

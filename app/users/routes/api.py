@@ -48,8 +48,8 @@ def delete_user(user_id):
 
     return result
 
-@bp_api_user.route('/user')
-@login_required
+@bp_api_admin.route('')
+@roles_required('admin')
 def get_user():
     '''
     Returns list of products in JSON:

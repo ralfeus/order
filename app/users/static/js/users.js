@@ -23,7 +23,7 @@ $(document).ready( function () {
     var table = $('#users').DataTable({
         dom: 'lfrBtip', 
         ajax: {
-            url: '/api/v1/user',
+            url: '/api/v1/admin/user',
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({'all': true}),
@@ -88,7 +88,7 @@ function format ( d ) {
                 '<label for="username">User name:</label>'+
                 '<input id="username" class="form-control col-5" value="'+ d.username +'"/>'+
                 '<label for="email">Email:</label>' +
-                '<input id="email" class="form-control col-1" value="' + d.email + '"/>' +
+                '<input id="email" class="form-control col-5" value="' + d.email + '"/>' +
                 '<label class="col-1" for="password">Password:</label>'+
                 '<input id="password" class="form-control col-5" value="' + d.password + '"/>'+
             '</div>' +

@@ -23,8 +23,8 @@ def index():
 def favicon():
     return send_from_directory('static/images', 'favicon.ico')
 
-@client.route('/signup', methods=['GET', 'POST'])
-def user_signup():
+# @client.route('/signup', methods=['GET', 'POST'])
+# def user_signup():
     """
     User sign-up page.
 
