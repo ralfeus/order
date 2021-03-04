@@ -1,7 +1,7 @@
 from flask_security import current_user
 from tests import BaseTestCase, db
 
-from app.models import User
+from app.users.models.user import User
 
 def login(client, username='user1', password='1'):
     return client.post('/login', data={
@@ -41,10 +41,11 @@ class TestClient(BaseTestCase):
 
     def test_signup(self):
         with self.client:
-            res = self.client.post('/signup', data={
+            res = self.client.post('/users/signup', data={
                 'username': 'user3',
                 'password': '1',
                 'confirm': '1',
+                'phone': '1',
                 'email': 'test@email.com'
             })
             res = login(self.client, 'user3', '1')

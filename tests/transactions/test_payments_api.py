@@ -7,8 +7,8 @@ from app.payments.models.payment import Payment, PaymentStatus
 from app.payments.models.payment_method import PaymentMethod
 from app.purchase.models.company import Company
 from app.models.address import Address
-from app.models.role import Role
-from app.models.user import User
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestPaymentApi(BaseTestCase):
     def setUp(self):

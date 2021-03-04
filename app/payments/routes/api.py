@@ -20,7 +20,7 @@ from app.orders.models.order import Order
 from app.payments.models.payment import Payment, PaymentStatus
 from app.payments.models.payment_method import PaymentMethod
 from app.models.file import File
-from app.models.user import User
+from app.users.models.user import User
 
 from app.exceptions import PaymentNoReceivedAmountException
 from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file

@@ -1,8 +1,7 @@
 var g_currencies_table;
 
 $(document).ready(() => {
-    var editor;
-    editor = new $.fn.dataTable.Editor({
+    var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
             var target = Object.entries(data.data)[0][1];
             var currency_id = Object.entries(data.data)[0][0];

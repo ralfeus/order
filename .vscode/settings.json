@@ -18,10 +18,6 @@
         "**/lib64/**": true,
         "**/share/**": true
     },
-<<<<<<< HEAD
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true
-=======
-    "python.pythonPath": "bin/python3"
->>>>>>> user_mgmt
 }

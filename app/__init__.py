@@ -38,8 +38,8 @@ def create_app(config=None):
     migrate.init_app(flask_app, db, compare_type=True)
     init_celery(celery, flask_app)
     
-    from app.users.models import User
-    from app.users.models import Role
+    from app.users.models.user import User
+    from app.users.models.role import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)
@@ -49,10 +49,8 @@ def create_app(config=None):
     return flask_app
 
 def register_components(flask_app):
-    from app.routes.admin import admin
     from app.routes.api import api
     from app.routes.client import client
-    from app.routes.api_admin import admin_api
     import app.currencies, app.currencies.routes
     import app.invoices, app.invoices.routes
     import app.network, app.network.routes
@@ -65,8 +63,6 @@ def register_components(flask_app):
     import app.users, app.users.routes
 
     flask_app.register_blueprint(api)
-    flask_app.register_blueprint(admin_api)
-    flask_app.register_blueprint(admin)
     flask_app.register_blueprint(client)
     app.currencies.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
