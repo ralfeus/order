@@ -440,8 +440,7 @@ def save_order_product(order_product_id):
 
 
 
-@bp_api_user.route('/product/<int:order_product_id>',
-                   methods=['DELETE'])
+@bp_api_user.route('/product/<int:order_product_id>', methods=['DELETE'])
 @login_required
 def user_delete_order_product(order_product_id):
     '''Deletes selected order product'''
@@ -450,6 +449,8 @@ def user_delete_order_product(order_product_id):
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
     order_product.delete()
+    order_product.suborder.order.update_total()
+    db.session.commit()
 
     return jsonify({
         'id': order_product_id,

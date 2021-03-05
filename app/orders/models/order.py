@@ -175,7 +175,7 @@ class Order(db.Model, BaseModel):
 
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
-        from app.models.user import User
+        from app.users.models.user import User
         part_filter = f'%{filter_value}%'
         return \
             base_filter.filter(Order.payment_method_id.in_(filter_value.split(','))) \

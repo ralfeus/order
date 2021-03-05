@@ -7,10 +7,13 @@ $(document).ready( function () {
 
 function cancel(target) {
     target.data().toArray().forEach(op => {
-        $.delete('/api/v1/order/product/' + op.id)
-            .then(response => {
-                target.raw(parseInt(response.id)).data().draw();
-            });
+        $.ajax({
+            url: '/api/v1/order/product/' + op.id,
+            method: 'delete'
+        })
+        .then(response => {
+            target.row(parseInt(response.id)).remove().draw();
+        });
     });
 }
 
