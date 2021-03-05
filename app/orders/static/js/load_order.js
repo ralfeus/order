@@ -59,7 +59,7 @@ async function populate_order(order_data) {
             await update_product(current_row, order_products[op])
         }
     }
-    update_shipping_methods(order_data.country.id, 0)
+    update_shipping_methods(order_data.country.id, g_total_weight + g_box_weight)
     .then(() => { 
         $('#shipping').val(order_data.shipping.id);     
         shipping_changed();

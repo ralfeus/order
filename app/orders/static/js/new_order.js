@@ -14,6 +14,7 @@ var g_box_weight = 0;
 var g_cart = {};
 var g_products;
 var g_selected_shipping_method;
+var g_shipping_rates;
 var g_total_local_shipping = 0;
 var g_total_weight = 0;
 
@@ -233,7 +234,7 @@ function get_shipping_cost(shipping_method, weight) {
     if (weight == 0) {
         update_shipping_cost(0, 0);
     } else {
-        update_shipping_cost(shipping_rates[shipping_method], weight);
+        update_shipping_cost(g_shipping_rates[shipping_method], weight);
     }
 }
 
@@ -256,7 +257,7 @@ function update_shipping_methods(country, weight) {
                     promise.resolve();
                 },
                 success: data => {
-                    shipping_rates = data;
+                    g_shipping_rates = data;
                     get_shipping_cost($('#shipping').val(), weight);
                 },
                 error: xhr => {

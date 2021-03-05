@@ -21,9 +21,7 @@ from app.tools import prepare_datatables_query, stream_and_close
 @bp_api_admin.route('/new/<float:usd_rate>', methods=['POST'])
 @roles_required('admin')
 def create_invoice(usd_rate):
-    '''
-    Creates invoice for provided orders
-    '''
+    '''Creates invoice for provided orders'''
     payload = request.get_json()
     if not payload or not payload['order_ids']:
         abort(Response("No orders were provided", status=400))
@@ -53,6 +51,10 @@ def create_invoice(usd_rate):
                     price=round(op[0][2] * usd_rate, 2),
                     quantity=op[1])
         for op in cumulative_order_products.items()])
+    db.session.add(InvoiceItem(
+        invoice=invoice, product_id="SHIPPING",
+        price=round(reduce(lambda acc, o: acc + o.shipping_krw * usd_rate, orders, 0), 2),
+        quantity=1))
     db.session.commit()
     return jsonify({
         'status': 'success',
