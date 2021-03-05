@@ -85,7 +85,6 @@ class OrderProduct(db.Model, BaseModel):
         for op_status_entry in self.status_history:
             db.session.delete(op_status_entry)
         db.session.delete(self)
-        self.suborder.order.update_total()
 
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):

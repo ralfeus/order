@@ -1,5 +1,6 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
+from more_itertools import map_reduce
 import re
 
 from flask import Response, abort, current_app, jsonify, request
@@ -327,7 +328,7 @@ def user_save_order(order_id):
             # Remove order products
             for order_product in order_products:
                 order_product.delete()
-
+        db.session.flush()
         try:
             order.update_total()
         except NoShippingRateError:
@@ -380,9 +381,16 @@ def _update_suborder(order, order_products, suborder_data, errors):
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None
             suborder.subcustomer = subcustomer
-            if len(suborder_data['items']) > 10:
+            suborder_products = map_reduce(suborder_data['items'],
+                keyfunc=lambda op: op['item_code'],
+                valuefunc=lambda op: int(op['quantity']),
+                reducefunc=sum
+            )
+            suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
+                                 for i in suborder_products.items()]
+            if len(suborder_products) > 10:
                 errors.append(f'The suborder for {subcustomer.name} has more than 10 products')
-            for item in suborder_data['items']:
+            for item in suborder_products:
                 order_product = [op for op in suborder.order_products
                                     if op.product_id == item['item_code']]
                 if len(order_product) > 0:
