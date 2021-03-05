@@ -16,7 +16,19 @@ class OrderError(Exception):
 class PaymentNoReceivedAmountException(Exception):
     pass
 
-class ProductNotAvailableError(Exception):
+class PurchaseOrderError(Exception):
+    def __init__(self, po=None, vendor=None, message=None, retry=False):
+        super().__init__()
+        self.final = False
+        self.message = message
+        self.po_id = po.id
+        self.retry = retry
+        self.vendor = str(vendor)
+    
+    def __str__(self):
+        return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"
+
+class ProductNotAvailableError(PurchaseOrderError):
     def __init__(self, product_id, final=False):
         super().__init__()
         self.product_id = product_id
@@ -32,16 +44,6 @@ class ProductNotFoundError(Exception):
 
     def __str__(self):
         return f"Product {self.product_id} was not found"
-
-class PurchaseOrderError(Exception):
-    def __init__(self, po, vendor, message, retry=False):
-        self.message = message
-        self.po_id = po.id
-        self.retry = retry
-        self.vendor = str(vendor)
-    
-    def __str__(self):
-        return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"
 
 class SubcustomerParseError(Exception):
     pass

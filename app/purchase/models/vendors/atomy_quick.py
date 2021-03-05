@@ -26,7 +26,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __init__(self, browser=None, logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__logger = logger.getChild('AtomyQuick') if logger is not None else None
+        self.__original_logger = self.__logger = logger.getChild('AtomyQuick') \
+            if logger is not None else None
         self.__config = config
 
     def __del__(self):
@@ -48,6 +49,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
+        self.__logger = self.__original_logger.getChild(purchase_order.id)
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             self.__logger.info("Skip <%s>: purchase date is %s",
@@ -157,8 +159,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__try_action(
                     lambda: self.__set_product_code(product_code_input, op.product_id))
 
-                self.__logger.debug("The product code %s is entered. Entering quantity...",
-                    op.product_id)
+                self.__logger.debug("The product code %s is entered. Entering quantity %s...",
+                    op.product_id, op.quantity)
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
@@ -168,11 +170,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 
                 ordered_products.append(op)
                 self.__logger.debug(f"Added product {op.product_id}")
-            except PurchaseOrderError as ex:
-                raise ex
             except ProductNotAvailableError:
                 product_code_input.clear()
                 self.__logger.warning("Product %s is not available", op.product_id)
+            except PurchaseOrderError as ex:
+                raise ex
             except Exception:
                 product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
@@ -185,7 +187,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             try:
                 action()
                 return
-            except Exception as ex:
+            except PurchaseOrderError as ex:
                 if not last_exception:
                     last_exception = ex
                 if ex.final:
@@ -248,6 +250,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_payment_mobile(self, phone='010-6275-2045'):
         self.__logger.debug("Setting phone number for payment notification")
         phone = phone.split('-')
+        if len(phone) == 0:
+            self.__logger.info("Payment phone isn't set as it isn't provided")
+            return
         self.__browser.execute_script(
             f"document.getElementById('tVirCellPhone1').value = '{phone[0]}'")
         # self.__browser.get_element_by_id('tVirCellPhone1').send_keys(phone[0])
