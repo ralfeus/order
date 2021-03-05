@@ -114,21 +114,23 @@ class AtomyCenter(PurchaseOrderVendorBase):
                         raise Exception("Couldn't set product quantity")
                     self.__logger.debug("Clicking sale_qty%s field...", field_num)
                     self.__browser.doubleclick(product_qty_input)
-                    self.__logger.debug("\t...done")
                     self.__logger.debug("Typing %s to sale_qty%s...", op.quantity, field_num)
                     product_qty_input.send_keys(op.quantity, Keys.TAB)
-                    self.__logger.debug("\t...done")
                     sleep(0.3)
+                    self.__logger.debug("Now sale_qty%s is %s",
+                        field_num, product_qty_input.get_attribute('value'))
                 
                 self.__logger.debug("Waiting tot_amt%s to update...", field_num)
                 while not self.__browser.get_element_by_name(f'tot_amt{field_num}').get_attribute('value'):
-                    self.__logger.debug("\t...not yet")
                     sleep(0.3)
-                self.__logger.debug("\t...done")
+                    self.__logger.debug("\t...not yet")
+                self.__logger.debug("Now tot_amt%s is %s", field_num, 
+                    self.__browser.get_element_by_name(f'tot_amt{field_num}')
+                        .get_attribute('value'))
                 
                 ordered_products.append(op)
                 field_num += 1
-                self.__logger.info(f"Added product {op.product_id}")
+                self.__logger.info("Added product %s", op.product_id)
             except Exception:
                 product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
