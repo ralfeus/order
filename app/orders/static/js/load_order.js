@@ -60,9 +60,11 @@ async function populate_order(order_data) {
         }
     }
     update_shipping_methods(order_data.country.id, 0)
-    .then(() => { $('#shipping').val(order_data.shipping.id); });
+    .then(() => { 
+        $('#shipping').val(order_data.shipping.id);     
+        shipping_changed();
+    });
 
-    shipping_changed();
 }
 
 })()
