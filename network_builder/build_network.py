@@ -262,10 +262,10 @@ def _update_nodes(traversing_nodes, elements, last_level_top):
         # node = [n for n in nodes if n.id == element.attrib['id'][1:]][0]
         node = session.query(Node).get(element.attrib['id'][1:])
         if node:
-            node.rank = sel_rank(element)[0].text
-            node.highest_rank = sel_highest_rank(element)[0].text
-            node.pv = re.search('\\d+', sel_pv(element)[0].text).group()
-            node.network_pv = re.search('\\d+', sel_network_pv(element)[0].text).group()
+            node.rank = sel_rank(element)
+            node.highest_rank = sel_highest_rank(element)
+            node.pv = re.search('\\d+', sel_pv(element)).group()
+            node.network_pv = re.search('\\d+', sel_network_pv(element)).group()
             if int(_get_element_style_items(element)['top'][:-2]) == last_level_top \
                and len(elements) > 1 :
                 traversing_nodes.append(node)

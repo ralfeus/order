@@ -7,6 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from app import db
+from app.users.models.role import Role
 
 roles_users = db.Table('roles_users',
         db.Column('user_id', db.Integer(), db.ForeignKey('users.id')),
