@@ -308,7 +308,7 @@ def user_save_order(order_id):
         abort(Response(f"No order <{order_id}> was found", status=404))
     if not order.is_editable() and not current_user.has_role('admin'):
         abort(Response(f"The order <{order_id}> isn't in editable state", status=405))
-    with OrderValidator(request) as validator:
+    with OrderEditValidator(request) as validator:
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
@@ -327,7 +327,12 @@ def user_save_order(order_id):
         
             # Remove order products
             for order_product in order_products:
-                order_product.delete()
+                order_product.suborder.order_products.\
+                    filter_by(id=order_product.id).delete(synchronize_session='fetch')
+            # Remove empty suborders
+            for suborder in order.suborders:
+                if suborder.order_products.count() == 0:
+                    db.session.delete(suborder)
         db.session.flush()
         try:
             order.update_total()

@@ -740,3 +740,34 @@ class TestOrdersApi(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.get_total_points(), 20)
+
+    def test_delete_last_order_item_in_suborder(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10, points=10),
+            Order(id=gen_id, country_id='c1', shipping_method_id=1, user=self.user)
+        ])
+        self.try_add_entities([
+            Suborder(id=gen_id, order_id=gen_id),
+            OrderProduct(suborder_id=gen_id, product_id='0001', quantity=1,
+                status=OrderProductStatus.pending),
+            Suborder(id=gen_id + "2", order_id=gen_id),
+            OrderProduct(suborder_id=gen_id + "2", product_id='0001', quantity=1,
+                status=OrderProductStatus.pending)
+        ])
+
+        res = self.try_admin_operation(admin_only=True,
+            operation=lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
+                "suborders": [
+                    {
+                        'subcustomer': 'A001, Subcustomer1, P@ssw0rd',
+                        "items": [
+                                {'item_code': '0001', 'quantity': 1}
+                            ]
+                    }
+                ]
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.suborders.count(), 1)
