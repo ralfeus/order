@@ -86,10 +86,7 @@ function init_order_products_table() {
         serverSide: true,
         processing: true,
         initComplete: function() { 
-            init_search(this, g_filter_sources) 
-            $('td:nth-child(' + (table.column('status:name').index() + 1) + ') select', 
-                $(table.column('status:name').header()).closest('thead'))
-                .val('po_created').trigger('change');
+            init_search(this, g_filter_sources); 
         }
     });
 
