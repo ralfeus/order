@@ -256,6 +256,14 @@ function init_orders_table() {
                             "    style=\"color: orange; font-weight:bolder; font-size:large;\"" +
                             "    title=\"The order has outsiders:\n" + oData.outsiders.join("\n") + "\">O</span>";
                     }
+                    if (oData.payment_pending) {
+                        html +=
+                            "<span " +
+                            "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "    style=\"color: green; font-weight:bolder; font-size:large;\"" +
+                            "    title=\"The payment for order is pending\">P</span>";
+                    }
+
                     $(cell).html(html);
                 }
             },

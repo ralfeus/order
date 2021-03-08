@@ -22,7 +22,6 @@ from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
 from app.payments.models.transaction import Transaction
 from app.settings.models.setting import Setting
-from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
@@ -203,6 +202,7 @@ class Order(db.Model, BaseModel):
         return False
 
     def to_dict(self, details=False):
+        from app.payments.models.payment import Payment, PaymentStatus
         is_order_updated = False
         if not self.total_krw:
             self.update_total()
@@ -239,6 +239,8 @@ class Order(db.Model, BaseModel):
             'status': self.status.name if self.status else None,
             'payment_method': self.payment_method.name \
                 if self.payment_method else None,
+            'payment_pending': self.status == OrderStatus.pending \
+                and self.payments.filter_by(status=PaymentStatus.pending).count() > 0,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
             'outsiders': [so.subcustomer.username + ":" + so.subcustomer.name
@@ -265,6 +267,7 @@ class Order(db.Model, BaseModel):
         '''
         Updates totals of the order
         '''
+        from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
         # logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("The order %s has %s suborders", self.id, self.suborders.count())
         for suborder in self.suborders:
@@ -403,6 +406,7 @@ class Order(db.Model, BaseModel):
         return file
 
     def _get_shipping_per_product(self, op):
+        from app.shipping.models.shipping import PostponeShipping
         if isinstance(self.shipping, PostponeShipping):
             return self.attached_order._get_shipping_per_product(op)
 

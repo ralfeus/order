@@ -8,7 +8,6 @@ from sqlalchemy.orm import relationship
 from app import db
 from app.exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
-from app.orders.models.order import OrderStatus
 from app.payments.models.transaction import Transaction
 
 payments_orders = db.Table('payments_orders',
@@ -83,6 +82,7 @@ class Payment(db.Model, BaseModel):
         self.update_orders(messages)
 
     def update_orders(self, messages):
+        from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
             lambda acc, o: acc + o.total_krw,
             self.orders.filter_by(status=OrderStatus.pending), 0
