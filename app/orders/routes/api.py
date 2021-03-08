@@ -16,7 +16,7 @@ from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
-from app.orders.validators.order import OrderValidator
+from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.users.models.user import User
@@ -514,6 +514,8 @@ def postpone_order_product(order_product_id):
     if not order_product:
         abort(Response(f"No product <{order_product_id}> was found", status=404))
     postponed_order_product = order_product.postpone()
+    order_product.suborder.order.update_total()
+    db.session.commit()
     
     return jsonify({
         'new_id': postponed_order_product.id,
@@ -540,20 +542,21 @@ def admin_save_order(order_id):
     order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
+    with OrderEditValidator(request) as validator:
+        if not validator.validate():
+            return jsonify({
+                'data': [],
+                'error': "Couldn't edit an order",
+                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                for message in validator.errors]
+            }), 400
 
-    if order_input.get('status') is not None:
+    modify_object(order, order_input, ['tracking_id', 'tracking_url'])
+    if order_input.get('status'):
         try:
             order.set_status(order_input['status'], current_user)
         except UnfinishedOrderError as ex:
             abort(Response(str(ex), status=409))
-
-    if order_input.get('tracking_id') is not None:
-        order.tracking_id = order_input['tracking_id']
-
-    if order_input.get('tracking_url') is not None:
-        order.tracking_url = order_input['tracking_url']
-
-    order.when_changed = datetime.now()
 
     db.session.commit()
     return jsonify(order.to_dict())

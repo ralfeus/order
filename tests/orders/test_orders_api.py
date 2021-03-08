@@ -5,12 +5,14 @@ from app.shipping.models.shipping import NoShipping
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Role, User
+from app.models import Country
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
 from app.shipping.models import PostponeShipping, Shipping, ShippingRate
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestOrdersApi(BaseTestCase):
     def setUp(self):
@@ -326,8 +328,8 @@ class TestOrdersApi(BaseTestCase):
         self.try_add_entities([
             Order(id=gen_id, user=self.user)
         ])
-        res = self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
+        res = self.try_admin_operation(admin_only=True,
+            operation=lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
                 'address': 'Address1',
                 'country': 'c1',
                 'customer_name': "Customer1",
@@ -350,8 +352,8 @@ class TestOrdersApi(BaseTestCase):
         self.try_add_entities([
             Order(id=gen_id, user=self.user)
         ])
-        res = self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
+        res = self.try_admin_operation(admin_only=True,
+            operation=lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
                 'address': 'Address1',
                 'country': 'c1',
                 'customer_name': "Customer1",
@@ -382,8 +384,8 @@ class TestOrdersApi(BaseTestCase):
             order, suborder, subcustomer,
             OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
         ])
-        res = self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/order/{order.id}', json={
+        res = self.try_admin_operation(admin_only=True,
+            operation=lambda: self.client.post(f'/api/v1/order/{order.id}', json={
                 'address': 'Address1',
                 'country': 'c1',
                 'customer_name': "Customer1",
@@ -560,8 +562,8 @@ class TestOrdersApi(BaseTestCase):
         ])
         postponed_order.update_total()
         postponed_order1.update_total()
-        res = self.try_user_operation(
-            lambda: self.client.post('/api/v1/order', json={
+        res = self.try_admin_operation(admin_only=True,
+            operation=lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
                 "country":"c1",

@@ -157,7 +157,6 @@ class OrderProduct(db.Model, BaseModel):
         db.session.add(postponed_order_product)
         postponed_order.update_total()
         self.delete()
-        db.session.commit()
         return postponed_order_product
     
     def set_status(self, status, user=None):

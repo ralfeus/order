@@ -10,6 +10,13 @@ $.fn.dataTable.ext.buttons.invoice = {
     }
 };
 
+$.fn.dataTable.ext.buttons.status = {
+    extent: 'select',
+    action: function(e, dt, node, config) {
+        set_status(dt.rows({selected: true}), this.text());
+    }
+};
+
 $(document).ready( function () {
     get_dictionaries()
         .then(init_orders_table);
@@ -205,12 +212,23 @@ function init_orders_table() {
                     window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
                 }
             },
-            {extend: 'invoice', text: 'Create invoice'}
+            {extend: 'invoice', text: 'Create invoice'},
+            { 
+                extend: 'collection', 
+                text: 'Set status',
+                buttons: [ g_order_statuses.map(s => {
+                    return {
+                        extend: 'status',
+                        text: s
+                    }
+                })]
+            }
         ],
         ajax: {
             url: '/api/v1/admin/order',
             dataSrc: 'data'
         },
+        rowId: 'id',
         searchBuilder: {},
         columns: [
             {
@@ -298,4 +316,41 @@ function open_order_invoice(target) {
     window.location = '/api/v1/order/' + 
         g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
+}
+
+function set_status(target, new_status) {
+    if (target.count()) {
+        modal(
+            "Order status change", 
+            "Are you sure you want to change orders status to &lt;" + new_status + "&gt;?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                $('.wait').show();
+                var orders_left = target.count();
+                for (var i = 0; i < target.count(); i++) {
+                    $.post({
+                        url: '/api/v1/admin/order/' + target.data()[i].id,
+                        dataType: 'json',
+                        contentType: 'application/json',
+                        data: JSON.stringify({status: new_status}),
+                        complete: () => {
+                            orders_left--;
+                            if (!orders_left) {
+                                $('.wait').hide();
+                            }
+                        },
+                        success: (data, status, xhr) => {
+                            g_orders_table.row("#" + data.id).data(data).draw();
+                        },
+                        error: (xhr, status, error) => {
+                            modal("Set order status failure", xhr.responseText);
+                        }
+                    });     
+                }
+            }
+        });
+    } else {
+        alert('Nothing selected');
+    }
 }

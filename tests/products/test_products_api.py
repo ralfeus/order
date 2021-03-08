@@ -1,11 +1,13 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Role, User
+from app.models import Country
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct
 from app.products.models import Product
 from app.shipping.models import Shipping, ShippingRate
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestProductsApi(BaseTestCase):
     def setUp(self):
