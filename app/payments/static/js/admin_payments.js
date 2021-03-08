@@ -237,7 +237,13 @@ function init_payments_table() {
             {data: 'id'},
             {data: 'user_name'},
             {data: 'orders'},
-            {data: 'payment_method.name'},
+            {
+                data: (row, type, set, meta) => {
+                    return row.payment_method
+                        ? row.payment_method.name
+                        : '';
+                }
+            },
             {data: 'amount_sent_original_string'},
             {name: 'amount_sent_krw', data: 'amount_sent_krw'},
             {data: 'amount_received_krw'},

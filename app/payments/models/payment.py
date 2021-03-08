@@ -114,8 +114,6 @@ class Payment(db.Model, BaseModel):
             'amount_received_krw': self.amount_received_krw or 0,
             'currency_code': self.currency.code,
             'payment_method': self.payment_method.to_dict() if self.payment_method else None,
-            # 'payee': self.payment_method.payee.to_dict() \
-            #     if self.payment_method and self.payment_method.payee else None,
             'evidences': [{**evidence.to_dict(), **{'url': '/' + evidence.path}} 
                           for evidence in self.evidences],
             'additional_info': self.additional_info,
