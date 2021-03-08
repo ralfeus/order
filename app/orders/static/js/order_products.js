@@ -82,18 +82,6 @@ function init_order_products_table() {
             {name: 'status', data: 'status'},
             {data: 'public_comment', visible: false}
         ],
-        searchCols: [
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            {search: 'po_created'},
-            null
-        ],
         select: true,
         serverSide: true,
         processing: true,
