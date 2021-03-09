@@ -225,6 +225,32 @@ class TestOrdersApi(BaseTestCase):
         })
         self.assertEqual(res.status_code, 200)
 
+    def test_create_order_double_product(self):
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity": "1"},
+                            {"item_code":"0000", "quantity": "1"}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        created_order_id = res.json['order_id']
+        order = Order.query.get(created_order_id)
+        self.assertEqual(order.suborders[0].order_products.count(), 1)
+        self.assertEqual(order.suborders[0].order_products[0].quantity, 2)
+
     def test_handle_wrong_subcustomer_data(self):
         self.try_add_entities([
             Product(id='0001', name='Product 1', price=10, weight=10)

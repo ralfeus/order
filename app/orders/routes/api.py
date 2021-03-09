@@ -247,8 +247,14 @@ def add_suborder(order, suborder_data, errors):
                         Erroneous data is: {suborder_data['subcustomer']}""",
                     status=400))
 
-
-    for item in suborder_data['items']:
+    suborder_products = map_reduce(suborder_data['items'],
+        keyfunc=lambda op: op['item_code'],
+        valuefunc=lambda op: int(op['quantity']),
+        reducefunc=sum
+    )
+    suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
+                            for i in suborder_products.items()]
+    for item in suborder_products:
         try:
             add_order_product(suborder, item, errors)
         except:
