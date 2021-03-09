@@ -258,10 +258,12 @@ function init_orders_table() {
                     }
                     if (oData.payment_pending) {
                         html +=
-                            "<span " +
-                            "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
-                            "    style=\"color: green; font-weight:bolder; font-size:large;\"" +
-                            "    title=\"The payment for order is pending\">P</span>";
+                            "<a href=\"/admin/payments?orders=" + oData.id + "\">" +
+                            "   <span " +
+                            "       data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "       style=\"color: green; font-weight:bolder; font-size:large;\"" +
+                            "       title=\"The payment for order is pending\">P</span>" +
+                            "</a>";
                     }
 
                     $(cell).html(html);
@@ -279,7 +281,7 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-invoice" \
                         onclick="open_order_invoice(this);">Invoice</button>'
             },            
-            {data: 'id'},
+            {name: 'id', data: 'id'},
             {data: 'user'},
             {data: 'customer_name'},
             {data: 'subtotal_krw'},
@@ -312,7 +314,11 @@ function init_orders_table() {
                 $('.btn-invoice', row).remove();
             }
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources) 
+            .then(() => init_table_filter(table));
+        }
     });
 }
 

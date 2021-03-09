@@ -236,7 +236,7 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'user_name'},
-            {data: 'orders'},
+            {name: 'orders', data: 'orders'},
             {
                 data: (row, type, set, meta) => {
                     return row.payment_method
@@ -294,7 +294,11 @@ function init_payments_table() {
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table)); 
+        }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
