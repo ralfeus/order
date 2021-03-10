@@ -36,7 +36,8 @@ $(document).ready( function () {
                 $(this).removeClass('shown');
             })
             // Open this row
-            row.child( format(row, row.data()) ).show();
+            // row.child( format(row, row.data()) ).show();
+            format(row, row.data());
             tr.addClass('shown');
 
             $('.btn-save').on('click', event => save_order(event.target, row));
@@ -136,6 +137,7 @@ function format ( row, data ) {
     var order_details = $('.order-details')
         .clone()
         .show();
+    row.child(order_details).show();
     $('#order-products', order_details).DataTable({
         ajax: {
             url: '/api/v1/admin/order/product?order_id=' + data.id,
@@ -150,6 +152,9 @@ function format ( row, data ) {
             {data: 'quantity'},
             {data: 'status'}
         ],
+        rowGroup: {
+            dataSrc: 'subcustomer'
+        },
         createdRow: (row, data) => {
             if (!data.purchase) {
                 $(row).addClass('orange-line');
