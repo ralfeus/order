@@ -18,7 +18,7 @@ def copy_subtree(root_id=None):
         logger.warning("No node ID %s found", root_id)
         return
     db.session.execute('TRUNCATE network_nodes')
-    if result[0] is None:
+    if result.scalar() is None:
         logger.info("It's a root node. Copying everything")
         result = db.session.execute('''
             INSERT INTO network_nodes SELECT * FROM order_master_common.network_nodes
