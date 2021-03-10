@@ -9,14 +9,13 @@ def copy_subtree(root_id=None):
         root_id = Setting.query.get('network.root_id')
     if root_id is None:
         return
+    root_id = root_id.value
     logger.info("Getting record for root node %s", root_id)
     result = db.session.execute(
         'SELECT parent_id FROM order_master_common.network_nodes WHERE id = :id',
         {'id': root_id})
     if not result or not result.rowcount:
         logger.warning("No node ID %s found", root_id)
-        logger.warning(result)
-        logger.warning(result.rowcount)
         return
     db.session.execute('TRUNCATE network_nodes')
     if result(0) is None:
