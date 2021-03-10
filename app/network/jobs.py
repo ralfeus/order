@@ -12,6 +12,7 @@ def copy_subtree(root_id=None):
     result = db.session.execute('SELECT 1 FROM order_master_common.network_nodes WHERE id = :id',
         {'id': root_id})
     if not result or not result.rowcount:
+        logger.warning(result)
         return
     db.session.execute('TRUNCATE network_nodes')
     result = db.session.execute('''
