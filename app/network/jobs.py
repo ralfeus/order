@@ -1,8 +1,10 @@
+from celery.utils.log import get_task_logger
 from app import celery, db
 from app.settings.models.setting import Setting
 
 @celery.task
 def copy_subtree(root_id=None):
+    logger = get_task_logger('copy_subtree')
     if root_id is None:
         root_id = Setting.query.get('network.root_id')
     if root_id is None:
@@ -29,6 +31,6 @@ def copy_subtree(root_id=None):
         ''', {'root_id': root_id})
     if result.rowcount:
         db.session.commit()
-        print("Copied %s rows" % result.rowcount)
+        logger.info("Copied %s rows", result.rowcount)
     else:
-        print(result)
+        logger.warning(result)
