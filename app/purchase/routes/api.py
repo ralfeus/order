@@ -113,7 +113,7 @@ def update_purchase_order(po_id):
     from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:
         if request.values.get('action') == 'repost'\
-            and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
+            and po.is_editable():
 
             po.status = PurchaseOrderStatus.pending
             db.session.commit()

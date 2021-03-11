@@ -9,7 +9,7 @@ var g_vendors;
 
 $.fn.dataTable.ext.buttons.repost = {
     action: function(_e, dt, _node, _config) {
-        repost_failed(dt.rows({selected: true}));
+        repost(dt.rows({selected: true}));
     }
 };
 $.fn.dataTable.ext.buttons.status_update = {
@@ -178,7 +178,7 @@ function init_table() {
         rowId: 'id',
         buttons: [
             { extend: 'create', editor: g_create_editor, text: 'Create purchase order' },
-            { extend: 'repost', text: 'Re-post selected failed POs'},
+            { extend: 'repost', text: 'Re-post selected POs'},
             { extend: 'status_update', text: 'Update selected POs status'}
         ],
         columns: [
@@ -281,7 +281,7 @@ function poll_status() {
     }, 30000);
 }
 
-function repost_failed(rows) {
+function repost(rows) {
     var pos = rows.data().map(row => row.id).toArray();
     pos.forEach(po_id => {
         $.ajax({
