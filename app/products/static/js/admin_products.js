@@ -71,7 +71,7 @@ $(document).ready( function () {
             {
                 label: "Color",
                 name: 'appearance.color',
-                type: 
+                type: 'colorpicker'
             }
         ]
     });
