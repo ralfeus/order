@@ -24,6 +24,8 @@ class Product(db.Model, BaseModel):
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)
     purchase = Column(Boolean, default=True)
+    # Appearance
+    color = Column(Integer)
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
@@ -47,7 +49,10 @@ class Product(db.Model, BaseModel):
             'separate_shipping': self.separate_shipping if self.separate_shipping else 0,
             'available': self.available,
             'synchronize': self.synchronize,
-            'purchase': self.purchase
+            'purchase': self.purchase,
+            'appearance': {
+                'color': self.color
+            }
         }
 
     @staticmethod
