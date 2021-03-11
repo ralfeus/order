@@ -80,7 +80,7 @@ async function get_dictionaries() {
     g_payment_methods = await get_payment_methods();
     g_payment_statuses = (await get_list('/api/v1/payment/status'))
     g_filter_sources = {
-        'payment_method.name': g_payment_methods.map(e => e.name),
+        'payment_method': g_payment_methods.map(e => e.name),
         'status': g_payment_statuses
     };
 }
@@ -238,6 +238,7 @@ function init_payments_table() {
             {data: 'user_name'},
             {name: 'orders', data: 'orders'},
             {
+                name: 'payment_method',
                 data: (row, type, set, meta) => {
                     return row.payment_method
                         ? row.payment_method.name
