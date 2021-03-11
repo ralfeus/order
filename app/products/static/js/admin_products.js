@@ -62,6 +62,16 @@ $(document).ready( function () {
                 options: [{label:'', value:true}],
                 def: true,
                 unselectedValue: false
+            },
+            {
+                label: 'Product appearance',
+                name: 'appearance',
+                type: 'title'
+            },
+            {
+                label: "Color",
+                name: 'appearance.color',
+                type: 
             }
         ]
     });
