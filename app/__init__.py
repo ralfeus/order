@@ -112,7 +112,7 @@ def init_logging(flask_app):
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
 def load_modules(flask_app):
-    from app.modules.crisp import init
+    from app.modules import init
     init(flask_app)
 
 # __frm = inspect.stack()

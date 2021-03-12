@@ -8,8 +8,9 @@ from app.settings.models.setting import Setting
 create_app().app_context().push()
 
 settings = [
-    {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' },
     {'key': 'check_outsiders', 'value': False, 'description': 'Define whether to check network outsiders'},
+    {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' },
+    {'key': 'jivochat.id', 'value': None, 'description': 'Jivochat ID. If is set to None the Jivochat is disabled' },
     {'key': 'network.root_id', 'value': None, 'description': 'ID of the tree\'s root node'}
 ]
 
