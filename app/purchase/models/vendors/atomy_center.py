@@ -69,6 +69,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         del proxy
 
     def login(self):
+        self.__logger.debug("Logging in")
         self.__browser.get('https://atomy.kr/center/login.asp')
         self.__browser.get_element_by_css('input[name="admin_id"]').send_keys(self.__username)
         password_input = self.__browser.get_element_by_css('input[name="passwd"]')

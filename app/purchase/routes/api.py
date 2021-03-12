@@ -113,9 +113,9 @@ def update_purchase_order(po_id):
     from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:
         if request.values.get('action') == 'repost'\
-            and po.status in (PurchaseOrderStatus.failed, PurchaseOrderStatus.pending):
+            and po.is_editable():
 
-            po.status = PurchaseOrderStatus.pending
+            po.reset_status()
             db.session.commit()
             task = post_purchase_orders.apply_async(
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)

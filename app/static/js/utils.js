@@ -66,8 +66,11 @@ function init_search(table, filter_sources) {
             .val('');
         $('td:nth-child(' + (this.index() + 1) + ') select', 
             $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_select(
-                item, column, filter_sources[column.dataSrc()]))
+            .each((_idx, item) => {
+                var column_name = column.settings()[0].aoColumns[column.index()].name;
+                init_search_select(
+                    item, column, filter_sources[column_name ? column_name : column.dataSrc()])
+            })
             .val('');
         columns_left--;
         if (!columns_left) {
