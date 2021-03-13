@@ -388,7 +388,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_purchase_orders(self):
         # self.__logger.info("Getting orders")
         self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
-        self.__browser.execute_script('SetDateSearch("m", -12)')
+        self.__browser.execute_script('SetDateSearch("d", -7)')
         order_lines = []
         while not len(order_lines):
             # self.__logger.info('Getting order lines')
