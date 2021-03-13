@@ -114,13 +114,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_product_code(self, input, value):
         input.send_keys(Keys.RETURN)
         sleep(.5)
-        message = ''
-        try:
-            alert = self.__browser.switch_to_alert()
-            message = alert.text
-            alert.dismiss()
-        except NoAlertPresentException:
-            pass
+        message = self.__browser.get_alert()
         if input.get_attribute('value') == value:
             self.__logger.debug('The value is not entered so far')
             if ERROR_OUT_OF_STOCK in message:
@@ -276,7 +270,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_payment_method(self):
         self.__logger.debug("Setting payment method")
-        self.__browser.get_element_by_id('settleGubun2_input').click()
+        self.browser.execute_script('$(\'input#settleGubun2\').trigger(\'click\');')
+        self.browser.execute_script('$(\'input#settleGubun2\').trigger(\'change\');')
         # self.__browser.save_screenshot(realpath('09-payment-method.png'))
 
     def __set_payment_destination(self, bank_id='06'):
