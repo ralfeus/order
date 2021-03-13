@@ -72,6 +72,10 @@ $(document).ready( function () {
                 label: "Color",
                 name: 'appearance.color',
                 type: 'colorpicker'
+            },
+            {
+                name: 'appearance.color',
+                type: 'colorpicker'
             }
         ]
     });
@@ -82,6 +86,9 @@ $(document).ready( function () {
             editor.field('id').enable();
         }
     });
+    // editor.field('appearance.color').input().on('change', () => {
+    //     editor.field('appearance.color').fieldInfo(editor.field('appearance.color').val());
+    // });
     var table = $('#products').DataTable({
         dom: 'lrBtip', 
         ajax: {
