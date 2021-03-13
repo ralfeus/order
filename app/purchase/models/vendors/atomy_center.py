@@ -11,6 +11,8 @@ from app.purchase.models import PurchaseOrder
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
+WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입니다'
+
 class AtomyCenter(PurchaseOrderVendorBase):
     __is_browser_created_locally = False
 
@@ -100,6 +102,12 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 self.__logger.debug("\t...done")
                 self.__logger.debug("Entering product code %s...", op.product_id)
                 product_code_input.send_keys(op.product_id, Keys.TAB)
+                sleep(.4)
+                alert = self.__browser.get_alert()
+                if WARNING_SEPARATE_SHIPPING in alert:
+                    self.__logger.info(alert)
+                else:
+                    self.__logger.warning(alert)
                 self.__logger.debug("\t...done")
                 self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
                 self.__logger.debug("Getting input field sale_qty%s...", field_num)
@@ -143,9 +151,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             self.__logger.info("Setting combined shipment")
             combined_shipment_input = self.__browser.get_element_by_id('cPackingMemo2')
             self.__browser.execute_script("arguments[0].click();", combined_shipment_input)
-            alert = self.__browser.switch_to_alert()
-            if alert:
-                alert.dismiss()
+            self.__browser.dismiss_alert()
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
