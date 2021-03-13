@@ -104,10 +104,11 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 product_code_input.send_keys(op.product_id, Keys.TAB)
                 sleep(.4)
                 alert = self.__browser.get_alert()
-                if WARNING_SEPARATE_SHIPPING in alert:
-                    self.__logger.info(alert)
-                else:
-                    self.__logger.warning(alert)
+                if alert:
+                    if WARNING_SEPARATE_SHIPPING in alert:
+                        self.__logger.info(alert)
+                    else:
+                        self.__logger.warning(alert)
                 self.__logger.debug("\t...done")
                 self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
                 self.__logger.debug("Getting input field sale_qty%s...", field_num)
