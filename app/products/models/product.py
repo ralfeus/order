@@ -25,7 +25,7 @@ class Product(db.Model, BaseModel):
     synchronize = Column(Boolean, default=True)
     purchase = Column(Boolean, default=True)
     # Appearance
-    color = Column(Integer)
+    color = Column(String(7))
 
     def __repr__(self):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
@@ -50,9 +50,7 @@ class Product(db.Model, BaseModel):
             'available': self.available,
             'synchronize': self.synchronize,
             'purchase': self.purchase,
-            'appearance': {
-                'color': self.color
-            }
+            'color': self.color
         }
 
     @staticmethod

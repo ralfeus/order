@@ -163,10 +163,13 @@ async function update_product(product_row, product) {
         $('.item-code', product_row).addClass('is-invalid');
         $('.item-code', product_row).removeClass('is-valid');
     }
+    var color = product.color ? product.color : '#000000';
     $('.item-name', product_row).html(
-        product.name_english == null
+        "<font color=\"" + color + "\">" +
+        (product.name_english == null
             ? product.name
-            : product.name_english + " | " + product.name_russian);
+            : product.name_english + " | " + product.name_russian) +
+        "</font>");
     $('.item-price', product_row).html(product.price);
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
@@ -217,7 +220,8 @@ function get_products() {
                     points: product.points,
                     separate_shipping: product.separate_shipping,
                     available: product.available,
-                    weight: product.weight
+                    weight: product.weight,
+                    color: product.color
                 }));
             }
             promise.resolve();

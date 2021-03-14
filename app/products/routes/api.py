@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import db
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
+from app.tools import modify_object
 
 @bp_api_user.route('', defaults={'product_id': None})
 @bp_api_user.route('/<product_id>')
@@ -81,11 +82,8 @@ def save_product(product_id):
 
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
-                           'synchronize', 'purchase']
-    for attr in editable_attributes:
-        if payload.get(attr) is not None:
-            setattr(product, attr, payload[attr])
-            product.when_changed = datetime.now()
+                           'synchronize', 'purchase', 'color']
+    modify_object(product, payload, editable_attributes)
 
     db.session.commit()
 

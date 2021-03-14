@@ -30,6 +30,7 @@ $(document).ready( function () {
             });
         },
         table: '#products',
+        template: '#product-form',
         idSrc: 'id',
         fields: [
             {label: 'Product ID', name: 'id'},
@@ -70,11 +71,7 @@ $(document).ready( function () {
             },
             {
                 label: "Color",
-                name: 'appearance.color',
-                type: 'colorpicker'
-            },
-            {
-                name: 'appearance.color',
+                name: 'color',
                 type: 'colorpicker'
             }
         ]
@@ -87,7 +84,12 @@ $(document).ready( function () {
         }
     });
     // editor.field('appearance.color').input().on('change', () => {
-    //     editor.field('appearance.color').fieldInfo(editor.field('appearance.color').val());
+    //     editor.field('appearance.color.text').val(
+    //         editor.field('appearance.color').val());
+    // });
+    // editor.field('appearance.color.text').input().on('change', () => {
+    //     editor.field('appearance.color').val(
+    //         editor.field('appearance.color.text').val());
     // });
     var table = $('#products').DataTable({
         dom: 'lrBtip', 

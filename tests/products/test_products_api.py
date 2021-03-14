@@ -44,7 +44,8 @@ class TestProductsApi(BaseTestCase):
                 'price': 10,
                 'weight': 10,
                 'separate_shipping': False,
-                'purchase': True
+                'purchase': True,
+                'color': None
             }
         ])
         res = self.client.get('/api/v1/product')
@@ -76,7 +77,8 @@ class TestProductsApi(BaseTestCase):
                 'separate_shipping': False,
                 'available': True,
                 'synchronize': True,
-                'purchase': True
+                'purchase': True,
+                'color': None
             }
         ])
 
