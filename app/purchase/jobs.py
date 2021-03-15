@@ -51,8 +51,9 @@ def post_purchase_orders(po_id=None):
                 logger.info("Posting a purchase order %s", po.id)
                 try:
                     vendor.post_purchase_order(po)
-                    posted_ops_count = po.order_products.filter_by(status='Purchased').count()
-                    if posted_ops_count == po.order_products.count():
+                    posted_ops_count = len([op for op in po.order_products
+                                               if op.status == OrderProductStatus.purchased])
+                    if posted_ops_count == len(po.order_products):
                         po.status = PurchaseOrderStatus.posted
                         po.when_changed = datetime.now()
                     elif posted_ops_count > 0:

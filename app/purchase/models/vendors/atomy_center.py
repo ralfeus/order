@@ -87,6 +87,22 @@ class AtomyCenter(PurchaseOrderVendorBase):
         except Exception as ex:
             raise AtomyLoginError(ex)
 
+    # def __set_product_quantity(self):
+    #     while product_qty_input.get_attribute('value') != str(op.quantity):
+    #         attempts_left -= 1
+    #         self.__logger.debug("Qty field value is %s whilst must be %s",
+    #             product_qty_input.get_attribute('value'), op.quantity)
+    #         self.__logger.debug("%s attemts left", attempts_left)
+    #         if not attempts_left:
+    #             raise Exception("Couldn't set product quantity")
+    #         self.__logger.debug("Clicking sale_qty%s field...", field_num)
+    #         self.__browser.doubleclick(product_qty_input)
+    #         self.__logger.debug("Typing %s to sale_qty%s...", op.quantity, field_num)
+    #         product_qty_input.send_keys(op.quantity, Keys.TAB)
+    #         sleep(0.3)
+    #         self.__logger.debug("Now sale_qty%s is %s",
+    #             field_num, product_qty_input.get_attribute('value'))
+
     def __add_products(self, order_products):
         self.__logger.info("Adding products")
         self.__browser.execute_script("$('img[src$=\"btn_D_add.gif\"]').click()")
