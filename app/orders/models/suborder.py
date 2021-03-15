@@ -78,10 +78,9 @@ class Suborder(db.Model, BaseModel):
             op.delete()
         super().delete()
 
-    def get_order_products(self):
-        return list(filter(
-            lambda op: op.status != OrderProductStatus.unavailable,
-            self.order_products))
+    def get_order_products(self) -> list:
+        return [op for op in self.order_products
+                   if op.status != OrderProductStatus.unavailable]
 
     def get_subtotal(self, currency=None):
         rate = 1 if currency is None else currency.rate
