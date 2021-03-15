@@ -82,15 +82,14 @@ $(document).ready( function () {
         } else {
             editor.field('id').enable();
         }
+        $('#color-text').on('change', () => {
+            editor.field('color').val($('#color-text').val());
+        })
+        .val(editor.field('color').val());
     });
-    // editor.field('appearance.color').input().on('change', () => {
-    //     editor.field('appearance.color.text').val(
-    //         editor.field('appearance.color').val());
-    // });
-    // editor.field('appearance.color.text').input().on('change', () => {
-    //     editor.field('appearance.color').val(
-    //         editor.field('appearance.color.text').val());
-    // });
+    editor.field('color').input().on('change', () => {
+        $('#color-text').val(editor.field('color').val());
+    });
     var table = $('#products').DataTable({
         dom: 'lrBtip', 
         ajax: {
@@ -240,7 +239,7 @@ function delete_product(rows) {
             url: '/api/v1/admin/product/' + row.data().id,
             method: 'delete',
             success: function() {
-                row.remove().draw()
+                row.remove().draw();
             },
             error: function(xhr, _status, _error) {
                 alert(xhr.responseJSON.message);

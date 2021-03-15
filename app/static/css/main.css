@@ -30,25 +30,30 @@
     margin-top: -1px;
 }
 
-.edit-form {
+div.edit-form {
     display: flex;
     flex-flow: row wrap;
 }
 
-.edit-form fieldset {
+div.edit-form fieldset {
     flex: 1;
     border: 1px solid #aaa;
     margin: 0.5em;
 }
 
-#edit-form fieldset legend {
+div.edit-form fieldset legend {
     padding: 5px 20px;
     border: 1px solid #aaa;
     font-weight: bold;
 }
 
-#edit-form div.DTE_Field {
+div.DTE_Body div.DTE_Body_Content div.edit-form div.DTE_Field {
     padding: 5px;
+}
+
+div.DTE_Body div.DTE_Body_Content div.edit-form div.DTE_Field * {
+    padding: 0px;
+    font-size: 0.9em;
 }
 
 .flash {
