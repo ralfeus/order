@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from logging import Logger, getLogger
+import logging
 import re
 from time import sleep
 
@@ -18,11 +18,14 @@ WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입�
 class AtomyCenter(PurchaseOrderVendorBase):
     __is_browser_created_locally = False
 
-    def __init__(self, browser=None, logger: Logger=None, config=None):
+    def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__original_logger = self.__logger = logger.getChild('AtomyCenter') if logger \
-            else getLogger('AtomyCenter')
+        if logger:
+            logging.basicConfig(level=logger.level)
+        else:
+            logging.basicConfig(level=logging.INFO)
+        self.__original_logger = logging.getLogger('AtomyCenter')
         self.__config = config
         self.__username = 'atomy1026'
         self.__password = '5714'
