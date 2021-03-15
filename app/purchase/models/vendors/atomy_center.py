@@ -25,7 +25,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             logging.basicConfig(level=logger.level)
         else:
             logging.basicConfig(level=logging.INFO)
-        self.__original_logger = logging.getLogger('AtomyCenter')
+        self.__original_logger = self.__logger = logging.getLogger('AtomyCenter')
         self.__config = config
         self.__username = 'atomy1026'
         self.__password = '5714'
@@ -72,6 +72,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
+        self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
         proxy = AtomyQuick(self.__browser, self.__logger, self.__config)
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
