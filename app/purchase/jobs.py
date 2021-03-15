@@ -11,7 +11,7 @@ from sqlalchemy import not_
 
 from app import celery, db
 from app.exceptions import AtomyLoginError
-from app.orders.models.order_product import OrderProduct
+from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
 
@@ -58,8 +58,8 @@ def post_purchase_orders(po_id=None):
                     elif posted_ops_count > 0:
                         po.status = PurchaseOrderStatus.partially_posted
                         po.when_changed = datetime.now()
-                        failed_order_products = po.order_products.filter(
-                            OrderProduct.status != 'Purchased')
+                        failed_order_products = [po for po in po.order_products
+                                                    if po.status != OrderProductStatus.purchased]
                         po.status_details = "Not posted products:\n" + \
                             '\n'.join(map(
                                 lambda fop: f"{fop.product_id}: {fop.product.name}",

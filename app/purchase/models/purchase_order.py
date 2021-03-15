@@ -61,7 +61,7 @@ class PurchaseOrder(db.Model, BaseModel):
         # Here properties are set (attributes start with '__')
 
     @property
-    def order_products(self):
+    def order_products(self) -> list:
         return self.suborder.get_order_products()
 
     @property

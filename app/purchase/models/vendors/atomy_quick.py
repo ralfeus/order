@@ -8,11 +8,11 @@ from time import sleep
 from selenium.common.exceptions import NoAlertPresentException, StaleElementReferenceException, UnexpectedAlertPresentException
 
 from app.exceptions import AtomyLoginError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
+from app.orders.models.order_product import OrderProductStatus
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
-ATTEMPTS_TOTAL = 3
 ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
 ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
 
@@ -78,7 +78,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
-            self._set_order_products_status(ordered_products, 'Purchased')
+            self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
             return purchase_order
         except AtomyLoginError as ex:
             self.__logger.warning("Couldn't log on as a customer. %s", str(ex.args))
@@ -150,7 +150,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__browser.dismiss_alert()
                 self.__logger.debug('Typing product code %s', op.product_id)
                 product_code_input.send_keys(op.product_id)
-                self.__try_action(
+                self._try_action(
                     lambda: self.__set_product_code(product_code_input, op.product_id))
 
                 self.__logger.debug("The product code %s is entered. Entering quantity %s...",
@@ -159,7 +159,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
                     './/input[@class="numberic"]')
-                self.__try_action(
+                self._try_action(
                     lambda: self.__set_product_quantity(quantity_input, op.quantity))
                 
                 ordered_products.append(op)
@@ -175,22 +175,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # self.__browser.save_screenshot(realpath('02-products.png'))
         return ordered_products
 
-    def __try_action(self, action):
-        last_exception = None
-        for _attempt in range(ATTEMPTS_TOTAL):
-            try:
-                action()
-                return
-            except PurchaseOrderError as ex:
-                if not last_exception:
-                    last_exception = ex
-                if ex.final:
-                    break
-                else:
-                    sleep(1)
-        if last_exception:
-            raise last_exception
-
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
         today = datetime.now().astimezone(tz)
@@ -199,7 +183,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return purchase_date is None or \
             (purchase_date >= min_date and purchase_date <= max_date)
                 
-
     def __set_purchase_date(self, purchase_date):
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             date_str = purchase_date.strftime('%Y-%m-%d')

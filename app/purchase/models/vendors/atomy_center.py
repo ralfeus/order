@@ -7,10 +7,12 @@ from pytz import timezone
 
 from app.exceptions import AtomyLoginError
 from app.orders.models import Subcustomer
+from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
+ERROR_OUT_OF_STOCK = '품절상품입니다'
 WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입니다'
 
 class AtomyCenter(PurchaseOrderVendorBase):
@@ -61,7 +63,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         po_params = self.__submit_order()
         purchase_order.vendor_po_id = po_params[0]
         purchase_order.payment_account = po_params[1]
-        self._set_order_products_status(ordered_products, 'Purchased')
+        self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order
 
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
@@ -107,6 +109,10 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 if alert:
                     if WARNING_SEPARATE_SHIPPING in alert:
                         self.__logger.info(alert)
+                    elif ERROR_OUT_OF_STOCK in alert:
+                        self.__logger.info( "Product %s is out of stock", op.product_id)
+                        product_code_input.clear()
+                        continue
                     else:
                         self.__logger.warning(alert)
                 self.__logger.debug("\t...done")
