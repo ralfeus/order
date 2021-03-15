@@ -62,7 +62,7 @@ class PurchaseOrder(db.Model, BaseModel):
 
     @property
     def order_products(self):
-        return self.suborder.order_products
+        return self.suborder.get_order_products()
 
     @property
     def purchase_date(self) -> date:
