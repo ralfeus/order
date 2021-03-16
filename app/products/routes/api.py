@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from app import db
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
-from app.tools import modify_object
+from app.tools import modify_object, prepare_datatables_query
 
 @bp_api_user.route('', defaults={'product_id': None})
 @bp_api_user.route('/<product_id>')
@@ -53,20 +53,32 @@ def admin_get_product(product_id):
     '''
     Returns list of products in JSON
     '''
-    product_query = None
+    products = None
     if product_id:
-        product_query = Product.query.filter_by(id=product_id)
+        products = Product.query.filter_by(id=product_id)
     else:
-        product_query = Product.query.all()
-    return jsonify(Product.get_products(product_query))
+        products = Product.query
+    if request.values.get('draw') is not None: # Args were provided by DataTables
+        return _filter_products(products, request.values)
+
+    return jsonify(Product.get_products(products))
+
+def _filter_products(products, filter_params):
+    products, records_total, records_filtered = prepare_datatables_query(
+        products, filter_params, None
+    )
+    return jsonify({
+        'draw': int(filter_params['draw']),
+        'recordsTotal': records_total,
+        'recordsFiltered': records_filtered,
+        'data': [entry.to_dict() for entry in products]
+    })
 
 @bp_api_admin.route('', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<product_id>', methods=['POST'])
 @roles_required('admin')
 def save_product(product_id):
-    '''
-    Saves updates in product or creates new product
-    '''
+    '''Saves updates in product or creates new product'''
     payload = request.get_json()
     if product_id is None:
         if not payload.get('id'):

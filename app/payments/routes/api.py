@@ -40,7 +40,7 @@ def admin_get_payments(payment_id):
         payments = payments.filter(
             Payment.orders.has(Order.id == request.values['order_id']))
 
-    return jsonify(list(map(lambda entry: entry.to_dict(), payments)))
+    return jsonify([entry.to_dict() for entry in payments])
 
 @bp_api_admin.route('/<int:payment_id>', methods=['POST'])
 @roles_required('admin')
@@ -94,7 +94,7 @@ def user_get_payments(payment_id):
         payments = payments.filter(
             Payment.orders.any(Order.id == request.values['order_id']))
 
-    return jsonify(list(map(lambda tran: tran.to_dict(), payments)))
+    return jsonify([tran.to_dict() for tran in payments])
 
 @bp_api_user.route('', methods=['POST'])
 @login_required

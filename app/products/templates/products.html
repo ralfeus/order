@@ -10,15 +10,28 @@
 <div class="container-fluid">
     <table id="products" class="table">
         <thead>
-            <th></th>
-            <th scope="col" style="width: 1em;">Product ID</th>
-            <th scope="col" style="width: 100%;">Name</th>
-            <th scope="col" style="width: 100%;">Name english</th>
-            <th scope="col" style="width: 1em;">Weight</th>
-            <th scope="col" style="width: 1em;">Price</th>
-            <th scope="col" style="width: 1em;">Points</th>
-            <th scope="col" style="width: 1em;">Available</th>
-            <th scope="col" style="width: 1em;">Purchase</th>
+            <tr>
+                <td></td>
+                <td><input type="text" placeholder="Search Product ID" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Name" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Name English" style="width: 100%;"/></td>
+                <td><input type="text" placeholder="Search Weight" style="width: 100%;"/></td>
+                <td></td>
+                <td></td>
+                <td><select></select></td>
+                <td><select></select></td>
+            </tr>
+            <tr>            
+                <th></th>
+                <th scope="col" style="width: 1em;">Product ID</th>
+                <th scope="col" style="width: 100%;">Name</th>
+                <th scope="col" style="width: 100%;">Name english</th>
+                <th scope="col" style="width: 1em;">Weight</th>
+                <th scope="col" style="width: 1em;">Price</th>
+                <th scope="col" style="width: 1em;">Points</th>
+                <th scope="col" style="width: 1em;">Available</th>
+                <th scope="col" style="width: 1em;">Purchase</th>
+            </tr>
         </thead>
         <tbody />
     </table>
@@ -36,6 +49,10 @@
         <editor-field name="available" ></editor-field>
         <editor-field name="synchronize" ></editor-field>
         <editor-field name="purchase" ></editor-field>
+    </fieldset>
+    <fieldset class="shipping">
+        <legend>Available shipping</legend>
+        <editor-field name="available_shipping"></editor-field>
     </fieldset>
     <fieldset class="apearance">
         <legend>Appearance</legend>

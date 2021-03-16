@@ -76,8 +76,8 @@ def admin_get_orders(order_id):
     # if orders.count() == 0:
     #     abort(Response("No orders were found", status=404))
     else:
-        return jsonify(list(map(
-            lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
+        return jsonify(
+            [entry.to_dict(details=request.values.get('details')) for entry in orders])
 
 @bp_api_user.route('', defaults={'order_id': None})
 @bp_api_user.route('/<order_id>')
