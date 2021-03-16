@@ -5,7 +5,8 @@ from logging import Logger
 from pytz import timezone
 import re
 from time import sleep
-from selenium.common.exceptions import NoAlertPresentException, StaleElementReferenceException, UnexpectedAlertPresentException
+from selenium.common.exceptions import StaleElementReferenceException, \
+    JavascriptException
 
 from app.exceptions import AtomyLoginError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
@@ -371,7 +372,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_purchase_orders(self):
         # self.__logger.info("Getting orders")
         self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
-        self.__browser.execute_script('SetDateSearch("d", -7)')
+        try:
+            self.__browser.execute_script('SetDateSearch("d", -7)')
+        except JavascriptException:
+            pass # If we can't set week range let's work with what we have
         order_lines = []
         while not len(order_lines):
             # self.__logger.info('Getting order lines')
