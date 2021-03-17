@@ -37,11 +37,17 @@ class Shipping(db.Model, BaseModel):
 
     def _are_all_products_shippable(self, products):
         from app.products.models.product import Product
+        product_ids = []
+        for product_id in products:
+            product_ids += [product_id, '0' * (6 - len(product_id)) + product_id]
+
         if products:
-            for product_id in products:
-                product = Product.get_product_by_id(product_id)
-                if self not in product.get_available_shipping():
-                    return False
+            shippable_products = Product.query.filter(
+                Product.id.in_(product_ids),
+                or_(
+                    Product.available_shipping.any(Shipping.id == self.id),
+                    Product.available_shipping == None))
+            return shippable_products.count() == len(products)
         return True
 
     def can_ship(self, country: Country, weight: int, products: list=None) -> bool:

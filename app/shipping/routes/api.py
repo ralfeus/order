@@ -31,10 +31,11 @@ def get_shipping_methods(country_id, weight):
 
     shipping_methods = Shipping.query.filter_by(enabled=True)
     result = []
+    product_ids = []
+    product_ids = request.values.get('products').split(',') \
+        if request.values.get('products') else []
     for shipping in shipping_methods:
-        if shipping.can_ship(country=country, weight=weight,
-                             products=request.values.get('products').split(',')
-                                if request.values.get('products') else []):
+        if shipping.can_ship(country=country, weight=weight, products=product_ids):
             result.append(shipping.to_dict())
 
     if len(result) > 0:
