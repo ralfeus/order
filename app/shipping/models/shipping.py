@@ -3,7 +3,7 @@ Shipping method model
 '''
 from functools import reduce
 
-from sqlalchemy import Boolean, Column, String
+from sqlalchemy import Boolean, Column, String, or_
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -35,13 +35,26 @@ class Shipping(db.Model, BaseModel):
 
     __mapper_args__ = {'polymorphic_on': discriminator}
 
-    def can_ship(self, country: Country, weight: int) -> bool:
+    def _are_all_products_shippable(self, products):
+        from app.products.models.product import Product
+        if products:
+            shippable_products = Product.query.filter(
+                Product.id.in_(products),
+                or_(
+                    Product.available_shipping.any(Shipping.id == self.id),
+                    Product.available_shipping == None))
+            return shippable_products.count() == len(products)
+        return True
+
+    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+        if not self._are_all_products_shippable(products):
+            return False
         if not country:
             return True
         rates = self.rates.filter_by(destination=country.id)
         if weight:
             rates = rates.filter(ShippingRate.weight >= weight)
-        return rates.count()
+        return rates.count() > 0
 
 
     def get_shipping_cost(self, destination, weight):
@@ -81,7 +94,9 @@ class NoShipping(Shipping):
     def name(self):
         return 'No shipping'
     
-    def can_ship(self, country: Country, weight: int) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+        if not self._are_all_products_shippable(products):
+            return False
         return True
 
     def get_shipping_cost(self, destination, weight):

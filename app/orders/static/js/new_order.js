@@ -246,14 +246,25 @@ function update_shipping_methods(country, weight) {
     var promise = $.Deferred();
     if ($('#shipping').val()) {
         g_selected_shipping_method = $('#shipping').val();
+        var shipping_options = $('#shipping')[0].options;
+        var selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
     }
     $('#shipping').html('');
     $.ajax({
         url: '/api/v1/shipping/' + country + '/' + weight,
+        data: 'products=' +
+            Object.entries(g_cart)
+                .map(e => e[1].id)
+                .filter((value, index, self) => self.indexOf(value) === index),
         success: (data, _status, xhr) => {
             $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
-            if ($('#shipping option').toArray().map(i => i.value).includes(g_selected_shipping_method)) {
+            if (data.map(i => i.id).includes(parseInt(g_selected_shipping_method))) {
                 $('#shipping').val(g_selected_shipping_method);
+            } else if (g_selected_shipping_method) {
+                modal("Shipping method is not available",
+                    "The shipping method '" + selected_shipping_method_name + "'\n" +
+                    "is not available for your combination of country, weight and products"
+                );
             }
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
