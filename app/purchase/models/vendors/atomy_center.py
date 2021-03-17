@@ -24,8 +24,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
         if logger:
             logging.basicConfig(level=logger.level)
         else:
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(level=config['LOG_LEVEL'] if config else logging.INFO)
         self.__original_logger = self.__logger = logging.getLogger('AtomyCenter')
+        self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
         self.__username = 'atomy1026'
         self.__password = '5714'

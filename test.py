@@ -20,14 +20,15 @@ with create_app().app_context():
         po.company_id = 3
         # po.customer.username = '20589846'
         # po.customer.password = 'atom777'
-        po.suborder.order_products[0].product = Product.query.get('1412')
-        po.suborder.order_products[0].product_id = '1412'
+        po.suborder.order_products[0].product = Product.query.get('172')
+        po.suborder.order_products[0].product_id = '172'
+        po.suborder.order_products[0].quantity = 2
         current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']
         browser = Browser(config=current_app.config)
         vendor = PurchaseOrderVendorManager.get_vendor(
-            po.vendor, logger=logging.getLogger(),
-            browser=browser)
+            po.vendor, 
+            browser=browser, config=current_app.config)
         vendor.post_purchase_order(po)
         # post_purchase_orders(po_id='PO-2021-01-0015-001')
         # print(po.to_dict())
