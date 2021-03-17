@@ -93,9 +93,10 @@ def save_product(product_id):
         product.id = product_id
         db.session.add(product)
     if 'shipping' in payload.keys():
-        product.shipping.delete()
-        if payload['shipping_many_count'] < Shipping.query.count():
-            product.shipping.add()
+        product.available_shipping = []
+        if len(payload['shipping']) < Shipping.query.count():
+            product.available_shipping = \
+                Shipping.query.filter(Shipping.id.in_(payload['shipping']))
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
                            'synchronize', 'purchase', 'color']
