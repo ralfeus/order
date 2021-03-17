@@ -30,7 +30,7 @@ def get_product(product_id):
         error_message = "There are no products in store now"
         product_query = Product.query.all()
     if len(product_query) != 0:
-        return jsonify(Product.get_products(product_query))
+        return jsonify([product.to_dict(details=False) for product in product_query])
     abort(Response(error_message, status=404))
 
 @bp_api_user.route('/search/<term>')
@@ -44,7 +44,7 @@ def get_product_by_term(term):
         Product.name.like(term + '%'),
         Product.name_english.like(term + '%'),
         Product.name_russian.like(term + '%')))
-    return jsonify(Product.get_products(product_query))
+    return jsonify([product.to_dict(details=False) for product in product_query])
 
 
 @bp_api_admin.route('', defaults={'product_id': None})
@@ -62,7 +62,7 @@ def admin_get_product(product_id):
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return _filter_products(products, request.values)
 
-    return jsonify(Product.get_products(products))
+    return jsonify([product.to_dict(details=True) for product in products])
 
 def _filter_products(products, filter_params):
     products, records_total, records_filtered = prepare_datatables_query(
@@ -72,7 +72,7 @@ def _filter_products(products, filter_params):
         'draw': int(filter_params['draw']),
         'recordsTotal': records_total,
         'recordsFiltered': records_filtered,
-        'data': [entry.to_dict() for entry in products]
+        'data': [entry.to_dict(details=True) for entry in products]
     })
 
 @bp_api_admin.route('', defaults={'product_id': None}, methods=['POST'])
@@ -104,7 +104,7 @@ def save_product(product_id):
 
     db.session.commit()
 
-    return jsonify(product.to_dict())
+    return jsonify(product.to_dict(details=True))
 
 @bp_api_admin.route('/<product_id>', methods=['DELETE'])
 @roles_required('admin')

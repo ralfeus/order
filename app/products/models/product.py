@@ -68,15 +68,8 @@ class Product(db.Model, BaseModel):
         else:
             raise Exception(f"More than one product was found by ID <{product_id}>")
 
-    @staticmethod
-    def get_products(product_query):
-        '''
-        Returns list of products based on a query
-        '''
-        return list(map(lambda product: product.to_dict(), product_query))
-
-    def to_dict(self):
-        return {
+    def to_dict(self, details=False):
+        result = {
             'id': self.id,
             'name': self.name,
             'name_english': self.name_english,
@@ -89,5 +82,9 @@ class Product(db.Model, BaseModel):
             'synchronize': self.synchronize,
             'purchase': self.purchase,
             'color': self.color,
-            'shipping': [shipping.to_dict() for shipping in self.get_available_shipping()]
         }
+        if details:
+            result = {**result,
+                'shipping': [shipping.to_dict() for shipping in self.get_available_shipping()]
+            }
+        return result

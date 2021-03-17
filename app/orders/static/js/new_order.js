@@ -28,6 +28,7 @@ var subcustomerTemplate;
 var itemTemplate;
 
 $(document).ready(function() {
+    $('.wait').show();
     itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
@@ -69,7 +70,10 @@ $(document).ready(function() {
 
     load_dictionaries();
     g_dictionaries_loaded
-        .then(() => product_code_autocomplete($('.item-code')));
+        .then(() => {
+            product_code_autocomplete($('.item-code'));
+            $('.wait').hide();
+        });
     product_quantity_change($('.item-quantity'));
 });
 
