@@ -33,7 +33,6 @@ class AtomyCenter(PurchaseOrderVendorBase):
         logger = logging.getLogger('AtomyCenter')
         logger.setLevel(log_level)
         self.__original_logger = self.__logger = logger
-        self.__logger.info(log_level)
         self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
         self.__username = 'atomy1026'

@@ -27,7 +27,7 @@ with create_app().app_context():
         del current_app.config['SELENIUM_URL']
         browser = Browser(config=current_app.config)
         vendor = PurchaseOrderVendorManager.get_vendor(
-            po.vendor, 
+            po.vendor,
             browser=browser, config=current_app.config)
         vendor.post_purchase_order(po)
         # post_purchase_orders(po_id='PO-2021-01-0015-001')
