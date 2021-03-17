@@ -21,11 +21,19 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
+        log_level = None
         if logger:
+            log_level = f"Got log level from logger provided: {logger.level}"
             logging.basicConfig(level=logger.level)
         else:
-            logging.basicConfig(level=config['LOG_LEVEL'] if config else logging.INFO)
+            if config:
+                log_level = f"Got log level from config: {config['LOG_LEVEL']}"
+                logging.basicConfig(level=config['LOG_LEVEL'])
+            else:
+                log_level = "Got default log level INFO"
+                logging.basicConfig(level=logging.INFO)
         self.__original_logger = self.__logger = logging.getLogger('AtomyCenter')
+        self.__logger.info(log_level)
         self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
         self.__username = 'atomy1026'
