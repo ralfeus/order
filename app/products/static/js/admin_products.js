@@ -2,8 +2,12 @@ var g_filter_sources = {
     'available': [{id: 1, text: 'true'}, {id: 0, text: 'false'}],
     'purchase': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
 };
+var g_shipping_methods;
 
-$(document).ready(init_table);
+$(document).ready(function() {
+    get_dictionaries()
+    .then(init_table);
+});
 
 function delete_product(rows) {
     rows.every(function() {
@@ -21,16 +25,9 @@ function delete_product(rows) {
     });
 }
 
-// async function get_dictionaries() {
-//     g_currencies = await get_currencies();
-//     g_customers = await get_users();
-//     g_payment_methods = await get_payment_methods();
-//     g_payment_statuses = (await get_list('/api/v1/payment/status'))
-//     g_filter_sources = {
-//         'payment_method': g_payment_methods.map(e => e.name),
-//         'status': g_payment_statuses
-//     };
-// }
+async function get_dictionaries() {
+    g_shipping_methods = await get_list('/api/v1/admin/shipping');
+}
 
 // Formatting function for row details
 function format ( d ) {
@@ -67,10 +64,6 @@ function format ( d ) {
 
 }
 
-function get_dictionaries() {
-
-}
-
 function init_table() {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
@@ -84,9 +77,10 @@ function init_table() {
             } else if (data.action === 'remove') {
                 method = 'delete';
             }
-            target.available = target.available[0]
-            target.synchronize = target.synchronize[0]
-            target.purchase = target.purchase[0]
+            target.available = target.available[0];
+            target.synchronize = target.synchronize[0];
+            target.purchase = target.purchase[0];
+            target.shipping = target.shipping.map(s => s.id);
             $.ajax({
                 url: url,
                 method: method,
@@ -138,14 +132,18 @@ function init_table() {
                 unselectedValue: false
             },
             {
-                label: 'Product appearance',
-                name: 'appearance',
-                type: 'title'
-            },
-            {
                 label: "Color",
                 name: 'color',
                 type: 'colorpicker'
+            },
+            {
+                label: "Shipping",
+                name: "shipping[].id",
+                type: "checkbox",
+                options: g_shipping_methods.map(entry => ({
+                    value: entry.id,
+                    label: entry.name
+                }))
             }
         ]
     });

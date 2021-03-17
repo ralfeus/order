@@ -39,7 +39,7 @@ class Product(db.Model, BaseModel):
         return "<Product {}:'{}'>".format(self.id, self.name_english)
 
     def get_available_shipping(self):
-        if self.available_shipping:
+        if self.available_shipping.count() > 0:
             return self.available_shipping
         else:
             return Shipping.query

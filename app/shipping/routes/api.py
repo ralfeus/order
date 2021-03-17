@@ -1,14 +1,20 @@
+from flask_security.decorators import roles_required
 from more_itertools import map_reduce
 from operator import itemgetter
 
 from flask import Response, abort, jsonify
 from flask_security import login_required
 
-from app.shipping import bp_api_user
+from app.shipping import bp_api_admin, bp_api_user
 from app.exceptions import NoShippingRateError
 
 from app.models import Country
 from app.shipping.models import Shipping, ShippingRate
+
+@bp_api_admin.route('')
+@roles_required('admin')
+def admin_get_shipping_methods():
+    return jsonify([shipping.to_dict() for shipping in Shipping.query])
 
 @bp_api_user.route('', defaults={'country_id': None, 'weight': None})
 @bp_api_user.route('/<country_id>', defaults={'weight': None})
