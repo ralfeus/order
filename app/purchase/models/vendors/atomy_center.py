@@ -32,7 +32,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
             else:
                 log_level = "Got default log level INFO"
                 logging.basicConfig(level=logging.INFO)
-        self.__original_logger = self.__logger = logging.getLogger('AtomyCenter')
+        logger = logging.getLogger('AtomyCenter')
+        logger.setLevel(logging.DEBUG)
+        self.__original_logger = self.__logger = logger
         self.__logger.info(log_level)
         self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
