@@ -1,3 +1,4 @@
+from app.shipping.models.shipping import Shipping
 from datetime import datetime
 from decimal import Decimal
 
@@ -91,7 +92,10 @@ def save_product(product_id):
         product = Product()
         product.id = product_id
         db.session.add(product)
-
+    if 'shipping' in payload.keys():
+        product.shipping.delete()
+        if payload['shipping_many_count'] < Shipping.query.count():
+            product.shipping.add()
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
                            'synchronize', 'purchase', 'color']
