@@ -28,7 +28,6 @@ var subcustomerTemplate;
 var itemTemplate;
 
 $(document).ready(function() {
-    $('.wait').show();
     itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
@@ -72,7 +71,6 @@ $(document).ready(function() {
     g_dictionaries_loaded
         .then(() => {
             product_code_autocomplete($('.item-code'));
-            $('.wait').hide();
         });
     product_quantity_change($('.item-quantity'));
 });
@@ -258,7 +256,7 @@ function update_shipping_methods(country, weight) {
         url: '/api/v1/shipping/' + country + '/' + weight,
         data: 'products=' +
             Object.entries(g_cart)
-                .map(e => e[1].id)
+                .map(e => e[1].product_id ? e[1].product_id : e[1].id)
                 .filter((value, index, self) => self.indexOf(value) === index),
         success: (data, _status, xhr) => {
             $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
