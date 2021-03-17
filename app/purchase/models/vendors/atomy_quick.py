@@ -1,7 +1,7 @@
 ''' Fills and submits purchase order at Atomy
 using quick order'''
 from datetime import datetime, timedelta
-from logging import Logger
+import logging
 from pytz import timezone
 import re
 from time import sleep
@@ -21,14 +21,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __browser: Browser = None
     __is_browser_created_locally = False
-    __logger: Logger = None
+    __logger: logging.Logger = None
     __purchase_order = None
 
-    def __init__(self, browser=None, logger=None, config=None):
+    def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__original_logger = self.__logger = logger.getChild('AtomyQuick') \
-            if logger is not None else None
+        log_level = None
+        if logger:
+            log_level = logger.level
+        else:
+            if config:
+                log_level = config['LOG_LEVEL']
+            else:
+                log_level = logging.INFO
+        logging.basicConfig(level=log_level)
+        logger = logging.getLogger('AtomyQuick')
+        logger.setLevel(log_level)
+        self.__original_logger = self.__logger = logger
+        self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
 
     def __del__(self):
