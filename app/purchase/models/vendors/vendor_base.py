@@ -1,7 +1,12 @@
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from time import sleep
+
+from app.exceptions import PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.purchase.models import PurchaseOrder
+
+ATTEMPTS_TOTAL = 3
 
 class PurchaseOrderVendorBase(metaclass=ABCMeta):
     @classmethod
@@ -27,6 +32,22 @@ class PurchaseOrderVendorBase(metaclass=ABCMeta):
         for op in ordered_products:
             op.status = status
             op.when_changed = datetime.now()
+
+    def _try_action(self, action):
+        last_exception = None
+        for _attempt in range(ATTEMPTS_TOTAL):
+            try:
+                action()
+                return
+            except PurchaseOrderError as ex:
+                if not last_exception:
+                    last_exception = ex
+                if ex.final:
+                    break
+                else:
+                    sleep(1)
+        if last_exception:
+            raise last_exception
 
     def to_dict(self):
         return {self.id: str(self)}

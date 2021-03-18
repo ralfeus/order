@@ -61,8 +61,8 @@ class PurchaseOrder(db.Model, BaseModel):
         # Here properties are set (attributes start with '__')
 
     @property
-    def order_products(self):
-        return self.suborder.order_products
+    def order_products(self) -> list:
+        return self.suborder.get_order_products()
 
     @property
     def purchase_date(self) -> date:
@@ -122,7 +122,14 @@ class PurchaseOrder(db.Model, BaseModel):
         return base_filter
 
     def is_editable(self):
-        return self.status in [PurchaseOrderStatus.pending, PurchaseOrderStatus.failed]
+        return self.status in [PurchaseOrderStatus.pending, PurchaseOrderStatus.failed,
+                               PurchaseOrderStatus.payment_past_due, PurchaseOrderStatus.cancelled]
+                        
+    def reset_status(self):
+        self.status = PurchaseOrderStatus.pending
+        self.status_details = None
+        self.payment_account = None
+        self.vendor_po_id = None
 
     def to_dict(self):
         purchase_date = self.purchase_date

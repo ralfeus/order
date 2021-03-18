@@ -19,7 +19,8 @@ celery = get_celery(__name__,
                     job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
 db = SQLAlchemy()
 migrate = Migrate()
-from app.forms import LoginForm
+# login = LoginManager()
+from app.users.forms import LoginForm
 security = Security()
 
 def create_app(config=None):
@@ -37,8 +38,8 @@ def create_app(config=None):
     migrate.init_app(flask_app, db, compare_type=True)
     init_celery(celery, flask_app)
     
-    from app.models.user import User
-    from app.models.role import Role
+    from app.users.models.user import User
+    from app.users.models.role import Role
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)
@@ -48,12 +49,14 @@ def create_app(config=None):
     return flask_app
 
 def register_components(flask_app):
-    from app.routes.admin import admin
     from app.routes.api import api
     from app.routes.client import client
+<<<<<<< HEAD
     from app.routes.api_admin import admin_api
 
     import app.orders, app.orders.routes
+=======
+>>>>>>> fa2c21c1b8b70238ab036d273b211ee2c99ea72c
     import app.currencies, app.currencies.routes
     import app.addresses, app.addresses.routes
     import app.invoices, app.invoices.routes
@@ -64,10 +67,9 @@ def register_components(flask_app):
     import app.purchase, app.purchase.routes
     import app.settings, app.settings.routes
     import app.shipping, app.shipping.routes
+    import app.users, app.users.routes
 
     flask_app.register_blueprint(api)
-    flask_app.register_blueprint(admin_api)
-    flask_app.register_blueprint(admin)
     flask_app.register_blueprint(client)
     app.currencies.register_blueprints(flask_app)
     app.addresses.register_blueprints(flask_app)
@@ -79,6 +81,7 @@ def register_components(flask_app):
     app.purchase.register_blueprints(flask_app)
     app.settings.register_blueprints(flask_app)
     app.shipping.register_blueprints(flask_app)
+    app.users.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
     load_modules(flask_app)
@@ -117,7 +120,7 @@ def init_logging(flask_app):
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 
 def load_modules(flask_app):
-    from app.modules.crisp import init
+    from app.modules import init
     init(flask_app)
 
 # __frm = inspect.stack()

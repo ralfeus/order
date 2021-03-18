@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from app.models import User, Role
+from app.users.models.role import Role
+from app.users.models.user import User
 from app.orders.models import Order, Suborder
 from app.products.models import Product
 from app.purchase.models import PurchaseOrder

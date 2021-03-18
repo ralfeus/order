@@ -8,7 +8,6 @@ from sqlalchemy.orm import relationship
 from app import db
 from app.exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
-from app.orders.models.order import OrderStatus
 from app.payments.models.transaction import Transaction
 
 payments_orders = db.Table('payments_orders',
@@ -83,6 +82,7 @@ class Payment(db.Model, BaseModel):
         self.update_orders(messages)
 
     def update_orders(self, messages):
+        from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
             lambda acc, o: acc + o.total_krw,
             self.orders.filter_by(status=OrderStatus.pending), 0
@@ -114,8 +114,6 @@ class Payment(db.Model, BaseModel):
             'amount_received_krw': self.amount_received_krw or 0,
             'currency_code': self.currency.code,
             'payment_method': self.payment_method.to_dict() if self.payment_method else None,
-            # 'payee': self.payment_method.payee.to_dict() \
-            #     if self.payment_method and self.payment_method.payee else None,
             'evidences': [{**evidence.to_dict(), **{'url': '/' + evidence.path}} 
                           for evidence in self.evidences],
             'additional_info': self.additional_info,

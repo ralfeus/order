@@ -10,6 +10,13 @@ $.fn.dataTable.ext.buttons.invoice = {
     }
 };
 
+$.fn.dataTable.ext.buttons.status = {
+    extent: 'select',
+    action: function(e, dt, node, config) {
+        set_status(dt.rows({selected: true}), this.text());
+    }
+};
+
 $(document).ready( function () {
     get_dictionaries()
         .then(init_orders_table);
@@ -29,7 +36,8 @@ $(document).ready( function () {
                 $(this).removeClass('shown');
             })
             // Open this row
-            row.child( format(row, row.data()) ).show();
+            // row.child( format(row, row.data()) ).show();
+            format(row, row.data());
             tr.addClass('shown');
 
             $('.btn-save').on('click', event => save_order(event.target, row));
@@ -129,6 +137,7 @@ function format ( row, data ) {
     var order_details = $('.order-details')
         .clone()
         .show();
+    row.child(order_details).show();
     $('#order-products', order_details).DataTable({
         ajax: {
             url: '/api/v1/admin/order/product?order_id=' + data.id,
@@ -143,6 +152,9 @@ function format ( row, data ) {
             {data: 'quantity'},
             {data: 'status'}
         ],
+        rowGroup: {
+            dataSrc: 'subcustomer'
+        },
         createdRow: (row, data) => {
             if (!data.purchase) {
                 $(row).addClass('orange-line');
@@ -205,12 +217,23 @@ function init_orders_table() {
                     window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
                 }
             },
-            {extend: 'invoice', text: 'Create invoice'}
+            {extend: 'invoice', text: 'Create invoice'},
+            { 
+                extend: 'collection', 
+                text: 'Set status',
+                buttons: [ g_order_statuses.map(s => {
+                    return {
+                        extend: 'status',
+                        text: s
+                    }
+                })]
+            }
         ],
         ajax: {
             url: '/api/v1/admin/order',
             dataSrc: 'data'
         },
+        rowId: 'id',
         searchBuilder: {},
         columns: [
             {
@@ -238,6 +261,16 @@ function init_orders_table() {
                             "    style=\"color: orange; font-weight:bolder; font-size:large;\"" +
                             "    title=\"The order has outsiders:\n" + oData.outsiders.join("\n") + "\">O</span>";
                     }
+                    if (oData.payment_pending) {
+                        html +=
+                            "<a href=\"/admin/payments?orders=" + oData.id + "\">" +
+                            "   <span " +
+                            "       data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                            "       style=\"color: green; font-weight:bolder; font-size:large;\"" +
+                            "       title=\"The payment for order is pending\">P</span>" +
+                            "</a>";
+                    }
+
                     $(cell).html(html);
                 }
             },
@@ -253,7 +286,7 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-invoice" \
                         onclick="open_order_invoice(this);">Invoice</button>'
             },            
-            {data: 'id'},
+            {name: 'id', data: 'id'},
             {data: 'user'},
             {data: 'customer_name'},
             {data: 'subtotal_krw'},
@@ -286,7 +319,11 @@ function init_orders_table() {
                 $('.btn-invoice', row).remove();
             }
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources) 
+            .then(() => init_table_filter(table));
+        }
     });
 }
 
@@ -298,4 +335,41 @@ function open_order_invoice(target) {
     window.location = '/api/v1/order/' + 
         g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
+}
+
+function set_status(target, new_status) {
+    if (target.count()) {
+        modal(
+            "Order status change", 
+            "Are you sure you want to change orders status to &lt;" + new_status + "&gt;?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                $('.wait').show();
+                var orders_left = target.count();
+                for (var i = 0; i < target.count(); i++) {
+                    $.post({
+                        url: '/api/v1/admin/order/' + target.data()[i].id,
+                        dataType: 'json',
+                        contentType: 'application/json',
+                        data: JSON.stringify({status: new_status}),
+                        complete: () => {
+                            orders_left--;
+                            if (!orders_left) {
+                                $('.wait').hide();
+                            }
+                        },
+                        success: (data, status, xhr) => {
+                            g_orders_table.row("#" + data.id).data(data).draw();
+                        },
+                        error: (xhr, status, error) => {
+                            modal("Set order status failure", xhr.responseText);
+                        }
+                    });     
+                }
+            }
+        });
+    } else {
+        alert('Nothing selected');
+    }
 }

@@ -85,7 +85,6 @@ class OrderProduct(db.Model, BaseModel):
         for op_status_entry in self.status_history:
             db.session.delete(op_status_entry)
         db.session.delete(self)
-        self.suborder.order.update_total()
 
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
@@ -158,7 +157,6 @@ class OrderProduct(db.Model, BaseModel):
         db.session.add(postponed_order_product)
         postponed_order.update_total()
         self.delete()
-        db.session.commit()
         return postponed_order_product
     
     def set_status(self, status, user=None):
@@ -198,6 +196,7 @@ class OrderProduct(db.Model, BaseModel):
             'weight': self.product.weight,
             'purchase': self.product.purchase,
             'available': self.product.available,
+            'color': self.product.color,
             'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
         }

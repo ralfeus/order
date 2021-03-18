@@ -11,8 +11,8 @@ from app.products.models.product import Product
 from app.shipping.models.shipping import Shipping, ShippingRate
 from app.models.country import Country
 from app.models.address import Address
-from app.models.role import Role
-from app.models.user import User
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestTransactionApi(BaseTestCase):
     def setUp(self):

@@ -110,6 +110,15 @@ class Browser:
                 exception = ex
         if exception:
             raise exception
+    
+    def get_alert(self):
+        try:
+            alert = self.__browser.switch_to_alert()
+            text = alert.text
+            alert.dismiss()
+            return text
+        except NoAlertPresentException:
+            return None
 
     def get_element_by_class(self, class_name):
         return self.__get_by(By.CLASS_NAME, class_name)

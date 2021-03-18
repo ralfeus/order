@@ -15,7 +15,7 @@ def import_products():
     from app.import_products import get_atomy_products
     from app.products.models import Product
     
-    logger = get_task_logger(__name__)
+    logger = get_task_logger('import_products')
     logger.info("Starting products import")
     products = Product.query.all()
     same = new = modified = ignored = 0

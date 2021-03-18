@@ -50,3 +50,18 @@ class OrderValidator(Inputs):
 
     def __exit__(self, *_args):
         del self
+
+def _no_empty_field(_form, field):
+    if field.data == '':
+        raise ValidationError(f'{field.id}: Field is required')
+
+class OrderEditValidator(Inputs):
+    '''Validator for order edit input'''
+    json = {
+    }
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, p1, p2, p3):
+        del self

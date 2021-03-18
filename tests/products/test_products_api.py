@@ -1,11 +1,13 @@
 from datetime import datetime
 
 from tests import BaseTestCase, db
-from app.models import Country, Role, User
+from app.models import Country
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct
 from app.products.models import Product
 from app.shipping.models import Shipping, ShippingRate
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestProductsApi(BaseTestCase):
     def setUp(self):
@@ -42,7 +44,9 @@ class TestProductsApi(BaseTestCase):
                 'price': 10,
                 'weight': 10,
                 'separate_shipping': False,
-                'purchase': True
+                'purchase': True,
+                'color': None,
+                'shipping': []
             }
         ])
         res = self.client.get('/api/v1/product')
@@ -74,7 +78,9 @@ class TestProductsApi(BaseTestCase):
                 'separate_shipping': False,
                 'available': True,
                 'synchronize': True,
-                'purchase': True
+                'purchase': True,
+                'color': None,
+                'shipping': []
             }
         ])
 

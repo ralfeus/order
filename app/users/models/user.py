@@ -7,6 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 
 from app import db
+from app.users.models.role import Role
 
 roles_users = db.Table('roles_users',
         db.Column('user_id', db.Integer(), db.ForeignKey('users.id')),
@@ -24,6 +25,8 @@ class User(db.Model, UserMixin):
     email = Column(String(80))
     password_hash = Column(String(200))
     enabled = Column(Boolean, nullable=False)
+    atomy_id = Column(String(10))
+    phone = Column(String(16))
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
 
@@ -66,7 +69,7 @@ class User(db.Model, UserMixin):
         '''
         Returns list of users based on a query
         '''
-        return list(map(lambda user: user.to_dict(), user_query))
+        return [user.to_dict() for user in user_query]
             
     def to_dict(self):
         '''
@@ -76,8 +79,12 @@ class User(db.Model, UserMixin):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'phone': self.phone,
+            'atomy_id': self.atomy_id,
             'enabled': self.enabled,
             'balance': self.balance,
-            'when_created': self.when_created,
-            'when_changed': self.when_changed
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_changed else None
         }

@@ -80,7 +80,7 @@ async function get_dictionaries() {
     g_payment_methods = await get_payment_methods();
     g_payment_statuses = (await get_list('/api/v1/payment/status'))
     g_filter_sources = {
-        'payment_method.name': g_payment_methods.map(e => e.name),
+        'payment_method': g_payment_methods.map(e => e.name),
         'status': g_payment_statuses
     };
 }
@@ -236,8 +236,15 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'user_name'},
-            {data: 'orders'},
-            {data: 'payment_method.name'},
+            {name: 'orders', data: 'orders'},
+            {
+                name: 'payment_method',
+                data: (row, type, set, meta) => {
+                    return row.payment_method
+                        ? row.payment_method.name
+                        : '';
+                }
+            },
             {data: 'amount_sent_original_string'},
             {name: 'amount_sent_krw', data: 'amount_sent_krw'},
             {data: 'amount_received_krw'},
@@ -288,7 +295,11 @@ function init_payments_table() {
             $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
             $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table)); 
+        }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
