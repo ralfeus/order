@@ -25,17 +25,17 @@ def get_addresses(addresses_id):
 @bp_api_admin.route('/<addresses_id>', methods=['POST'])
 @bp_api_admin.route('/', methods=['POST'], defaults={'addresses_id': None}, strict_slashes=False)
 @roles_required('admin')
-def save_addresses_item(addresses_id):
+def save_address(addresses_id):
     '''
-    Creates or modifies existing currency
+    Creates or modifies existing address
     '''
     payload = request.get_json()
     if not payload:
         abort(Response('No data was provided', status=400))
 
-    if payload.get('rate'):
+    if payload.get('zip'):
         try:
-            float(payload['rate'])
+            float(payload['zip'])
         except: 
             abort(Response('Not number', status=400))
 
@@ -74,3 +74,4 @@ def delete_addresses(addresses_id):
     return jsonify({
         'status': 'success'
     })
+    
