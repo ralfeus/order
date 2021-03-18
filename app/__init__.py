@@ -51,12 +51,6 @@ def create_app(config=None):
 def register_components(flask_app):
     from app.routes.api import api
     from app.routes.client import client
-<<<<<<< HEAD
-    from app.routes.api_admin import admin_api
-
-    import app.orders, app.orders.routes
-=======
->>>>>>> fa2c21c1b8b70238ab036d273b211ee2c99ea72c
     import app.currencies, app.currencies.routes
     import app.addresses, app.addresses.routes
     import app.invoices, app.invoices.routes
