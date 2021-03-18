@@ -1,31 +1,45 @@
 ''' Fills and submits purchase order at Atomy
 using quick order'''
 from datetime import datetime, timedelta
-from logging import Logger
+import logging
 from pytz import timezone
 import re
 from time import sleep
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, \
+    JavascriptException
 
-from app.exceptions import AtomyLoginError, NoPurchaseOrderError, PurchaseOrderError
+from app.exceptions import AtomyLoginError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
+from app.orders.models.order_product import OrderProductStatus
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
-ATTEMPTS_TOTAL = 3
 ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
+ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __browser: Browser = None
     __is_browser_created_locally = False
-    __logger: Logger = None
+    __logger: logging.Logger = None
     __purchase_order = None
 
-    def __init__(self, browser=None, logger=None, config=None):
+    def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__logger = logger.getChild('AtomyQuick') if logger is not None else None
+        log_level = None
+        if logger:
+            log_level = logger.level
+        else:
+            if config:
+                log_level = config['LOG_LEVEL']
+            else:
+                log_level = logging.INFO
+        logging.basicConfig(level=log_level)
+        logger = logging.getLogger('AtomyQuick')
+        logger.setLevel(log_level)
+        self.__original_logger = self.__logger = logger
+        self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
 
     def __del__(self):
@@ -47,6 +61,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
+        self.__logger = self.__original_logger.getChild(purchase_order.id)
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             self.__logger.info("Skip <%s>: purchase date is %s",
@@ -75,13 +90,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
-            self._set_order_products_status(ordered_products, 'Purchased')
+            self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
             return purchase_order
         except AtomyLoginError as ex:
             self.__logger.warning("Couldn't log on as a customer. %s", str(ex.args))
             raise ex
         except PurchaseOrderError as ex:
             self.__logger.warning(ex)
+            if ex.retry:
+                self.__logger.warning("Retrying %s", purchase_order.id)
+                return self.post_purchase_order(purchase_order)
         except Exception as ex:
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
@@ -105,6 +123,27 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise PurchaseOrderError(self.__purchase_order, self, "Couldn't open quick order")
         # self.__browser.save_screenshot(realpath('01-quick-order.png'))
 
+    def __set_product_code(self, input, value):
+        input.send_keys(Keys.RETURN)
+        sleep(.5)
+        message = self.__browser.get_alert()
+        if input.get_attribute('value') == value:
+            self.__logger.debug('The value is not entered so far')
+            if ERROR_OUT_OF_STOCK in message:
+                raise ProductNotAvailableError(value, final=True)
+            raise PurchaseOrderError(
+                self.__purchase_order, self,
+                "Couldn't enter %s product code: %s" % (value, message), retry=True)
+
+    def __set_product_quantity(self, input, value):
+        input.clear()
+        input.send_keys(value)
+        if int(input.get_attribute('value')) != value:
+            self.__logger.debug('The quantity value is not entered so far')
+            raise PurchaseOrderError(
+                self.__purchase_order, self,
+                "Couldn't enter %s product quantity" % value, retry=True)
+
     def __add_products(self, order_products):
         self.__logger.debug("Adding products")
         # add_button = self.__browser.get_element_by_id('btnProductListSearch')
@@ -123,22 +162,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__browser.dismiss_alert()
                 self.__logger.debug('Typing product code %s', op.product_id)
                 product_code_input.send_keys(op.product_id)
-                while product_code_input.get_attribute('value') == op.product_id:
-                    self.__logger.debug('The value is not entered so far')
-                    sleep(0.5)
-                    product_code_input.send_keys(Keys.RETURN)
-                    sleep(1)
-                self.__logger.debug("The product code %s is entered. Entering quantity...",
-                    op.product_id)
+                self._try_action(
+                    lambda: self.__set_product_code(product_code_input, op.product_id))
+
+                self.__logger.debug("The product code %s is entered. Entering quantity %s...",
+                    op.product_id, op.quantity)
                 product_line = self.__browser.find_element_by_xpath(
                     '//tr[td[span[@class="materialCode"]]][last()]')
                 quantity_input = product_line.find_element_by_xpath(
                     './/input[@class="numberic"]')
-                quantity_input.clear()
-                quantity_input.send_keys(op.quantity)
+                self._try_action(
+                    lambda: self.__set_product_quantity(quantity_input, op.quantity))
                 
                 ordered_products.append(op)
                 self.__logger.debug(f"Added product {op.product_id}")
+            except ProductNotAvailableError:
+                product_code_input.clear()
+                self.__logger.warning("Product %s is not available", op.product_id)
+            except PurchaseOrderError as ex:
+                raise ex
             except Exception:
                 product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
@@ -153,7 +195,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return purchase_date is None or \
             (purchase_date >= min_date and purchase_date <= max_date)
                 
-
     def __set_purchase_date(self, purchase_date):
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             date_str = purchase_date.strftime('%Y-%m-%d')
@@ -198,6 +239,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_payment_mobile(self, phone='010-6275-2045'):
         self.__logger.debug("Setting phone number for payment notification")
         phone = phone.split('-')
+        if len(phone) == 0:
+            self.__logger.info("Payment phone isn't set as it isn't provided")
+            return
         self.__browser.execute_script(
             f"document.getElementById('tVirCellPhone1').value = '{phone[0]}'")
         # self.__browser.get_element_by_id('tVirCellPhone1').send_keys(phone[0])
@@ -221,7 +265,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_payment_method(self):
         self.__logger.debug("Setting payment method")
-        self.__browser.get_element_by_id('settleGubun2_input').click()
+        self.browser.execute_script('$(\'input#settleGubun2\').trigger(\'click\');')
+        self.browser.execute_script('$(\'input#settleGubun2\').trigger(\'change\');')
         # self.__browser.save_screenshot(realpath('09-payment-method.png'))
 
     def __set_payment_destination(self, bank_id='06'):
@@ -338,7 +383,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_purchase_orders(self):
         # self.__logger.info("Getting orders")
         self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
-        self.__browser.execute_script('SetDateSearch("m", -12)')
+        try:
+            self.__browser.execute_script('SetDateSearch("d", -7)')
+        except JavascriptException:
+            pass # If we can't set week range let's work with what we have
         order_lines = []
         while not len(order_lines):
             # self.__logger.info('Getting order lines')

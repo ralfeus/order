@@ -1,10 +1,12 @@
 from datetime import datetime
 
-from app.models import Country, Role, User
+from app.models import Country
 from app.currencies.models import Currency
 from app.invoices.models import Invoice, InvoiceItem
 from app.orders.models import Order, OrderProduct, Suborder
 from app.products.models import Product
+from app.users.models.role import Role
+from app.users.models.user import User
 from tests import BaseTestCase, db
 
 class TestInvoiceClient(BaseTestCase):
@@ -22,7 +24,9 @@ class TestInvoiceClient(BaseTestCase):
                 enabled=True),
             admin_role,
             Country(id='c1', name='country1'),
-            Currency(code='USD', rate=0.5)
+            Currency(code='USD', rate=0.5),
+            Product(id='SHIPPING', name='Shipping', weight=0, available=False,
+                synchronize=False, separate_shipping=False, purchase=False)
         ])
 
     def try_admin_operation(self, operation):
@@ -54,7 +58,7 @@ class TestInvoiceClient(BaseTestCase):
         self.assertEqual(res.json['invoice_id'], f'{id_prefix}0001')
         invoice = Invoice.query.get(res.json['invoice_id'])
         self.assertEqual(len(invoice.orders), 1)
-        self.assertEqual(invoice.invoice_items_count, 1)
+        self.assertEqual(invoice.invoice_items_count, 2)
 
     def test_save_invoice(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

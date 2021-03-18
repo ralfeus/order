@@ -28,17 +28,18 @@ class BaseTestCase(TestCase):
 
     def try_admin_operation(self, operation, 
                             user_name=None, user_password='1',
-                            admin_name=None, admin_password='1'):
+                            admin_name=None, admin_password='1', admin_only=False):
         if user_name is None:
             user_name = self.user.username
         if admin_name is None:
             admin_name = self.admin.username
         res = operation()
         self.assertEqual(res.status_code, 302)
-        res = self.login(user_name, user_password)
-        res = operation()
-        self.assertEqual(res.status_code, 302)
-        self.logout()
+        if not admin_only:
+            res = self.login(user_name, user_password)
+            res = operation()
+            self.assertEqual(res.status_code, 302)
+            self.logout()
         self.login(admin_name, admin_password)
         return operation()
 

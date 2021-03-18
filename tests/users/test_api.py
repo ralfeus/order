@@ -1,9 +1,8 @@
-from datetime import datetime
-
 from tests import BaseTestCase, db
 
 from app.orders.models import Order
-from app.models import Role, User
+from app.users.models.role import Role
+from app.users.models.user import User
 
 class TestAdminApi(BaseTestCase):
     def setUp(self):
@@ -37,5 +36,5 @@ class TestAdminApi(BaseTestCase):
 
     def test_save_user(self):
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/user/0'))
-        self.assertEqual(res.status_code, 400)
+            lambda: self.client.post('/api/v1/admin/user/0', json={}))
+        self.assertEqual(res.status_code, 200)

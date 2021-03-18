@@ -12,5 +12,11 @@
     $crisp.push(["set", "user:nickname", ["{{ security.datastore.get_user(session['_user_id']).username if session.get('_user_id') else 'Guest' }}"]]);
   })();
 </script>
-<!-- End of LiveChat code -->
+<!-- End of Crisp code -->
+{% endif %}
+
+{% if jivochat_id %}
+<!-- Start of Jivochat code -->
+<script src="//code.jivosite.com/widget/{{ jivochat_id }}" async></script>
+<!-- End of Jivochat code -->
 {% endif %}

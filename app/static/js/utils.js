@@ -56,6 +56,8 @@ async function get_users() {
 }
 
 function init_search(table, filter_sources) {
+    var promise = $.Deferred();
+    var columns_left = table.api().columns().count();
     table.api().columns().every(function() { 
         column = this;
         $('td:nth-child(' + (this.index() + 1) + ') input', 
@@ -64,10 +66,18 @@ function init_search(table, filter_sources) {
             .val('');
         $('td:nth-child(' + (this.index() + 1) + ') select', 
             $(this.header()).closest('thead'))
-            .each((_idx, item) => init_search_select(
-                item, column, filter_sources[column.dataSrc()]))
+            .each((_idx, item) => {
+                var column_name = column.settings()[0].aoColumns[column.index()].name;
+                init_search_select(
+                    item, column, filter_sources[column_name ? column_name : column.dataSrc()])
+            })
             .val('');
+        columns_left--;
+        if (!columns_left) {
+            promise.resolve();
+        }
     });
+    return promise;
 }
 
 function init_search_input(target, column) {
@@ -76,6 +86,7 @@ function init_search_input(target, column) {
             column
                 .search( this.value )
                 .draw();
+            // console.log(column.dataSrc(), this.value);
         }
     });
 }
@@ -102,6 +113,19 @@ function init_search_select(target, column, list) {
             }
         }
     });    
+}
+
+function init_table_filter(table) {
+    var params = new URLSearchParams(window.location.search);
+    params.forEach((value, key) => {
+        var column = table.api().column(key + ':name');
+        $('td:nth-child(' + (column.index() + 1) + ') input', 
+            $(column.header()).closest('thead'))
+            .val(value).trigger('change');
+        $('td:nth-child(' + (column.index() + 1) + ') select', 
+            $(column.header()).closest('thead'))
+            .val(value).trigger('change');
+    });
 }
 
 $(document).ready(function(){

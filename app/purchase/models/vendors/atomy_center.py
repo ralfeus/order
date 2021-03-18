@@ -1,22 +1,39 @@
 from datetime import datetime, timedelta
+import logging
 import re
 from time import sleep
 
 from pytz import timezone
 
-from app.exceptions import AtomyLoginError
+from app.exceptions import AtomyLoginError, ProductNotFoundError, PurchaseOrderError
 from app.orders.models import Subcustomer
+from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder
-from app.utils.browser import Browser, Keys, UnexpectedAlertPresentException
+from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
+
+ERROR_OUT_OF_STOCK = '품절상품입니다'
+WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입니다'
 
 class AtomyCenter(PurchaseOrderVendorBase):
     __is_browser_created_locally = False
 
-    def __init__(self, browser=None, logger=None, config=None):
+    def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
         self.__browser_attr = browser
-        self.__logger = logger
+        log_level = None
+        if logger:
+            log_level = logger.level
+        else:
+            if config:
+                log_level = config['LOG_LEVEL']
+            else:
+                log_level = logging.INFO
+        logging.basicConfig(level=log_level)
+        logger = logging.getLogger('AtomyCenter')
+        logger.setLevel(log_level)
+        self.__original_logger = self.__logger = logger
+        self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
         self.__username = 'atomy1026'
         self.__password = '5714'
@@ -39,6 +56,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 pass
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
+        '''Posts purchase order on AtomyCenter'''
+        self.__logger = self.__original_logger.getChild(purchase_order.id)
+        self.__purchase_order = purchase_order
         self.login()
         self.__open_order()
         self.__set_customer_id(purchase_order.customer.username)
@@ -55,16 +75,18 @@ class AtomyCenter(PurchaseOrderVendorBase):
         po_params = self.__submit_order()
         purchase_order.vendor_po_id = po_params[0]
         purchase_order.payment_account = po_params[1]
-        self._set_order_products_status(ordered_products, 'Purchased')
+        self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order
 
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
+        self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
         proxy = AtomyQuick(self.__browser, self.__logger, self.__config)
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
     def login(self):
+        self.__logger.debug("Logging in")
         self.__browser.get('https://atomy.kr/center/login.asp')
         self.__browser.get_element_by_css('input[name="admin_id"]').send_keys(self.__username)
         password_input = self.__browser.get_element_by_css('input[name="passwd"]')
@@ -75,14 +97,45 @@ class AtomyCenter(PurchaseOrderVendorBase):
         except Exception as ex:
             raise AtomyLoginError(ex)
 
+    def __set_product_quantity(self, input, value):
+        input_id = input.get_attribute('id')
+        self.__logger.debug("Clicking %s field...", input_id)
+        self.__browser.doubleclick(input)
+        self.__logger.debug("Typing %s to %s...", value, input_id)
+        input.send_keys(value, Keys.TAB)
+        sleep(0.3)
+        if input.get_attribute('value') != str(value):
+            self.__logger.debug("Qty field value is %s whilst must be %s",
+                input.get_attribute('value'), value)
+            raise Exception(f"Couldn't set product quantity {value}")
+        self.__logger.debug("Now %s is %s", input_id, input.get_attribute('value'))
+
+    def __check_total(self, field_num):
+        sleep(0.3)
+        tot_amt = self.__browser.get_element_by_name(f'tot_amt{field_num}').\
+            get_attribute('value')
+        sale_price = self.__browser.get_element_by_name(f'sale_price{field_num}').\
+            get_attribute('value')
+        quantity = self.__browser.get_element_by_name(f'sale_qty{field_num}').\
+            get_attribute('value')
+        if not sale_price:
+            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
+                message=f"No product code in cell {field_num} is entered. Will retry",
+                retry=True)
+        if int(sale_price) * int(quantity) != int(tot_amt):
+            self.__logger.debug("\t...not yet")
+            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
+                message="The tot_amt is not updated")
+        self.__logger.debug("Now tot_amt%s is %s", field_num, tot_amt)
+
     def __add_products(self, order_products):
-        self.__logger.info("AtomyCenter: Adding products")
+        self.__logger.info("Adding products")
         self.__browser.execute_script("$('img[src$=\"btn_D_add.gif\"]').click()")
         ordered_products = []
         field_num = 1
         for op in order_products:
             if not op.product.purchase:
-                self.__logger.warn("The product %s is exempted from purchase", op.product_id)
+                self.__logger.warning("The product %s is exempted from purchase", op.product_id)
                 continue
             if op.quantity <= 0:
                 self.__logger.warning('The product %s has wrong quantity %s',
@@ -95,36 +148,32 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 self.__logger.debug("\t...done")
                 self.__logger.debug("Entering product code %s...", op.product_id)
                 product_code_input.send_keys(op.product_id, Keys.TAB)
+                sleep(.4)
+                alert = self.__browser.get_alert()
+                if alert:
+                    if WARNING_SEPARATE_SHIPPING in alert:
+                        self.__logger.info(alert)
+                    elif ERROR_OUT_OF_STOCK in alert:
+                        self.__logger.info( "Product %s is out of stock", op.product_id)
+                        product_code_input.clear()
+                        continue
+                    else:
+                        self.__logger.warning(alert)
                 self.__logger.debug("\t...done")
                 self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
                 self.__logger.debug("Getting input field sale_qty%s...", field_num)
                 product_qty_input = self.__browser.get_element_by_id(f'sale_qty{field_num}')
                 self.__logger.debug("\t...done")
-                attempts_left = 3
-                while product_qty_input.get_attribute('value') != str(op.quantity):
-                    attempts_left -= 1
-                    self.__logger.debug("Qty field value is %s whilst must be %s",
-                        product_qty_input.get_attribute('value'), op.quantity)
-                    self.__logger.debug("%s attemts left", attempts_left)
-                    if not attempts_left:
-                        raise Exception("Couldn't set product quantity")
-                    self.__logger.debug("Clicking sale_qty%s field...", field_num)
-                    self.__browser.doubleclick(product_qty_input)
-                    self.__logger.debug("\t...done")
-                    self.__logger.debug("Typing %s to sale_qty%s...", op.quantity, field_num)
-                    product_qty_input.send_keys(op.quantity, Keys.TAB)
-                    self.__logger.debug("\t...done")
-                    sleep(0.3)
+                self._try_action(lambda:
+                    self.__set_product_quantity(product_qty_input, op.quantity))
                 
                 self.__logger.debug("Waiting tot_amt%s to update...", field_num)
-                while not self.__browser.get_element_by_name(f'tot_amt{field_num}').get_attribute('value'):
-                    self.__logger.debug("\t...not yet")
-                    sleep(0.3)
-                self.__logger.debug("\t...done")
+                self._try_action(lambda:
+                    self.__check_total(field_num))
                 
                 ordered_products.append(op)
                 field_num += 1
-                self.__logger.info(f"Added product {op.product_id}")
+                self.__logger.info("Added product %s", op.product_id)
             except Exception:
                 product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
@@ -133,12 +182,10 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __set_combined_shipment(self):
         local_shipment_node = self.__browser.get_element_by_css('span#stot_sum')
         if int(re.sub('\\D', '', local_shipment_node.text)) < 30000:
-            self.__logger.info("AtomyCenter: Setting combined shipment")
+            self.__logger.info("Setting combined shipment")
             combined_shipment_input = self.__browser.get_element_by_id('cPackingMemo2')
             self.__browser.execute_script("arguments[0].click();", combined_shipment_input)
-            alert = self.__browser.switch_to_alert()
-            if alert:
-                alert.dismiss()
+            self.__browser.dismiss_alert()
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
@@ -152,24 +199,24 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__browser.get('https://atomy.kr/center/c_sale_ins.asp')
 
     def __set_customer_id(self, customer_id):
-        self.__logger.debug("AtomyCenter: Setting customer ID")
+        self.__logger.debug("Setting customer ID")
         cust_no_input = self.__browser.get_element_by_id('cust_no')
         cust_no_input.send_keys(customer_id)
         cust_no_input.send_keys(Keys.RETURN)
 
     def __set_payment_destination(self, bank_id='06'):
-        self.__logger.debug("AtomyCenter: Setting payment receiver")
+        self.__logger.debug("Setting payment receiver")
         self.__browser.execute_script(
             f"document.getElementsByName('bank')[0].value = '{bank_id}'")
         self.__browser.execute_script("check_ipgum_amt();")
 
     def __set_payment_method(self):
-        self.__logger.debug("AtomyCenter: Setting payment method")
+        self.__logger.debug("Setting payment method")
         method_input = self.__browser.get_element_by_css('input[name=settle_gubun][value="2"]')
         self.__browser.execute_script('arguments[0].click();', method_input)
 
     def __set_phones(self, phone='010-6275-2045'):
-        self.__logger.debug("AtomyCenter: Setting receiver phone number")
+        self.__logger.debug("Setting receiver phone number")
         phone = phone.split('-')
         self.__browser.execute_script(
             f"document.getElementsByName('orphone1')[0].value = '{phone[0]}'")
@@ -185,8 +232,11 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__browser.get_element_by_name('revphone3').send_keys('0000')
 
     def __set_payment_mobile(self, phone='010-6275-2045'):
-        self.__logger.debug("AtomyCenter: Setting payment phone number")
+        self.__logger.debug("Setting payment phone number")
         phone = phone.split('-')
+        if len(phone) == 0:
+            self.__logger.info("Payment phone isn't set as it isn't provided")
+            return
         self.__browser.execute_script(
             f"document.getElementsByName('virhp1')[0].value = '{phone[0]}'")
         self.__browser.get_element_by_name('virhp2').send_keys(phone[1])
@@ -199,7 +249,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 f"document.getElementById('sale_date').value = '{date_str}'")
 
     def __set_purchase_order_id(self, purchase_order_id):
-        self.__logger.debug("AtomyCenter: Setting purchase order ID")
+        self.__logger.debug("Setting purchase order ID")
         adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
         self.__browser.get_element_by_name('revname').send_keys(adapted_po_id)
 
@@ -207,7 +257,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             'zip': '08584',
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
-        self.__logger.debug("AtomyCenter: Setting shipment address")
+        self.__logger.debug("Setting shipment address")
         self.__browser.execute_script("$('#deli_gubun2').click()")
         self.__browser.execute_script(
             f"$('[name=zip1]').val(\"{address['zip'][:2]}\");")
@@ -218,7 +268,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__browser.get_element_by_name('addr2').send_keys(address['address_2'])
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
-        self.__logger.debug("AtomyCenter: Setting counteragent tax information")
+        self.__logger.debug("Setting counteragent tax information")
         if tax_id == ('', '', ''): # No company
             self.__browser.execute_script("$('input[name=tax_gubun][value=\"0\"]').click()")
         else:
@@ -240,7 +290,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             self.__browser.get_element_by_name('tax_b_num3').send_keys(tax_id[2])
 
     def __submit_order(self):
-        self.__logger.info("AtomyCenter: Submitting the order")
+        self.__logger.info("Submitting the order")
         self.__browser.execute_script("Submit()")
         try:
             self.__logger.debug('Waiting for order completion page')

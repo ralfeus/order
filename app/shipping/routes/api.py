@@ -1,23 +1,27 @@
+from flask_security.decorators import roles_required
 from more_itertools import map_reduce
 from operator import itemgetter
 
-from flask import Response, abort, jsonify
+from flask import Response, abort, jsonify, request
 from flask_security import login_required
 
-from app.shipping import bp_api_user
+from app.shipping import bp_api_admin, bp_api_user
 from app.exceptions import NoShippingRateError
 
 from app.models import Country
 from app.shipping.models import Shipping, ShippingRate
+
+@bp_api_admin.route('')
+@roles_required('admin')
+def admin_get_shipping_methods():
+    return jsonify([shipping.to_dict() for shipping in Shipping.query])
 
 @bp_api_user.route('', defaults={'country_id': None, 'weight': None})
 @bp_api_user.route('/<country_id>', defaults={'weight': None})
 @bp_api_user.route('/<country_id>/<int:weight>')
 @login_required
 def get_shipping_methods(country_id, weight):
-    '''
-    Returns shipping methods available for specific country and weight (if both provided)
-    '''
+    '''Returns shipping methods available for specific country and weight (if both provided)'''
     country_name = ''
     country = None
     if country_id:
@@ -27,8 +31,11 @@ def get_shipping_methods(country_id, weight):
 
     shipping_methods = Shipping.query.filter_by(enabled=True)
     result = []
+    product_ids = []
+    product_ids = request.values.get('products').split(',') \
+        if request.values.get('products') else []
     for shipping in shipping_methods:
-        if shipping.can_ship(country, weight):
+        if shipping.can_ship(country=country, weight=weight, products=product_ids):
             result.append(shipping.to_dict())
 
     if len(result) > 0:

@@ -2,6 +2,7 @@
 Invoice model
 '''
 from datetime import datetime
+import logging
 
 from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
@@ -28,9 +29,11 @@ class Invoice(db.Model):
     when_changed = Column(DateTime)
 
     def get_invoice_items(self):
+        logger = logging.getLogger('get_invoice_items')
         if self._invoice_items.count() > 0:
             return self._invoice_items
         else:
+            logger.info("Getting items for %s from order products", self.id)
             from app.currencies.models import Currency
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []

@@ -1,4 +1,70 @@
-$(document).ready( function () {
+var g_filter_sources = {
+    'available': [{id: 1, text: 'true'}, {id: 0, text: 'false'}],
+    'purchase': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
+};
+var g_shipping_methods;
+
+$(document).ready(function() {
+    get_dictionaries()
+    .then(init_table);
+});
+
+function delete_product(rows) {
+    rows.every(function() {
+        var row = this
+        $.ajax({
+            url: '/api/v1/admin/product/' + row.data().id,
+            method: 'delete',
+            success: function() {
+                row.remove().draw();
+            },
+            error: function(xhr, _status, _error) {
+                alert(xhr.responseJSON.message);
+            }
+        });
+    });
+}
+
+async function get_dictionaries() {
+    g_shipping_methods = await get_list('/api/v1/admin/shipping');
+}
+
+// Formatting function for row details
+function format ( d ) {
+    var product_details = $('.product-details')
+    .clone()
+    .show();
+    $('#name', product_details).val(d.name);
+    $('#name_english', product_details).val(d.name_english);
+    $('#name_russian', product_details).val(d.name_russian);
+    $('#weight', product_details).val(d.weight);
+    $('#price', product_details).val(d.price);
+    $('#points', product_details).val(d.points);
+    if (d.separate_shipping) {
+        $('#separate-shipping', product_details)[0].checked = true;
+        $('#separate-shipping', product_details).parent().addClass('active');
+        $('#separate-shipping', product_details)[0].nextSibling.textContent = 'Ships separately';
+    }
+    $('#separate-shipping', product_details).on('click', event => {
+        event.target.nextSibling.textContent = event.target.checked 
+            ? 'Ships separately' 
+            : 'Ships in package';
+    });
+    
+    if (d.available) {
+        $('#available', product_details)[0].checked = true;
+        $('#available', product_details).parent().addClass('active');
+        $('#available', product_details)[0].nextSibling.textContent = 'Available';
+    }
+    $('#available', product_details).on('click', event => {
+        event.target.nextSibling.textContent = event.target.checked ? 'Available' : 'Unavailable';
+    });
+
+    return product_details;
+
+}
+
+function init_table() {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
             var product_id = Object.entries(data.data)[0][0];
@@ -11,9 +77,10 @@ $(document).ready( function () {
             } else if (data.action === 'remove') {
                 method = 'delete';
             }
-            target.available = target.available[0]
-            target.synchronize = target.synchronize[0]
-            target.purchase = target.purchase[0]
+            target.available = target.available[0];
+            target.synchronize = target.synchronize[0];
+            target.purchase = target.purchase[0];
+            target.shipping = target.shipping.map(s => s.id);
             $.ajax({
                 url: url,
                 method: method,
@@ -30,6 +97,7 @@ $(document).ready( function () {
             });
         },
         table: '#products',
+        template: '#product-form',
         idSrc: 'id',
         fields: [
             {label: 'Product ID', name: 'id'},
@@ -62,6 +130,20 @@ $(document).ready( function () {
                 options: [{label:'', value:true}],
                 def: true,
                 unselectedValue: false
+            },
+            {
+                label: "Color",
+                name: 'color',
+                type: 'colorpicker'
+            },
+            {
+                label: "Shipping",
+                name: "shipping[].id",
+                type: "checkbox",
+                options: g_shipping_methods.map(entry => ({
+                    value: entry.id,
+                    label: entry.name
+                }))
             }
         ]
     });
@@ -71,27 +153,26 @@ $(document).ready( function () {
         } else {
             editor.field('id').enable();
         }
+        $('#color-text').on('change', () => {
+            editor.field('color').val($('#color-text').val());
+        })
+        .val(editor.field('color').val());
+    });
+    editor.field('color').input().on('change', () => {
+        $('#color-text').val(editor.field('color').val());
     });
     var table = $('#products').DataTable({
         dom: 'lrBtip', 
         ajax: {
             url: '/api/v1/admin/product',
             dataType: 'json',
-            contentType: 'application/json',
-            dataSrc: ''
+            contentType: 'application/json'
         },
         buttons: [
             {extend: 'create', editor: editor, text: "Create"},
             {extend: 'edit', editor: editor, text: "Edit"},
-            {extend: 'remove', editor: editor, text: "Delete"},
-            'searchPanes'
+            {extend: 'remove', editor: editor, text: "Delete"}
         ],
-        language: {
-            searchPanes: {
-                clearMessage: 'Filter products',
-                collapse: {0: 'Filter products', _: 'Filter products (%d)'}
-            }
-        },
         columns: [
             {
                 "className":      'details-control',
@@ -108,25 +189,18 @@ $(document).ready( function () {
             {data: 'available'},
             {data: 'purchase'}
         ],
-        columnDefs: [
-            {
-                searchPanes: {
-                    show: true
-                },
-                targets: [1, 2, 3, 4, 7, 8]
-            }, 
-            {
-                searchPanes: {
-                    show: false
-                },
-                targets: [0, 3, 5, 6]
-            }
-        ],
         select: true,
+        serverSide: true,
+        processing: true,
         createdRow: (row, data) => {
             if (!data.available) {
                 $(row).addClass('red-line');
             }
+        },
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table)); 
         }
     });
 
@@ -177,55 +251,4 @@ $(document).ready( function () {
             })
         }
     } );
-});
-
-// Formatting function for row details
-function format ( d ) {
-    var product_details = $('.product-details')
-    .clone()
-    .show();
-    $('#name', product_details).val(d.name);
-    $('#name_english', product_details).val(d.name_english);
-    $('#name_russian', product_details).val(d.name_russian);
-    $('#weight', product_details).val(d.weight);
-    $('#price', product_details).val(d.price);
-    $('#points', product_details).val(d.points);
-    if (d.separate_shipping) {
-        $('#separate-shipping', product_details)[0].checked = true;
-        $('#separate-shipping', product_details).parent().addClass('active');
-        $('#separate-shipping', product_details)[0].nextSibling.textContent = 'Ships separately';
-    }
-    $('#separate-shipping', product_details).on('click', event => {
-        event.target.nextSibling.textContent = event.target.checked 
-            ? 'Ships separately' 
-            : 'Ships in package';
-    });
-    
-    if (d.available) {
-        $('#available', product_details)[0].checked = true;
-        $('#available', product_details).parent().addClass('active');
-        $('#available', product_details)[0].nextSibling.textContent = 'Available';
-    }
-    $('#available', product_details).on('click', event => {
-        event.target.nextSibling.textContent = event.target.checked ? 'Available' : 'Unavailable';
-    });
-
-    return product_details;
-
-}
-
-function delete_product(rows) {
-    rows.every(function() {
-        var row = this
-        $.ajax({
-            url: '/api/v1/admin/product/' + row.data().id,
-            method: 'delete',
-            success: function() {
-                row.remove().draw()
-            },
-            error: function(xhr, _status, _error) {
-                alert(xhr.responseJSON.message);
-            }
-        });
-    });
 }

@@ -2,12 +2,14 @@ from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
+from app.models.address import Address
 from app.models.base import BaseModel
 
 class Company(db.Model, BaseModel):
     __tablename__ = 'companies'
 
     name = Column(String(32))
+    contact_person = Column(String(64))
     tax_id_1 = Column(String(3))
     tax_id_2 = Column(String(2))
     tax_id_3 = Column(String(5))

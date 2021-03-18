@@ -2,7 +2,7 @@
 from flask_inputs import Inputs
 from wtforms import ValidationError
 
-from app.models.user import User
+from app.users.models.user import User
 from app.payments.models.payment_method import PaymentMethod
 
 def _is_int(_form, field):

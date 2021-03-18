@@ -1,5 +1,6 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
+from more_itertools import map_reduce
 import re
 
 from flask import Response, abort, current_app, jsonify, request
@@ -15,9 +16,10 @@ from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
-from app.orders.validators.order import OrderValidator
+from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
+from app.users.models.user import User
 from app.utils.atomy import atomy_login
 from app.tools import prepare_datatables_query, modify_object, stream_and_close
 
@@ -74,8 +76,8 @@ def admin_get_orders(order_id):
     # if orders.count() == 0:
     #     abort(Response("No orders were found", status=404))
     else:
-        return jsonify(list(map(
-            lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
+        return jsonify(
+            [entry.to_dict(details=request.values.get('details')) for entry in orders])
 
 @bp_api_user.route('', defaults={'order_id': None})
 @bp_api_user.route('/<order_id>')
@@ -245,8 +247,14 @@ def add_suborder(order, suborder_data, errors):
                         Erroneous data is: {suborder_data['subcustomer']}""",
                     status=400))
 
-
-    for item in suborder_data['items']:
+    suborder_products = map_reduce(suborder_data['items'],
+        keyfunc=lambda op: op['item_code'],
+        valuefunc=lambda op: int(op['quantity']),
+        reducefunc=sum
+    )
+    suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
+                            for i in suborder_products.items()]
+    for item in suborder_products:
         try:
             add_order_product(suborder, item, errors)
         except:
@@ -306,7 +314,7 @@ def user_save_order(order_id):
         abort(Response(f"No order <{order_id}> was found", status=404))
     if not order.is_editable() and not current_user.has_role('admin'):
         abort(Response(f"The order <{order_id}> isn't in editable state", status=405))
-    with OrderValidator(request) as validator:
+    with OrderEditValidator(request) as validator:
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
@@ -325,8 +333,13 @@ def user_save_order(order_id):
         
             # Remove order products
             for order_product in order_products:
-                order_product.delete()
-
+                order_product.suborder.order_products.\
+                    filter_by(id=order_product.id).delete(synchronize_session='fetch')
+            # Remove empty suborders
+            for suborder in order.suborders:
+                if suborder.order_products.count() == 0:
+                    db.session.delete(suborder)
+        db.session.flush()
         try:
             order.update_total()
         except NoShippingRateError:
@@ -379,9 +392,16 @@ def _update_suborder(order, order_products, suborder_data, errors):
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None
             suborder.subcustomer = subcustomer
-            if len(suborder_data['items']) > 10:
+            suborder_products = map_reduce(suborder_data['items'],
+                keyfunc=lambda op: op['item_code'],
+                valuefunc=lambda op: int(op['quantity']),
+                reducefunc=sum
+            )
+            suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
+                                 for i in suborder_products.items()]
+            if len(suborder_products) > 10:
                 errors.append(f'The suborder for {subcustomer.name} has more than 10 products')
-            for item in suborder_data['items']:
+            for item in suborder_products:
                 order_product = [op for op in suborder.order_products
                                     if op.product_id == item['item_code']]
                 if len(order_product) > 0:
@@ -439,8 +459,7 @@ def save_order_product(order_product_id):
 
 
 
-@bp_api_user.route('/product/<int:order_product_id>',
-                   methods=['DELETE'])
+@bp_api_user.route('/product/<int:order_product_id>', methods=['DELETE'])
 @login_required
 def user_delete_order_product(order_product_id):
     '''Deletes selected order product'''
@@ -449,6 +468,8 @@ def user_delete_order_product(order_product_id):
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
     order_product.delete()
+    order_product.suborder.order.update_total()
+    db.session.commit()
 
     return jsonify({
         'id': order_product_id,
@@ -504,6 +525,8 @@ def postpone_order_product(order_product_id):
     if not order_product:
         abort(Response(f"No product <{order_product_id}> was found", status=404))
     postponed_order_product = order_product.postpone()
+    order_product.suborder.order.update_total()
+    db.session.commit()
     
     return jsonify({
         'new_id': postponed_order_product.id,
@@ -530,20 +553,21 @@ def admin_save_order(order_id):
     order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
+    with OrderEditValidator(request) as validator:
+        if not validator.validate():
+            return jsonify({
+                'data': [],
+                'error': "Couldn't edit an order",
+                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                for message in validator.errors]
+            }), 400
 
-    if order_input.get('status') is not None:
+    modify_object(order, order_input, ['tracking_id', 'tracking_url'])
+    if order_input.get('status'):
         try:
             order.set_status(order_input['status'], current_user)
         except UnfinishedOrderError as ex:
             abort(Response(str(ex), status=409))
-
-    if order_input.get('tracking_id') is not None:
-        order.tracking_id = order_input['tracking_id']
-
-    if order_input.get('tracking_url') is not None:
-        order.tracking_url = order_input['tracking_url']
-
-    order.when_changed = datetime.now()
 
     db.session.commit()
     return jsonify(order.to_dict())

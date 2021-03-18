@@ -7,10 +7,13 @@ $(document).ready( function () {
 
 function cancel(target) {
     target.data().toArray().forEach(op => {
-        $.delete('/api/v1/order/product/' + op.id)
-            .then(response => {
-                target.raw(parseInt(response.id)).data().draw();
-            });
+        $.ajax({
+            url: '/api/v1/order/product/' + op.id,
+            method: 'delete'
+        })
+        .then(response => {
+            target.row(parseInt(response.id)).remove().draw();
+        });
     });
 }
 
@@ -79,26 +82,18 @@ function init_order_products_table() {
             {name: 'status', data: 'status'},
             {data: 'public_comment', visible: false}
         ],
-        searchCols: [
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            {search: 'po_created'},
-            null
-        ],
         select: true,
         serverSide: true,
         processing: true,
+        createdRow: (row, data) => {
+            if (data.color) {
+                var style = typeof($(row).attr('style')) === 'undefined'
+                    ? '' : $(row).attr('style');
+                $(row).attr('style', style + 'color:' + data.color + ';');
+            }
+        },
         initComplete: function() { 
-            init_search(this, g_filter_sources) 
-            $('td:nth-child(' + (table.column('status:name').index() + 1) + ') select', 
-                $(table.column('status:name').header()).closest('thead'))
-                .val('po_created').trigger('change');
+            init_search(this, g_filter_sources); 
         }
     });
 

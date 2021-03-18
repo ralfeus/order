@@ -41,8 +41,6 @@ async function populate_order(order_data) {
         $('#attached_orders')
             .append(new Option(ao.id, ao.id, false, true)).trigger('change');
     });
-    update_shipping_methods(order_data.country.id, 0)
-    .then(() => { $('#shipping').val(order_data.shipping.id); });
 
     var current_node;
     for (i in order_data.suborders) {
@@ -61,7 +59,12 @@ async function populate_order(order_data) {
             await update_product(current_row, order_products[op])
         }
     }
-    shipping_changed();
+    update_shipping_methods(order_data.country.id, g_total_weight + g_box_weight)
+    .then(() => { 
+        $('#shipping').val(order_data.shipping.id);     
+        shipping_changed();
+    });
+
 }
 
 })()

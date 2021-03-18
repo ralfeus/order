@@ -11,7 +11,7 @@ from sqlalchemy import not_
 
 from app import celery, db
 from app.exceptions import AtomyLoginError
-from app.orders.models.order_product import OrderProduct
+from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
 
@@ -51,15 +51,16 @@ def post_purchase_orders(po_id=None):
                 logger.info("Posting a purchase order %s", po.id)
                 try:
                     vendor.post_purchase_order(po)
-                    posted_ops_count = po.order_products.filter_by(status='Purchased').count()
-                    if posted_ops_count == po.order_products.count():
+                    posted_ops_count = len([op for op in po.order_products
+                                               if op.status == OrderProductStatus.purchased])
+                    if posted_ops_count == len(po.order_products):
                         po.status = PurchaseOrderStatus.posted
                         po.when_changed = datetime.now()
                     elif posted_ops_count > 0:
                         po.status = PurchaseOrderStatus.partially_posted
                         po.when_changed = datetime.now()
-                        failed_order_products = po.order_products.filter(
-                            OrderProduct.status != 'Purchased')
+                        failed_order_products = [po for po in po.order_products
+                                                    if po.status != OrderProductStatus.purchased]
                         po.status_details = "Not posted products:\n" + \
                             '\n'.join(map(
                                 lambda fop: f"{fop.product_id}: {fop.product.name}",
@@ -71,7 +72,7 @@ def post_purchase_orders(po_id=None):
                     logger.info("Posted a purchase order %s", po.id)
                 except Exception as ex:
                     logger.warning("Failed to post the purchase order %s.", po.id)
-                    # logger.warning(ex)
+                    logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
                     po.status_details = str(ex.args)
                     po.when_changed = datetime.now()

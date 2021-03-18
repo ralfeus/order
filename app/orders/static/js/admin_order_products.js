@@ -145,6 +145,13 @@ function init_order_products_table() {
         select: true,
         serverSide: true,
         processing: true,
+        createdRow: (row, data) => {
+            if (data.color) {
+                var style = typeof($(row).attr('style')) === 'undefined'
+                    ? '' : $(row).attr('style');
+                $(row).attr('style', style + 'color:' + data.color + ';');
+            }
+        },
         initComplete: function() { init_search(this, g_filter_sources) }
     });
 

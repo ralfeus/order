@@ -1,5 +1,6 @@
 from tests import BaseTestCase, db
-from app.models import Role, User
+from app.users.models.role import Role
+from app.users.models.user import User
 from app.orders.models import Order, Subcustomer, Suborder
 from app.products.models import Product
 

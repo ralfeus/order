@@ -26,7 +26,9 @@ class DHL(Shipping):
     def __init__(self):
         self.name = 'DHL'
 
-    def can_ship(self, country: Country, weight: int) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+        if not self._are_all_products_shippable(products):
+            return False
         if weight and weight > 99999:
             return False
         if country is None:
