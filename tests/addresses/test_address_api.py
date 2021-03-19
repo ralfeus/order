@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from app.models import Role, User
+from app.users.models.role import Role
+from app.users.models.user import User
 from app.models.address import Address
 from tests import BaseTestCase, db
 
@@ -26,7 +27,7 @@ class TestAddressAPI(BaseTestCase):
             operation,
             'user1_test_address_api', '1', 'root_test_address_api', '1')
 
-    def test_get_addresses(self):
+    def test_get_address(self):
         self.try_add_entities([
            Address(id=123, name='Address_1', zip=11111, address_1='address01', address_2='address02')
         ])
@@ -44,15 +45,15 @@ class TestAddressAPI(BaseTestCase):
             json={'zip': '22222'})
         )
         self.assertEqual(res.status_code, 200)
-        addresses = Address.query.get(gen_id)
-        self.assertEqual(addresses.zip, '22222')
+        address = Address.query.get(gen_id)
+        self.assertEqual(address.zip, '22222')
 
         res = self.client.post(f'/api/v1/admin/addresses/{gen_id}',
             json={'zip': '22222@'})
         self.assertEqual(res.status_code, 400)
 
     
-    def test_delete_addresses(self):
+    def test_delete_address(self):
         gen_id = int(datetime.now().timestamp())
         self.try_add_entities([
             Address(id=gen_id, name='Address_1', zip='11111', address_1='address01', address_2='address02')
