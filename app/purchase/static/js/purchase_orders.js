@@ -187,26 +187,21 @@ function init_table() {
                 "orderable": false,
                 "data": null,
                 'defaultContent': ''
-                // "defaultContent": ' \
-                //     <button \
-                //         class="btn btn-sm btn-secondary btn-open" \
-                //         onclick="open_purchase_order(this);">Open</button> \
-                    // <button \
-                    //     class="btn btn-sm btn-secondary btn-cancel" \
-                    //     onclick="cancel_purchase_order(this);">Cancel</button>'
             },
             {data: 'id'},
             {
                 data: 'customer.name', 
                 orderable: false,
-                fnCreatedCell: function(nTd, sData, oData, iRow, iCol) {
-                    $(nTd).html("" +
+                render: function(data, type, row, meta) {
+                    return "" +
                         "<span " +
-                        "    class='subcustomer'" +
-                        "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
-                        "    title=\"Username: " + oData.customer.username + "\nPassword: " + oData.customer.password + "\">" +
-                            oData.customer.name + 
-                        "</span>");
+                        "   class='subcustomer'" +
+                        "   data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                        "   title=\"Username: " + row.customer.username + "\nPassword: " + row.customer.password + "\">" +
+                        "   <a href=\"/admin/orders/subcustomers?username=" + row.customer.username + "\">" +
+                                data + 
+                        "   </a>" +
+                        "</span>";
                 }
             },
             {data: 'total_krw', orderable: false},
@@ -216,9 +211,11 @@ function init_table() {
             {data: 'payment_account', className: 'editable', orderable: false},
             {
                 data: 'status',
-                fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
-                    if (['failed', 'partially_posted'].includes(oData.status)) {
-                        $(nTd).html("<a href='#' onclick='show_po_status(\"" + oData.id + "\")'>" + oData.status + "</a>");
+                render: function (data, type, row, meta) {
+                    if (['failed', 'partially_posted'].includes(data)) {
+                        return "<a href='#' onclick='show_po_status(\"" + row.id + "\")'>" + data + "</a>";
+                    } else {
+                        return data;
                     }
                 },
                 className: 'editable'

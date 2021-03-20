@@ -28,7 +28,8 @@ db_db = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
     f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
 session = Session(engine)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,
+    format="%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s")
 
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
     update=False, incremental=False, cont=False):
@@ -61,7 +62,7 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
                             username=username, password=password, run_browser=False)
                     except Exception as ex:
                         logger.error("Something bad has happened")
-                        logger.error(tree_url, session_cookies, node.id)
+                        logger.error("%s %s %s", tree_url, session_cookies, node.id)
                         raise ex
                 members = sel_members(page)
                 if len(members) > 0:
@@ -90,11 +91,9 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
     logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
 
 def _get_children(node, traversing_nodes, node_element,
-    elements, level_distance, last_level_top, page_nodes=set()):
-    page_nodes.add(node.id)
+    elements, level_distance, last_level_top):
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
-    node_element_left = int(node_element_style_items['left'][:-2])
     next_layer_top = node_element_top + level_distance
     next_layer_elements = [e for e in elements
                            if int(_get_element_style_items(e)['top'][:-2]) == next_layer_top]
@@ -103,21 +102,15 @@ def _get_children(node, traversing_nodes, node_element,
     for element in sorted(
         next_layer_elements, key=lambda e: int(_get_element_style_items(e)['left'][:-2])):
         element_id = element.attrib['id'][1:]
-        if is_left_found:
-            right = _get_node(element, node, False)
-            right_element = element
-            break
-        if int(_get_element_style_items(element)['left'][:-2]) == node_element_left:
-            left = _get_node(element, node, True)
-            left_element = element
-            break
-        if int(_get_element_style_items(element)['left'][:-2]) > node_element_left:
-            break
-        if int(_get_element_style_items(element)['left'][:-2]) < node_element_left:
-            if element_id not in page_nodes:
+        if _is_left(node_element, element):
+            if node.left_id is None:
                 left = _get_node(element, node, True)
                 left_element = element
-                is_left_found = True
+            is_left_found = True
+        elif _is_right(node_element, element):
+            if  is_left_found:
+                right = _get_node(element, node, False)
+                right_element = element
     if node_element_top == last_level_top and len(elements) != 0:
         # if node.id not in page_nodes:
             traversing_nodes.append(node)
@@ -126,12 +119,10 @@ def _get_children(node, traversing_nodes, node_element,
         node.built_tree = True
         if left is not None:
             _get_children(left, traversing_nodes, left_element, elements,
-                level_distance=level_distance, last_level_top=last_level_top,
-                page_nodes=page_nodes)
+                level_distance=level_distance, last_level_top=last_level_top)
         if right is not None:
             _get_children(right, traversing_nodes, right_element, elements,
-                level_distance=level_distance, last_level_top=last_level_top,
-                page_nodes=page_nodes)
+                level_distance=level_distance, last_level_top=last_level_top)
 
 def _get_element_style_items(element):
     style_items = element.attrib['style'].split(';')
@@ -176,7 +167,7 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
                     UNION
                     SELECT n.id FROM network_nodes AS n JOIN cte ON n.parent_id = cte.id
                 ) SELECT id FROM cte
-            ) AND left_id IS NULL AND right_id IS NULL
+            ) AND right_id IS NULL
         ''', {'id': root_node.id})
     logger.info("Getting leafs to crawl")
     traversing_nodes_query = session.query(Node)
@@ -206,13 +197,13 @@ def _init_network_full(root_node, incremental=False, cont=False, update=False):
         session.execute('''
             UPDATE network_nodes
             SET built_tree = 0 
-            WHERE left_id IS NULL AND right_id IS NULL
+            WHERE right_id IS NULL
         ''')
     logger.info("Getting leafs to crawl")
     traversing_nodes_query = session.query(Node)
     if incremental:
         traversing_nodes_query = traversing_nodes_query.\
-            filter_by(left_id=None, right_id=None).filter(Node.pv > 10)
+            filter_by(right_id=None).filter(Node.pv > 10)
     elif cont:
         traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False).\
             filter(Node.pv > 10)
@@ -256,6 +247,64 @@ def _get_node(element, parent, is_left):
         parent.right_id = id
     return node
 
+def _is_left(parent_element, child_element):
+    v_lines = _get_vertical_lines(parent_element, child_element)
+    if v_lines is None:
+        return False
+    horizontal_line = _get_element_horizontal_line(parent_element)
+    if horizontal_line is not None:
+        return v_lines['child']['top'] == v_lines['parent']['bottom'] \
+           and v_lines['child']['left'] == \
+               int(_get_element_style_items(horizontal_line)['left'][:-2])
+    else:
+        return v_lines['child']['top'] == v_lines['parent']['bottom'] \
+           and v_lines['child']['left'] == v_lines['parent']['left']
+
+def _is_right(parent_element, child_element):
+    v_lines = _get_vertical_lines(parent_element, child_element)
+    if v_lines is None:
+        return False
+    horizontal_line = _get_element_horizontal_line(parent_element)
+    if horizontal_line is not None:
+        h_line_style_items = _get_element_style_items(horizontal_line)
+        return v_lines['child']['top'] == v_lines['parent']['bottom'] \
+           and v_lines['child']['left'] == \
+               int(h_line_style_items['left'][:-2]) + int(h_line_style_items['width'][:-2])
+    else:
+        return False
+
+def _get_vertical_lines(parent_element, child_element):
+    parent_vertical_line = parent_element.getnext()
+    if parent_vertical_line is not None and \
+       int(_get_element_style_items(parent_vertical_line)['top'][:-2]) < \
+       int(_get_element_style_items(parent_element)['top'][:-2]):
+        parent_vertical_line = parent_vertical_line.getnext()
+        if parent_vertical_line is None or parent_vertical_line.tag != 'img':
+            return None
+    parent_vertical_line_style_items = _get_element_style_items(parent_vertical_line)
+    child_vertical_line = child_element.getnext()
+    return {
+        'parent':{
+            'bottom': int(parent_vertical_line_style_items['top'][:-2]) + \
+                      int(parent_vertical_line_style_items['height'][:-2]) - 1,
+            'left': int(parent_vertical_line_style_items['left'][:-2])
+        },
+        'child': {
+            'top': int(_get_element_style_items(child_vertical_line)['top'][:-2]),
+            'left': int(_get_element_style_items(child_vertical_line)['left'][:-2])
+        }
+    }
+
+def _get_element_horizontal_line(element):
+    next_element = element.getnext()
+    while True:
+        if next_element.tag == 'img' and next_element.attrib['src'].endswith('line.gif'):
+            return next_element
+        elif next_element.tag == 'table':
+            return None
+        next_element = next_element.getnext()
+    
+
 def _update_nodes(traversing_nodes, elements, last_level_top):
     logger = logging.getLogger('_update_nodes')
     for element in elements:
@@ -267,7 +316,7 @@ def _update_nodes(traversing_nodes, elements, last_level_top):
             node.pv = re.search('\\d+', sel_pv(element)).group()
             node.network_pv = re.search('\\d+', sel_network_pv(element)).group()
             if int(_get_element_style_items(element)['top'][:-2]) == last_level_top \
-               and len(elements) > 1 :
+               and len(elements) > 1:
                 traversing_nodes.append(node)
 
 if __name__ == '__main__':

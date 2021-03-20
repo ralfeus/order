@@ -10,7 +10,7 @@ class Node(BaseModel, db.Model):
     '''Node model'''
     __tablename__ = 'network_nodes'
     id = Column(String(10), primary_key=True)
-    name = Column(String(64)) 
+    name = Column(String(64))
     rank = Column(String(16), index=True)
     highest_rank = Column(String(16))
     center = Column(String(64))
