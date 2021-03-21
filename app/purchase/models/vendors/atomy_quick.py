@@ -126,14 +126,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_product_code(self, input, value):
         input.send_keys(Keys.RETURN)
         sleep(.5)
-        message = self.__browser.get_alert()
+        alert = self.__browser.get_alert()
         if input.get_attribute('value') == value:
             self.__logger.debug('The value is not entered so far')
-            if ERROR_OUT_OF_STOCK in message:
-                raise ProductNotAvailableError(value, final=True)
-            raise PurchaseOrderError(
-                self.__purchase_order, self,
-                "Couldn't enter %s product code: %s" % (value, message), retry=True)
+            if alert:
+                if ERROR_OUT_OF_STOCK in alert:
+                    raise ProductNotAvailableError(value, final=True)
+                raise PurchaseOrderError(
+                    self.__purchase_order, self,
+                    "Couldn't enter %s product code: %s" % (value, alert), retry=True)
 
     def __set_product_quantity(self, input, value):
         input.clear()
