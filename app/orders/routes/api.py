@@ -224,7 +224,6 @@ def add_suborder(order, suborder_data, errors):
             raise EmptySuborderError(subcustomer.username)
         suborder = Suborder(
             order=order,
-            seq_num=suborder_data.get('seq_num'),
             subcustomer=subcustomer,
             buyout_date=datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None,
@@ -389,6 +388,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
         )).first()
         if suborder is None:
             add_suborder(order, suborder_data, errors)
+            db.session.flush()
         else:
             subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
