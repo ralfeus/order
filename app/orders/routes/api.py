@@ -339,6 +339,7 @@ def user_save_order(order_id):
             # Remove empty suborders
             for suborder in order.suborders:
                 if suborder.order_products.count() == 0:
+                    current_app.info("Suborder %s has no order_products. Deleting", suborder.id)
                     db.session.delete(suborder)
         db.session.flush()
         try:

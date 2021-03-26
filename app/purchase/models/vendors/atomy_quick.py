@@ -279,16 +279,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.debug("Setting counteragent tax information")
         if tax_id == ('', '', ''): # No company
-            self.__browser.get_element_by_id('tax_gubun1').click()
+            self.__browser.get_element_by_id('tax_gubun1').send_keys(Keys.SPACE)
         else:
-            self.__browser.get_element_by_id('tax_gubun2').click()
+            self.__browser.get_element_by_id('tax_gubun2').send_keys(Keys.SPACE)
+            # sleep(10)
             # self.__browser.execute_script(
             #     "document.getElementById('tTaxGubun1').value = '2'")
-                
             tTaxGubun1 = self.__browser.get_element_by_id('tTaxGubun1')
             tTaxGubun1.click()
             tTaxGubun1.send_keys(Keys.DOWN)
-            tTaxGubun1.send_keys(Keys.RETURN)
+            # tTaxGubun1.send_keys(Keys.RETURN)
+            sleep(1)
+            self.browser.execute_script('return $(".layoutCashBill")[0].remove();')
+
             self.__browser.get_element_by_id('tTaxBizNo1').send_keys(tax_id[0])
             self.__browser.get_element_by_id('tTaxBizNo2').send_keys(tax_id[1])
             self.__browser.get_element_by_id('tTaxBizNo3').send_keys(tax_id[2])
