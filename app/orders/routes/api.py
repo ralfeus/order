@@ -238,6 +238,7 @@ def add_suborder(order, suborder_data, errors):
         current_app.logger.debug('Created instance of Suborder %s', suborder)
         # db.session.add(suborder)
         order.suborders.append(suborder)
+        db.session.flush()
         current_app.logger.debug("Order %s suborders count is %s", order.id, order.suborders.count())
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
