@@ -209,6 +209,7 @@ def add_suborders(order, suborders, errors):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
                 add_suborder(order, suborder_data_subset, errors)
+                db.session.flush()
                 suborders_count += 1
             except EmptySuborderError as ex:
                 errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")

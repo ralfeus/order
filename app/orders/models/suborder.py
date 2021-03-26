@@ -44,7 +44,8 @@ class Suborder(db.Model, BaseModel):
         self.order_id = order_id
 
         prefix = self.__id_pattern.format(order_num=order_id[4:16])
-        last_suborder = order.suborders.order_by(Suborder.seq_num.desc()).first()
+        last_suborder = Suborder.query.filter_by(order_id=self.order_id).\
+            order_by(Suborder.seq_num.desc()).first()
         self.seq_num = last_suborder.seq_num + 1 if last_suborder else 1
         self.id = prefix + '{:03d}'.format(int(self.seq_num))
 
