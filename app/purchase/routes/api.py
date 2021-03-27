@@ -93,6 +93,7 @@ def create_purchase_order():
         )
         purchase_orders.append(purchase_order)
         db.session.add(purchase_order)
+        db.session.flush()
     order.set_status(OrderStatus.po_created, current_app)
     db.session.commit()
     
