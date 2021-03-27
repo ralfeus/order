@@ -31,7 +31,7 @@ def post_purchase_orders(po_id=None):
         pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
     pending_purchase_orders = pending_purchase_orders.filter_by(
         status=PurchaseOrderStatus.pending)
-    try: 
+    try:
         # Wrap whole operation in order to
         # mark all pending POs as failed in case of any failure
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())

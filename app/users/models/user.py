@@ -26,7 +26,7 @@ class User(db.Model, UserMixin):
     password_hash = Column(String(200))
     enabled = Column(Boolean, nullable=False)
     atomy_id = Column(String(10))
-    phone = Column(String(16))
+    phone = Column(String(32))
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
 

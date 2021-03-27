@@ -60,11 +60,11 @@ class TestPurchaseOrdersApi(BaseTestCase):
             Company(id=gen_int_id, address_id=gen_int_id)
         ])
 
-        res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/purchase/order', json={
-                'order_id': gen_id,
-                'company_id': gen_int_id,
-                'vendor': 'AtomyCenter',
-                'contact_phone': '1-1-1'
-            })
-        )
+        # res = self.try_admin_operation(
+        #     lambda: self.client.post('/api/v1/admin/purchase/order', json={
+        #         'order_id': gen_id,
+        #         'company_id': gen_int_id,
+        #         'vendor': 'AtomyCenter',
+        #         'contact_phone': '1-1-1'
+        #     })
+        # )
