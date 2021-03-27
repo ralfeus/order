@@ -292,6 +292,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             sleep(1)
             try:
                 self.browser.execute_script('return $(".layoutCashBill")[0].remove();')
+                self.__browser.dismiss_alert()
             except:
                 pass
 
