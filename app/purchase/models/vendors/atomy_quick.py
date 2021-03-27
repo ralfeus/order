@@ -290,7 +290,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             tTaxGubun1.send_keys(Keys.DOWN)
             # tTaxGubun1.send_keys(Keys.RETURN)
             sleep(1)
-            self.browser.execute_script('return $(".layoutCashBill")[0].remove();')
+            try:
+                self.browser.execute_script('return $(".layoutCashBill")[0].remove();')
+            except:
+                pass
 
             self.__browser.get_element_by_id('tTaxBizNo1').send_keys(tax_id[0])
             self.__browser.get_element_by_id('tTaxBizNo2').send_keys(tax_id[1])
