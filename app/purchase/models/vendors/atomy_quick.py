@@ -85,6 +85,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if ex.retry:
                 self.__logger.warning("Retrying %s", purchase_order.id)
                 return self.post_purchase_order(purchase_order)
+            raise ex
         except Exception as ex:
             # Saving page for investigation
             # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
@@ -119,6 +120,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
             return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
         except KeyError: # Couldn't get order ID
+            self.__logger.warning(self.__po_params)
             script = post_order_doc.cssselect('head script')[1].text
             message_match = re.search("var responseMsg = '(.*)';", script)
             if message_match is not None:
