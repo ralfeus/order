@@ -125,6 +125,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 message = message_match.groups()[0]
                 raise PurchaseOrderError(self.__purchase_order, self, message)
         except HTTPError:
+            self.__logger.warning(self.__po_params)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
@@ -279,13 +280,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __submit_order(self):
         self.__logger.info("Submitting the order")
-        try:
-            order_id = self.__send_order_post_request()
-            vendor_po = self.__get_order_details(order_id=order_id)
-            return order_id, vendor_po['jsonData'][0]['IpgumAccountNo']
-        except Exception as ex:
-            self.__logger.debug("Couldn't get order completion page")
-            raise Exception(ex)
+        order_id = self.__send_order_post_request()
+        vendor_po = self.__get_order_details(order_id=order_id)
+        return order_id, vendor_po['jsonData'][0]['IpgumAccountNo']
         
     def update_purchase_order_status(self, purchase_order):
         logger = self.__logger.getChild('update_purchase_order_status')
