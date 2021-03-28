@@ -143,15 +143,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return json.loads(order_details_doc.text)
 
     def __add_products(self, order_products):
-        self.__logger.debug("Adding products")
+        logger = self.__logger.getChild('__add_products')
+        logger.info("Adding products")
         ordered_products = []
         tot_amt = tot_pv = tot_qty = 0
         for op in order_products:
             if not op.product.purchase:
-                self.__logger.warning("The product %s is exempted from purchase", op.product_id)
+                logger.warning("The product %s is exempted from purchase", op.product_id)
                 continue
             if op.quantity <= 0:
-                self.__logger.warning('The product %s has wrong quantity %s',
+                logger.warning('The product %s has wrong quantity %s',
                     op.product_id, op.quantity)
                 continue
             try:
@@ -168,19 +169,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     tot_pv += op.product.points * op.quantity
                     tot_qty += op.quantity
                     ordered_products.append(op)
-                    self.__logger.debug(f"Added product {op.product_id}")
+                    logger.debug("Added product %s", op.product_id)
                 else:
                     raise ProductNotAvailableError(product_id)
             except ProductNotAvailableError:
-                self.__logger.warning("Product %s is not available", op.product_id)
+                logger.warning("Product %s is not available", op.product_id)
             except PurchaseOrderError as ex:
                 raise ex
             except Exception:
-                self.__logger.exception("Couldn't add product %s", op.product_id)
+                logger.exception("Couldn't add product %s", op.product_id)
         # self.__browser.save_screenshot(realpath('02-products.png'))
         self.__po_params['TotAmt'] = self.__po_params['IpgumAmt'] = tot_amt
         self.__po_params['TotPv'] = tot_pv
         self.__po_params['TotQty'] = tot_qty
+        logger.debug(self.__po_params)
         return ordered_products
 
     def __is_product_valid(self, product_id):
