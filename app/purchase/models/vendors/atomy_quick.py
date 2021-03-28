@@ -7,14 +7,10 @@ import json
 import logging
 from pytz import timezone
 import re
-from time import sleep
-from selenium.common.exceptions import StaleElementReferenceException, \
-    JavascriptException
 
 from app.exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
 from app.utils.atomy import atomy_login
-from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
 ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
@@ -22,14 +18,11 @@ ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불�
 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
-    __browser: Browser = None
-    __is_browser_created_locally = False
     __logger: logging.Logger = None
     __purchase_order = None
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
-        self.__browser_attr = browser
         log_level = None
         if logger:
             log_level = logger.level
@@ -47,22 +40,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__session_cookies = None
         self.__po_params = {}
 
-    def __del__(self):
-        if self.__is_browser_created_locally:
-            try:
-                self.__browser.quit()
-            except:
-                pass
-
     def __str__(self):
         return "Atomy - Quick order"
-
-    @property
-    def __browser(self):
-        if self.__browser_attr is None:
-            self.__browser_attr = Browser(config=self.__config)
-            self.__is_browser_created_locally = True
-        return self.__browser_attr
 
     def post_purchase_order(self, purchase_order):
         ''' Posts a purchase order to Atomy based on provided data '''
@@ -113,10 +92,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__logger.exception("Failed to post an order %s", purchase_order.id)
             raise ex
 
-    @property
-    def browser(self):
-        return self.__browser
-
     def __init_quick_order(self, purchase_order):
         doc = get_document_from_url(
             url='https://www.atomy.kr/v2/Home/Payment/QuickOrder',
@@ -163,40 +138,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 (order_id, self.__purchase_order.customer.username)
         )
         return json.loads(order_details_doc.text)
-
-    def __open_quick_order(self):
-        self.__logger.debug(" Open quick order")
-        self.__browser.get('https://www.atomy.kr/v2/Home/Product/MallMain')
-        # quick_order = self.__browser.get_element_by_id('aQuickOrder2')
-        # quick_order.click()
-        self.__browser.execute_script("laypop('one', '1140', '640', '/v2/Home/Payment/QuickOrder', '빠른주문', 'scroll', '')")
-        try:
-            self.__browser.get_element_by_class('layPop')
-        except:
-            raise PurchaseOrderError(self.__purchase_order, self, "Couldn't open quick order")
-        # self.__browser.save_screenshot(realpath('01-quick-order.png'))
-
-    def __set_product_code(self, input, value):
-        input.send_keys(Keys.RETURN)
-        sleep(.5)
-        alert = self.__browser.get_alert()
-        if input.get_attribute('value') == value:
-            self.__logger.debug('The value is not entered so far')
-            if alert:
-                if ERROR_OUT_OF_STOCK in alert:
-                    raise ProductNotAvailableError(value, final=True)
-                raise PurchaseOrderError(
-                    self.__purchase_order, self,
-                    "Couldn't enter %s product code: %s" % (value, alert), retry=True)
-
-    def __set_product_quantity(self, input, value):
-        input.clear()
-        input.send_keys(value)
-        if int(input.get_attribute('value')) != value:
-            self.__logger.debug('The quantity value is not entered so far')
-            raise PurchaseOrderError(
-                self.__purchase_order, self,
-                "Couldn't enter %s product quantity" % value, retry=True)
 
     def __add_products(self, order_products):
         self.__logger.debug("Adding products")
@@ -284,10 +225,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__po_params['PackingGubun'] = 0
             self.__po_params['TagSum'] = 0
 
-    def __set_mobile_consent(self):
-        self.__logger.debug("Setting mobile consent")
-        self.__browser.click_by_id('chkAgree_tax_gubun2')
-
     def __set_sender_name(self):
         self.__logger.debug("Setting sender name")
         self.__po_params['SendName'] = 'dumb'
@@ -351,16 +288,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise Exception(ex)
         
     def update_purchase_order_status(self, purchase_order):
-        self.__logger.info("%s: Logging in...", __name__)
-        atomy_login(
+        logger = self.__logger.getChild('update_purchase_order_status')
+        logger.info('Updating %s status', purchase_order.id)
+        logger.info("Logging in...")
+        self.__session_cookies = atomy_login(
             purchase_order.customer.username,
             purchase_order.customer.password,
-            self.__browser)
-        self.__logger.debug("%s: Getting POs from Atomy...", __name__)
+            run_browser=False)
+        logger.debug("Getting POs from Atomy...")
         vendor_purchase_orders = self.__get_purchase_orders()
-        self.__logger.info("%s: Got %s POs", __name__, len(vendor_purchase_orders))
+        self.__logger.info("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
-            print(str(o))
+            logger.debug(str(o))
             if o['id'] == purchase_order.vendor_po_id:
                 purchase_order.status = o['status']
                 return purchase_order
@@ -371,53 +310,46 @@ class AtomyQuick(PurchaseOrderVendorBase):
         
 
     def update_purchase_orders_status(self, subcustomer, purchase_orders):
+        logger = self.__logger.getChild('update_purchase_orders_status')
+        logger.info('Updating %s POs status', len(purchase_orders))
         self.__logger.info('Attempting to log in as %s...', subcustomer.name)
-        atomy_login(
+        self.__session_cookies = atomy_login(
             subcustomer.username,
             subcustomer.password,
-            self.__browser)
-        self.__logger.info('Getting subcustomer\'s POs')
+            run_browser=False)
+        logger.info('Getting subcustomer\'s POs')
         vendor_purchase_orders = self.__get_purchase_orders()
-        self.__logger.debug('Got %s POs', len(vendor_purchase_orders))
+        logger.debug('Got %s POs', len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
-            self.__logger.info(str(o))
-            filtered_po = filter(
-                lambda po: po and po.vendor_po_id == o['id'],
-                purchase_orders)
+            logger.info(str(o))
+            filtered_po = [po for po in purchase_orders 
+                              if po and po.vendor_po_id == o['id']]
             try:
-                po = next(filtered_po)
-                po.status = o['status']
-            except StopIteration:
-                self.__logger.warning(
+                filtered_po[0].status = o['status']
+            except IndexError:
+                logger.warning(
                     'No corresponding purchase order for Atomy PO <%s> was found', 
                     o['id'])
 
     def __get_purchase_orders(self):
-        # self.__logger.info("Getting orders")
-        self.__browser.get("https://www.atomy.kr/v2/Home/MyAtomyMall/OrderList")
-        try:
-            self.__browser.execute_script('SetDateSearch("d", -7)')
-        except JavascriptException:
-            pass # If we can't set week range let's work with what we have
-        order_lines = []
-        while not len(order_lines):
-            # self.__logger.info('Getting order lines')
-            sleep(1)
-            order_lines = self.__browser.find_elements_by_css_selector(
-                "tbody#tbdList tr:nth-child(odd)")
-            try:
-                if len(order_lines) and order_lines[0].text == '조회된 정보가 없습니다.':
-                    order_lines = []
-                break
-            except StaleElementReferenceException:
-                self.__logger.warn("Couldn't get order line text. Retrying...")
-                order_lines = []
-        orders = list(map(self.__line_to_dict,
-            order_lines
-        ))
-        return orders
+        logger = self.__logger.getChild('__get_purchase_orders')
+        logger.info('Getting purchase order')
+        search_params = {
+            "CurrentPage": 1,
+            "PageSize": 100,
+            "SDate": (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),
+            "EDate": (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d'),
+            "OrderStatus":""
+        }
+        response = get_document_from_url(
+            url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderList',
+            encoding='utf-8',
+            headers=[{'Cookie': c} for c in self.__session_cookies ] + [
+                {'Content-Type': 'application/json'}
+            ],
+            raw_data=json.dumps(search_params)
+        )
 
-    def __line_to_dict(self, l):
         from app.purchase.models import PurchaseOrderStatus
         po_statuses = {
             '주문접수': PurchaseOrderStatus.posted,
@@ -429,11 +361,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             '매출취소': PurchaseOrderStatus.cancelled,
             '배송완료': PurchaseOrderStatus.delivered,
             '반품': PurchaseOrderStatus.delivered
-        }       
-        # print(l.text)
-        acc_num_text = l.find_element_by_css_selector('td:nth-child(2)').text
-        status_text = l.find_element_by_css_selector('p.fs18').text
-        return {
-            'id': re.search('^\d+', acc_num_text)[0],
-            'status': po_statuses[status_text]
-        }
+        }           
+        
+        orders = [{
+            'id': o['SaleNum'],
+            'status': po_statuses[o['OrderStatusName']]
+            } for o in json.loads(response.text)['jsonData']]
+
+        return orders
