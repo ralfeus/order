@@ -11,7 +11,7 @@ from time import sleep
 from selenium.common.exceptions import StaleElementReferenceException, \
     JavascriptException
 
-from app.exceptions import AtomyLoginError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
+from app.exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
 from app.utils.atomy import atomy_login
 from app.utils.browser import Browser, Keys
@@ -133,17 +133,24 @@ class AtomyQuick(PurchaseOrderVendorBase):
         }
 
     def __send_order_post_request(self):
-        raw = '&'.join(["%s=%s" % p for p in self.__po_params.items()])
-        post_order_doc = get_document_from_url(
-            url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
-            encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies],
-            # raw_data='CartList[0].CustPrice=12800&CartList[0].MaterialCode=000454&CartList[0].PvAmt=4700&CartList[0].PvPrice=4700&CartList[0].Qty=1&CartList[0].TotAmt=12800&Addr1=1111&Addr2=1111&BankGubun=1&CardGubun=0&DeliCheck=3&OrderHp=010-5635-2045&OrderUrl=%2Fv2%2FHome%2FPayment%2FQuickOrder%3F_%3D1616863579709&RevHp=010-5635-2045&TagGubun=2&RevName=111&Revzip=1111&SaleDate=2021-03-27&SendName=dumb&SettleGubun=2&TagSum=2500&TotAmt=12800&TotPv=4700&TotQty=1&PackingGubun=0&PricePrint=1&PaymentType=2&Bank=06&IpgumAmt=15300&IpgumName=Моє імя&TaxCheck=0&TaxLGubun=0&TaxLNum=&TaxMGubun=0&VirHp=010-5635-2045&CloseDate=2021-04-02'
-            # raw_data='DeliCheck=3&IpgumName=Балыкбаева Гулжамал&OrderUrl=%2Fv2%2FHome%2FPayment%2FQuickOrder%3F_%3D1616863579709&PaymentType=2&PricePrint=1&TagGubun=2&CartList[0].CustPrice=34800&CartList[0].MaterialCode=004008&CartList[0].PvAmt=170000&CartList[0].PvPrice=17000&CartList[0].Qty=10&CartList[0].TotAmt=348000&TotAmt=348000&IpgumAmt=348000&TotPv=170000&TotQty=10&CloseDate=2021-03-31&SaleDate=2021-03-28&SendName=dumb&RevName=0001ㅡ001&PackingGubun=0&TagSum=0&OrderHp=010-5635-2045&RevHp=010-5635-2045&Addr1=서울특별시 금천구 두산로 70 (독산동)&Addr2=291-1번지 현대지식산업센터  A동 605호&Revzip=08584&CardGubun=0&BankGubun=1&SettleGubun=2&VirHp=010-5635-2045&Bank=06&TaxCheck=1&TaxLGubun=2&TaxMGubun=3&TaxLNum=111-11-11111',
-            raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
-        )
-        self.__logger.info(post_order_doc.cssselect('head script')[1].text)
-        return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
+        # raw = '&'.join(["%s=%s" % p for p in self.__po_params.items()])
+        self.__po_params['TotAmt'] = 0
+        try:
+            post_order_doc = get_document_from_url(
+                url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
+                encoding='utf-8',
+                headers=[{'Cookie': c} for c in self.__session_cookies],
+                raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
+            )
+            return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
+        except KeyError: # Couldn't get order ID
+            script = post_order_doc.cssselect('head script')[1].text
+            message_match = re.search("var responseMsg = '(.*)';", script)
+            if message_match is not None:
+                message = message_match.groups()[0]
+                raise PurchaseOrderError(self.__purchase_order, self, message)
+        except HTTPError:
+            raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
         order_details_doc = get_document_from_url(

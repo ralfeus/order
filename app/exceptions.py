@@ -4,6 +4,9 @@ class AtomyLoginError(Exception):
 class EmptySuborderError(Exception):
     pass
 
+class HTTPError(Exception):
+    pass
+
 class NoPurchaseOrderError(Exception):
     pass
 
