@@ -11,7 +11,7 @@ sel_item_name_sold_out = CSSSelector('td.line_L_r a span')
 sel_item_price = CSSSelector('td.line_C_r:nth-child(4)')
 sel_item_points = CSSSelector('td.line_C_r:nth-child(5)')
 
-def get_document_from_url(url, headers=None, raw_data=None):
+def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     # headers_list = [
     #     header for set in list(map(
     #         lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
@@ -25,13 +25,13 @@ def get_document_from_url(url, headers=None, raw_data=None):
         url,
         '-v'
         ] + headers_list + raw_data,
-        encoding='euc-kr', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
     if re.search('HTTP.*? 200', output.stderr):
         doc = lxml.html.fromstring(output.stdout)
         return doc
 
-    raise "Couldn't get page: " + output.stderr
+    raise Exception(f"Couldn't get page {url}: " + output.stderr)
 
 def get_atomy_products():
     product_url = "https://www.atomy.kr/center/popup_material.asp"

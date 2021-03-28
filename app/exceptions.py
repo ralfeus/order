@@ -21,7 +21,7 @@ class PurchaseOrderError(Exception):
         super().__init__()
         self.final = False
         self.message = message
-        self.po_id = po.id
+        self.po_id = po.id if po else None
         self.retry = retry
         self.vendor = str(vendor)
     

@@ -18,10 +18,10 @@ with create_app().app_context():
         po.status = PurchaseOrderStatus.pending
         # po.vendor = 'AtomyQuick'
         # po.company_id = 3
-        # po.customer.username = '20589846'
-        # po.customer.password = 'atom777'
-        po.suborder.order_products[0].product = Product.query.get('003298')
-        po.suborder.order_products[0].product_id = '003298'
+        po.customer.username = '23426444'
+        po.customer.password = 'atomy#01'
+        po.suborder.order_products[0].product = Product.query.get('000107')
+        po.suborder.order_products[0].product_id = '000107'
         current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']
         # browser = Browser(config=current_app.config)
