@@ -208,7 +208,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             sale_date = purchase_date
         else:
-            sale_date = datetime.now()
+            sale_date = datetime.now() if datetime.now().weekday() != 6 \
+                else datetime.now() + timedelta(days=1)
         self.__po_params['CloseDate'] = (sale_date + timedelta(days=3)).strftime('%Y-%m-%d')
         self.__po_params['SaleDate'] = sale_date.strftime('%Y-%m-%d')
 
@@ -292,14 +293,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def update_purchase_order_status(self, purchase_order):
         logger = self.__logger.getChild('update_purchase_order_status')
         logger.info('Updating %s status', purchase_order.id)
-        logger.info("Logging in...")
+        logger.debug("Logging in as %s", purchase_order.customer.username)
         self.__session_cookies = atomy_login(
             purchase_order.customer.username,
             purchase_order.customer.password,
             run_browser=False)
         logger.debug("Getting POs from Atomy...")
         vendor_purchase_orders = self.__get_purchase_orders()
-        self.__logger.info("Got %s POs", len(vendor_purchase_orders))
+        self.__logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             logger.debug(str(o))
             if o['id'] == purchase_order.vendor_po_id:
@@ -314,16 +315,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def update_purchase_orders_status(self, subcustomer, purchase_orders):
         logger = self.__logger.getChild('update_purchase_orders_status')
         logger.info('Updating %s POs status', len(purchase_orders))
-        self.__logger.info('Attempting to log in as %s...', subcustomer.name)
+        self.__logger.debug('Attempting to log in as %s...', subcustomer.name)
         self.__session_cookies = atomy_login(
             subcustomer.username,
             subcustomer.password,
             run_browser=False)
-        logger.info('Getting subcustomer\'s POs')
+        logger.debug('Getting subcustomer\'s POs')
         vendor_purchase_orders = self.__get_purchase_orders()
         logger.debug('Got %s POs', len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
-            logger.info(str(o))
+            logger.debug(str(o))
             filtered_po = [po for po in purchase_orders 
                               if po and po.vendor_po_id == o['id']]
             try:
@@ -335,7 +336,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_purchase_orders(self):
         logger = self.__logger.getChild('__get_purchase_orders')
-        logger.info('Getting purchase order')
+        logger.debug('Getting purchase orders')
         search_params = {
             "CurrentPage": 1,
             "PageSize": 100,
