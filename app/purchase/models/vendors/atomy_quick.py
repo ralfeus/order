@@ -343,31 +343,36 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "EDate": (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d'),
             "OrderStatus":""
         }
-        response = get_document_from_url(
-            url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderList',
-            encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies ] + [
-                {'Content-Type': 'application/json'}
-            ],
-            raw_data=json.dumps(search_params)
-        )
+        try:
+            response = get_document_from_url(
+                url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderList',
+                encoding='utf-8',
+                headers=[{'Cookie': c} for c in self.__session_cookies ] + [
+                    {'Content-Type': 'application/json'}
+                ],
+                raw_data=json.dumps(search_params)
+            )
+            from app.purchase.models import PurchaseOrderStatus
+            po_statuses = {
+                '주문접수': PurchaseOrderStatus.posted,
+                '배송중': PurchaseOrderStatus.shipped,
+                '미결제마감': PurchaseOrderStatus.payment_past_due,
+                '결제완료': PurchaseOrderStatus.paid,
+                '상품준비중': PurchaseOrderStatus.paid,
+                '주문취소': PurchaseOrderStatus.cancelled,
+                '매출취소': PurchaseOrderStatus.cancelled,
+                '배송완료': PurchaseOrderStatus.delivered,
+                '반품': PurchaseOrderStatus.delivered
+            }           
+            
+            orders = [{
+                'id': o['SaleNum'],
+                'status': po_statuses[o['OrderStatusName']]
+                } for o in json.loads(response.text)['jsonData']]
 
-        from app.purchase.models import PurchaseOrderStatus
-        po_statuses = {
-            '주문접수': PurchaseOrderStatus.posted,
-            '배송중': PurchaseOrderStatus.shipped,
-            '미결제마감': PurchaseOrderStatus.payment_past_due,
-            '결제완료': PurchaseOrderStatus.paid,
-            '상품준비중': PurchaseOrderStatus.paid,
-            '주문취소': PurchaseOrderStatus.cancelled,
-            '매출취소': PurchaseOrderStatus.cancelled,
-            '배송완료': PurchaseOrderStatus.delivered,
-            '반품': PurchaseOrderStatus.delivered
-        }           
-        
-        orders = [{
-            'id': o['SaleNum'],
-            'status': po_statuses[o['OrderStatusName']]
-            } for o in json.loads(response.text)['jsonData']]
-
-        return orders
+            return orders
+        except HTTPError as ex:
+            if '/v2/Common/RedirectPage?rpage=MyAtomyMall%2FGetMyOrderList' in ex.args[0]:
+                logger.warning("Can't get any orders for the customer")
+                return []
+            raise ex

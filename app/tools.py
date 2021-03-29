@@ -162,4 +162,4 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
         doc = lxml.html.fromstring(output.stdout)
         return doc
 
-    raise HTTPError(f"Couldn't get page {url}: " + output.stderr)
+    raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
