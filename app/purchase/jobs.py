@@ -130,7 +130,7 @@ def update_purchase_orders_status(po_id=None, browser=None):
                 if len(customer_pos) > 0:
                     vendor.update_purchase_orders_status(customer, customer_pos)
             except AtomyLoginError as ex:
-                logger.warning("Couldn't log in as %s: %s", customer.name, str(ex))
+                logger.warning("Couldn't log in as %s (%s)", customer.name, customer.username)
             except:
                 logger.exception(
                     "Couldn't update POs status for %s", customer.name)
