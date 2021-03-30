@@ -113,9 +113,7 @@ def update_purchase_order(po_id):
 
     from ..jobs import post_purchase_orders, update_purchase_orders_status
     try:
-        if request.values.get('action') == 'repost'\
-            and po.is_editable():
-
+        if request.values.get('action') == 'repost':
             po.reset_status()
             db.session.commit()
             task = post_purchase_orders.apply_async(

@@ -11,7 +11,7 @@ $.fn.dataTable.ext.buttons.invoice = {
 };
 
 $.fn.dataTable.ext.buttons.status = {
-    extent: 'select',
+    extend: 'selected',
     action: function(e, dt, node, config) {
         set_status(dt.rows({selected: true}), this.text());
     }

@@ -8,8 +8,17 @@ var g_po_statuses;
 var g_vendors;
 
 $.fn.dataTable.ext.buttons.repost = {
+    extend: 'selected',
     action: function(_e, dt, _node, _config) {
-        repost(dt.rows({selected: true}));
+        modal(
+            "Repost purchase orders", 
+            "Are you sure you want to post selected purchase orders again?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                repost(dt.rows({selected: true}));
+            }
+        });
     }
 };
 $.fn.dataTable.ext.buttons.status_update = {
