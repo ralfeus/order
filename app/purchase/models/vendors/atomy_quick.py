@@ -109,7 +109,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         }
 
     def __send_order_post_request(self):
-        # raw = '&'.join(["%s=%s" % p for p in self.__po_params.items()])
+        self.__logger.debug(self.__po_params)
         try:
             post_order_doc = get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
