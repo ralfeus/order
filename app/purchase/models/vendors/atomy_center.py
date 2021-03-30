@@ -118,7 +118,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             get_attribute('value')
         quantity = self.__browser.get_element_by_name(f'sale_qty{field_num}').\
             get_attribute('value')
-        if not sale_price:
+        if not sale_price or not quantity or not tot_amt:
             raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
                 message=f"No product code in cell {field_num} is entered. Will retry",
                 retry=True)
