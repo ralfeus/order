@@ -218,6 +218,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_local_shipment(self, purchase_order, ordered_products):
         logger = self.__logger.getChild('__set_local_shipment')
         logger.debug('Set local shipment')
+        self.__po_params['TagSum'] = 0
         free_shipping_eligible_amount = reduce(
             lambda acc, op: acc + (op.price * op.quantity)
                 if not op.product.separate_shipping else 0,
@@ -228,12 +229,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__po_params['PackingGubun'] = 1
             self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
                 '/' + purchase_order.address['zip']
-            self.__po_params['TagSum'] = self.__config['LOCAL_SHIPPING_COST']
-            self.__po_params['IpgumAmt'] += self.__config['LOCAL_SHIPPING_COST']
         else:
             logger.debug('No combined shipment is needed')
             self.__po_params['PackingGubun'] = 0
-            self.__po_params['TagSum'] = 0
 
     def __set_sender_name(self):
         self.__logger.debug("Setting sender name")
