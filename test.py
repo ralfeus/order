@@ -20,8 +20,16 @@ with create_app().app_context():
         po.company_id = 3
         po.customer.username = '23426444'
         po.customer.password = 'atomy#01'
-        # po.suborder.order_products[0].product = Product.query.get('000107')
-        # po.suborder.order_products[0].product_id = '000107'
+        # po.order_products[0].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.suborder.order_products[0].product = Product.query.get('455')
+        po.suborder.order_products[0].product_id = '455'
+        po.suborder.order_products[0].price = po.suborder.order_products[0].product.price
+        po.suborder.order_products[0].quantity = 1
         current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']
         # update_purchase_orders_status('PO-2021-03-0001-001')

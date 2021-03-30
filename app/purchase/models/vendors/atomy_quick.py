@@ -21,7 +21,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __logger: logging.Logger = None
     __purchase_order = None
 
-    def __init__(self, browser=None, logger: logging.Logger=None, config=None):
+    def __init__(self, _browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
         log_level = None
         if logger:
@@ -64,7 +64,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_sender_name()
             self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
-            self.__set_local_shipment(purchase_order)
+            self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
@@ -156,16 +156,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 continue
             try:
                 product_id = '0' * (6 - len(op.product_id)) + op.product_id
-                if self.__is_product_valid(product_id):
+                product = self.__get_product(product_id)
+                if product:
                     index = len(ordered_products)
-                    self.__po_params[f'CartList[{index}].CustPrice'] = op.price
-                    self.__po_params[f'CartList[{index}].MaterialCode'] = product_id
-                    self.__po_params[f'CartList[{index}].PvAmt'] = op.product.points * op.quantity
-                    self.__po_params[f'CartList[{index}].PvPrice'] = op.product.points
+                    op.product.separate_shipping = product['DeliGubun'] == 1
                     self.__po_params[f'CartList[{index}].Qty'] = op.quantity
+                    self.__po_params[f'CartList[{index}].CustPrice'] = op.price
                     self.__po_params[f'CartList[{index}].TotAmt'] = op.price * op.quantity
-                    tot_amt += op.price * op.quantity
-                    tot_pv += op.product.points * op.quantity
+                    self.__po_params[f'CartList[{index}].MaterialCode'] = product_id
+                    self.__po_params[f'CartList[{index}].PvPrice'] = op.product.points
+                    self.__po_params[f'CartList[{index}].PvAmt'] = op.product.points * op.quantity
+                    tot_amt += product['SalePrice'] * op.quantity
+                    tot_pv += product['PvPrice'] * op.quantity
                     tot_qty += op.quantity
                     ordered_products.append(op)
                     logger.debug("Added product %s", op.product_id)
@@ -184,7 +186,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug(self.__po_params)
         return ordered_products
 
-    def __is_product_valid(self, product_id):
+    def __get_product(self, product_id):
         result = get_document_from_url(
             url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
             encoding='utf-8',
@@ -194,7 +196,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raw_data='{"MaterialCode":"%s"}' % product_id
         )
         result = json.loads(result.text)
-        return result['jsonData'] is not None
+        return result['jsonData'] if result['jsonData'] is not None else None
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
@@ -213,22 +215,23 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__po_params['CloseDate'] = (sale_date + timedelta(days=3)).strftime('%Y-%m-%d')
         self.__po_params['SaleDate'] = sale_date.strftime('%Y-%m-%d')
 
-    def __set_local_shipment(self, purchase_order):
+    def __set_local_shipment(self, purchase_order, ordered_products):
         logger = self.__logger.getChild('__set_local_shipment')
         logger.debug('Set local shipment')
         free_shipping_eligible_amount = reduce(
             lambda acc, op: acc + (op.price * op.quantity)
                 if not op.product.separate_shipping else 0,
-            purchase_order.order_products, 0)
+            ordered_products, 0)
         local_shipment = free_shipping_eligible_amount < self.__config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']
         if local_shipment:
-            self.__logger.debug("Setting local shipment params")
+            logger.debug("Setting combined shipment params")
             self.__po_params['PackingGubun'] = 1
             self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
                 '/' + purchase_order.address['zip']
             self.__po_params['TagSum'] = self.__config['LOCAL_SHIPPING_COST']
             self.__po_params['IpgumAmt'] += self.__config['LOCAL_SHIPPING_COST']
         else:
+            logger.debug('No combined shipment is needed')
             self.__po_params['PackingGubun'] = 0
             self.__po_params['TagSum'] = 0
 
