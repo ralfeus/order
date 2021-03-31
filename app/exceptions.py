@@ -27,6 +27,7 @@ class PurchaseOrderError(Exception):
         self.po_id = po.id if po else None
         self.retry = retry
         self.vendor = str(vendor)
+        self.args = (message,)
     
     def __str__(self):
         return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"

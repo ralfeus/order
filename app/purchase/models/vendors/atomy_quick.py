@@ -20,6 +20,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __logger: logging.Logger = None
     __purchase_order = None
+    __po_params = {}
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
@@ -38,7 +39,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
         self.__session_cookies = None
-        self.__po_params = {}
 
     def __str__(self):
         return "Atomy - Quick order"
