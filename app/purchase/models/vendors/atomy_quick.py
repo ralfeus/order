@@ -94,12 +94,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ex
 
     def __init_quick_order(self, purchase_order):
-        doc = get_document_from_url(
-            url='https://www.atomy.kr/v2/Home/Payment/QuickOrder',
-            encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies ]
-        )
-        self.__po_params = {**self.__po_params,
+        # doc = get_document_from_url(
+        #     url='https://www.atomy.kr/v2/Home/Payment/QuickOrder',
+        #     encoding='utf-8',
+        #     headers=[{'Cookie': c} for c in self.__session_cookies ]
+        # )
+        self.__po_params = { #**self.__po_params, TODO: Why?
             'DeliCheck': 3,
             'IpgumName': purchase_order.customer.name,
             'OrderUrl': '%2Fv2%2FHome%2FPayment%2FQuickOrder%3F_%3D1616863579709',
