@@ -22,6 +22,8 @@ except:
 
 def _atomy_login_curl(username, password):
     '''    Logins to Atomy customer section    '''
+    if len(username) < 8:
+        username = 'S' + username
     output = subprocess.run([
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
@@ -34,7 +36,7 @@ def _atomy_login_curl(username, password):
        re.search('btnChangePassword', output.stdout):
         return re.findall('set-cookie: (.*)', output.stderr)
     elif re.search("var isLoginFail = \\'True\\';", output.stdout):
-        raise AtomyLoginError()
+        raise AtomyLoginError(username=username)
 
     raise HTTPError(output)
 
