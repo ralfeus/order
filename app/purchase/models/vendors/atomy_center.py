@@ -234,7 +234,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __set_payment_mobile(self, phone='010-6275-2045'):
         self.__logger.debug("Setting payment phone number")
         phone = phone.split('-')
-        if len(phone) == 0:
+        if len(phone) < 3:
             self.__logger.info("Payment phone isn't set as it isn't provided")
             return
         self.__browser.execute_script(

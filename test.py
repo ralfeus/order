@@ -16,8 +16,9 @@ with create_app().app_context():
     # with db.session.no_autoflush:
         po = PurchaseOrder.query.get('PO-2021-03-0001-001')
         po.status = PurchaseOrderStatus.pending
-        po.vendor = 'AtomyQuick'
-        po.company_id = 3
+        po.vendor = 'AtomyCenter'
+        po.company_id = 4
+        po.payment_phone = ''
         po.customer.username = '23426444'
         po.customer.password = 'atomy#01'
         # po.order_products[0].delete()
