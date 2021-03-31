@@ -78,7 +78,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
             return purchase_order
         except AtomyLoginError as ex:
-            self.__logger.warning("Couldn't log on as a customer. %s", str(ex.args))
+            self.__logger.warning("Couldn't log on as a customer %s", str(ex.args))
             raise ex
         except PurchaseOrderError as ex:
             self.__logger.warning(ex)

@@ -1,5 +1,8 @@
 class AtomyLoginError(Exception):
-    pass
+    def __init__(self, username=None):
+        super().__init__()
+        self.username = username
+        self.args = (username,)
 
 class EmptySuborderError(Exception):
     pass
