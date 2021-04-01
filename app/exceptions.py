@@ -33,7 +33,7 @@ class PurchaseOrderError(Exception):
         self.args = (message,)
     
     def __str__(self):
-        return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"
+        return f"Couldn't post {self.po_id} at {self.vendor}: {self.message}"
 
 class ProductNotAvailableError(PurchaseOrderError):
     def __init__(self, product_id, final=False):

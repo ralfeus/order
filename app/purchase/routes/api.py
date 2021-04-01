@@ -1,3 +1,4 @@
+from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from datetime import datetime
 from operator import itemgetter
 
@@ -60,6 +61,15 @@ def create_purchase_order():
     Accepts order details in payload
     Returns JSON
     '''
+    with PurchaseOrderValidator(request) as validator:
+        if not validator.validate():
+            return jsonify({
+                'data': [],
+                'error': "Couldn't create a purchase order",
+                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                for message in validator.errors]
+            })
+
     payload = request.get_json()
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
