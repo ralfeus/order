@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 import re
+import subprocess
 from time import sleep
 
 from pytz import timezone
@@ -17,10 +18,11 @@ WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입�
 
 class AtomyCenter(PurchaseOrderVendorBase):
     __is_browser_created_locally = False
+    __po_params = {}
 
     def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
-        self.__browser_attr = browser
+        # self.__browser_attr = browser
         log_level = None
         if logger:
             log_level = logger.level
@@ -41,26 +43,26 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __str__(self):
         return "Atomy - Center"
 
-    @property
-    def __browser(self):
-        if self.__browser_attr is None:
-            self.__browser_attr = Browser(config=self.__config)
-            self.__is_browser_created_locally = True
-        return self.__browser_attr
+    # @property
+    # def __browser(self):
+    #     if self.__browser_attr is None:
+    #         self.__browser_attr = Browser(config=self.__config)
+    #         self.__is_browser_created_locally = True
+    #     return self.__browser_attr
 
-    def __del__(self):
-        if self.__is_browser_created_locally:
-            try:
-                self.__browser_attr.quit()
-            except:
-                pass
+    # def __del__(self):
+    #     if self.__is_browser_created_locally:
+    #         try:
+    #             self.__browser_attr.quit()
+    #         except:
+    #             pass
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
         '''Posts purchase order on AtomyCenter'''
         self.__logger = self.__original_logger.getChild(purchase_order.id)
         self.__purchase_order = purchase_order
         self.login()
-        self.__open_order()
+        self.__init_order_request()
         self.__set_customer_id(purchase_order.customer.username)
         self.__set_purchase_date(purchase_order.purchase_date)
         self.__set_phones(purchase_order.contact_phone)
@@ -78,6 +80,44 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order
 
+    def __init_order_request(self):
+        self.__po_params = {
+            'deli_check': 3,
+            'tax_check': 1,
+            'tag_sum':0,
+            'card_amt': 0, # TODO: to check
+            'verify': 1,
+            'order_quick_product': 0,
+            'quick_product': 0,
+            'mquick_product': 0,
+            'bu_code': 1026,
+            'mdeli_gubun1':0,
+            'mquick_product1': 0,
+            'tag_gubun': 1,
+            'deli_gubun': 3,
+            'card_com1': 0,
+            'scard_no12': 'XXXX',
+            'scard_no13': 'XXXX',
+            'settle_amt1': 0,
+            'install_period1': 0,
+            'card_com2': 0,
+            'scard_no22': 'XXXX',
+            'scard_no23': 'XXXX',
+            'settle_amt2': 0,
+            'install_period2': 0,
+            'card_com3': 0,
+            'scard_no32': 'XXXX',
+            'scard_no33': 'XXXX',
+            'settle_amt3': 0,
+            'install_period3': 0,
+            'card_com4': 0,
+            'scard_no42': 'XXXX',
+            'scard_no43': 'XXXX',
+            'settle_amt4': 0,
+            'install_period4': 0,
+            'mile_amt': 0
+        }
+
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
         self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
@@ -85,17 +125,17 @@ class AtomyCenter(PurchaseOrderVendorBase):
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
-    def login(self):
-        self.__logger.debug("Logging in")
-        self.__browser.get('https://atomy.kr/center/login.asp')
-        self.__browser.get_element_by_css('input[name="admin_id"]').send_keys(self.__username)
-        password_input = self.__browser.get_element_by_css('input[name="passwd"]')
-        password_input.send_keys(self.__password)
-        password_input.send_keys(Keys.RETURN)
-        try:
-            self.__browser.wait_for_url('https://atomy.kr/center/center_main.asp')
-        except Exception as ex:
-            raise AtomyLoginError(ex)
+    # def login(self):
+    #     self.__logger.debug("Logging in")
+    #     self.__browser.get('https://atomy.kr/center/login.asp')
+    #     self.__browser.get_element_by_css('input[name="admin_id"]').send_keys(self.__username)
+    #     password_input = self.__browser.get_element_by_css('input[name="passwd"]')
+    #     password_input.send_keys(self.__password)
+    #     password_input.send_keys(Keys.RETURN)
+    #     try:
+    #         self.__browser.wait_for_url('https://atomy.kr/center/center_main.asp')
+    #     except Exception as ex:
+    #         raise AtomyLoginError(ex)
 
     def __set_product_quantity(self, input, value):
         input_id = input.get_attribute('id')
@@ -330,3 +370,20 @@ class AtomyCenter(PurchaseOrderVendorBase):
             sleep(5)
         self.__logger.warning("Gave up trying")  
         raise Exception("Couldn't find account number to pay to")
+
+    def login(username='atomy1026', password='5714'):
+        ''' Logins to Atomy customer section '''
+        output = subprocess.run([
+            '/usr/bin/curl',
+            'https://www.atomy.kr/center/check_user.asp',
+            '-H',
+            'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',
+            '--data-raw',
+            f'src=&admin_id={username}&passwd={password}',
+            '-v'
+            ],
+            encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
+        if re.search('< location: center_main', output.stderr):
+            # return re.search(r'ASPSESSIONID(\w+)=(\w+)', output.stderr).group()
+            return re.findall('set-cookie: (.*)', output.stderr)
+        raise AtomyLoginError(username)
