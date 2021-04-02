@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.currencies.models.currency_history_entry import CurrencyHistoryEntry
 from app.users.models.role import Role
 from app.users.models.user import User
 from app.currencies.models import Currency
@@ -50,6 +51,7 @@ class TestCurrencyClient(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         currency = Currency.query.get(gen_id)
         self.assertEqual(currency.rate, 2)
+        self.assertEqual(CurrencyHistoryEntry.query.count(), 1)
 
         res = self.client.post(f'/api/v1/admin/currency/{gen_id}',
             json={'rate': '2@'})

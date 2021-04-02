@@ -120,6 +120,11 @@ class OrderProduct(db.Model, BaseModel):
                 if column == 'subcustomer' \
             else base_filter
 
+    def get_price(self, currency=None):
+        rate = currency.get_rate(self.suborder.order.when_created) \
+            if currency is not None else 1
+        return self.price * rate
+
     def postpone(self):
         from . import Order, OrderStatus, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(

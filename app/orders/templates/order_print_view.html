@@ -17,23 +17,19 @@
 
 {% block content %}
 {{ super() }}
-<h1>Order {{ order.id }}</h1>
-<h2>{{ order.customer_name }}</h2>
+<h2>Order {{ order.id }}</h1>
+<h3>{{ order.customer_name }}</h2>
 <table class="table">
   <tbody>
     <tr>
       <td><h5>Shipping method</h5></td>
       <td><h5>Parcel weight</h5></td>
-    </tr>
-    <tr>
-      <td>{{ order.shipping.name }}</td>
-      <td>{{ order.total_weight }}</td>
-    </tr>
-    <tr>
       <td><h5>Address</h5></td>
       <td><h5>Phone</h5></td>
     </tr>
     <tr>
+      <td>{{ order.shipping.name }}</td>
+      <td>{{ order.total_weight }}</td>
       <td>
         {{ order.address }}<br />
         {{ order.zip }}<br />
@@ -42,21 +38,31 @@
       <td>{{ order.phone }}</td>
     </tr>
     <tr>
-      <td><h5>Counterpart company</h5>:</td>
-      <td>{{ order.get_payee() }}</td>
+      <td colspan="3"><h5>Counterpart company</h5>:</td>
+      <td colspan="2">{{ order.get_payee() }}</td>
     </tr>
     <tr>
-      <td><h3>Orders to be shipped with this one:</h3></td>
-      <td>
+      <td colspan="3"><h3>Orders to be shipped with this one:</h3></td>
+      <td colspan="2">
         {% for ao in order.attached_orders %}
         <h3>{{ ao.id }}</h3>
         {% endfor %}
       </td>
     </tr>
+    <tr style="background-color: aqua;">
+      <td><h3>Subtotal</h3></td>
+      <td><h3>Shipping:</h3></td>
+      <td colspan="3"><h3>Total:</h3></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td>{{ currency.format(order.get_subtotal(currency)) }}</td>
+      <td>{{ currency.format(order.get_shipping(currency)) }}</td>
+      <td colspan="3">{{ currency.format(order.get_total(currency)) }}</td>
+    </tr>
   </tbody>
 </table>
 {% for suborder in order.suborders %}
-<h3>
+<h3 style="background-color: grey;">
   {{ suborder.id }}: {{ suborder.subcustomer.name }}
   <span class="h5">
     {{ suborder.subcustomer.username }} {{ suborder.subcustomer.password }}
@@ -67,7 +73,9 @@
     <th scope="col" style="width: 1em;">Product ID</th>
     <th scope="col">Product Name</th>
     <th scope="col">Weight</th>
+    <th scope="col" style="width:1em;">Price</th>
     <th scope="col" style="width:1em;">Qty</th>
+    <th scope="col" style="width:1em;">Cost</th>
     <th scope="col">Public comment</th>
     <th scope="col">Private comment</th>
   </thead>
@@ -77,12 +85,34 @@
       <td>{{ order_product.product.id }}</td>
       <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
       <td>{{ order_product.product.weight }}</td>
+      <td>{{ currency.format(order_product.get_price(currency)) }}</td>
       <td>{{ order_product.quantity }}</td>
+      <td>{{ currency.format(order_product.get_price(currency) * order_product.quantity) }}</td>
       <td>{{ order_product.public_comment }}</td>
       <td>{{ order_product.private_comment }}</td>
     {% endfor %}
     </tr>
   </tbody>
+  <tfoot>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Subtotal</td>
+      <td>{{ currency.format(suborder.get_subtotal(currency)) }}</td>
+      <td colspan="2"></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Shipping</td>
+      <td>{{ currency.format(suborder.get_shipping(currency)) }}</td>
+      <td colspan="2"></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Total</td>
+      <td>{{ currency.format(suborder.get_total(currency)) }}</td>
+      <td colspan="2"></td>
+    </tr>
+  </tfoot>
 </table>
 {% endfor %}
 {% endblock %}
