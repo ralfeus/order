@@ -38,9 +38,7 @@ def user_open_draft():
 @bp_client_user.route('/<order_id>')
 @login_required
 def user_get_order(order_id):
-    '''
-    Existing order form
-    '''
+    ''' Existing order view '''
     order = Order.query
     if not current_user.has_role('admin'):
         order = order.filter_by(user=current_user)
