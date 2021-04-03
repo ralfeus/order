@@ -88,7 +88,8 @@ class Suborder(db.Model, BaseModel):
             self.get_order_products(), 0) * rate
 
     def get_shipping(self, currency=None):
-        return self.get_weight() / self.order.total_weight * float(self.order.get_shipping(currency))
+        return self.get_weight() / self.order.total_weight \
+            * float(self.order.get_shipping(currency))
 
     def get_total(self, currency=None):
         return float(self.get_subtotal(currency)) + self.get_shipping(currency)

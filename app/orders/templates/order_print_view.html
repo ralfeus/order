@@ -55,9 +55,9 @@
       <td colspan="3"><h3>Total:</h3></td>
     </tr>
     <tr style="background-color: aqua;">
-      <td>{{ currency.format(order.get_subtotal(currency)) }}</td>
-      <td>{{ currency.format(order.get_shipping(currency)) }}</td>
-      <td colspan="3">{{ currency.format(order.get_total(currency)) }}</td>
+      <td>{{ currency.format(order.get_subtotal(currency=currency)) }}</td>
+      <td>{{ currency.format(order.get_shipping(currency=currency)) }}</td>
+      <td colspan="3">{{ currency.format(order.get_total(currency=currency)) }}</td>
     </tr>
   </tbody>
 </table>
@@ -85,9 +85,9 @@
       <td>{{ order_product.product.id }}</td>
       <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
       <td>{{ order_product.product.weight }}</td>
-      <td>{{ currency.format(order_product.get_price(currency)) }}</td>
+      <td>{{ currency.format(order_product.get_price(rate=rate)) }}</td>
       <td>{{ order_product.quantity }}</td>
-      <td>{{ currency.format(order_product.get_price(currency) * order_product.quantity) }}</td>
+      <td>{{ currency.format(order_product.get_price(rate=rate) * order_product.quantity) }}</td>
       <td>{{ order_product.public_comment }}</td>
       <td>{{ order_product.private_comment }}</td>
     {% endfor %}

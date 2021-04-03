@@ -49,7 +49,8 @@ def user_get_order(order_id):
         if 'currency' in request.values else None
     if currency is None:
         currency = Currency.query.get('KRW')
-    return render_template('order_print_view.html', order=order, currency=currency)
+    rate = currency.get_rate(order.when_created)
+    return render_template('order_print_view.html', order=order, currency=currency, rate=rate)
 
 @bp_client_user.route('/')
 @login_required
