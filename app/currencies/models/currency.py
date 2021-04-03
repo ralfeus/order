@@ -13,7 +13,7 @@ class Currency(db.Model):
 
     code = Column(String(3), primary_key=True)
     name = Column(String(64))
-    rate = Column(Numeric(scale=5))
+    rate = Column(Numeric(scale=10))
     history = relationship("CurrencyHistoryEntry", lazy="dynamic")
     prefix = Column(String(1))
     suffix = Column(String(1))
