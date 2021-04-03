@@ -54,9 +54,7 @@ def user_get_order(order_id):
 @bp_client_user.route('/')
 @login_required
 def get_orders():
-    '''
-    Orders list for users
-    '''
+    ''' Orders list for users '''
     return render_template('orders.html')
 
 @bp_client_admin.route('/')
@@ -77,7 +75,7 @@ def admin_get_order(order_id):
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order, currency='KRW')
     
-    return user_get_order(order_id)
+    return render_template('new_order.html', order_id=order_id)
 
 
 @bp_client_admin.route('/subcustomers')
