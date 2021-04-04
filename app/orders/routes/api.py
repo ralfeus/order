@@ -743,7 +743,7 @@ def validate_subcustomer():
     current_app.logger.debug(f"Validating subcustomer {payload}")
     try:
         subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
-        atomy_login(subcustomer.username, subcustomer.password)
+        atomy_login(subcustomer.username, subcustomer.password, run_browser=False)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
