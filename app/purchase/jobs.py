@@ -74,7 +74,7 @@ def post_purchase_orders(po_id=None):
                     logger.warning("Failed to post the purchase order %s.", po.id)
                     logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
-                    po.status_details = str(ex.args)
+                    po.status_details = str(ex)
                     po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')

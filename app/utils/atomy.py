@@ -3,6 +3,7 @@ import logging
 import re
 import subprocess
 from time import sleep
+from urllib.parse import urlencode
 
 import lxml.html
 from flask import current_app
@@ -28,7 +29,13 @@ def _atomy_login_curl(username, password):
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
         '--data-raw',
-        f'src=&userId={username}&userPw={password}&idSave=on&rpage=',
+        urlencode({
+            'src': '',
+            'userId': username,
+            'userPw': password,
+            'idSave': 'on',
+            'rpage': ''
+        }),
         '-v'
         ],
         encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
