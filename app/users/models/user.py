@@ -2,7 +2,7 @@
 User model
 '''
 from flask_security import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -29,6 +29,7 @@ class User(db.Model, UserMixin):
     phone = Column(String(32))
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
+    profile = Column(Text, default='{}')
 
     # User information
     when_created = Column(DateTime)
