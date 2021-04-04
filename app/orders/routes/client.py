@@ -1,3 +1,5 @@
+''' Client routes for order related activities '''
+import json
 from flask import Response, abort, escape, request, render_template, send_file
 from flask_security import current_user, login_required, roles_required
 
@@ -40,17 +42,27 @@ def user_open_draft():
 def user_get_order(order_id):
     ''' Existing order view '''
     order = Order.query
+    profile = json.loads(current_user.profile)
     if not current_user.has_role('admin'):
         order = order.filter_by(user=current_user)
     order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
-    currency = Currency.query.get(request.values['currency']) \
-        if 'currency' in request.values else None
+    currency = Currency.query.get(profile['currency'])
+    if 'currency' in request.values:
+        currency = Currency.query.get(request.values['currency'])
+        if currency is not None:
+            profile['currency'] = currency.code
+            current_user.profile = json.dumps(profile)
+            from app import db
+            db.session.commit()
     if currency is None:
         currency = Currency.query.get('KRW')
+    currencies = [{'code': c.code, 'default': c.code == profile.get('currency')} 
+                  for c in Currency.query]
     rate = currency.get_rate(order.when_created)
-    return render_template('order_print_view.html', order=order, currency=currency, rate=rate)
+    return render_template('order_print_view.html',
+        order=order, currency=currency, currencies=currencies, rate=rate)
 
 @bp_client_user.route('/')
 @login_required
@@ -74,7 +86,8 @@ def admin_get_order(order_id):
     if not order:
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
-        return render_template('order_print_view.html', order=order, currency='KRW')
+        return render_template('order_print_view.html', order=order,
+            currency=Currency.query.get('KRW'), rate=1, currencies=[])
     
     return render_template('new_order.html', order_id=order_id)
 
