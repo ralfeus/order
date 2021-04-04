@@ -147,13 +147,28 @@ def user_create_payment():
     db.session.commit()
     return jsonify({'data': [payment.to_dict()]})
 
+@bp_api_user.route('/<payment_id>', methods=['DELETE'])
+@login_required
+def user_delete_payment(payment_id):
+    ''' Cancels payment request '''
+    payment = Payment.query.get(payment_id)
+    if payment is None:
+        abort(404)
+    if not payment.is_editable():
+        return jsonify({
+            'error': f"Can't cancel payment in state [{payment.status}]"
+        })
+    payment.status = PaymentStatus.cancelled
+    db.session.commit()
+    return jsonify({})
+
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
     evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
     shutil.move(evidence_src_file, os.path.abspath(evidence_file))
     return evidence_file
 
-@bp_api_user.route('/<int:payment_id>', methods=['POST'])
+# @bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
 def user_save_payment(payment_id):
     '''Saves updates in payment'''
