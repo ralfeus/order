@@ -48,7 +48,7 @@ def user_get_order(order_id):
     order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
-    currency = Currency.query.get(profile['currency'])
+    currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
         currency = Currency.query.get(request.values['currency'])
         if currency is not None:
