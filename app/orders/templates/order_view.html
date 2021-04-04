@@ -13,22 +13,28 @@
 {% endblock %}
 
 {% block navbar %}
+  {% if mode != 'print' %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block currencies %}
+<div class="btn-group btn-group-toggle" data-toggle="buttons">
+  {% for c in currencies %}
+  <label class="btn btn-secondary {{ 'active' if c.default else '' }}">    
+    <input type="radio" name="currency" {{ 'checked' if c.default else ''}}
+      onclick="window.location = '{{ request.base_url }}?currency={{ c.code }}';">
+      {{ c.code }}
+    </input>
+  </label>
+  {% endfor %}
+</div>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
 <span>
   <span class="h2">Order {{ order.id }}</span>
-  <div class="btn-group btn-group-toggle float-right" data-toggle="buttons">
-    {% for c in currencies %}
-    <label class="btn btn-secondary {{ 'active' if c.default else '' }}">    
-      <input type="radio" name="currency" {{ 'checked' if c.default else ''}}
-        onclick="window.location = window.location + '?currency={{ c.code }}';">
-        {{ c.code }}
-      </input>
-    </label>
-    {% endfor %}
-  </div>
 </span>
 <h3>{{ order.customer_name }}</h3>
 <table class="table">

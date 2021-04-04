@@ -61,8 +61,8 @@ def user_get_order(order_id):
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')} 
                   for c in Currency.query]
     rate = currency.get_rate(order.when_created)
-    return render_template('order_print_view.html',
-        order=order, currency=currency, currencies=currencies, rate=rate)
+    return render_template('order_view.html', order=order,
+        currency=currency, currencies=currencies, rate=rate, mode='view')
 
 @bp_client_user.route('/')
 @login_required
@@ -86,8 +86,8 @@ def admin_get_order(order_id):
     if not order:
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
-        return render_template('order_print_view.html', order=order,
-            currency=Currency.query.get('KRW'), rate=1, currencies=[])
+        return render_template('order_view.html', order=order,
+            currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')
     
     return render_template('new_order.html', order_id=order_id)
 
