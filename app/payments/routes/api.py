@@ -115,7 +115,7 @@ def user_create_payment():
                 'error': "Couldn't update a Payment",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
-            }), 400
+            })
     if isinstance(payload['amount_sent_original'], str):
         payload['amount_sent_original'] = payload['amount_sent_original'].replace(',', '.')
     currency = Currency.query.get(payload['currency_code'])
