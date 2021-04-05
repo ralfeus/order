@@ -1,6 +1,7 @@
 ''' Client routes for order related activities '''
 import json
 from flask import Response, abort, escape, request, render_template, send_file
+from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
 
 from app.orders import bp_client_admin, bp_client_user
@@ -41,6 +42,7 @@ def user_open_draft():
 @login_required
 def user_get_order(order_id):
     ''' Existing order view '''
+    logger = current_app.logger.getChild('user_get_order')
     order = Order.query
     profile = json.loads(current_user.profile)
     if not current_user.has_role('admin'):
@@ -61,6 +63,7 @@ def user_get_order(order_id):
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')} 
                   for c in Currency.query]
     rate = currency.get_rate(order.when_created)
+    logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
     return render_template('order_view.html', order=order,
         currency=currency, currencies=currencies, rate=rate, mode='view')
 
