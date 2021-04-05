@@ -207,8 +207,8 @@ class Order(db.Model, BaseModel):
 
     def get_total(self, currency: Currency=None):
         return \
-            self.total_usd if currency and currency == 'USD' \
-            else self.total_rur if currency and currency == 'RUR' \
+            self.total_usd if currency and currency.code == 'USD' \
+            else self.total_rur if currency and currency.code == 'RUR' \
             else self.total_krw
 
     def get_total_points(self):
