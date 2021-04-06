@@ -11,4 +11,4 @@ class CurrencyHistoryEntry(BaseModel, db.Model):
     __tablename__ = 'currency_history'
 
     code = Column(String(3), ForeignKey('currencies.code'))
-    rate = Column(Numeric(scale=5))
+    rate = Column(Numeric(scale=10))
