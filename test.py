@@ -14,24 +14,13 @@ import cProfile
 
 with create_app().app_context():
     # with db.session.no_autoflush:
-        po = PurchaseOrder.query.get('PO-2021-03-0001-001')
-        po.status = PurchaseOrderStatus.pending
-        po.vendor = 'AtomyCenter'
-        po.company_id = 4
-        po.payment_phone = ''
+        po = PurchaseOrder.query.get('PO-2021-04-0001-004')
+        # po.status = PurchaseOrderStatus.pending
+        # po.vendor = 'AtomyCenter'
+        # po.company_id = 3
         po.customer.username = '23426444'
         po.customer.password = 'atomy#01'
-        # po.order_products[0].delete()
-        po.order_products[1].delete()
-        po.order_products[1].delete()
-        po.order_products[1].delete()
-        po.order_products[1].delete()
-        po.order_products[1].delete()
-        po.suborder.order_products[0].product = Product.query.get('455')
-        po.suborder.order_products[0].product_id = '455'
-        po.suborder.order_products[0].price = po.suborder.order_products[0].product.price
-        po.suborder.order_products[0].quantity = 1
-        current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
+        # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']
         # update_purchase_orders_status('PO-2021-03-0001-001')
         # browser = Browser(config=current_app.config)
@@ -39,7 +28,7 @@ with create_app().app_context():
     #         po.vendor,
     #         browser=browser, config=current_app.config)
     #     vendor.post_purchase_order(po)
-        post_purchase_orders(po_id='PO-2021-03-0001-001')
+        post_purchase_orders(po_id='PO-2021-04-0001-001')
         # print(po.to_dict())
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
     # build_network(root_id='16222950', incremental=True)

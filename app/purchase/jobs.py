@@ -10,7 +10,7 @@ from flask import current_app
 from sqlalchemy import not_
 
 from app import celery, db
-from app.exceptions import AtomyLoginError
+from app.exceptions import AtomyLoginError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
@@ -70,11 +70,11 @@ def post_purchase_orders(po_id=None):
                         po.when_changed = datetime.now()
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                     logger.info("Posted a purchase order %s", po.id)
-                except Exception as ex:
+                except (PurchaseOrderError, AtomyLoginError) as ex:
                     logger.warning("Failed to post the purchase order %s.", po.id)
                     logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
-                    po.status_details = str(ex.args)
+                    po.status_details = str(ex)
                     po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')

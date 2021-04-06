@@ -146,7 +146,7 @@ def stream_and_close(file_handle):
     yield from file_handle
     file_handle.close()
 
-def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
+def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8'):
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
@@ -158,7 +158,7 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
         ] + headers_list + raw_data,
         encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
-    if re.search('HTTP.*? 200', output.stderr):
+    if re.search('HTTP.*? 200', output.stderr) and len(output.stdout) > 0:
         doc = lxml.html.fromstring(output.stdout)
         return doc
 
