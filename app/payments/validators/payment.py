@@ -10,7 +10,7 @@ def _is_int(_form, field):
         raise ValidationError(f'{field.id}: The value must be integer')
 
 def _is_valid_payment_method(_form, field):
-    if PaymentMethod.query.get(field.data['id']) is None:
+    if field.data is None or PaymentMethod.query.get(field.data['id']) is None:
         raise ValidationError(f'{field.id}.id: Is not a valid payment method')
 
 def _is_valid_user(_form, field):

@@ -15,23 +15,6 @@ $(document).ready( function () {
 });
 
 /**
- * Draws order product details
- * @param {object} row - row object 
- * @param {object} data - data object for the row
- */
-function format ( row, data ) {
-    var payment_details = $('.payment-details')
-        .clone()
-        .show(); 
-    data.evidences.forEach(evidence => {
-        $('#evidences', payment_details).append(
-            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
-            evidence.file_name + "</a></li>");
-    });
-    return payment_details;
-}
-
-/**
  * Cancels payment request
  * @param {*} target - table rows representing orders whose status is to be changed
  */
@@ -76,13 +59,11 @@ function get_orders_to_pay() {
 
 function init_payments_table() {
     editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
-            $.ajax({
+        ajax: {
+            create: {
                 url: '/api/v1/payment',
-                method: 'post',
-                dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify({
+                data: data => JSON.stringify({
                     additional_info: data.data[0].additional_info,
                     amount_sent_original: data.data[0].amount_sent_original,
                     currency_code: data.data[0].currency_code,
@@ -92,10 +73,13 @@ function init_payments_table() {
                     })),
                     orders: data.data[0].orders,
                     payment_method: data.data[0].payment_method
-                }),
-                success: data => {success(data)},
-                error: error
-            });
+                })
+            },
+            remove: {
+                url: '/api/v1/payment/_id_',
+                method: 'delete',
+                data: null
+            }
         },
         table: '#payments',
         idSrc: 'id',
@@ -147,18 +131,13 @@ function init_payments_table() {
         dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: editor, text: 'Create new payment request' },
+            { extend: 'remove', editor: editor, text: 'Cancel'}
         ],        
         ajax: {
             url: '/api/v1/payment',
             dataSrc: ''
         },
         columns: [
-            {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ''
-            },
             {data: 'id'},
             {data: 'orders'},
             {
@@ -180,7 +159,7 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[7, 'desc']],
+        order: [[6, 'desc']],
         select: true,
         initComplete: function() { init_search(this, g_filter_sources); }
     });

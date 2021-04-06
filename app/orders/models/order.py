@@ -192,6 +192,25 @@ class Order(db.Model, BaseModel):
         return self.payment_method.payee if self.payment_method \
             else None
 
+    def get_shipping(self, currency: Currency=None):
+        ''' Returns shipping cost in currency provided '''
+        return \
+            self.shipping_usd if currency and currency.code == 'USD' \
+            else self.shipping_rur if currency and currency.code == 'RUR' \
+            else self.shipping_krw
+
+    def get_subtotal(self, currency: Currency=None):
+        return \
+            self.subtotal_usd if currency and currency.code == 'USD' \
+            else self.subtotal_rur if currency and currency.code == 'RUR' \
+            else self.subtotal_krw
+
+    def get_total(self, currency: Currency=None):
+        return \
+            self.total_usd if currency and currency.code == 'USD' \
+            else self.total_rur if currency and currency.code == 'RUR' \
+            else self.total_krw
+
     def get_total_points(self):
         return reduce(
             lambda acc, sub: acc + sub.get_total_points(),
@@ -202,7 +221,8 @@ class Order(db.Model, BaseModel):
         return False
 
     def to_dict(self, details=False):
-        from app.payments.models.payment import Payment, PaymentStatus
+        ''' Returns dictionary representation of the object ready to be JSONified '''
+        from app.payments.models.payment import PaymentStatus
         is_order_updated = False
         if not self.total_krw:
             self.update_total()

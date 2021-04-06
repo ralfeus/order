@@ -552,6 +552,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
+    logger = current_app.logger.getChild('admin_save_order')
     order_input = request.get_json()
     order = Order.query.get(order_id)
     if not order:
@@ -563,8 +564,9 @@ def admin_save_order(order_id):
                 'error': "Couldn't edit an order",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
-            }), 400
-
+            })
+    logger.info('Modifying order %s by %s with data: %s',
+                order_id, current_user, order_input)
     modify_object(order, order_input, ['tracking_id', 'tracking_url'])
     if order_input.get('status'):
         try:
@@ -741,7 +743,7 @@ def validate_subcustomer():
     current_app.logger.debug(f"Validating subcustomer {payload}")
     try:
         subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
-        atomy_login(subcustomer.username, subcustomer.password)
+        atomy_login(subcustomer.username, subcustomer.password, run_browser=False)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
