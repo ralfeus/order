@@ -121,7 +121,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
         self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
-        proxy = AtomyQuick(self.__browser, self.__logger, self.__config)
+        proxy = AtomyQuick(None, self.__logger, self.__config)
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
@@ -137,36 +137,36 @@ class AtomyCenter(PurchaseOrderVendorBase):
     #     except Exception as ex:
     #         raise AtomyLoginError(ex)
 
-    def __set_product_quantity(self, input, value):
-        input_id = input.get_attribute('id')
-        self.__logger.debug("Clicking %s field...", input_id)
-        self.__browser.doubleclick(input)
-        self.__logger.debug("Typing %s to %s...", value, input_id)
-        input.send_keys(value, Keys.TAB)
-        sleep(0.3)
-        if input.get_attribute('value') != str(value):
-            self.__logger.debug("Qty field value is %s whilst must be %s",
-                input.get_attribute('value'), value)
-            raise Exception(f"Couldn't set product quantity {value}")
-        self.__logger.debug("Now %s is %s", input_id, input.get_attribute('value'))
+    # def __set_product_quantity(self, input, value):
+    #     input_id = input.get_attribute('id')
+    #     self.__logger.debug("Clicking %s field...", input_id)
+    #     self.__browser.doubleclick(input)
+    #     self.__logger.debug("Typing %s to %s...", value, input_id)
+    #     input.send_keys(value, Keys.TAB)
+    #     sleep(0.3)
+    #     if input.get_attribute('value') != str(value):
+    #         self.__logger.debug("Qty field value is %s whilst must be %s",
+    #             input.get_attribute('value'), value)
+    #         raise Exception(f"Couldn't set product quantity {value}")
+    #     self.__logger.debug("Now %s is %s", input_id, input.get_attribute('value'))
 
-    def __check_total(self, field_num):
-        sleep(0.3)
-        tot_amt = self.__browser.get_element_by_name(f'tot_amt{field_num}').\
-            get_attribute('value')
-        sale_price = self.__browser.get_element_by_name(f'sale_price{field_num}').\
-            get_attribute('value')
-        quantity = self.__browser.get_element_by_name(f'sale_qty{field_num}').\
-            get_attribute('value')
-        if not sale_price or not quantity or not tot_amt:
-            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
-                message=f"No product code in cell {field_num} is entered. Will retry",
-                retry=True)
-        if int(sale_price) * int(quantity) != int(tot_amt):
-            self.__logger.debug("\t...not yet")
-            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
-                message="The tot_amt is not updated")
-        self.__logger.debug("Now tot_amt%s is %s", field_num, tot_amt)
+    # def __check_total(self, field_num):
+    #     sleep(0.3)
+    #     tot_amt = self.__browser.get_element_by_name(f'tot_amt{field_num}').\
+    #         get_attribute('value')
+    #     sale_price = self.__browser.get_element_by_name(f'sale_price{field_num}').\
+    #         get_attribute('value')
+    #     quantity = self.__browser.get_element_by_name(f'sale_qty{field_num}').\
+    #         get_attribute('value')
+    #     if not sale_price or not quantity or not tot_amt:
+    #         raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
+    #             message=f"No product code in cell {field_num} is entered. Will retry",
+    #             retry=True)
+    #     if int(sale_price) * int(quantity) != int(tot_amt):
+    #         self.__logger.debug("\t...not yet")
+    #         raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
+    #             message="The tot_amt is not updated")
+    #     self.__logger.debug("Now tot_amt%s is %s", field_num, tot_amt)
 
     def __add_products(self, order_products):
         self.__logger.info("Adding products")
@@ -182,40 +182,27 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                self.__logger.debug("Getting input field material_code%s...", field_num)
-                product_code_input = self.__browser.get_element_by_id(
-                    f'material_code{field_num}')
-                self.__logger.debug("\t...done")
-                self.__logger.debug("Entering product code %s...", op.product_id)
-                product_code_input.send_keys(op.product_id, Keys.TAB)
-                sleep(.4)
-                alert = self.__browser.get_alert()
-                if alert:
-                    if WARNING_SEPARATE_SHIPPING in alert:
-                        self.__logger.info(alert)
-                    elif ERROR_OUT_OF_STOCK in alert:
-                        self.__logger.info( "Product %s is out of stock", op.product_id)
-                        product_code_input.clear()
-                        continue
-                    else:
-                        self.__logger.warning(alert)
-                self.__logger.debug("\t...done")
-                self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
-                self.__logger.debug("Getting input field sale_qty%s...", field_num)
-                product_qty_input = self.__browser.get_element_by_id(f'sale_qty{field_num}')
-                self.__logger.debug("\t...done")
-                self._try_action(lambda:
-                    self.__set_product_quantity(product_qty_input, op.quantity))
-                
-                self.__logger.debug("Waiting tot_amt%s to update...", field_num)
-                self._try_action(lambda:
-                    self.__check_total(field_num))
+                self.__po_params = {**self.__po_params,
+                    f'mgubun{field_num}': 1,
+                    f'vat_price{field_num}': round(op.price * 0.1, 0),
+                    f'pv_price{field_num}': op.price,
+                    f'vat_amt{field_num}' : round(op.price * op.quantity * 0.1, 0),
+                    f'sale_amt{field_num}': op.price * op.quantity,
+                    f'deli_amt{field_num}': op.price * op.quantity,
+                    f'mdeli_gubun{field_num}': 0,
+                    f'mquick_product{field_num}': 0,
+                    f'material_code{field_num}': op.product_id,
+                    f'sale_qty{field_num}': op.quantity,
+                    f'limit_per_qty{field_num}': 0,
+                    f'sale_price{field_num}': op.price,
+                    f'tot_amt{field_num}': op.price * op.quantity,
+                    f'pv_amt{field_num}': op.product.points
+                }
                 
                 ordered_products.append(op)
                 field_num += 1
                 self.__logger.info("Added product %s", op.product_id)
             except Exception:
-                product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
         return ordered_products
 
