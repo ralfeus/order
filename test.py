@@ -16,22 +16,22 @@ with create_app().app_context():
     # with db.session.no_autoflush:
         po = PurchaseOrder.query.get('PO-2021-03-0001-001')
         po.status = PurchaseOrderStatus.pending
-        po.vendor = 'AtomyQuick'
+        po.vendor = 'AtomyCenter'
         po.company_id = 4
         po.payment_phone = ''
-        po.customer.username = '26878296'
-        po.customer.password = 'D06m21g1973=+7'
+        po.customer.username = '23426444'
+        po.customer.password = 'atomy#01'
         # po.order_products[0].delete()
-        # po.order_products[1].delete()
-        # po.order_products[1].delete()
-        # po.order_products[1].delete()
-        # po.order_products[1].delete()
-        # po.order_products[1].delete()
-        # po.suborder.order_products[0].product = Product.query.get('455')
-        # po.suborder.order_products[0].product_id = '455'
-        # po.suborder.order_products[0].price = po.suborder.order_products[0].product.price
-        # po.suborder.order_products[0].quantity = 1
-        # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.order_products[1].delete()
+        po.suborder.order_products[0].product = Product.query.get('455')
+        po.suborder.order_products[0].product_id = '455'
+        po.suborder.order_products[0].price = po.suborder.order_products[0].product.price
+        po.suborder.order_products[0].quantity = 1
+        current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']
         # update_purchase_orders_status('PO-2021-03-0001-001')
         # browser = Browser(config=current_app.config)
