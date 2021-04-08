@@ -89,7 +89,7 @@ def admin_get_order(order_id):
     if not order:
         abort(Response("The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
-        return render_template('order_view.html', order=order,
+        return render_template('order_print_view.html', order=order,
             currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')
     
     return render_template('new_order.html', order_id=order_id)

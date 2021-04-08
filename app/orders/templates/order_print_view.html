@@ -13,22 +13,6 @@
 {% endblock %}
 
 {% block navbar %}
-  {% if mode != 'print' %}
-    {{ super() }}
-  {% endif %}
-{% endblock %}
-
-{% block currencies %}
-<div class="btn-group btn-group-toggle" data-toggle="buttons">
-  {% for c in currencies %}
-  <label class="btn btn-secondary {{ 'active' if c.default else '' }}">    
-    <input type="radio" name="currency" {{ 'checked' if c.default else ''}}
-      onclick="window.location = '{{ request.base_url }}?currency={{ c.code }}';">
-      {{ c.code }}
-    </input>
-  </label>
-  {% endfor %}
-</div>
 {% endblock %}
 
 {% block content %}
@@ -52,6 +36,10 @@
         {{ order.country.name }}
       </td>
       <td>{{ order.phone }}</td>
+    </tr>
+    <tr>
+      <td colspan="3"><h5>Counterpart company</h5>:</td>
+      <td colspan="2">{{ order.get_payee() }}</td>
     </tr>
     <tr>
       <td colspan="3"><h3>Orders to be shipped with this one:</h3></td>
@@ -84,11 +72,10 @@
   <thead>
     <th scope="col" style="width: 1em;">Product ID</th>
     <th scope="col">Product Name</th>
+    <th scope="col" style="width:1em;">Qty</th>
     <th scope="col">Weight</th>
     <th scope="col" style="width:1em;">Price</th>
-    <th scope="col" style="width:1em;">Qty</th>
     <th scope="col" style="width:1em;">Cost</th>
-    <th scope="col" style="width:1em;">Points</th>
     <th scope="col">Public comment</th>
     <th scope="col">Private comment</th>
   </thead>
@@ -97,11 +84,10 @@
     <tr>
       <td>{{ order_product.product.id }}</td>
       <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
-      <td>{{ order_product.product.weight }}</td>
-      <td>{{ currency.format(order_product.get_price(rate=rate)) }}</td>
       <td>{{ order_product.quantity }}</td>
-      <td>{{ currency.format(order_product.get_price(rate=rate) * order_product.quantity) }}</td>
-      <td>{{ order_product.product.points * order_product.quantity }}</td>
+      <td>{{ order_product.product.weight }}</td>
+      <td>{{ currency.format(order_product.price) }}</td>
+      <td>{{ currency.format(order_product.price * order_product.quantity) }}</td>
       <td>{{ order_product.public_comment }}</td>
       <td>{{ order_product.private_comment }}</td>
     </tr>
@@ -124,8 +110,7 @@
       <td colspan="4"></td>
       <td>Total</td>
       <td>{{ currency.format(suborder.get_total(currency)) }}</td>
-      <td>{{ suborder.get_total_points() }}</td>
-      <td></td>
+      <td colspan="2"></td>
     </tr>
   </tfoot>
 </table>
