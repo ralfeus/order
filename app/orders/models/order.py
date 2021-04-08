@@ -1,6 +1,4 @@
-'''
-Order model
-'''
+''' Order model '''
 import enum
 from datetime import datetime
 from decimal import Decimal
@@ -11,8 +9,7 @@ from tempfile import NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String
-# from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, and_, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -174,8 +171,18 @@ class Order(db.Model, BaseModel):
 
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
+        from .suborder import Suborder
+        from app.purchase.models.purchase_order import PurchaseOrder
         from app.users.models.user import User
         part_filter = f'%{filter_value}%'
+        if isinstance(column, str):
+            return \
+                base_filter.filter(
+                    PurchaseOrder.query.filter(
+                        PurchaseOrder.suborder_id == Suborder.id,
+                        func.date(PurchaseOrder.when_posted) == filter_value,
+                        Suborder.order_id == Order.id).exists()) \
+                    if column == 'when_po_posted' else base_filter
         return \
             base_filter.filter(Order.payment_method_id.in_(filter_value.split(','))) \
                 if column.key == 'payment_method' else \
@@ -223,14 +230,19 @@ class Order(db.Model, BaseModel):
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
         from app.payments.models.payment import PaymentStatus
+        from app.purchase.models.purchase_order import PurchaseOrder
+        from .suborder import Suborder
         is_order_updated = False
         if not self.total_krw:
+            logging.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
         if not self.total_rur:
+            logging.debug("%s total RUR is undefined. Updating...", self.id)
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
             is_order_updated = True
         if not self.total_usd:
+            logging.debug("%s total USD is undefined. Updating...", self.id)
             self.total_usd = self.total_krw * Currency.query.get('USD').rate
             is_order_updated = True
         if is_order_updated:
@@ -238,6 +250,15 @@ class Order(db.Model, BaseModel):
         check_outsiders_setting = Setting.query.get('check_outsiders')
         need_to_check_outsiders = check_outsiders_setting.value == '1' \
             if check_outsiders_setting is not None else False
+        posted_pos = (
+            PurchaseOrder.query.join(Suborder)
+                .filter(Suborder.order_id == self.id)
+                .filter(PurchaseOrder.when_posted != None)
+        )
+        when_po_posted = db.session.query(func.max(PurchaseOrder.when_posted)) \
+            .select_entity_from(posted_pos.subquery()).scalar() \
+            if posted_pos.count() == self.suborders.count() \
+            else None
         result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
@@ -270,6 +291,8 @@ class Order(db.Model, BaseModel):
                          else [],
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
+            'when_po_posted': when_po_posted.strftime('%Y-%m-%d') \
+                if when_po_posted else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
@@ -284,9 +307,7 @@ class Order(db.Model, BaseModel):
         return result
 
     def update_total(self):
-        '''
-        Updates totals of the order
-        '''
+        ''' Updates totals of the order '''
         from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
         # logging.getLogger().setLevel(logging.DEBUG)
         logging.debug("The order %s has %s suborders", self.id, self.suborders.count())

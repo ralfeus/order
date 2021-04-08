@@ -299,18 +299,19 @@ function init_orders_table() {
                 render: 'name' 
             },
             {data: 'purchase_date'},
+            {data: 'when_po_posted', orderable: false},
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
         columnDefs: [
             {
-                targets: [12, 13, 14],
+                targets: [12, 13, 14, 15],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
             }
         ],
-        order: [[13, 'desc']],
+        order: [[14, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

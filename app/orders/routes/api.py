@@ -55,9 +55,7 @@ def delete_order(order_id):
 @bp_api_admin.route('/<order_id>')
 @roles_required('admin')
 def admin_get_orders(order_id):
-    '''
-    Returns all or selected orders in JSON
-    '''
+    ''' Returns all or selected orders in JSON '''
     orders = Order.query
     if order_id is not None:
         orders = orders.filter_by(id=order_id)

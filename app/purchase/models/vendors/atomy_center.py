@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from pytz import timezone
 
-from app.exceptions import AtomyLoginError, HTTPError, ProductNotAvailableError, ProductNotFoundError, PurchaseOrderError
+from app.exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder
@@ -89,7 +89,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             encoding='euc-kr',
             headers=[{'Cookie': c} for c in self.__session_cookies ]
         )
-        return re.search('alert\(.+\);', result.text) is None
+        return re.search(r'alert\(.+\);', result.text) is None
 
     def __add_products(self, order_products):
         self.__logger.info("Adding products")
@@ -239,7 +239,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def __submit_order(self):
         self.__logger.info("Submitting the order")
-        return self.__send_order_post_request()
+        result = self.__send_order_post_request()
+        self.__logger.debug(result)
+        return result
         
     def __send_order_post_request(self):
         self.__logger.debug(self.__po_params)
@@ -270,34 +272,6 @@ class AtomyCenter(PurchaseOrderVendorBase):
             return match.groups()[0]
         return None
 
-
-    # def __get_po_params(self):
-    #     self.__logger.debug('Looking for purchase order number')
-    #     po_id = None
-    #     try:
-    #         po_id_node = self.__browser.get_element_by_css(
-    #             'font[color="#FF0000"] strong')
-    #         po_id = po_id_node.text
-                
-    #     except Exception as ex:
-    #         raise Exception("Couldn't get PO number", ex)
-
-    #     self.__logger.debug('Looking for account number to pay')
-    #     for attempt in range(1, 4): # Let's try to get account number several times
-    #         divs = self.__browser.find_elements_by_css_selector('div[align="center"]')
-    #         bank_account = None
-    #         for div in divs:
-    #             match = re.search(r'입금계좌번호\s+:\s+(\d+)', div.text)
-    #             if match:
-    #                 bank_account = match.groups()[0]
-    #                 break
-    #         if bank_account:
-    #             return po_id, bank_account
-    #         self.__logger.warning("Couldn't find account number at attempt %d.", attempt)
-    #         sleep(5)
-    #     self.__logger.warning("Gave up trying")  
-    #     raise Exception("Couldn't find account number to pay to")
-
     def login(self, username='atomy1026', password='5714'):
         ''' Logins to Atomy customer section '''
         output = subprocess.run([
@@ -311,6 +285,5 @@ class AtomyCenter(PurchaseOrderVendorBase):
             ],
             encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
         if re.search('< location: center_main', output.stderr):
-            # return re.search(r'ASPSESSIONID(\w+)=(\w+)', output.stderr).group()
             return re.findall('set-cookie: (.*)', output.stderr)
         raise AtomyLoginError(username)

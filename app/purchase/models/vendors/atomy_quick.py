@@ -289,6 +289,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__logger.info("Submitting the order")
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
+        self.__logger.info((order_id, vendor_po['jsonData'][0]['IpgumAccountNo']))
         return order_id, vendor_po['jsonData'][0]['IpgumAccountNo']
         
     def update_purchase_order_status(self, purchase_order):
