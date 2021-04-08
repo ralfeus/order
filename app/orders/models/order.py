@@ -291,7 +291,7 @@ class Order(db.Model, BaseModel):
                          else [],
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
-            'when_po_posted': when_po_posted.strftime('%Y-%m-%d') \
+            'when_po_posted': when_po_posted.strftime('%Y-%m-%d %H:%M:%S') \
                 if when_po_posted else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,

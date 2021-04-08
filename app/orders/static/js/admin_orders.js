@@ -299,13 +299,23 @@ function init_orders_table() {
                 render: 'name' 
             },
             {data: 'purchase_date'},
-            {data: 'when_po_posted', orderable: false},
+            {
+                data: 'when_po_posted',
+                orderable: false,
+                render: (data, type, row, meta) => {
+                    return data 
+                        ? "<a href=\"/admin/purchase/orders?id=" + 
+                            row.id.replace('ORD', 'PO') + "\">" + 
+                            format_date(new Date(data)) + "</a>"
+                        : format_date(new Date(data));
+                }
+            },
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
         columnDefs: [
             {
-                targets: [12, 13, 14, 15],
+                targets: [12, 14, 15],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }

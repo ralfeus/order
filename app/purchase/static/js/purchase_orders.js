@@ -197,7 +197,7 @@ function init_table() {
                 "data": null,
                 'defaultContent': ''
             },
-            {data: 'id'},
+            {name: 'id', data: 'id'},
             {
                 data: 'customer.name', 
                 orderable: false,
@@ -243,7 +243,11 @@ function init_table() {
                 $(row).addClass('orange-line');
             }
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table));
+        }
     });
 }
 

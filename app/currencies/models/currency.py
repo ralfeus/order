@@ -24,7 +24,7 @@ class Currency(db.Model):
 
     def format(self, amount):
         if self.prefix is None and self.suffix is None:
-            return f'{round(amount, self.decimal_places)} {self.code}'
+            return f'{round(amount, self.decimal_places):,} {self.code}'.replace(',', ' ')
         return '{}{:,}{}'.format(
             self.prefix if self.prefix else "",
             round(amount, self.decimal_places),
