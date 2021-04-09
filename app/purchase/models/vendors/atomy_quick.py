@@ -157,7 +157,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             try:
                 product_id = '0' * (6 - len(op.product_id)) + op.product_id
                 product = self.__get_product(product_id)
-                if product:
+                if product and int(product['OutGubun']) == 0:
                     index = len(ordered_products)
                     op.product.separate_shipping = product['DeliGubun'] == 1
                     self.__po_params[f'CartList[{index}].Qty'] = op.quantity
