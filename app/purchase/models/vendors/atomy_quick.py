@@ -210,8 +210,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             sale_date = purchase_date
         else:
-            sale_date = datetime.now() if datetime.now().weekday() != 6 \
-                else datetime.now() + timedelta(days=1)
+            sale_date = datetime.now()
+        if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
+            sale_date += timedelta(days=1)
         self.__po_params['CloseDate'] = (sale_date + timedelta(days=3)).strftime('%Y-%m-%d')
         self.__po_params['SaleDate'] = sale_date.strftime('%Y-%m-%d')
 

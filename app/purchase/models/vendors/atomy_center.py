@@ -202,8 +202,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             sale_date = purchase_date
         else:
-            sale_date = datetime.now() if datetime.now().weekday() != 6 \
-                else datetime.now() + timedelta(days=1)
+            sale_date = datetime.now()
+        if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
+            sale_date += timedelta(days=1)
         self.__po_params['sale_date'] = sale_date.strftime('%Y-%m-%d')
 
     def __set_purchase_order_id(self, purchase_order_id):
