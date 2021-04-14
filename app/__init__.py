@@ -55,6 +55,7 @@ def register_components(flask_app):
     import app.addresses, app.addresses.routes
     import app.invoices, app.invoices.routes
     import app.network, app.network.routes
+    import app.notifications, app.notifications.routes
     import app.orders, app.orders.routes
     import app.payments, app.payments.routes
     import app.products, app.products.routes
