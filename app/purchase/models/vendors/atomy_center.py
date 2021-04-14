@@ -83,13 +83,18 @@ class AtomyCenter(PurchaseOrderVendorBase):
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
-    def __is_product_available(self, product_id):
+    def __get_product(self, product_id):
         result = get_document_from_url(
             url=f"https://atomy.kr/center/pop_mcode.asp?id={product_id}",
             encoding='euc-kr',
             headers=[{'Cookie': c} for c in self.__session_cookies ]
         )
-        return re.search(r'alert\(.+\);', result.text) is None
+        script = result.cssselect('script')[0].text
+        return {
+            'vat_price': int(re.search(r'vat_price\.value = "(\d+)"', script).groups()[0])
+        } \
+            if re.search(r'alert\(.+\);', result.text) is None \
+            else None
 
     def __add_products(self, order_products):
         self.__logger.info("Adding products")
@@ -106,17 +111,17 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 continue
             try:
                 product_id = '0' * (6 - len(op.product_id)) + op.product_id
-                vat = int(round(op.price * 0.1, 0))
-                if self.__is_product_available(product_id):
+                product = self.__get_product(product_id)
+                if product:
                     self.__po_params = {**self.__po_params,
                         f'mgubun{field_num}': 1,
-                        f'vat_price{field_num}': vat,
-                        f'vat_amt{field_num}' : vat * op.quantity,
+                        f'vat_price{field_num}': product['vat_price'],
+                        f'vat_amt{field_num}' : product['vat_price'] * op.quantity,
                         f'pv_price{field_num}': op.product.points,
                         f'pv_amt{field_num}': op.product.points * op.quantity,
                         f'sale_qty{field_num}': op.quantity,
-                        f'sale_price{field_num}': op.price - vat,
-                        f'sale_amt{field_num}': (op.price - vat) * op.quantity,
+                        f'sale_price{field_num}': op.price,
+                        f'sale_amt{field_num}': (op.price - product['vat_price']) * op.quantity,
                         f'deli_amt{field_num}': op.price * op.quantity,
                         f'tot_amt{field_num}': op.price * op.quantity,
                         f'mdeli_gubun{field_num}': 0,
@@ -127,7 +132,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     tot_amt += op.price * op.quantity
                     tot_qty += op.quantity
                     tot_pv += op.product.points * op.quantity
-                    tot_vat += vat
+                    tot_vat += product['vat_price']
                     ordered_products.append(op)
                     field_num += 1
                     self.__logger.info("Added product %s", op.product_id)
