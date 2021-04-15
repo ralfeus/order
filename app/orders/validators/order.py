@@ -8,6 +8,17 @@ from app.models.country import Country
 from app.shipping.models.shipping import Shipping, NoShipping, PostponeShipping
 from app.shipping.models.dhl import DHL
 
+def _are_suborders_valid(_form, field):
+    if field.data.get('subcustomer') is None or field.data['subcustomer'] == '':
+        raise ValidationError('suborder.subcustomer:Field is required')
+    for op in field.data['items']:
+        if op.get('item_code') is not None:
+            try:
+                int(op['quantity'])
+            except (KeyError, ValueError):
+                raise ValidationError(
+                    f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
+
 def _is_dhl_compliant(form, field):
     shipping = Shipping.query.get(form.data['shipping'])
     if isinstance(shipping, DHL):
@@ -41,7 +52,7 @@ class OrderValidator(Inputs):
         'customer_name': [DataRequired('customer_name:Field is required'), _is_dhl_compliant],
         'phone': [DataRequired("phone:Field is required"), _is_dhl_compliant],
         'shipping': [DataRequired("shipping:Field is required")],
-        'suborders': [DataRequired("suborders:Field is required")],
+        'suborders': [DataRequired("suborders:Field is required"), _are_suborders_valid],
         'zip': [DataRequired('zip:Field is required'), _is_dhl_compliant]
     }
 

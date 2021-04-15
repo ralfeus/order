@@ -483,7 +483,8 @@ function update_grand_totals() {
 async function update_item_subtotal(item) {
     if (g_cart[item.id]) {
         g_cart[item.id].user = '';
-        g_cart[item.id].quantity = parseInt($('.item-quantity', item).val());
+        g_cart[item.id].quantity = /^\d+$/.test($('.item-quantity', item).val())
+            ? parseInt($('.item-quantity', item).val()) : 0;
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
         $('td.cost-krw', item).html(g_cart[item.id].costKRW);
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
