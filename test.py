@@ -16,10 +16,12 @@ with create_app().app_context():
     # with db.session.no_autoflush:
         po = PurchaseOrder.query.get('PO-2021-04-0001-004')
         po.status = PurchaseOrderStatus.pending
-        po.vendor = 'AtomyCenter'
+        po.vendor = 'AtomyQuick'
         po.company_id = 3
-        po.customer.username = '23426444'
-        po.customer.password = 'atomy#01'
+        # po.customer.username = '23426444'
+        # po.customer.password = 'atomy#01'
+        po.customer.username = '22213113'
+        po.customer.password = 'KanPetr87!'
         db.session.flush()
         # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
         del current_app.config['SELENIUM_URL']

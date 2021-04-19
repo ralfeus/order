@@ -39,7 +39,7 @@ def _atomy_login_curl(username, password):
         '-v'
         ],
         encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-    if re.search('< location: /V2', output.stderr) or \
+    if re.search('< location: /[vV]2', output.stderr) or \
        re.search('btnChangePassword', output.stdout):
         return re.findall('set-cookie: (.*)', output.stderr)
     elif re.search("var isLoginFail = \\'True\\';", output.stdout):
