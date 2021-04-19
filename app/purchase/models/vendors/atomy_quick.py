@@ -190,17 +190,39 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug(self.__po_params)
         return ordered_products
 
-    def __get_product(self, product_id):
+    def __is_valid_product(self, product_id):
         result = get_document_from_url(
-            url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
+            url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                 {'Content-Type': 'application/json'}
             ],
-            raw_data='{"MaterialCode":"%s"}' % product_id
+            raw_data='{"CartList":[{"MaterialCode":"%s"}]}' % product_id
         )
         result = json.loads(result.text)
-        return result['jsonData'] if result['jsonData'] is not None else None
+        if result['rsCd'] == '200':
+            if result['responseText'] == '':
+                return True
+            else:
+                self.__logger.warning("Product %s error: %s", product_id, result['responseText'])
+                return False
+        self.__logger.warning("Product %s unknown error", product_id)
+        return False
+
+    def __get_product(self, product_id):
+        if self.__is_valid_product(product_id):
+            result = get_document_from_url(
+                url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
+                encoding='utf-8',
+                headers=[{'Cookie': c} for c in self.__session_cookies ] + [
+                    {'Content-Type': 'application/json'}
+                ],
+                raw_data='{"MaterialCode":"%s"}' % product_id
+            )
+            result = json.loads(result.text)
+            return result['jsonData'] if result['jsonData'] is not None else None
+        else:
+            return None
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
