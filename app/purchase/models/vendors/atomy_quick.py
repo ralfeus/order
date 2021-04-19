@@ -125,8 +125,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if message_match is not None:
                 message = message_match.groups()[0]
                 raise PurchaseOrderError(self.__purchase_order, self, message)
-        except HTTPError:
+        except HTTPError as ex:
             self.__logger.warning(self.__po_params)
+            self.__logger.warning(ex)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
