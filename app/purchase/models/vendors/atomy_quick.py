@@ -181,6 +181,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except Exception:
                 logger.exception("Couldn't add product %s", op.product_id)
         # self.__browser.save_screenshot(realpath('02-products.png'))
+        if len(ordered_products) == 0:
+            raise PurchaseOrderError(self.__purchase_order, self,
+                "No available products are in the PO")
         self.__po_params['TotAmt'] = self.__po_params['IpgumAmt'] = tot_amt
         self.__po_params['TotPv'] = tot_pv
         self.__po_params['TotQty'] = tot_qty
