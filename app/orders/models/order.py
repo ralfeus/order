@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, and_, func
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -22,6 +22,7 @@ from app.settings.models.setting import Setting
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
+    draft = 0
     pending = 1
     can_be_paid = 2
     po_created = 3
@@ -224,8 +225,7 @@ class Order(db.Model, BaseModel):
             self.suborders, 0)
 
     def is_editable(self):
-        # return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
-        return False
+        return self.status in [OrderStatus.draft]
 
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''

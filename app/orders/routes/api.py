@@ -116,8 +116,9 @@ def filter_orders(orders, filter_params):
     })
 
 def _set_draft(order, payload):
-    if payload.get('draft'):
-        draft_order_id = f'ORD-draft-{current_user.id}'
+    if 'draft' in payload.keys():
+        if order
+        draft_order_id = f'ORD-draft-{current_user.id}-'
         draft = Order.query.get(draft_order_id)
         if draft:
             draft.delete()
@@ -304,9 +305,7 @@ def parse_subcustomer(subcustomer_data):
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required
 def user_save_order(order_id):
-    '''
-    Updates existing order
-    '''
+    ''' Updates existing order '''
     order = Order.query.get(order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
@@ -317,8 +316,8 @@ def user_save_order(order_id):
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
-
     payload = request.get_json()
+    _set_draft(order, payload)
 
     errors = []
     with db.session.no_autoflush:

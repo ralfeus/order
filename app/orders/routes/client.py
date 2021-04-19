@@ -1,4 +1,5 @@
 ''' Client routes for order related activities '''
+from app.orders.models.order import OrderStatus
 import json
 from flask import Response, abort, escape, request, render_template, send_file
 from flask.globals import current_app
@@ -29,15 +30,6 @@ def user_new_order():
     '''New order form'''
     return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
 
-@bp_client_user.route('/draft')
-@login_required
-def user_open_draft():
-    '''Opens draft order'''
-    if Order.query.get(f'ORD-draft-{current_user.id}'):
-        return render_template('new_order.html', order_id=f'ORD-draft-{current_user.id}')
-    
-    return render_template('new_order.html')
-
 @bp_client_user.route('/<order_id>')
 @login_required
 def user_get_order(order_id):
@@ -50,6 +42,8 @@ def user_get_order(order_id):
     order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
+    if order.status == OrderStatus.draft:
+        return render_template('new_order.html', order_id=order.id)
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
         currency = Currency.query.get(request.values['currency'])
