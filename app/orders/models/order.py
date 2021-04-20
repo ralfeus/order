@@ -155,7 +155,10 @@ class Order(db.Model, BaseModel):
             self.attached_orders = []
 
     def __pay(self, actor):
-        self.update_total()
+        #TODO: wrong approach
+        if not self.total_krw:
+            logging.debug("%s totals are undefined. Updating...", self.id)
+            self.update_total()
         transaction = Transaction(
             amount=-self.total_krw,
             customer=self.user,
@@ -359,7 +362,9 @@ class Order(db.Model, BaseModel):
     def get_order_excel(self):
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
-        self.update_total()
+        if not self.total_krw:
+            logging.debug("%s totals are undefined. Updating...", self.id)
+            self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
         suborder_fill = PatternFill(
             start_color='00FFFF00', end_color='00FFFF00', fill_type='solid')
