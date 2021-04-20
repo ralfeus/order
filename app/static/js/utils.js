@@ -84,7 +84,7 @@ function init_search_input(target, column) {
     $(target).on('keyup change clear', function () {
         if ( column.search() !== this.value ) {
             column
-                .search( this.value )
+                .search(this.value, false)
                 .draw();
             // console.log(column.dataSrc(), this.value);
         }
@@ -108,7 +108,8 @@ function init_search_select(target, column, list) {
                     .draw();
             } else {
                 column
-                    .search(search_term, true, false)
+                    .search(search_term
+                        .replace('(', '\\(').replace(')', '\\)'), true, false)
                     .draw();
             }
         }
