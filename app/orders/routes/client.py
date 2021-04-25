@@ -67,6 +67,12 @@ def get_orders():
     ''' Orders list for users '''
     return render_template('orders.html')
 
+@bp_client_user.route('/drafts')
+@login_required
+def get_order_drafts():
+    ''' Order drafts list for users '''
+    return render_template('order_drafts.html')
+
 @bp_client_admin.route('/')
 @roles_required('admin')
 def admin_get_orders():

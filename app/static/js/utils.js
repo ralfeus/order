@@ -4,7 +4,19 @@ function round_up(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
+var is_modals_on = true;
+function modals_off() {
+    is_modals_on = false;
+}
+
+function modals_on() {
+    is_modals_on = true;
+}
+
 function modal(title, text, type='info') {
+    if (!is_modals_on) {
+        return false;
+    }
     var promise = $.Deferred();
     $('.modal-title').text(title);
     $('.modal-body').html(text);

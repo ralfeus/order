@@ -31,7 +31,7 @@ class OrderStatus(enum.Enum):
     cancelled = 6
 
 class Order(db.Model, BaseModel):
-    ''' System's order '''
+    ''' Sale order '''
     __tablename__ = 'orders'
     __id_pattern = 'ORD-{year}-{month:02d}-'
 
@@ -71,7 +71,7 @@ class Order(db.Model, BaseModel):
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders = relationship('Suborder', lazy='dynamic')
+    suborders = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan')
     __order_products = relationship('OrderProduct', lazy='dynamic')
     attached_order_id = Column(String(16), ForeignKey('orders.id'))
     attached_order = relationship('Order', remote_side=[id])
@@ -118,16 +118,22 @@ class Order(db.Model, BaseModel):
             self.__pay(actor)
         self.status = value
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    @staticmethod
+    def get_new_id():
+        ''' Generates new seq_num and ID for the order '''
         today = datetime.now()
-        today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
+        today_prefix = Order.__id_pattern.format(year=today.year, month=today.month)
         last_order = db.session.query(Order.seq_num). \
             filter(Order.id.like(today_prefix + '%')). \
             order_by(Order.seq_num.desc()). \
             first()
-        self.seq_num = last_order[0] + 1 if last_order else 1
-        self.id = today_prefix + '{:04d}'.format(self.seq_num)
+        seq_num = last_order[0] + 1 if last_order else 1
+        id = today_prefix + '{:04d}'.format(seq_num)
+        return seq_num, id
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.seq_num, self.id = self.get_new_id()
 
         self.total_weight = 0
         self.total_krw = 0

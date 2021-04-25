@@ -31,6 +31,7 @@ function get_order(order_id) {
 }
 
 async function populate_order(order_data) {
+    modals_off();
     cleanup();
     $('#name').val(order_data.customer_name);
     $('#address').val(order_data.address);
@@ -64,6 +65,7 @@ async function populate_order(order_data) {
     .then(() => { 
         $('#shipping').val(order_data.shipping.id);     
         shipping_changed();
+        modals_on();
     });
 }
 

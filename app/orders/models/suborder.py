@@ -24,13 +24,13 @@ class Suborder(db.Model, BaseModel):
     seq_num = Column(Integer)
     subcustomer_id = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
-    order_id = Column(String(16), ForeignKey('orders.id'), nullable=False)
+    order_id = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
     order = relationship('Order', foreign_keys=[order_id])
     buyout_date = Column(DateTime, index=True)
     # subtotal_krw = Column(Integer(), default=0)
     #subtotal_rur = Column(Numeric(10, 2), default=0)
     #subtotal_usd = Column(Numeric(10, 2), default=0)
-    order_products = relationship('OrderProduct', lazy='dynamic')
+    order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
     local_shipping = Column(Integer(), default=0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
