@@ -125,8 +125,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if message_match is not None:
                 message = message_match.groups()[0]
                 raise PurchaseOrderError(self.__purchase_order, self, message)
-        except HTTPError:
+        except HTTPError as ex:
             self.__logger.warning(self.__po_params)
+            self.__logger.warning(ex)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
@@ -180,23 +181,48 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except Exception:
                 logger.exception("Couldn't add product %s", op.product_id)
         # self.__browser.save_screenshot(realpath('02-products.png'))
+        if len(ordered_products) == 0:
+            raise PurchaseOrderError(self.__purchase_order, self,
+                "No available products are in the PO")
         self.__po_params['TotAmt'] = self.__po_params['IpgumAmt'] = tot_amt
         self.__po_params['TotPv'] = tot_pv
         self.__po_params['TotQty'] = tot_qty
         logger.debug(self.__po_params)
         return ordered_products
 
-    def __get_product(self, product_id):
+    def __is_valid_product(self, product_id):
         result = get_document_from_url(
-            url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
+            url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                 {'Content-Type': 'application/json'}
             ],
-            raw_data='{"MaterialCode":"%s"}' % product_id
+            raw_data='{"CartList":[{"MaterialCode":"%s"}]}' % product_id
         )
         result = json.loads(result.text)
-        return result['jsonData'] if result['jsonData'] is not None else None
+        if result['rsCd'] == '200':
+            if result['responseText'] == '':
+                return True
+            else:
+                self.__logger.warning("Product %s error: %s", product_id, result['responseText'])
+                return False
+        self.__logger.warning("Product %s unknown error", product_id)
+        return False
+
+    def __get_product(self, product_id):
+        if self.__is_valid_product(product_id):
+            result = get_document_from_url(
+                url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
+                encoding='utf-8',
+                headers=[{'Cookie': c} for c in self.__session_cookies ] + [
+                    {'Content-Type': 'application/json'}
+                ],
+                raw_data='{"MaterialCode":"%s"}' % product_id
+            )
+            result = json.loads(result.text)
+            return result['jsonData'] if result['jsonData'] is not None else None
+        else:
+            return None
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')

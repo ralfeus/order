@@ -4,7 +4,19 @@ function round_up(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);
 }
 
+var is_modals_on = true;
+function modals_off() {
+    is_modals_on = false;
+}
+
+function modals_on() {
+    is_modals_on = true;
+}
+
 function modal(title, text, type='info') {
+    if (!is_modals_on) {
+        return false;
+    }
     var promise = $.Deferred();
     $('.modal-title').text(title);
     $('.modal-body').html(text);
@@ -84,7 +96,7 @@ function init_search_input(target, column) {
     $(target).on('keyup change clear', function () {
         if ( column.search() !== this.value ) {
             column
-                .search( this.value )
+                .search(this.value, false)
                 .draw();
             // console.log(column.dataSrc(), this.value);
         }
@@ -108,7 +120,8 @@ function init_search_select(target, column, list) {
                     .draw();
             } else {
                 column
-                    .search(search_term, true, false)
+                    .search(search_term
+                        .replace('(', '\\(').replace(')', '\\)'), true, false)
                     .draw();
             }
         }

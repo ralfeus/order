@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, and_, func
+from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -22,6 +22,7 @@ from app.settings.models.setting import Setting
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
+    draft = 0
     pending = 1
     can_be_paid = 2
     po_created = 3
@@ -30,7 +31,7 @@ class OrderStatus(enum.Enum):
     cancelled = 6
 
 class Order(db.Model, BaseModel):
-    ''' System's order '''
+    ''' Sale order '''
     __tablename__ = 'orders'
     __id_pattern = 'ORD-{year}-{month:02d}-'
 
@@ -70,7 +71,7 @@ class Order(db.Model, BaseModel):
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders = relationship('Suborder', lazy='dynamic')
+    suborders = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan')
     __order_products = relationship('OrderProduct', lazy='dynamic')
     attached_order_id = Column(String(16), ForeignKey('orders.id'))
     attached_order = relationship('Order', remote_side=[id])
@@ -117,16 +118,22 @@ class Order(db.Model, BaseModel):
             self.__pay(actor)
         self.status = value
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    @staticmethod
+    def get_new_id():
+        ''' Generates new seq_num and ID for the order '''
         today = datetime.now()
-        today_prefix = self.__id_pattern.format(year=today.year, month=today.month)
+        today_prefix = Order.__id_pattern.format(year=today.year, month=today.month)
         last_order = db.session.query(Order.seq_num). \
             filter(Order.id.like(today_prefix + '%')). \
             order_by(Order.seq_num.desc()). \
             first()
-        self.seq_num = last_order[0] + 1 if last_order else 1
-        self.id = today_prefix + '{:04d}'.format(self.seq_num)
+        seq_num = last_order[0] + 1 if last_order else 1
+        id = today_prefix + '{:04d}'.format(seq_num)
+        return seq_num, id
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.seq_num, self.id = self.get_new_id()
 
         self.total_weight = 0
         self.total_krw = 0
@@ -155,7 +162,10 @@ class Order(db.Model, BaseModel):
             self.attached_orders = []
 
     def __pay(self, actor):
-        self.update_total()
+        #TODO: wrong approach
+        if not self.total_krw:
+            logging.debug("%s totals are undefined. Updating...", self.id)
+            self.update_total()
         transaction = Transaction(
             amount=-self.total_krw,
             customer=self.user,
@@ -224,8 +234,7 @@ class Order(db.Model, BaseModel):
             self.suborders, 0)
 
     def is_editable(self):
-        # return self.status in [OrderStatus.pending, OrderStatus.can_be_paid]
-        return False
+        return self.status in [OrderStatus.draft]
 
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
@@ -359,7 +368,9 @@ class Order(db.Model, BaseModel):
     def get_order_excel(self):
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
-        self.update_total()
+        if not self.total_krw:
+            logging.debug("%s totals are undefined. Updating...", self.id)
+            self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
         suborder_fill = PatternFill(
             start_color='00FFFF00', end_color='00FFFF00', fill_type='solid')
