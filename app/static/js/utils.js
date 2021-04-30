@@ -141,6 +141,28 @@ function init_table_filter(table) {
     });
 }
 
+function relativize_time(time) {
+    const units = {
+        year: 31536000000,
+        month: 2592000000,
+        week: 604800000,
+        day: 86400000,
+        hour: 3600000,
+        minute: 60000,
+        second: 1000
+    };
+    const time_delta = new Date(time) - new Date();
+    const language = navigator.language.slice(0, 2);
+    const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+    for (const unit in units) {
+        const units_ago = Math.round(time_delta / units[unit]);
+        if (Math.abs(units_ago) > 1) {
+            return rtf.format(units_ago, unit);
+        }
+    }
+    return 'now';
+}
+
 $(document).ready(function(){
     $('.dropdown-submenu>a').on("click", function(e){
       $(this).next('ul').toggle();

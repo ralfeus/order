@@ -70,6 +70,7 @@ def register_components(flask_app):
     app.addresses.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
     app.network.register_blueprints(flask_app)
+    app.notifications.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)
     app.payments.register_blueprints(flask_app)
     app.products.register_blueprints(flask_app)

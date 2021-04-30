@@ -3,7 +3,7 @@ $(document).ready( function () {
 });
 
 function init_notifications_table() {
-    var editor = $.fn.dataTable.editor({
+    var editor = new $.fn.dataTable.Editor({
         ajax: {
             create: {
                 url: '/api/v1/admin/notification',
@@ -24,21 +24,28 @@ function init_notifications_table() {
         idSrc: 'id',
         fields: [
             { label: 'Short description', name: 'short_desc' },
-            { label: 'Long description', name: 'long_desc' }
+            { label: 'Long description', name: 'long_desc', type: 'text' }
         ]
     });
     $('#notifications').DataTable({
-        dom: 'lfrtip',       
+        dom: 'lfrBtip',       
         ajax: {
             url: '/api/v1/admin/notification',
-            dataSrc: ''
+            dataSrc: 'data'
         },
+        buttons: [
+            {extend: 'create', editor: editor, text: 'Create'},
+            {extend: 'edit', editor: editor, text: 'Edit'},
+            {extend: 'remove', editor: editor, text: 'Delete'}
+        ],
         columns: [
             {data: 'id'},
             {data: 'short_desc'},
             {data: 'when_created'}
         ],
         order: [[2, 'desc']],
-        select: true
+        select: true,
+        serverSide: true,
+        processing: true
     });
 }

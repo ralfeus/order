@@ -1,6 +1,7 @@
 '''
 User model
 '''
+import json
 from flask_security import UserMixin
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -39,6 +40,13 @@ class User(db.Model, UserMixin):
 
     def get_id(self):
         return str(self.id)
+
+    def get_profile(self) -> dict:
+        return json.loads(self.profile)
+
+    def set_profile(self, value: dict):
+        if isinstance(value, dict):
+            self.profile = json.dumps(value)
 
     def set_password(self, password='P@$$w0rd'):
         self.password_hash = generate_password_hash(password)
