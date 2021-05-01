@@ -42,7 +42,10 @@ class User(db.Model, UserMixin):
         return str(self.id)
 
     def get_profile(self) -> dict:
-        return json.loads(self.profile)
+        try:
+            return json.loads(self.profile)
+        except:
+            return {}
 
     def set_profile(self, value: dict):
         if isinstance(value, dict):
