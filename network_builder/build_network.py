@@ -1,9 +1,13 @@
 from datetime import datetime
-from more_itertools import map_reduce
+from functools import reduce
 import logging
-from lxml.cssselect import CSSSelector
+from multiprocessing import Pool
 import os
 import re
+from time import sleep
+
+from lxml.cssselect import CSSSelector
+from more_itertools import map_reduce
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm.session import Session
@@ -20,6 +24,8 @@ sel_members = CSSSelector('div#dLine table')
 sel_signup_date = lambda e: e.cssselect('td span')[6].text
 sel_pv = lambda e: e.cssselect('td span')[7].text
 sel_network_pv = lambda e: e.cssselect('td span')[8].text
+TREE_URL = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
+DATA_TEMPLATE = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
 
 db_host = os.environ.get('DB_HOST') or 'localhost'
 db_user = os.environ.get('DB_USER') or 'omc'
@@ -28,67 +34,104 @@ db_db = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
     f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
 session = Session(engine)
+traversing_nodes = []
+nodes = 0
+tasks = []
+logger = logging.getLogger('build_network')
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s")
 
+def update_nodes(result):
+    global nodes
+    global traversing_nodes
+    global tasks
+    global logger
+    traversing_nodes += result[0]
+    nodes = result[1]
+    logger.info("Done %s nodes of %s",
+        len([t for t in tasks if t.ready()]),
+        len(traversing_nodes))
+
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
     update=False, incremental=False, cont=False):
-    from app.utils.atomy import atomy_login, get_document_from_url
     if not root_id:
         root_id = 'S5832131'
-    logger = logging.getLogger('build_network')
+    global traversing_nodes
+    global tasks
+    traversing_nodes = [
+        node.id for node in 
+        _init_network(root_id, incremental=incremental, cont=cont, update=update)
+    ]
+    from app.utils.atomy import atomy_login
     logger.info("Logging in to Atomy")
     session_cookies = atomy_login(username=username, password=password, run_browser=False)
-    tree_url = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
-    data_template = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
-    traversing_nodes = _init_network(root_id, incremental=incremental, cont=cont, update=update)
     c = 0
-    nodes = 0
     initial_nodes_count = len(traversing_nodes)
-    try:
-        for node in traversing_nodes:
+    pool = Pool(20)
+    while True:
+        try:
+            node_id = traversing_nodes[c]
             c += 1
-            logger.info("%s of %s", c, len(traversing_nodes))
-            for levels in [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]:
-                while True:
-                    try:
-                        page = get_document_from_url(tree_url,
-                            headers=[{'Cookie': c} for c in session_cookies],
-                            raw_data=data_template.format(levels, node.id))
-                        break
-                    except AtomyLoginError:
-                        logger.info("Session expired. Logging in")
-                        session_cookies = atomy_login(
-                            username=username, password=password, run_browser=False)
-                    except Exception as ex:
-                        logger.error("Something bad has happened")
-                        logger.error("%s %s %s", tree_url, session_cookies, node.id)
-                        raise ex
-                members = sel_members(page)
-                if len(members) > 0:
-                    logger.debug("Got %s levels. Processing", levels)
-                    last_level_top = max(map_reduce(
-                        members,
-                        keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
-                    ).keys())
-                    if update:
-                        logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
-                        _update_nodes(traversing_nodes, members, last_level_top)
-                        nodes += len(members)
-                    else:
-                        _get_children(
-                            node, traversing_nodes, members[0], members[1:],
-                            level_distance=_get_levels_distance(members),
-                            last_level_top=last_level_top
-                        )
-                    session.commit()
-                    break
-                logger.debug("Couldn't get %s levels. Decreasing", levels)
-            # if c == 50:
-            #     break
-    except Exception as ex:
-        raise ex
+            # logger.info("%s of %s", c, len(traversing_nodes))
+            tasks.append(
+                pool.apply_async(_build_page_nodes, (
+                    node_id, session_cookies,
+                    username, password, update, nodes),
+                    callback=update_nodes))
+        except IndexError:
+            if reduce(lambda acc, r: acc and r.ready(), tasks, True):
+                break
+            sleep(5)
+        except Exception as ex:
+            raise ex
     logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
+
+def _build_page_nodes(node_id, session_cookies, 
+                      username, password, update, nodes):
+    global logger
+    global traversing_nodes
+    global engine
+    engine.dispose()
+    node = session.query(Node).get(node_id)
+    from app.utils.atomy import atomy_login, get_document_from_url
+    traversing_nodes_delta = []
+    for levels in [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]:
+        while True:
+            try:
+                page = get_document_from_url(TREE_URL,
+                    headers=[{'Cookie': c} for c in session_cookies],
+                    raw_data=DATA_TEMPLATE.format(levels, node_id))
+                break
+            except AtomyLoginError:
+                logger.info("Session expired. Logging in")
+                session_cookies = atomy_login(
+                    username=username, password=password, run_browser=False)
+            except Exception as ex:
+                logger.error("Something bad has happened")
+                logger.exception("%s %s %s", TREE_URL, session_cookies, node_id)
+                raise ex
+        members = sel_members(page)
+        if len(members) > 0:
+            logger.debug("Got %s levels. Processing", levels)
+            last_level_top = max(map_reduce(
+                members,
+                keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
+            ).keys())
+            if update:
+                logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
+                _update_nodes(traversing_nodes_delta, members, last_level_top)
+                nodes += len(members)
+            else:
+                _get_children(
+                    node, traversing_nodes_delta, members[0], members[1:],
+                    level_distance=_get_levels_distance(members),
+                    last_level_top=last_level_top
+                )
+            session.commit()
+            break
+        logger.debug("Couldn't get %s levels. Decreasing", levels)
+    logger.info("Got additional %s traversing nodes", len(traversing_nodes_delta))
+    return traversing_nodes_delta, nodes
 
 def _get_children(node, traversing_nodes, node_element,
     elements, level_distance, last_level_top):
@@ -99,21 +142,31 @@ def _get_children(node, traversing_nodes, node_element,
                            if int(_get_element_style_items(e)['top'][:-2]) == next_layer_top]
     left = right = left_element = right_element = None
     is_left_found = False
+    logger.debug("Getting children for %s", node.id)
     for element in sorted(
         next_layer_elements, key=lambda e: int(_get_element_style_items(e)['left'][:-2])):
         element_id = element.attrib['id'][1:]
+        logger.debug("Checking %s", element_id)
         if _is_left(node_element, element):
+            logger.debug("%s is left to %s", element_id, node.id)
             if node.left_id is None:
+                logger.debug("%s has no left child. Adding %s", node.id, element_id)
+                logger.debug(node.to_dict())
                 left = _get_node(element, node, True)
+                logger.debug("%s is added to DB as left child of %s", element_id, node.id)
                 left_element = element
+            else:
+                logger.debug('%s already has left child %s', node.id, node.left_id)
             is_left_found = True
         elif _is_right(node_element, element):
+            logger.debug("%s is right to %s", element_id, node.id)
             if  is_left_found:
                 right = _get_node(element, node, False)
+                logger.debug("%s is added to DB as right child of %s", element_id, node.id)
                 right_element = element
     if node_element_top == last_level_top and len(elements) != 0:
         # if node.id not in page_nodes:
-            traversing_nodes.append(node)
+            traversing_nodes.append(node.id)
             node.built_tree = False
     else:
         node.built_tree = True
@@ -175,7 +228,7 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
     ids = cte.union(session.query(aliased(Node).id).filter_by(parent_id=cte.c.id))
     if incremental:
         traversing_nodes_query = traversing_nodes_query.\
-            filter_by(left_id=None, right_id=None).\
+            filter_by(right_id=None).\
             filter(Node.pv > 10).join(ids, Node.id == ids.c.id)
     elif cont:
         traversing_nodes_query = traversing_nodes_query.\
@@ -239,6 +292,9 @@ def _get_node(element, parent, is_left):
         session.flush()
     except UnicodeEncodeError as ex:
         logger.error("Couldn't add object %s", node.to_dict())
+        logger.error(ex)
+        raise ex
+    except Exception as ex:
         logger.error(ex)
         raise ex
     if is_left:
@@ -317,7 +373,7 @@ def _update_nodes(traversing_nodes, elements, last_level_top):
             node.network_pv = re.search('\\d+', sel_network_pv(element)).group()
             if int(_get_element_style_items(element)['top'][:-2]) == last_level_top \
                and len(elements) > 1:
-                traversing_nodes.append(node)
+                traversing_nodes.append(node.id)
 
 if __name__ == '__main__':
     import argparse
