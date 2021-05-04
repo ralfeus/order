@@ -35,32 +35,32 @@ engine = create_engine(
     f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
 session = Session(engine)
 traversing_nodes = []
-nodes = 0
+# nodes = 0
 tasks = []
 logger = logging.getLogger('build_network')
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s")
 
 def update_nodes(result):
-    global nodes
+    # global nodes
     global traversing_nodes
     global tasks
     global logger
-    traversing_nodes += result[0]
-    nodes = result[1]
+    traversing_nodes += result
+    # nodes = result[1]
     logger.info("Done %s nodes of %s",
         len([t for t in tasks if t.ready()]),
         len(traversing_nodes))
 
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
-    update=False, incremental=False, cont=False):
+    update=False, incremental=False, cont=False, active=True):
     if not root_id:
         root_id = 'S5832131'
     global traversing_nodes
     global tasks
     traversing_nodes = [
-        node.id for node in 
-        _init_network(root_id, incremental=incremental, cont=cont, update=update)
+        node.id for node in
+        _init_network(root_id, incremental=incremental, cont=cont, update=update, active=active)
     ]
     from app.utils.atomy import atomy_login
     logger.info("Logging in to Atomy")
@@ -76,7 +76,7 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
             tasks.append(
                 pool.apply_async(_build_page_nodes, (
                     node_id, session_cookies,
-                    username, password, update, nodes),
+                    username, password, update), #, nodes),
                     callback=update_nodes))
         except IndexError:
             if reduce(lambda acc, r: acc and r.ready(), tasks, True):
@@ -87,7 +87,7 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
     logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
 
 def _build_page_nodes(node_id, session_cookies, 
-                      username, password, update, nodes):
+                      username, password, update): # , nodes
     global logger
     global traversing_nodes
     global engine
@@ -118,9 +118,9 @@ def _build_page_nodes(node_id, session_cookies,
                 keyfunc=lambda m: int(_get_element_style_items(m)['top'][:-2])
             ).keys())
             if update:
-                logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
+                # logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
                 _update_nodes(traversing_nodes_delta, members, last_level_top)
-                nodes += len(members)
+                # nodes += len(members)
             else:
                 _get_children(
                     node, traversing_nodes_delta, members[0], members[1:],
@@ -131,9 +131,9 @@ def _build_page_nodes(node_id, session_cookies,
             break
         logger.debug("Couldn't get %s levels. Decreasing", levels)
     logger.info("Got additional %s traversing nodes", len(traversing_nodes_delta))
-    return traversing_nodes_delta, nodes
+    return traversing_nodes_delta # , nodes
 
-def _get_children(node, traversing_nodes, node_element,
+def _get_children(node, traversing_nodes_delta, node_element,
     elements, level_distance, last_level_top):
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
@@ -151,7 +151,6 @@ def _get_children(node, traversing_nodes, node_element,
             logger.debug("%s is left to %s", element_id, node.id)
             if node.left_id is None:
                 logger.debug("%s has no left child. Adding %s", node.id, element_id)
-                logger.debug(node.to_dict())
                 left = _get_node(element, node, True)
                 logger.debug("%s is added to DB as left child of %s", element_id, node.id)
                 left_element = element
@@ -166,15 +165,15 @@ def _get_children(node, traversing_nodes, node_element,
                 right_element = element
     if node_element_top == last_level_top and len(elements) != 0:
         # if node.id not in page_nodes:
-            traversing_nodes.append(node.id)
+            traversing_nodes_delta.append(node.id)
             node.built_tree = False
     else:
         node.built_tree = True
         if left is not None:
-            _get_children(left, traversing_nodes, left_element, elements,
+            _get_children(left, traversing_nodes_delta, left_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top)
         if right is not None:
-            _get_children(right, traversing_nodes, right_element, elements,
+            _get_children(right, traversing_nodes_delta, right_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top)
 
 def _get_element_style_items(element):
@@ -191,7 +190,7 @@ def _get_levels_distance(members):
     second_level = int(_get_element_style_items(members[1])['top'][:-2])
     return second_level - first_level
 
-def _init_network(root_node_id, incremental=False, cont=False, update=False):
+def _init_network(root_node_id, incremental=False, cont=False, update=False, active=True):
     logger = logging.getLogger("_init_network")
     root_node = session.query(Node).get(root_node_id)
     if not root_node:
@@ -203,11 +202,11 @@ def _init_network(root_node_id, incremental=False, cont=False, update=False):
         else:
             raise Exception(f'No node {root_node_id} is in tree')
     if root_node.parent_id:
-        return _init_network_subtree(root_node, incremental=incremental, cont=cont, update=update)
+        return _init_network_subtree(root_node, incremental=incremental, cont=cont, update=update, active=active)
     else:
-        return _init_network_full(root_node, incremental=incremental, cont=cont, update=update)
+        return _init_network_full(root_node, incremental=incremental, cont=cont, update=update, active=active)
 
-def _init_network_subtree(root_node, incremental=False, cont=False, update=False):
+def _init_network_subtree(root_node, incremental=False, cont=False, update=False, active=True):
     logger = logging.getLogger('_init_network_subtree')
     if incremental:
         logger.info("Resetting leafs progress")
@@ -227,9 +226,10 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
     cte = session.query(Node.id).filter_by(id=root_node.id).cte(recursive=True)
     ids = cte.union(session.query(aliased(Node).id).filter_by(parent_id=cte.c.id))
     if incremental:
-        traversing_nodes_query = traversing_nodes_query.\
-            filter_by(right_id=None).\
-            filter(Node.pv > 10).join(ids, Node.id == ids.c.id)
+        traversing_nodes_query = traversing_nodes_query.filter_by(right_id=None)
+        if active:
+            traversing_nodes_query = traversing_nodes_query.filter(Node.pv > 10)
+        traversing_nodes_query = traversing_nodes_query.join(ids, Node.id == ids.c.id)
     elif cont:
         traversing_nodes_query = traversing_nodes_query.\
             filter_by(built_tree=False).join(ids, Node.id == ids.c.id)
@@ -243,7 +243,7 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
     logger.info("Done")
     return traversing_nodes
 
-def _init_network_full(root_node, incremental=False, cont=False, update=False):
+def _init_network_full(root_node, incremental=False, cont=False, update=False, active=True):
     logger = logging.getLogger('_init_network_full')
     if incremental:
         logger.info("Resetting leafs progress")
@@ -256,10 +256,13 @@ def _init_network_full(root_node, incremental=False, cont=False, update=False):
     traversing_nodes_query = session.query(Node)
     if incremental:
         traversing_nodes_query = traversing_nodes_query.\
-            filter_by(right_id=None).filter(Node.pv > 10)
+            filter_by(right_id=None)
+        if active:
+            traversing_nodes_query = traversing_nodes_query.filter(Node.pv > 10)
     elif cont:
-        traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False).\
-            filter(Node.pv > 10)
+        traversing_nodes_query = traversing_nodes_query.filter_by(built_tree=False)
+        if active:
+            traversing_nodes_query = traversing_nodes_query.filter(Node.pv > 10)
     elif update:
         traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
             
@@ -268,7 +271,6 @@ def _init_network_full(root_node, incremental=False, cont=False, update=False):
     return traversing_nodes
 
 def _get_node(element, parent, is_left):
-    from time import sleep
     logger = logging.getLogger('_get_node')
     id = element.attrib['id'][1:]
     try:
@@ -360,7 +362,6 @@ def _get_element_horizontal_line(element):
             return None
         next_element = next_element.getnext()
     
-
 def _update_nodes(traversing_nodes, elements, last_level_top):
     logger = logging.getLogger('_update_nodes')
     for element in elements:
@@ -386,6 +387,8 @@ if __name__ == '__main__':
                     action='store_true')
     group.add_argument('--continue', dest='cont',
                     help='Continue tree building after being interrupted', action='store_true')
+    arg_parser.add_argument('--active', help="Build only active branches",
+        type=int, choices=[0, 1], default=True)
     args = arg_parser.parse_args()
     args.incremental = not (args.update or args.cont or args.root)
 
@@ -393,4 +396,4 @@ if __name__ == '__main__':
 
     build_network(
         root_id=args.root, cont=args.cont, incremental=args.incremental,
-        update=args.update)
+        update=args.update, active=args.active)

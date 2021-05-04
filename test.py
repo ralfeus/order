@@ -32,5 +32,5 @@ with create_app().app_context():
         # post_purchase_orders(po_id='PO-2021-04-0002-001')
         # print(po.to_dict())
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    build_network(update=True)
+    build_network(incremental=True, active=False)
     # copy_subtree(root_id='S9945812')
