@@ -1,9 +1,9 @@
 from datetime import datetime
 from functools import reduce
 import logging
-from multiprocessing import Pool
 import os
 import re
+import threading
 from time import sleep
 
 from lxml.cssselect import CSSSelector
@@ -12,8 +12,42 @@ from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm.session import Session
 
+from app.utils.atomy import atomy_login, get_document_from_url
 from app.exceptions import AtomyLoginError
 from app.network.models.node import Node
+
+class SessionManager:
+    __instance = None
+
+    @classmethod
+    def create_instance(cls, username, password):
+        cls.__instance = SessionManager(username, password)
+
+    @classmethod
+    def get_instance(cls):
+        return cls.__instance
+
+    def __init__(self, username, password):
+        self.__username = username
+        self.__password = password
+        self.__create_session()
+
+    def __create_session(self):
+        with threading.Lock():
+            self.__session = atomy_login(
+                username=self.__username, password=self.__password, run_browser=False)
+
+    def get_document(self, url, raw_data):
+        attempts_left = 3
+        while attempts_left:
+            try:
+                return get_document_from_url(url,
+                    headers=[{'Cookie': c} for c in self.__session],
+                    raw_data=raw_data)
+            except AtomyLoginError:
+                logger.info("Session expired. Logging in")
+                self.__create_session()
+                attempts_left -= 1
 
 sel_name = lambda e: e.cssselect('td span')[1].attrib['title']
 sel_rank = lambda e: e.cssselect('td span')[2].text
@@ -33,83 +67,57 @@ db_password = os.environ.get('DB_PASSWORD') or 'omc'
 db_db = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
     f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
-session = Session(engine)
-traversing_nodes = []
-# nodes = 0
-tasks = []
+logging.basicConfig(level=logging.INFO, force=True,
+    format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
 logger = logging.getLogger('build_network')
-logging.basicConfig(level=logging.INFO,
-    format="%(asctime)s\t%(levelname)s\t%(name)s\t%(message)s")
-
-def update_nodes(result):
-    # global nodes
-    global traversing_nodes
-    global tasks
-    global logger
-    traversing_nodes += result
-    # nodes = result[1]
-    logger.info("Done %s nodes of %s",
-        len([t for t in tasks if t.ready()]),
-        len(traversing_nodes))
 
 def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
-    update=False, incremental=False, cont=False, active=True):
+    update=False, incremental=False, cont=False, active=True, threads=10):
     if not root_id:
         root_id = 'S5832131'
-    global traversing_nodes
-    global tasks
-    traversing_nodes = [
-        node.id for node in
-        _init_network(root_id, incremental=incremental, cont=cont, update=update, active=active)
-    ]
-    from app.utils.atomy import atomy_login
+    tasks = []
+    traversing_nodes = [node.id for node 
+                        in _init_network(root_id, incremental=incremental,
+                                         cont=cont, update=update, active=active)]
+    logger.debug(traversing_nodes)
     logger.info("Logging in to Atomy")
-    session_cookies = atomy_login(username=username, password=password, run_browser=False)
+    SessionManager.create_instance(username, password)
     c = 0
     initial_nodes_count = len(traversing_nodes)
-    pool = Pool(20)
     while True:
+        while len([t for t in tasks if t.is_alive()]) >= threads:
+            sleep(1)
         try:
             node_id = traversing_nodes[c]
             c += 1
-            # logger.info("%s of %s", c, len(traversing_nodes))
-            tasks.append(
-                pool.apply_async(_build_page_nodes, (
-                    node_id, session_cookies,
-                    username, password, update), #, nodes),
-                    callback=update_nodes))
+            logger.info("%s of %s. %s tasks are running", c, len(traversing_nodes), len([t for t in tasks if t.is_alive()]))
+            thread = threading.Thread(
+                target=_build_page_nodes, args=(node_id, traversing_nodes, update),
+                name="Thread-" + node_id)
+            thread.start()
+            tasks.append(thread)
         except IndexError:
-            if reduce(lambda acc, r: acc and r.ready(), tasks, True):
+            running_tasks = len([t for t in tasks if t.is_alive()])
+            if running_tasks == 0:
+                logger.info('No nodes left to check. Finishing')
                 break
+            logger.info('%s nodes checking is in progress. Waiting for completion',
+                running_tasks)
             sleep(5)
         except Exception as ex:
+            logger.exception(node_id)
             raise ex
     logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
 
-def _build_page_nodes(node_id, session_cookies, 
-                      username, password, update): # , nodes
-    global logger
-    global traversing_nodes
-    global engine
-    engine.dispose()
-    node = session.query(Node).get(node_id)
-    from app.utils.atomy import atomy_login, get_document_from_url
-    traversing_nodes_delta = []
+def _build_page_nodes(node_id, traversing_nodes, update):
+    session = Session(engine)
     for levels in [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]:
-        while True:
-            try:
-                page = get_document_from_url(TREE_URL,
-                    headers=[{'Cookie': c} for c in session_cookies],
-                    raw_data=DATA_TEMPLATE.format(levels, node_id))
-                break
-            except AtomyLoginError:
-                logger.info("Session expired. Logging in")
-                session_cookies = atomy_login(
-                    username=username, password=password, run_browser=False)
-            except Exception as ex:
-                logger.error("Something bad has happened")
-                logger.exception("%s %s %s", TREE_URL, session_cookies, node_id)
-                raise ex
+        try:
+            page = SessionManager.get_instance().get_document(TREE_URL,
+                raw_data=DATA_TEMPLATE.format(levels, node_id))
+        except Exception as ex:
+            logger.exception("Couldn't get tree page")
+            raise ex
         members = sel_members(page)
         if len(members) > 0:
             logger.debug("Got %s levels. Processing", levels)
@@ -119,22 +127,20 @@ def _build_page_nodes(node_id, session_cookies,
             ).keys())
             if update:
                 # logger.info("Processing nodes %s-%s", nodes, nodes + len(members))
-                _update_nodes(traversing_nodes_delta, members, last_level_top)
+                _update_nodes(traversing_nodes, members, last_level_top, session)
                 # nodes += len(members)
             else:
                 _get_children(
-                    node, traversing_nodes_delta, members[0], members[1:],
+                    node_id, traversing_nodes, members[0], members[1:],
                     level_distance=_get_levels_distance(members),
-                    last_level_top=last_level_top
+                    last_level_top=last_level_top, session=session
                 )
             session.commit()
             break
         logger.debug("Couldn't get %s levels. Decreasing", levels)
-    logger.info("Got additional %s traversing nodes", len(traversing_nodes_delta))
-    return traversing_nodes_delta # , nodes
 
-def _get_children(node, traversing_nodes_delta, node_element,
-    elements, level_distance, last_level_top):
+def _get_children(node_id, traversing_nodes, node_element,
+    elements, level_distance, last_level_top, session):
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
     next_layer_top = node_element_top + level_distance
@@ -142,7 +148,8 @@ def _get_children(node, traversing_nodes_delta, node_element,
                            if int(_get_element_style_items(e)['top'][:-2]) == next_layer_top]
     left = right = left_element = right_element = None
     is_left_found = False
-    logger.debug("Getting children for %s", node.id)
+    node = session.query(Node).get(node_id)
+    logger.debug("Getting children for %s", node_id)
     for element in sorted(
         next_layer_elements, key=lambda e: int(_get_element_style_items(e)['left'][:-2])):
         element_id = element.attrib['id'][1:]
@@ -151,7 +158,7 @@ def _get_children(node, traversing_nodes_delta, node_element,
             logger.debug("%s is left to %s", element_id, node.id)
             if node.left_id is None:
                 logger.debug("%s has no left child. Adding %s", node.id, element_id)
-                left = _get_node(element, node, True)
+                left = _get_node(element, node, True, session)
                 logger.debug("%s is added to DB as left child of %s", element_id, node.id)
                 left_element = element
             else:
@@ -160,21 +167,23 @@ def _get_children(node, traversing_nodes_delta, node_element,
         elif _is_right(node_element, element):
             logger.debug("%s is right to %s", element_id, node.id)
             if  is_left_found:
-                right = _get_node(element, node, False)
+                right = _get_node(element, node, False, session)
                 logger.debug("%s is added to DB as right child of %s", element_id, node.id)
                 right_element = element
     if node_element_top == last_level_top and len(elements) != 0:
         # if node.id not in page_nodes:
-            traversing_nodes_delta.append(node.id)
+            traversing_nodes.append(node.id)
             node.built_tree = False
     else:
         node.built_tree = True
         if left is not None:
-            _get_children(left, traversing_nodes_delta, left_element, elements,
-                level_distance=level_distance, last_level_top=last_level_top)
+            _get_children(left, traversing_nodes, left_element, elements,
+                level_distance=level_distance, last_level_top=last_level_top,
+                session=session)
         if right is not None:
-            _get_children(right, traversing_nodes_delta, right_element, elements,
-                level_distance=level_distance, last_level_top=last_level_top)
+            _get_children(right, traversing_nodes, right_element, elements,
+                level_distance=level_distance, last_level_top=last_level_top,
+                session=session)
 
 def _get_element_style_items(element):
     style_items = element.attrib['style'].split(';')
@@ -191,25 +200,31 @@ def _get_levels_distance(members):
     return second_level - first_level
 
 def _init_network(root_node_id, incremental=False, cont=False, update=False, active=True):
-    logger = logging.getLogger("_init_network")
+    _logger = logging.getLogger("_init_network")
+    session = Session(engine)
     root_node = session.query(Node).get(root_node_id)
     if not root_node:
         if session.query(Node).count() == 0:
-            logger.info("The network doesn't yet exist. Starting with %s", root_node_id)
+            _logger.info("The network doesn't yet exist. Starting with %s", root_node_id)
             root_node = Node(id=root_node_id)
             session.add(root_node)
             session.flush()
         else:
             raise Exception(f'No node {root_node_id} is in tree')
     if root_node.parent_id:
-        return _init_network_subtree(root_node, incremental=incremental, cont=cont, update=update, active=active)
+        return _init_network_subtree(root_node, incremental=incremental,
+                                     cont=cont, update=update, active=active,
+                                     session=session)
     else:
-        return _init_network_full(root_node, incremental=incremental, cont=cont, update=update, active=active)
+        return _init_network_full(root_node, incremental=incremental, cont=cont,
+                                  update=update, active=active,
+                                  session=session)
 
-def _init_network_subtree(root_node, incremental=False, cont=False, update=False, active=True):
-    logger = logging.getLogger('_init_network_subtree')
+def _init_network_subtree(root_node, incremental=False, cont=False, update=False,
+                          active=True, session=None):
+    _logger = logging.getLogger('_init_network_subtree')
     if incremental:
-        logger.info("Resetting leafs progress")
+        _logger.info("Resetting leafs progress")
         session.execute('''
             UPDATE network_nodes
             SET built_tree = 0 
@@ -221,7 +236,7 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
                 ) SELECT id FROM cte
             ) AND right_id IS NULL
         ''', {'id': root_node.id})
-    logger.info("Getting leafs to crawl")
+    _logger.info("Getting leafs to crawl")
     traversing_nodes_query = session.query(Node)
     cte = session.query(Node.id).filter_by(id=root_node.id).cte(recursive=True)
     ids = cte.union(session.query(aliased(Node).id).filter_by(parent_id=cte.c.id))
@@ -234,25 +249,26 @@ def _init_network_subtree(root_node, incremental=False, cont=False, update=False
         traversing_nodes_query = traversing_nodes_query.\
             filter_by(built_tree=False).join(ids, Node.id == ids.c.id)
     elif update:
-        logger.info("There are %s nodes to update", session.query(ids).count())
+        _logger.info("There are %s nodes to update", session.query(ids).count())
         traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
     else:
         raise Exception("No mode is defined")
             
     traversing_nodes = traversing_nodes_query.all()
-    logger.info("Done")
+    _logger.info("Done")
     return traversing_nodes
 
-def _init_network_full(root_node, incremental=False, cont=False, update=False, active=True):
-    logger = logging.getLogger('_init_network_full')
+def _init_network_full(root_node, incremental=False, cont=False, update=False,
+                       active=True, session=None):
+    _logger = logging.getLogger('_init_network_full')
     if incremental:
-        logger.info("Resetting leafs progress")
+        _logger.info("Resetting leafs progress")
         session.execute('''
             UPDATE network_nodes
             SET built_tree = 0 
             WHERE right_id IS NULL
         ''')
-    logger.info("Getting leafs to crawl")
+    _logger.info("Getting leafs to crawl")
     traversing_nodes_query = session.query(Node)
     if incremental:
         traversing_nodes_query = traversing_nodes_query.\
@@ -267,10 +283,10 @@ def _init_network_full(root_node, incremental=False, cont=False, update=False, a
         traversing_nodes_query = session.query(Node).filter_by(id=root_node.id)
             
     traversing_nodes = traversing_nodes_query.all()
-    logger.info("Done")
+    _logger.info("Done")
     return traversing_nodes
 
-def _get_node(element, parent, is_left):
+def _get_node(element, parent, is_left, session):
     logger = logging.getLogger('_get_node')
     id = element.attrib['id'][1:]
     try:
@@ -362,8 +378,8 @@ def _get_element_horizontal_line(element):
             return None
         next_element = next_element.getnext()
     
-def _update_nodes(traversing_nodes, elements, last_level_top):
-    logger = logging.getLogger('_update_nodes')
+def _update_nodes(traversing_nodes, elements, last_level_top, session):
+    # logger = logging.getLogger('_update_nodes')
     for element in elements:
         # node = [n for n in nodes if n.id == element.attrib['id'][1:]][0]
         node = session.query(Node).get(element.attrib['id'][1:])
@@ -387,13 +403,19 @@ if __name__ == '__main__':
                     action='store_true')
     group.add_argument('--continue', dest='cont',
                     help='Continue tree building after being interrupted', action='store_true')
-    arg_parser.add_argument('--active', help="Build only active branches",
-        type=int, choices=[0, 1], default=True)
+    active = arg_parser.add_mutually_exclusive_group()
+    active.add_argument('--active', help="Build only active branches", default=True, action="store_true")
+    active.add_argument('--all', help="Build all branches", dest='active', default=False, action="store_false")
+    arg_parser.add_argument('-v', '--verbose', action='count', help='Increase verbosity')
+    arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
+
     args = arg_parser.parse_args()
     args.incremental = not (args.update or args.cont or args.root)
+    if args.verbose == 1:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     logging.info('Building tree with following arguments: %s', args)
 
     build_network(
         root_id=args.root, cont=args.cont, incremental=args.incremental,
-        update=args.update, active=args.active)
+        update=args.update, active=args.active, threads=args.threads)
