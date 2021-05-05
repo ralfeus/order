@@ -163,3 +163,13 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8'):
         return doc
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
+
+def try_perform(action, attempts=3):
+    last_exception = None
+    while attempts:
+        try:
+            return action()
+        except Exception as ex:
+            attempts -= 1
+            last_exception = ex
+    raise last_exception

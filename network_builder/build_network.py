@@ -1,3 +1,5 @@
+from app.tools import try_perform
+from argparse import ArgumentError
 from datetime import datetime
 import logging
 import os
@@ -8,10 +10,10 @@ from time import sleep
 from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
 from sqlalchemy.engine import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import sessionmaker
-# from sqlalchemy.orm.session import Session
 
 from app.utils.atomy import atomy_login, get_document_from_url
 from app.exceptions import AtomyLoginError
@@ -67,7 +69,8 @@ DB_USER = os.environ.get('DB_USER') or 'omc'
 DB_PASS = os.environ.get('DB_PASSWORD') or 'omc'
 DB_DB = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
-    f"mysql+mysqldb://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_DB}?auth_plugin=mysql_native_password&charset=utf8")
+    f"mysql+mysqldb://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_DB}?auth_plugin=mysql_native_password&charset=utf8",
+    pool_size=30, max_overflow=0)
 session_factory = sessionmaker(bind=engine)
 Session = scoped_session(session_factory)
 
@@ -149,6 +152,12 @@ def _build_page_nodes(node_id, traversing_nodes, update):
 
 def _get_children(node_id, traversing_nodes, node_element,
     elements, level_distance, last_level_top, session):
+    def get_node(node_id):
+        node = session.query(Node).get(node_id)
+        if node is None:
+            raise ArgumentError("node_id", "The node with this ID wasn't found in the DB")
+        return node
+
     node_element_style_items = _get_element_style_items(node_element)
     node_element_top = int(node_element_style_items['top'][:-2])
     next_layer_top = node_element_top + level_distance
@@ -156,7 +165,7 @@ def _get_children(node_id, traversing_nodes, node_element,
                            if int(_get_element_style_items(e)['top'][:-2]) == next_layer_top]
     left = right = left_element = right_element = None
     is_left_found = False
-    node = session.query(Node).get(node_id)
+    node = try_perform(lambda: get_node(node_id))
     logger.debug("Getting children for %s", node_id)
     for element in sorted(
         next_layer_elements, key=lambda e: int(_get_element_style_items(e)['left'][:-2])):
@@ -316,6 +325,11 @@ def _get_node(element, parent, is_left, session):
         network_pv=int(re.search('\\d+', sel_network_pv(element)).group())
     )
     logger.debug('Adding node %s', id)
+    if is_left:
+        parent.left_id = id
+    else:
+        parent.right_id = id    
+    session.commit()
     session.add(node)
     try:
         session.flush()
@@ -323,13 +337,15 @@ def _get_node(element, parent, is_left, session):
         logger.error("Couldn't add object %s", node.to_dict())
         logger.error(ex)
         raise ex
+    except IntegrityError as ex:
+        session.rollback()
+        node = session.query(Node).get(id)
+        if node is None:
+            raise ex
     except Exception as ex:
         logger.error(ex)
         raise ex
-    if is_left:
-        parent.left_id = id
-    else:
-        parent.right_id = id
+
     return node
 
 def _is_left(parent_element, child_element):
