@@ -1,5 +1,4 @@
 from datetime import datetime
-from functools import reduce
 import logging
 import os
 import re
@@ -10,7 +9,9 @@ from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm import aliased
-from sqlalchemy.orm.session import Session
+from sqlalchemy.orm.scoping import scoped_session
+from sqlalchemy.orm.session import sessionmaker
+# from sqlalchemy.orm.session import Session
 
 from app.utils.atomy import atomy_login, get_document_from_url
 from app.exceptions import AtomyLoginError
@@ -61,12 +62,15 @@ sel_network_pv = lambda e: e.cssselect('td span')[8].text
 TREE_URL = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
 DATA_TEMPLATE = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=0&VgcurSale=1&VgbuName=1&SDate=2021-02-23&EDate=2021-02-23&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
 
-db_host = os.environ.get('DB_HOST') or 'localhost'
-db_user = os.environ.get('DB_USER') or 'omc'
-db_password = os.environ.get('DB_PASSWORD') or 'omc'
-db_db = os.environ.get('DB_DB') or 'order_master_common'
+DB_HOST = os.environ.get('DB_HOST') or 'localhost'
+DB_USER = os.environ.get('DB_USER') or 'omc'
+DB_PASS = os.environ.get('DB_PASSWORD') or 'omc'
+DB_DB = os.environ.get('DB_DB') or 'order_master_common'
 engine = create_engine(
-    f"mysql+mysqldb://{db_user}:{db_password}@{db_host}/{db_db}?auth_plugin=mysql_native_password&charset=utf8")
+    f"mysql+mysqldb://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_DB}?auth_plugin=mysql_native_password&charset=utf8")
+session_factory = sessionmaker(bind=engine)
+Session = scoped_session(session_factory)
+
 logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
 logger = logging.getLogger('build_network')
@@ -110,7 +114,7 @@ def build_network(username='S5832131', password='mkk03020529!', root_id='S583213
     logger.info("Done. Added %s new nodes", len(traversing_nodes) - initial_nodes_count)
 
 def _build_page_nodes(node_id, traversing_nodes, update):
-    session = Session(engine)
+    session = Session()
     for levels in [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]:
         try:
             page = SessionManager.get_instance().get_document(TREE_URL,
@@ -135,7 +139,11 @@ def _build_page_nodes(node_id, traversing_nodes, update):
                     level_distance=_get_levels_distance(members),
                     last_level_top=last_level_top, session=session
                 )
+            logger.debug('Committing transaction')
             session.commit()
+            Session.remove()
+            logger.debug('Done')
+            # sleep(60)
             break
         logger.debug("Couldn't get %s levels. Decreasing", levels)
 
@@ -201,7 +209,7 @@ def _get_levels_distance(members):
 
 def _init_network(root_node_id, incremental=False, cont=False, update=False, active=True):
     _logger = logging.getLogger("_init_network")
-    session = Session(engine)
+    session = Session()
     root_node = session.query(Node).get(root_node_id)
     if not root_node:
         if session.query(Node).count() == 0:
@@ -212,13 +220,15 @@ def _init_network(root_node_id, incremental=False, cont=False, update=False, act
         else:
             raise Exception(f'No node {root_node_id} is in tree')
     if root_node.parent_id:
-        return _init_network_subtree(root_node, incremental=incremental,
+        result = _init_network_subtree(root_node, incremental=incremental,
                                      cont=cont, update=update, active=active,
                                      session=session)
     else:
-        return _init_network_full(root_node, incremental=incremental, cont=cont,
+        result = _init_network_full(root_node, incremental=incremental, cont=cont,
                                   update=update, active=active,
                                   session=session)
+    Session.remove()
+    return result
 
 def _init_network_subtree(root_node, incremental=False, cont=False, update=False,
                           active=True, session=None):
@@ -305,6 +315,7 @@ def _get_node(element, parent, is_left, session):
         pv=int(re.search('\\d+', sel_pv(element)).group()),
         network_pv=int(re.search('\\d+', sel_network_pv(element)).group())
     )
+    logger.debug('Adding node %s', id)
     session.add(node)
     try:
         session.flush()
