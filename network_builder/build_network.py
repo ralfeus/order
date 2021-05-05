@@ -1,5 +1,4 @@
 from app.tools import try_perform
-from argparse import ArgumentError
 from datetime import datetime
 import logging
 import os
@@ -155,7 +154,7 @@ def _get_children(node_id, traversing_nodes, node_element,
     def get_node(node_id):
         node = session.query(Node).get(node_id)
         if node is None:
-            raise ArgumentError("node_id", "The node with this ID wasn't found in the DB")
+            raise ValueError(f"The node with ID {node_id} wasn't found in the DB")
         return node
 
     node_element_style_items = _get_element_style_items(node_element)
