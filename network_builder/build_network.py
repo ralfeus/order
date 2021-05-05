@@ -194,11 +194,11 @@ def _get_children(node_id, traversing_nodes, node_element,
     else:
         node.built_tree = True
         if left is not None:
-            _get_children(left, traversing_nodes, left_element, elements,
+            _get_children(left.id, traversing_nodes, left_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top,
                 session=session)
         if right is not None:
-            _get_children(right, traversing_nodes, right_element, elements,
+            _get_children(right.id, traversing_nodes, right_element, elements,
                 level_distance=level_distance, last_level_top=last_level_top,
                 session=session)
 
