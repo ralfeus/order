@@ -164,6 +164,7 @@ def _get_children(node_id, traversing_nodes, node_element,
                            if int(_get_element_style_items(e)['top'][:-2]) == next_layer_top]
     left = right = left_element = right_element = None
     is_left_found = False
+    logger.debug("Getting node by ID %s", node_id)
     node = try_perform(lambda: get_node(node_id))
     logger.debug("Getting children for %s", node_id)
     for element in sorted(
