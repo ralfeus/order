@@ -40,7 +40,7 @@ function cancel(row) {
 async function get_dictionaries() {
     g_currencies = await get_currencies();
     g_payment_methods = (await get_payment_methods()).map(
-        pm => ({value: pm.id, label: pm.name}));
+        pm => ({value: pm.id, label: pm.name, instructions: pm.instructions}));
     g_payment_statuses = await get_list('/api/v1/payment/status')
     g_filter_sources = {
         'payment_method.name': g_payment_methods.map(pm => pm.label),
@@ -105,6 +105,10 @@ function init_payments_table() {
                 type: 'select2',
                 options: g_payment_methods
             },
+            {
+                name: 'payment_method.instructions',
+                type: 'hidden'
+            },
             {label: 'Amount', name: 'amount_sent_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
@@ -126,6 +130,7 @@ function init_payments_table() {
     editor.field('orders').input().on('change', on_orders_change);
     editor.field('amount_sent_original').input().on('focus', function(){this.old_value = this.value})
     editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
+    editor.field('payment_method.id').input().on('change', on_payment_method_change);
 
     var table = $('#payments').DataTable({
         dom: 'lrBtip',
@@ -247,6 +252,16 @@ function on_orders_change() {
         }
     }
     return {};
+}
+
+function on_payment_method_change(sender, value) {
+    if (editor.field('payment_method.id').val()) {
+        editor.field('payment_method.id').message(
+            g_payment_methods.filter(
+                pm => pm.value == editor.field('payment_method.id').val()
+            )[0].instructions.replace(/\n/g, '<br />')
+        );
+    }
 }
 
 function on_currency_change() {
