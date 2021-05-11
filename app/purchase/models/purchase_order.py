@@ -2,14 +2,15 @@
 from datetime import datetime, date
 import enum
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, \
+    String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.sql.sqltypes import DateTime
 
 from app import db
 from app.models.base import BaseModel
-from app.orders.models import Suborder
+from app.orders.models import Subcustomer, Suborder
+from .company import Company
 
 class PurchaseOrderStatus(enum.Enum):
     ''' Represents statuses of the purchase order '''
@@ -30,9 +31,9 @@ class PurchaseOrder(db.Model, BaseModel):
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(12))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
-    suborder = relationship('Suborder', foreign_keys=[suborder_id], lazy='joined')
+    suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
-    customer = relationship('Subcustomer', foreign_keys=[customer_id])
+    customer = relationship(Subcustomer, foreign_keys=[customer_id])
     contact_phone = Column(String(13))
     payment_phone = Column(String(13))
     payment_account = Column(String(32))
@@ -41,8 +42,9 @@ class PurchaseOrder(db.Model, BaseModel):
     address_1 = Column(String(64))
     address_2 = Column(String(64))
     company_id = Column(Integer, ForeignKey('companies.id'))
-    company = relationship('Company', foreign_keys=[company_id])
+    company = relationship(Company, foreign_keys=[company_id])
     vendor = Column(String(64))
+    purchase_restricted_products = Column(Boolean, default=False)
     status_details = Column(Text)
     when_posted = Column(DateTime)
 
@@ -127,7 +129,14 @@ class PurchaseOrder(db.Model, BaseModel):
         self.vendor_po_id = None
 
     def to_dict(self):
+        from app.settings.models.setting import Setting
         purchase_date = self.purchase_date
+        allow_purchase_restricted_products = (
+            Setting.query.get('purchase.allow_purchase_restricted_products') is not None and 
+            Setting.query.get('purchase.allow_purchase_restricted_products').value == '1'
+        )
+        purchase_restricted_products = self.purchase_restricted_products \
+            if allow_purchase_restricted_products else None
         return {
             'id': self.id,
             'order_id': self.suborder.order_id,
@@ -141,6 +150,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'status': self.status.name if self.status else None,
             'status_details': self.status_details,
             'vendor': self.vendor,
+            'purchase_restricted_products': purchase_restricted_products,
             'purchase_date': purchase_date.strftime('%Y-%m-%d') if purchase_date else None,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,

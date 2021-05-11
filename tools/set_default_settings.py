@@ -11,7 +11,8 @@ settings = [
     {'key': 'check_outsiders', 'value': False, 'description': 'Define whether to check network outsiders'},
     {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' },
     {'key': 'jivochat.id', 'value': None, 'description': 'Jivochat ID. If is set to None the Jivochat is disabled' },
-    {'key': 'network.root_id', 'value': None, 'description': 'ID of the tree\'s root node'}
+    {'key': 'network.root_id', 'value': None, 'description': 'ID of the tree\'s root node'},
+    {'key': 'purchase.allow_purchase_restricted_products', 'value': False, 'description': 'Allows to decide whether to purchase restricted products (ones that can\'t be purchased by foreign members'}
 ]
 
 for setting in settings:

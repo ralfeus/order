@@ -21,9 +21,7 @@ from ..models.vendor_manager import PurchaseOrderVendorManager
 @bp_api_admin.route('/order/<po_id>')
 @roles_required('admin')
 def get_purchase_orders(po_id):
-    '''
-    Returns all or selected purchase orders in JSON
-    '''
+    ''' Returns all or selected purchase orders in JSON '''
     purchase_orders = PurchaseOrder.query
     if po_id is not None:
         purchase_orders = purchase_orders.filter_by(id=po_id)
@@ -51,7 +49,7 @@ def get_purchase_orders(po_id):
     if purchase_orders.count() == 0:
         abort(Response("No purchase orders were found", status=404))
     else:
-        return jsonify(list(map(lambda entry: entry.to_dict(), purchase_orders)))
+        return jsonify([entry.to_dict() for entry in purchase_orders])
 
 @bp_api_admin.route('/order', methods=['POST'])
 @roles_required('admin')
@@ -99,6 +97,7 @@ def create_purchase_order():
             address_2=company.address.address_2,
             company=company,
             vendor=vendor.id,
+            purchase_restricted_products=payload.get('purchase_restricted_products', False),
             when_created=datetime.now()
         )
         purchase_orders.append(purchase_order)
@@ -112,7 +111,7 @@ def create_purchase_order():
     # post_purchase_orders()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
 
-    return (jsonify({'data': list(map(lambda po: po.to_dict(), purchase_orders))}), 202)
+    return (jsonify({'data': [po.to_dict() for po in purchase_orders]}), 202)
 
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')

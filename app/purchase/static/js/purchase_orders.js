@@ -91,12 +91,16 @@ function init_table() {
     g_create_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
             var url = '/api/v1/admin/purchase/order';
+            data = data.data[0];
+            data.purchase_restricted_products = data.purchase_restricted_products
+                ? data.purchase_restricted_products[0]
+                : false;
             $.ajax({
                 url: url,
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
+                data: JSON.stringify(data),
                 success: (data, _status, xhr) => {
                     success_callback(data);
                     if (xhr.status == 202) {
@@ -126,7 +130,8 @@ function init_table() {
                 type: 'select2',
                 def: 'AtomyQuick',
                 options: g_vendors
-            }
+            },
+
         ]
     });
     g_create_editor.on('open', on_editor_open);
@@ -215,6 +220,7 @@ function init_table() {
             },
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
+            {name: 'purchase_restricted', data: 'purchase_restricted_products'},
             {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
@@ -232,7 +238,7 @@ function init_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[9, 'desc']],
+        order: [[10, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
@@ -247,6 +253,9 @@ function init_table() {
             var table = this;
             init_search(table, g_filter_sources)
             .then(() => init_table_filter(table));
+            if (table.DataTable().row(0).data().purchase_restricted_products === null) {
+                table.DataTable().column('purchase_restricted:name').visible(false, true);
+            }
         }
     });
 }
@@ -254,6 +263,16 @@ function init_table() {
 function on_editor_open() {
     get_orders_to_purchase();
     get_companies();
+    if (g_purchase_orders_table.column('purchase_restricted:name').visible()) {
+        g_create_editor.add({
+            label: 'Purchase restricted products', 
+            name: 'purchase_restricted_products', 
+            type: 'checkbox', 
+            options: [{label:'', value:true}],
+            def: false,
+            unselectedValue: false
+        });
+    }
 }
 
 function on_company_change() {
