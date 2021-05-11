@@ -3,6 +3,7 @@ var g_order_statuses;
 var g_orders_table;
 var g_payment_methods;
 var g_shipping_methods;
+var g_boxes;
 
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
@@ -77,6 +78,7 @@ async function get_dictionaries() {
         item => ({ id: item.id, text: item.name }));
     g_shipping_methods = (await get_list('/api/v1/shipping')).map(
         item => ({ id: item.id, text: item.name }));
+    g_boxes = await get_list('/api/v1/admin/shipping/box');
     g_filter_sources = {
         'status': g_order_statuses,
         'payment_method': g_payment_methods,
@@ -206,6 +208,47 @@ function create_invoice(rows) {
     });  
 }
 
+function edit_shipment(sender) {
+    var editor = new $.fn.dataTable.Editor({
+        ajax: {
+            edit: {
+                url: '/api/v1/admin/order/_id_',
+                contentType: 'application/json',
+                data: data => {
+                    var obj = Object.entries(data.data)[0][1];
+                    return JSON.stringify({
+                        total_weight: obj.total_weight,
+                        boxes: Object.entries(obj)
+                                .filter(e => e[0].startsWith('box_'))
+                                .map(e => ({
+                                    id: e[0].replace('box_', ''),
+                                    quantity: e[1]
+                                }))
+                    });
+                }
+            }
+        },
+        table: '#orders',
+        idSrc: 'id',
+        fields: [
+            { name: 'total_weight', label: 'Total weight' }
+        ]
+    });
+    var order_row = g_orders_table.row($(sender).closest('tr'));
+    for (var b in g_boxes) {
+        editor.add({
+            name: "box_" + g_boxes[b].id,
+            label: g_boxes[b].description,
+            def: order_row.data().boxes[g_boxes[b].id]
+        });
+    }
+    editor
+        .edit(order_row, true, {
+            title: 'Set shipment info',
+            buttons: 'Update'
+        });
+}
+
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
         dom: 'lrBtip',
@@ -284,7 +327,10 @@ function init_orders_table() {
                         onclick="open_order(this);">Open</button> \
                     <button \
                         class="btn btn-sm btn-secondary btn-invoice" \
-                        onclick="open_order_invoice(this);">Invoice</button>'
+                        onclick="open_order_invoice(this);">Invoice</button> \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-shipment" \
+                        onclick="edit_shipment(this);">Shipment</button>'
             },            
             {name: 'id', data: 'id'},
             {data: 'user'},
@@ -326,6 +372,9 @@ function init_orders_table() {
         serverSide: true,
         processing: true,
         createdRow: (row, data) => {
+            if (data.status != 'packed') {
+                $('.btn-shipment', row).remove();
+            }
             if (data.status != 'shipped') {
                 $('.btn-invoice', row).remove();
             }
