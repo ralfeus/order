@@ -16,9 +16,9 @@ with create_app().app_context():
     po = PurchaseOrder.query.get('PO-2021-04-0002-001')
     po.status = PurchaseOrderStatus.pending
     po.vendor = 'AtomyQuick'
-    po.company_id = 3
-    po.customer.username = '25870320'
-    po.customer.password = 'f15041964!'
+    po.company_id = 4
+    po.customer.username = '23426444'
+    po.customer.password = 'atomy#01'
     po.purchase_restricted_products = True
     db.session.flush()
     # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
