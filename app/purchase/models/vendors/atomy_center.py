@@ -227,6 +227,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.debug("Setting counteragent tax information")
+        self.__logger.debu(tax_id)
         if tax_id == ('', '', ''): # No company
             self.__po_params = {**self.__po_params,
                 'tax_check': 0,
