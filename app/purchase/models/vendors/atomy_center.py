@@ -241,7 +241,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 'tax_b_num1': tax_id[0],
                 'tax_b_num2': tax_id[1],
                 'tax_b_num3': tax_id[2],
-                'tax_l_num': '{}-{}-{}' % (tax_id)
+                'tax_l_num': '{}-{}-{}' % tax_id
             }
 
     def __submit_order(self):
