@@ -13,7 +13,7 @@ from app.orders.models.order_product import OrderProductStatus
 from app.utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
-ERROR_FOREIGN_ACCOUNT = "Can't add product %s for customer %s as it's available in customer's country"
+ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'
 ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
 
 class AtomyQuick(PurchaseOrderVendorBase):
@@ -62,7 +62,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__init_quick_order(purchase_order)
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
-            self.__set_sender_name()
             self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
             self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_receiver_mobile(purchase_order.contact_phone)
@@ -194,7 +193,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         result = get_document_from_url(
             url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
             encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies ] + [
+            headers=[{'Cookie': c} for c in self.__session_cookies] + [
                 {'Content-Type': 'application/json'}
             ],
             raw_data='{"CartList":[{"MaterialCode":"%s"}]}' % product_id
@@ -203,9 +202,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if result['rsCd'] == '200':
             if result['responseText'] == '':
                 return True
-            else:
-                self.__logger.warning("Product %s error: %s", product_id, result['responseText'])
-                return False
+            if result['responseText'] == ERROR_FOREIGN_ACCOUNT and (
+                self.__purchase_order.purchase_restricted_products):
+                return True
+            self.__logger.warning("Product %s error: %s", product_id, result['responseText'])
+            return False
         self.__logger.warning("Product %s unknown error", product_id)
         return False
 
@@ -260,14 +261,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.debug('No combined shipment is needed')
             self.__po_params['PackingGubun'] = 0
 
-    def __set_sender_name(self):
-        self.__logger.debug("Setting sender name")
-        self.__po_params['SendName'] = 'dumb'
-
     def __set_purchase_order_id(self, purchase_order_id):
         self.__logger.debug("Setting purchase order ID")
         adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
         self.__po_params['RevName'] = adapted_po_id
+        self.__po_params['SendName'] = adapted_po_id
 
     def __set_receiver_mobile(self, phone='010-6275-2045'):
         self.__logger.debug("Setting receiver phone number")

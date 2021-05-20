@@ -227,6 +227,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.debug("Setting counteragent tax information")
+        self.__logger.debug(tax_id)
         if tax_id == ('', '', ''): # No company
             self.__po_params = {**self.__po_params,
                 'tax_check': 0,
@@ -240,7 +241,8 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 'tax_m_gubun': 3,
                 'tax_b_num1': tax_id[0],
                 'tax_b_num2': tax_id[1],
-                'tax_b_num3': tax_id[2]
+                'tax_b_num3': tax_id[2],
+                'tax_l_num': '%s-%s-%s' % tax_id
             }
 
     def __submit_order(self):
