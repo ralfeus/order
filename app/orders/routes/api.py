@@ -329,6 +329,7 @@ def user_save_order(order_id):
             order_products = list(order.order_products)
             for suborder_data in payload['suborders']:
                 _update_suborder(order, order_products, suborder_data, errors)
+            db.session.flush()
         
             # Remove order products
             for order_product in order_products:
