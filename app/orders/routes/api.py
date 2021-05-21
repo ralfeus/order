@@ -332,12 +332,16 @@ def user_save_order(order_id):
         
             # Remove order products
             for order_product in order_products:
-                order_product.suborder.order_products.\
+                current_app.logger.info("Removing product %s from suborder %s",
+                    order_product.product_id, order_product.suborder_id)
+                order_product.status_history.delete(synchronize_session='fetch')
+                order_product.suborder.order_products. \
                     filter_by(id=order_product.id).delete(synchronize_session='fetch')
             # Remove empty suborders
             for suborder in order.suborders:
                 if suborder.order_products.count() == 0:
-                    current_app.logger.info("Suborder %s has no order_products. Deleting", suborder.id)
+                    current_app.logger.info("Removing suborder %s as it has no products.",
+                        suborder.id)
                     db.session.delete(suborder)
         db.session.flush()
         try:
