@@ -231,17 +231,15 @@ function edit_shipment(sender) {
         table: '#orders',
         idSrc: 'id',
         fields: [
-            { name: 'total_weight', label: 'Total weight' }
+            { name: 'total_weight', label: 'Total weight' },
+            { 
+                name: 'boxes',
+                label: 'Boxes',
+                type: 'datatable'
+            }
         ]
     });
     var order_row = g_orders_table.row($(sender).closest('tr'));
-    for (var b in g_boxes) {
-        editor.add({
-            name: "box_" + g_boxes[b].id,
-            label: g_boxes[b].description,
-            def: order_row.data().boxes[g_boxes[b].id]
-        });
-    }
     editor
         .edit(order_row, true, {
             title: 'Set shipment info',

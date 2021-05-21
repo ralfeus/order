@@ -10,10 +10,8 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, func
-from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app import db
 from app.exceptions import OrderError, UnfinishedOrderError
@@ -30,6 +28,26 @@ class OrderStatus(enum.Enum):
     packed = 4
     shipped = 5
     cancelled = 6
+
+class OrderBox(db.Model, BaseModel):
+    ''' Specific box used in order '''
+    __tablename__ = 'order_boxes'
+
+    order_id = Column(String(16), ForeignKey('orders.id'))
+    length = Column(Integer)
+    width = Column(Integer)
+    height = Column(Integer)
+    weight = Column(Integer)
+    quantity = Column(Integer)
+
+    def to_dict(self):
+        return {
+            'length': self.length,
+            'width': self.width,
+            'height': self.height,
+            'weight': self.weight,
+            'quantity': self.quantity
+        }
 
 class Order(db.Model, BaseModel):
     ''' Sale order '''
@@ -49,14 +67,10 @@ class Order(db.Model, BaseModel):
     zip = Column(String(10))
     phone = Column(String(64))
     comment = Column(String(128))
-    boxes = association_proxy('order_boxes', 'quantity',
-                creator=lambda k, v:
-                    OrderBox(box_id=k, quantity=v)
-            )
+    boxes = relationship(OrderBox, lazy='dynamic')
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    # __shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
@@ -295,7 +309,7 @@ class Order(db.Model, BaseModel):
             'country': self.country.to_dict() if self.country else None,
             'zip': self.zip,
             'shipping': self.shipping.to_dict() if self.shipping else None,
-            'boxes': dict(self.boxes),
+            'boxes': [box.to_dict() for box in self.boxes],
             'status': self.status.name if self.status else None,
             'payment_method': self.payment_method.name \
                 if self.payment_method else None,
@@ -477,17 +491,3 @@ class Order(db.Model, BaseModel):
                 if self.total_weight > 0 else \
                     round(self.shipping_krw / self.total_krw *
                         op.price * op.quantity)
-
-class OrderBox(db.Model):
-    ''' Specific box used in order '''
-    __tablename__ = 'order_boxes'
-
-    order_id = Column(String(16), ForeignKey('orders.id'), primary_key=True)
-    box_id = Column(Integer, ForeignKey('boxes.id'), primary_key=True)
-    quantity = Column(Integer)
-    order = relationship(Order, backref=backref(
-                "order_boxes",
-                collection_class=attribute_mapped_collection("box_id"),
-                cascade="all, delete-orphan"
-                )
-            )
