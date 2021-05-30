@@ -90,7 +90,6 @@
     <th scope="col" style="width:1em;">Cost</th>
     <th scope="col" style="width:1em;">Points</th>
     <th scope="col">Public comment</th>
-    <th scope="col">Private comment</th>
   </thead>
   <tbody>
   {% for order_product in suborder.order_products %}
@@ -103,7 +102,6 @@
       <td>{{ currency.format(order_product.get_price(rate=rate) * order_product.quantity) }}</td>
       <td>{{ order_product.product.points * order_product.quantity }}</td>
       <td>{{ order_product.public_comment }}</td>
-      <td>{{ order_product.private_comment }}</td>
     </tr>
   {% endfor %}
   </tbody>
