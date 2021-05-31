@@ -42,7 +42,23 @@ class Transaction(BaseModel, db.Model):
             'Changed balance of customer <%s> on %d. New balance is %d',
             customer.username, amount, customer.balance)
 
+    @classmethod
+    def get_filter(cls, base_filter, column, filter_value):
+        ''' Returns object based SQL Alchemy filter '''
+        from app.orders.models import Order
+        part_filter = f'%{filter_value}%'
+        if isinstance(column, str):
+            return \
+                base_filter.filter(
+                    cls.order.has(Order.id.like(part_filter))) \
+                    if column == 'order_id' else base_filter
+        return \
+            base_filter.filter(cls.customer_id.in_(filter_value.split(','))) \
+                if column.key == 'customer' \
+            else base_filter.filter(column.like(part_filter))
+
     def to_dict(self):
+        ''' Returns serializable representation of the object '''
         return {
             'id': self.id,
             'order_id': self.order.id if self.order \
