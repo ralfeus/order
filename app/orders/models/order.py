@@ -182,9 +182,11 @@ class Order(db.Model, BaseModel):
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
         from .suborder import Suborder
+        from app.models import Country
         from app.purchase.models.purchase_order import PurchaseOrder
         from app.users.models.user import User
         part_filter = f'%{filter_value}%'
+        filter_values = filter_value.split(',')
         if isinstance(column, str):
             return \
                 base_filter.filter(
@@ -194,14 +196,16 @@ class Order(db.Model, BaseModel):
                         Suborder.order_id == Order.id).exists()) \
                     if column == 'when_po_posted' else base_filter
         return \
-            base_filter.filter(Order.payment_method_id.in_(filter_value.split(','))) \
+            base_filter.filter(cls.country_id.in_(filter_values)) \
+                if column.key == 'country' else \
+            base_filter.filter(Order.payment_method_id.in_(filter_values)) \
                 if column.key == 'payment_method' else \
-            base_filter.filter(Order.shipping_method_id.in_(filter_value.split(','))) \
+            base_filter.filter(Order.shipping_method_id.in_(filter_values)) \
                 if column.key == 'shipping' else \
             base_filter.filter(column.has(User.username.like(part_filter))) \
                 if column.key == 'user' else \
             base_filter.filter(column.in_([OrderStatus[status]
-                               for status in filter_value.split(',')])) \
+                               for status in filter_values])) \
                 if column.key == 'status' \
             else base_filter.filter(column.like(f'%{filter_value}%'))
 

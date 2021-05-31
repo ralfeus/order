@@ -5,13 +5,13 @@ from glob import glob
 import itertools
 import subprocess
 from functools import reduce
-import logging
 import os
 import os.path
 import re
 import lxml
 from werkzeug.datastructures import MultiDict
-from app.exceptions import HTTPError
+
+from app.exceptions import FilterError, HTTPError
 
 
 # logging.basicConfig(level=logging.INFO)
@@ -66,17 +66,19 @@ def prepare_datatables_query(query, args, filter_clause):
     else:
         for column_data in columns:
             if column_data['search']['value'] != '':
-                column = get_column(
-                    query_filtered, 
-                    column_data['name'] if column_data['name'] else column_data['data'])
+                column_name = column_data['name'] if column_data['name'] else column_data['data']
+                column = get_column(query_filtered, column_name)
+                target_model = query_filtered.column_descriptions[0]['entity']
                 try:
-                    target_model = query_filtered.column_descriptions[0]['entity']
                     query_filtered = target_model \
                         .get_filter(query_filtered, column, column_data['search']['value'])
                 except NotImplementedError:
-                    query_filtered = query_filtered.filter(
-                        get_column(query_filtered, column_data['data'])
-                            .like('%' + column_data['search']['value'] + '%'))
+                    try:
+                        query_filtered = query_filtered.filter(
+                            get_column(query_filtered, column_name)
+                                .like('%' + column_data['search']['value'] + '%'))
+                    except:
+                        raise FilterError(f"Couldn't figure out how to filter the column '{column_name}' in the object {target_model}. Probably {target_model} has no get_filter() implemented or get_filter() doesn't filter by '{column_name}'")
     records_filtered = query_filtered.count()
     # Sorting
     for sort_column_input in args['order']:
