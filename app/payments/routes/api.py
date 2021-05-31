@@ -45,9 +45,7 @@ def admin_get_payments(payment_id):
 @bp_api_admin.route('/<int:payment_id>', methods=['POST'])
 @roles_required('admin')
 def admin_save_payment(payment_id):
-    '''
-    Saves updates in user profile.
-    '''
+    ''' Saves updates of user payment '''
     payload = request.get_json()
     payment = Payment.query.get(payment_id)
     if not payment:
