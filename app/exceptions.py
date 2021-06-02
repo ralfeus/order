@@ -7,6 +7,9 @@ class AtomyLoginError(Exception):
 class EmptySuborderError(Exception):
     pass
 
+class FilterError(Exception):
+    pass
+
 class HTTPError(Exception):
     pass
 
