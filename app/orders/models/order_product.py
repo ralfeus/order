@@ -177,6 +177,8 @@ class OrderProduct(db.Model, BaseModel):
                 current_user,
             when_created=datetime.now()
         ))
+        if status == OrderProductStatus.unavailable:
+            self.suborder.order.update_total()
 
     def to_dict(self):
         return {
