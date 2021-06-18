@@ -780,3 +780,11 @@ def user_get_order_excel(order_id):
     except OrderError as ex:
         abort(Response(
             f"Couldn't generate an order Excel due to following error: {';'.join(ex.args)}"))
+
+@bp_api_admin.route('/<order_id>/box')
+@roles_required('admin')
+def admin_get_order_boxes(order_id):
+    order = Order.query.get(order_id)
+    if order is None:
+        abort(Response(f"No order <{order_id}> found", status=404))
+    return jsonify([box.to_dic() for box in order.boxes])

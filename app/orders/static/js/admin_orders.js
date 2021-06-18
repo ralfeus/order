@@ -238,7 +238,10 @@ function edit_shipment(sender) {
             { 
                 name: 'boxes',
                 label: 'Boxes',
-                type: 'datatable'
+                type: 'datatable',
+                config: {
+                    
+                }
             }
         ]
     });

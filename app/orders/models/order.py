@@ -103,6 +103,7 @@ class Order(db.Model, BaseModel):
 
     @property
     def order_products(self):
+        ''' Returns aggregated list of order products for all suborders '''
         if self.suborders.count() > 0:
             return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
@@ -113,6 +114,7 @@ class Order(db.Model, BaseModel):
         self.purchase_date_sort = value
 
     def set_status(self, value, actor):
+        ''' Sets status of the order '''
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
