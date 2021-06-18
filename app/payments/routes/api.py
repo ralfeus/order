@@ -1,17 +1,15 @@
 '''
 Contains API endpoint routes of the payment services
 '''
-from app.payments.validators.payment import PaymentValidator
 from datetime import datetime
-from hashlib import md5
 import os, os.path
+import re
 import shutil
 from tempfile import NamedTemporaryFile
 
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
-from sqlalchemy import not_
 
 from app import db
 from app.payments import bp_api_admin, bp_api_user
@@ -19,6 +17,7 @@ from app.currencies.models.currency import Currency
 from app.orders.models.order import Order
 from app.payments.models.payment import Payment, PaymentStatus
 from app.payments.models.payment_method import PaymentMethod
+from app.payments.validators.payment import PaymentValidator
 from app.models.file import File
 from app.users.models.user import User
 
@@ -115,7 +114,8 @@ def user_create_payment():
                                 for message in validator.errors]
             })
     if isinstance(payload['amount_sent_original'], str):
-        payload['amount_sent_original'] = payload['amount_sent_original'].replace(',', '.')
+        payload['amount_sent_original'] = re.sub(
+            r'[\s,]', '', payload['amount_sent_original'])
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
