@@ -62,11 +62,13 @@ def register_components(flask_app):
     import app.settings, app.settings.routes
     import app.shipping, app.shipping.routes
     import app.users, app.users.routes
+    import app.companies, app.companies.routes
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(client)
     app.currencies.register_blueprints(flask_app)
     app.addresses.register_blueprints(flask_app)
+    app.companies.register_blueprints(flask_app)
     app.invoices.register_blueprints(flask_app)
     app.network.register_blueprints(flask_app)
     app.orders.register_blueprints(flask_app)

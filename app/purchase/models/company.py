@@ -27,12 +27,14 @@ class Company(db.Model, BaseModel):
     @property
     def tax_id(self):
         return (self.tax_id_1, self.tax_id_2, self.tax_id_3)
-
+   
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
             'tax_id': f"{self.tax_id_1}-{self.tax_id_2}-{self.tax_id_3}",
             'phone': self.phone,
-            'address': self.address.to_dict()
+            'address': self.address.to_dict(),
+            'bank_id' : self.bank_id,
+            'contact_person' : self.contact_person,
         }
