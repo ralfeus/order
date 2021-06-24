@@ -10,7 +10,7 @@ from flask import current_app
 from sqlalchemy import not_
 
 from app import celery, db
-from app.exceptions import AtomyLoginError
+from app.exceptions import AtomyLoginError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
@@ -31,7 +31,7 @@ def post_purchase_orders(po_id=None):
         pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
     pending_purchase_orders = pending_purchase_orders.filter_by(
         status=PurchaseOrderStatus.pending)
-    try: 
+    try:
         # Wrap whole operation in order to
         # mark all pending POs as failed in case of any failure
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
@@ -55,10 +55,10 @@ def post_purchase_orders(po_id=None):
                                                if op.status == OrderProductStatus.purchased])
                     if posted_ops_count == len(po.order_products):
                         po.status = PurchaseOrderStatus.posted
-                        po.when_changed = datetime.now()
+                        po.when_changed = po.when_posted = datetime.now()
                     elif posted_ops_count > 0:
                         po.status = PurchaseOrderStatus.partially_posted
-                        po.when_changed = datetime.now()
+                        po.when_changed = po.when_posted = datetime.now()
                         failed_order_products = [po for po in po.order_products
                                                     if po.status != OrderProductStatus.purchased]
                         po.status_details = "Not posted products:\n" + \
@@ -70,11 +70,11 @@ def post_purchase_orders(po_id=None):
                         po.when_changed = datetime.now()
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                     logger.info("Posted a purchase order %s", po.id)
-                except Exception as ex:
+                except (PurchaseOrderError, AtomyLoginError) as ex:
                     logger.warning("Failed to post the purchase order %s.", po.id)
                     logger.warning(ex)
                     po.status = PurchaseOrderStatus.failed
-                    po.status_details = str(ex.args)
+                    po.status_details = str(ex)
                     po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')
@@ -130,7 +130,7 @@ def update_purchase_orders_status(po_id=None, browser=None):
                 if len(customer_pos) > 0:
                     vendor.update_purchase_orders_status(customer, customer_pos)
             except AtomyLoginError as ex:
-                logger.warning("Couldn't log in as %s: %s", customer.name, str(ex))
+                logger.warning("Couldn't log in as %s (%s)", customer.name, customer.username)
             except:
                 logger.exception(
                     "Couldn't update POs status for %s", customer.name)

@@ -147,11 +147,11 @@ def create_invoice_excel(reference_invoice):
     # Set invoice footer
     ws.cell(305, 5, total)
     ws.cell(311, 4, f"{round(total, 2)} USD")
-    ws.cell(312, 2, invoice_dict['weight'] / 1000)
+    ws.cell(312, 2, f"{invoice_dict['weight']}g")
 
     # Set packing list footer
     pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
-    pl.cell(312, 2, invoice_dict['weight'] / 1000)
+    pl.cell(312, 2, f"{invoice_dict['weight']}g")
 
     # Set order product lines
     row = 31

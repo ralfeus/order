@@ -42,3 +42,9 @@ class TestOrdersClient(BaseTestCase):
             lambda: self.client.get('/orders/')
         )
         self.assertEqual(res.status_code, 200)
+
+    def test_user_order_drafts_list(self):
+        res = self.try_user_operation(
+            lambda: self.client.get('/orders/drafts')
+        )
+        self.assertEqual(res.status_code, 200)

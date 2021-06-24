@@ -508,19 +508,6 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.get(f'/api/v1/admin/order/{gen_id}')
         self.assertTrue(res.json['total_krw'], 1010)
 
-    def test_set_order_product_status(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        op_id = datetime.now().microsecond
-        order = Order(id=gen_id, user=self.user)
-        self.try_add_entities([
-            order,
-            Suborder(id=op_id, order=order),
-            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000',
-                price=10, quantity=10)
-        ])
-        self.try_user_operation(
-            lambda: self.client.post(f'/api/v1/admin/order/product/{op_id}/status/pending'))
-
     def test_get_order_product_status_history(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         subcustomer = Subcustomer()

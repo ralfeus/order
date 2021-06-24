@@ -8,8 +8,17 @@ var g_po_statuses;
 var g_vendors;
 
 $.fn.dataTable.ext.buttons.repost = {
+    extend: 'selected',
     action: function(_e, dt, _node, _config) {
-        repost(dt.rows({selected: true}));
+        modal(
+            "Repost purchase orders", 
+            "Are you sure you want to post selected purchase orders again?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                repost(dt.rows({selected: true}));
+            }
+        });
     }
 };
 $.fn.dataTable.ext.buttons.status_update = {
@@ -82,12 +91,16 @@ function init_table() {
     g_create_editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success_callback, error) => {
             var url = '/api/v1/admin/purchase/order';
+            data = data.data[0];
+            data.purchase_restricted_products = data.purchase_restricted_products
+                ? data.purchase_restricted_products[0]
+                : false;
             $.ajax({
                 url: url,
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[0]),
+                data: JSON.stringify(data),
                 success: (data, _status, xhr) => {
                     success_callback(data);
                     if (xhr.status == 202) {
@@ -117,7 +130,8 @@ function init_table() {
                 type: 'select2',
                 def: 'AtomyQuick',
                 options: g_vendors
-            }
+            },
+
         ]
     });
     g_create_editor.on('open', on_editor_open);
@@ -187,38 +201,36 @@ function init_table() {
                 "orderable": false,
                 "data": null,
                 'defaultContent': ''
-                // "defaultContent": ' \
-                //     <button \
-                //         class="btn btn-sm btn-secondary btn-open" \
-                //         onclick="open_purchase_order(this);">Open</button> \
-                    // <button \
-                    //     class="btn btn-sm btn-secondary btn-cancel" \
-                    //     onclick="cancel_purchase_order(this);">Cancel</button>'
             },
-            {data: 'id'},
+            {name: 'id', data: 'id'},
             {
                 data: 'customer.name', 
                 orderable: false,
-                fnCreatedCell: function(nTd, sData, oData, iRow, iCol) {
-                    $(nTd).html("" +
+                render: function(data, type, row, meta) {
+                    return "" +
                         "<span " +
-                        "    class='subcustomer'" +
-                        "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
-                        "    title=\"Username: " + oData.customer.username + "\nPassword: " + oData.customer.password + "\">" +
-                            oData.customer.name + 
-                        "</span>");
+                        "   class='subcustomer'" +
+                        "   data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
+                        "   title=\"Username: " + row.customer.username + "\nPassword: " + row.customer.password + "\">" +
+                        "   <a href=\"/admin/orders/subcustomers?username=" + row.customer.username + "\">" +
+                                data + 
+                        "   </a>" +
+                        "</span>";
                 }
             },
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
+            {name: 'purchase_restricted', data: 'purchase_restricted_products'},
             {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
             {
                 data: 'status',
-                fnCreatedCell: function (nTd, sData, oData, iRow, iCol) {
-                    if (['failed', 'partially_posted'].includes(oData.status)) {
-                        $(nTd).html("<a href='#' onclick='show_po_status(\"" + oData.id + "\")'>" + oData.status + "</a>");
+                render: function (data, type, row, meta) {
+                    if (['failed', 'partially_posted'].includes(data)) {
+                        return "<a href='#' onclick='show_po_status(\"" + row.id + "\")'>" + data + "</a>";
+                    } else {
+                        return data;
                     }
                 },
                 className: 'editable'
@@ -226,7 +238,7 @@ function init_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[9, 'desc']],
+        order: [[10, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
@@ -237,13 +249,30 @@ function init_table() {
                 $(row).addClass('orange-line');
             }
         },
-        initComplete: function() { init_search(this, g_filter_sources); }
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table));
+            if (table.DataTable().row(0).data().purchase_restricted_products === null) {
+                table.DataTable().column('purchase_restricted:name').visible(false, true);
+            }
+        }
     });
 }
 
 function on_editor_open() {
     get_orders_to_purchase();
     get_companies();
+    if (g_purchase_orders_table.column('purchase_restricted:name').visible()) {
+        g_create_editor.add({
+            label: 'Purchase restricted products', 
+            name: 'purchase_restricted_products', 
+            type: 'checkbox', 
+            options: [{label:'', value:true}],
+            def: false,
+            unselectedValue: false
+        });
+    }
 }
 
 function on_company_change() {

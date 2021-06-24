@@ -15,23 +15,6 @@ $(document).ready( function () {
 });
 
 /**
- * Draws order product details
- * @param {object} row - row object 
- * @param {object} data - data object for the row
- */
-function format ( row, data ) {
-    var payment_details = $('.payment-details')
-        .clone()
-        .show(); 
-    data.evidences.forEach(evidence => {
-        $('#evidences', payment_details).append(
-            "<li><a target=\"_blank\" href=\"" + evidence.url + "\">" +
-            evidence.file_name + "</a></li>");
-    });
-    return payment_details;
-}
-
-/**
  * Cancels payment request
  * @param {*} target - table rows representing orders whose status is to be changed
  */
@@ -57,7 +40,7 @@ function cancel(row) {
 async function get_dictionaries() {
     g_currencies = await get_currencies();
     g_payment_methods = (await get_payment_methods()).map(
-        pm => ({value: pm.id, label: pm.name}));
+        pm => ({value: pm.id, label: pm.name, instructions: pm.instructions}));
     g_payment_statuses = await get_list('/api/v1/payment/status')
     g_filter_sources = {
         'payment_method.name': g_payment_methods.map(pm => pm.label),
@@ -76,13 +59,11 @@ function get_orders_to_pay() {
 
 function init_payments_table() {
     editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
-            $.ajax({
+        ajax: {
+            create: {
                 url: '/api/v1/payment',
-                method: 'post',
-                dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify({
+                data: data => JSON.stringify({
                     additional_info: data.data[0].additional_info,
                     amount_sent_original: data.data[0].amount_sent_original,
                     currency_code: data.data[0].currency_code,
@@ -92,10 +73,13 @@ function init_payments_table() {
                     })),
                     orders: data.data[0].orders,
                     payment_method: data.data[0].payment_method
-                }),
-                success: data => {success(data)},
-                error: error
-            });
+                })
+            },
+            remove: {
+                url: '/api/v1/payment/_id_',
+                method: 'delete',
+                data: null
+            }
         },
         table: '#payments',
         idSrc: 'id',
@@ -121,6 +105,10 @@ function init_payments_table() {
                 type: 'select2',
                 options: g_payment_methods
             },
+            {
+                name: 'payment_method.instructions',
+                type: 'hidden'
+            },
             {label: 'Amount', name: 'amount_sent_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
@@ -142,23 +130,19 @@ function init_payments_table() {
     editor.field('orders').input().on('change', on_orders_change);
     editor.field('amount_sent_original').input().on('focus', function(){this.old_value = this.value})
     editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
+    editor.field('payment_method.id').input().on('change', on_payment_method_change);
 
     var table = $('#payments').DataTable({
         dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: editor, text: 'Create new payment request' },
+            { extend: 'remove', editor: editor, text: 'Cancel'}
         ],        
         ajax: {
             url: '/api/v1/payment',
             dataSrc: ''
         },
         columns: [
-            {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ''
-            },
             {data: 'id'},
             {data: 'orders'},
             {
@@ -180,7 +164,7 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[7, 'desc']],
+        order: [[6, 'desc']],
         select: true,
         initComplete: function() { init_search(this, g_filter_sources); }
     });
@@ -268,6 +252,16 @@ function on_orders_change() {
         }
     }
     return {};
+}
+
+function on_payment_method_change(sender, value) {
+    if (editor.field('payment_method.id').val()) {
+        editor.field('payment_method.id').message(
+            g_payment_methods.filter(
+                pm => pm.value == editor.field('payment_method.id').val()
+            )[0].instructions.replace(/\n/g, '<br />')
+        );
+    }
 }
 
 function on_currency_change() {

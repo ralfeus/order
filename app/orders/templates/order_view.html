@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  html {
+    font-size: 1rem;
+  }
+  table {
+    font-size: 1rem;
+  }
+</style>
+{% endblock %}
+
+{% block navbar %}
+  {% if mode != 'print' %}
+    {{ super() }}
+  {% endif %}
+{% endblock %}
+
+{% block currencies %}
+<div class="btn-group btn-group-toggle" data-toggle="buttons">
+  {% for c in currencies %}
+  <label class="btn btn-secondary {{ 'active' if c.default else '' }}">    
+    <input type="radio" name="currency" {{ 'checked' if c.default else ''}}
+      onclick="window.location = '{{ request.base_url }}?currency={{ c.code }}';">
+      {{ c.code }}
+    </input>
+  </label>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="h3">{{ order.id }}</div>
+<div class="h4">{{ order.customer_name }}</div>
+<table class="table">
+  <tbody>
+    <tr>
+      <td><h5>Shipping method</h5></td>
+      <td><h5>Parcel weight</h5></td>
+      <td><h5>Address</h5></td>
+      <td><h5>Phone</h5></td>
+    </tr>
+    <tr>
+      <td>{{ order.shipping.name }}</td>
+      <td>{{ order.total_weight }}</td>
+      <td>
+        {{ order.address }}<br />
+        {{ order.zip }}<br />
+        {{ order.country.name }}
+      </td>
+      <td>{{ order.phone }}</td>
+    </tr>
+    <tr>
+      <td colspan="3"><h3>Orders to be shipped with this one:</h3></td>
+      <td colspan="2">
+        {% for ao in order.attached_orders %}
+        <h3>{{ ao.id }}</h3>
+        {% endfor %}
+      </td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td><span class="h4">Subtotal</span></td>
+      <td><span class="h4">Shipping</span></td>
+      <td colspan="3"><span class="h4">Total</span></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td>{{ currency.format(order.get_subtotal(currency=currency)) }}</td>
+      <td>{{ currency.format(order.get_shipping(currency=currency)) }}</td>
+      <td colspan="3">{{ currency.format(order.get_total(currency=currency)) }}</td>
+    </tr>
+  </tbody>
+</table>
+{% for suborder in order.suborders %}
+<span class="h4" style="background-color: grey;">
+  {{ suborder.id }}: {{ suborder.subcustomer.name }}
+  <span class="h5">
+    {{ suborder.subcustomer.username }} {{ suborder.subcustomer.password }}
+  </span>
+</span>
+<table class="table">
+  <thead>
+    <th scope="col" style="width: 1em;">Product ID</th>
+    <th scope="col">Product Name</th>
+    <th scope="col">Weight</th>
+    <th scope="col" style="width:1em;">Price</th>
+    <th scope="col" style="width:1em;">Qty</th>
+    <th scope="col" style="width:1em;">Cost</th>
+    <th scope="col" style="width:1em;">Points</th>
+    <th scope="col">Public comment</th>
+  </thead>
+  <tbody>
+  {% for order_product in suborder.order_products %}
+    <tr>
+      <td>{{ order_product.product.id }}</td>
+      <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
+      <td>{{ order_product.product.weight }}</td>
+      <td>{{ currency.format(order_product.get_price(rate=rate)) }}</td>
+      <td>{{ order_product.quantity }}</td>
+      <td>{{ currency.format(order_product.get_price(rate=rate) * order_product.quantity) }}</td>
+      <td>{{ order_product.product.points * order_product.quantity }}</td>
+      <td>{{ order_product.public_comment }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Subtotal</td>
+      <td>{{ currency.format(suborder.get_subtotal(currency)) }}</td>
+      <td colspan="3"></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Shipping</td>
+      <td>{{ currency.format(suborder.get_shipping(currency)) }}</td>
+      <td colspan="3"></td>
+    </tr>
+    <tr style="background-color: aqua;">
+      <td colspan="4"></td>
+      <td>Total</td>
+      <td>{{ currency.format(suborder.get_total(currency)) }}</td>
+      <td>{{ suborder.get_total_points() }}</td>
+      <td colspan="2"></td>
+    </tr>
+  </tfoot>
+</table>
+{% endfor %}
+{% endblock %}

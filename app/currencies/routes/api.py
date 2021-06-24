@@ -1,3 +1,5 @@
+from app.tools import modify_object
+from app.currencies.models.currency_history_entry import CurrencyHistoryEntry
 from datetime import datetime
 
 from flask import Response, abort, jsonify, request
@@ -25,10 +27,8 @@ def get_currencies(currency_id):
 @bp_api_admin.route('/<currency_id>', methods=['POST'])
 @bp_api_admin.route('/', methods=['POST'], defaults={'currency_id': None}, strict_slashes=False)
 @roles_required('admin')
-def save_currency_item(currency_id):
-    '''
-    Creates or modifies existing currency
-    '''
+def save_currency(currency_id):
+    ''' Creates or modifies existing currency '''
     payload = request.get_json()
     if not payload:
         abort(Response('No data was provided', status=400))
@@ -39,7 +39,6 @@ def save_currency_item(currency_id):
         except: 
             abort(Response('Not number', status=400))
 
-    currency = None
     if currency_id is None:
         currency = Currency()
         currency.when_created = datetime.now()
@@ -48,12 +47,17 @@ def save_currency_item(currency_id):
         currency = Currency.query.get(currency_id)
         if not currency:
             abort(Response(f'No currency <{currency_id}> was found', status=400))
-
-    for key, value in payload.items():
-
-        if getattr(currency, key) != value:
-            setattr(currency, key, value)
-            currency.when_changed = datetime.now()
+    if 'rate' in payload.keys():
+        today_rate = currency.history.filter_by(when_created=datetime.now().date()).first()
+        if today_rate is None:
+            currency.history.append(CurrencyHistoryEntry(
+                code=currency.code,
+                rate=float(payload['rate']),
+                when_created=datetime.now().date()
+            ))
+        else:
+            today_rate.rate = float(payload['rate'])
+    modify_object(currency, payload, ['code', 'name', 'rate'])
 
     db.session.commit()
     return jsonify(currency.to_dict())

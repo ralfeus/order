@@ -2,17 +2,18 @@
 from datetime import datetime, date
 import enum
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Text
-from sqlalchemy import select
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, \
+    String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
-from app.orders.models import Suborder
+from app.orders.models import Subcustomer, Suborder
+from .company import Company
 
 class PurchaseOrderStatus(enum.Enum):
+    ''' Represents statuses of the purchase order '''
     pending = 1
     partially_posted = 2
     posted = 3
@@ -24,15 +25,15 @@ class PurchaseOrderStatus(enum.Enum):
     cancelled = 9
 
 class PurchaseOrder(db.Model, BaseModel):
+    ''' Represents purchase order '''
     __tablename__ = 'purchase_orders'
 
-    ''' Represents purchase order '''
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(12))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
-    suborder = relationship('Suborder', foreign_keys=[suborder_id], lazy='joined')
+    suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
-    customer = relationship('Subcustomer', foreign_keys=[customer_id])
+    customer = relationship(Subcustomer, foreign_keys=[customer_id])
     contact_phone = Column(String(13))
     payment_phone = Column(String(13))
     payment_account = Column(String(32))
@@ -41,23 +42,20 @@ class PurchaseOrder(db.Model, BaseModel):
     address_1 = Column(String(64))
     address_2 = Column(String(64))
     company_id = Column(Integer, ForeignKey('companies.id'))
-    company = relationship('Company', foreign_keys=[company_id])
+    company = relationship(Company, foreign_keys=[company_id])
     vendor = Column(String(64))
+    purchase_restricted_products = Column(Boolean, default=False)
     status_details = Column(Text)
+    when_posted = Column(DateTime)
 
 
     def __init__(self, suborder: Suborder, **kwargs):
+        super().__init__(**kwargs)
         if len(suborder.id) > 5:
             self.id = 'PO-{}'.format(suborder.id[4:])
         else:
             self.id = 'PO-{}-{}'.format(suborder.order_id[4:], suborder.id)
         self.suborder = suborder
-
-        attributes = [a[0] for a in type(self).__dict__.items()
-                           if isinstance(a[1], InstrumentedAttribute)]
-        for arg in kwargs:
-            if arg in attributes:
-                setattr(self, arg, kwargs[arg])
         # Here properties are set (attributes start with '__')
 
     @property
@@ -98,7 +96,6 @@ class PurchaseOrder(db.Model, BaseModel):
     @classmethod
     def get_filter(cls, base_filter, column, filter_value):
         from app.orders.models.subcustomer import Subcustomer
-        from app.orders.models.suborder import Suborder
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):
             return \
@@ -132,7 +129,14 @@ class PurchaseOrder(db.Model, BaseModel):
         self.vendor_po_id = None
 
     def to_dict(self):
+        from app.settings.models.setting import Setting
         purchase_date = self.purchase_date
+        allow_purchase_restricted_products = (
+            Setting.query.get('purchase.allow_purchase_restricted_products') is not None and 
+            Setting.query.get('purchase.allow_purchase_restricted_products').value == '1'
+        )
+        purchase_restricted_products = self.purchase_restricted_products \
+            if allow_purchase_restricted_products else None
         return {
             'id': self.id,
             'order_id': self.suborder.order_id,
@@ -146,17 +150,12 @@ class PurchaseOrder(db.Model, BaseModel):
             'status': self.status.name if self.status else None,
             'status_details': self.status_details,
             'vendor': self.vendor,
+            'purchase_restricted_products': purchase_restricted_products,
             'purchase_date': purchase_date.strftime('%Y-%m-%d') if purchase_date else None,
-            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
-            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None
+            'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_created else None,
+            'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_changed else None,
+            'when_posted': self.when_posted.strftime('%Y-%m-%d %H:%M:%S') \
+                if self.when_posted else None
         }
-
-    # @classmethod
-    # def from_dict(cls, attr):
-    #     result = super().from_dict(attr)
-    #     if result is None:
-    #         if attr == 'purchase_date':
-    #             return PurchaseOrder.purchase_date
-    #         return None
-
-    #     return result

@@ -3,6 +3,7 @@ import logging
 import re
 import subprocess
 from time import sleep
+from urllib.parse import urlencode
 
 import lxml.html
 from flask import current_app
@@ -10,7 +11,7 @@ from flask import current_app
 from selenium.common.exceptions import NoAlertPresentException, \
     NoSuchElementException, UnexpectedAlertPresentException
 
-from app.exceptions import AtomyLoginError
+from app.exceptions import AtomyLoginError, HTTPError
 from app.utils.browser import Browser
 
 logging.basicConfig(level=logging.DEBUG)
@@ -22,18 +23,29 @@ except:
 
 def _atomy_login_curl(username, password):
     '''    Logins to Atomy customer section    '''
+    if len(username) < 8:
+        username = 'S' + username
     output = subprocess.run([
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
         '--data-raw',
-        f'src=&userId={username}&userPw={password}&idSave=on&rpage=',
+        urlencode({
+            'src': '',
+            'userId': username,
+            'userPw': password,
+            'idSave': 'on',
+            'rpage': ''
+        }),
         '-v'
         ],
         encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-    if re.search('< location: /V2', output.stderr) or \
+    if re.search('< location: /[vV]2', output.stderr) or \
        re.search('btnChangePassword', output.stdout):
         return re.findall('set-cookie: (.*)', output.stderr)
-    raise AtomyLoginError(output.stderr)
+    elif re.search("var isLoginFail = \\'True\\';", output.stdout):
+        raise AtomyLoginError(username=username)
+
+    raise HTTPError(output)
 
 def atomy_login(username, password, browser=None, run_browser=True):
     if not run_browser:
@@ -96,24 +108,28 @@ def get_document_from_url(url, headers=None, raw_data=None):
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
     raw_data = ['--data-raw', raw_data] if raw_data else None
-    output = subprocess.run([
+    run_params = [
         '/usr/bin/curl',
         url,
         '-v'
-        ] + headers_list + raw_data,
-        encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        ] + headers_list + raw_data
+    try:
+        output = subprocess.run(run_params,
+            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
-    if re.search('HTTP.*? (200|304)', output.stderr):
-        doc = lxml.html.fromstring(output.stdout)
-        return doc
-    if 'Could not resolve host' in output.stderr:
-        return get_document_from_url(url, headers, raw_data)
-    if re.search('HTTP.* 302', output.stderr) and \
-        re.search('location: /v2/Home/Account/Login', output.stderr):
-        raise AtomyLoginError()
-    if re.search('HTTP.*? 50\d', output.stderr):
-        _logger.warning('Server has returned HTTP 50*. Will try in 30 seconds')
-        sleep(30)
-        return get_document_from_url(url, headers, raw_data)
+        if re.search('HTTP.*? (200|304)', output.stderr):
+            doc = lxml.html.fromstring(output.stdout)
+            return doc
+        if 'Could not resolve host' in output.stderr:
+            return get_document_from_url(url, headers, raw_data)
+        if re.search('HTTP.* 302', output.stderr) and \
+            re.search('location: /v2/Home/Account/Login', output.stderr):
+            raise AtomyLoginError()
+        if re.search(r'HTTP.*? 50\d', output.stderr):
+            _logger.warning('Server has returned HTTP 50*. Will try in 30 seconds')
+            sleep(30)
+            return get_document_from_url(url, headers, raw_data)
 
-    raise Exception("Couldn't get page", output.stderr)
+        raise Exception("Couldn't get page", output.stderr)
+    except TypeError:
+        _logger.exception(run_params)

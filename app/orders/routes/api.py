@@ -55,10 +55,8 @@ def delete_order(order_id):
 @bp_api_admin.route('/<order_id>')
 @roles_required('admin')
 def admin_get_orders(order_id):
-    '''
-    Returns all or selected orders in JSON
-    '''
-    orders = Order.query
+    ''' Returns all or selected orders in JSON '''
+    orders = Order.query.filter(Order.status != OrderStatus.draft)
     if order_id is not None:
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
@@ -90,20 +88,19 @@ def user_get_orders(order_id):
         orders = orders.filter_by(id=order_id)
         if orders.count() == 1:
             return jsonify(orders.first().to_dict(details=True))
-    else:
-        orders = orders.filter(not_(Order.id.like('%draft%')))
+
     if request.values.get('status'):
         orders = orders.filter_by(status=OrderStatus[request.args['status']].name)
     if request.values.get('to_attach') is not None:
         orders = orders.join(PostponeShipping).filter(
             Order.status != OrderStatus.shipped)
     if request.values.get('draw') is not None: # Args were provided by DataTables
-        return filter_orders(orders, request.values)
+        return filter_orders(orders.filter(Order.status != OrderStatus.draft), request.values)
     if orders.count() == 0:
         abort(Response("No orders were found", status=404))
     else:
-        return jsonify(list(map(
-            lambda entry: entry.to_dict(details=request.values.get('details')), orders)))
+        return jsonify([entry.to_dict(details=request.values.get('details')) 
+                        for entry in orders])
 
 def filter_orders(orders, filter_params):
     orders = orders.order_by(Order.purchase_date_sort)
@@ -117,16 +114,16 @@ def filter_orders(orders, filter_params):
         'data': list(map(lambda entry: entry.to_dict(), orders))
     })
 
-def _set_draft(order, payload):
-    if payload.get('draft'):
-        draft_order_id = f'ORD-draft-{current_user.id}'
-        draft = Order.query.get(draft_order_id)
-        if draft:
-            draft.delete()
-            db.session.commit()
-        order.id = draft_order_id
-        order.when_created = datetime(1, 1, 1)
-        order.purchase_date_sort = datetime(9999, 12, 31)
+def _set_draft(order):
+    draft_order_id_prefix = f'ORD-draft-{current_user.id}-'
+    if not order.id.startswith(draft_order_id_prefix):
+        last_draft = Order.query \
+            .filter(Order.id.startswith(draft_order_id_prefix)) \
+            .order_by(Order.id.desc()).first()
+        order.seq_num = last_draft.seq_num + 1 if last_draft else 1
+        order.id = draft_order_id_prefix + str(order.seq_num)
+    order.status = OrderStatus.draft
+    return order
 
 @bp_api_user.route('', methods=['POST'])
 @login_required
@@ -140,33 +137,34 @@ def user_create_order():
         if not validator.validate():
             return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
 
-    request_data = request.get_json()
+    payload = request.get_json()
     result = {}
-    shipping = Shipping.query.get(request_data['shipping'])
-    country = Country.query.get(request_data['country'])
+    shipping = Shipping.query.get(payload['shipping'])
+    country = Country.query.get(payload['country'])
     with db.session.no_autoflush:
         order = Order(
             user=current_user,
-            customer_name=request_data['customer_name'],
-            address=request_data['address'],
-            country_id=request_data['country'],
+            customer_name=payload['customer_name'],
+            address=payload['address'],
+            country_id=payload['country'],
             country=country,
-            zip=request_data['zip'],
+            zip=payload['zip'],
             shipping=shipping,
-            phone=request_data['phone'],
-            comment=request_data['comment'],
+            phone=payload['phone'],
+            comment=payload['comment'],
             subtotal_krw=0,
             status=OrderStatus.pending,
             when_created=datetime.now()
         )
-        _set_draft(order, request_data)
+        if 'draft' in payload.keys() and payload['draft']:
+            order = _set_draft(order)
 
-        order.attach_orders(request_data.get('attached_orders'))
+        order.attach_orders(payload.get('attached_orders'))
         db.session.add(order)
         # order_products = []
         errors = []
         # ordertotal_weight = 0
-        add_suborders(order, request_data['suborders'], errors)
+        add_suborders(order, payload['suborders'], errors)
         try:
             order.update_total()
         except NoShippingRateError:
@@ -209,6 +207,7 @@ def add_suborders(order, suborders, errors):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
                 add_suborder(order, suborder_data_subset, errors)
+                db.session.flush()
                 suborders_count += 1
             except EmptySuborderError as ex:
                 errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")
@@ -224,7 +223,6 @@ def add_suborder(order, suborder_data, errors):
             raise EmptySuborderError(subcustomer.username)
         suborder = Suborder(
             order=order,
-            seq_num=suborder_data.get('seq_num'),
             subcustomer=subcustomer,
             buyout_date=datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None,
@@ -238,6 +236,7 @@ def add_suborder(order, suborder_data, errors):
         current_app.logger.debug('Created instance of Suborder %s', suborder)
         # db.session.add(suborder)
         order.suborders.append(suborder)
+        db.session.flush()
         current_app.logger.debug("Order %s suborders count is %s", order.id, order.suborders.count())
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
@@ -305,9 +304,7 @@ def parse_subcustomer(subcustomer_data):
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required
 def user_save_order(order_id):
-    '''
-    Updates existing order
-    '''
+    ''' Updates existing order '''
     order = Order.query.get(order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
@@ -318,8 +315,10 @@ def user_save_order(order_id):
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
-
     payload = request.get_json()
+    if not ('draft' in payload.keys() and payload['draft']) and order.status == OrderStatus.draft:
+        db.session.delete(order)
+        return user_create_order()
 
     errors = []
     with db.session.no_autoflush:
@@ -330,14 +329,20 @@ def user_save_order(order_id):
             order_products = list(order.order_products)
             for suborder_data in payload['suborders']:
                 _update_suborder(order, order_products, suborder_data, errors)
+            db.session.flush()
         
             # Remove order products
             for order_product in order_products:
-                order_product.suborder.order_products.\
+                current_app.logger.info("Removing product %s from suborder %s",
+                    order_product.product_id, order_product.suborder_id)
+                order_product.status_history.delete(synchronize_session='fetch')
+                order_product.suborder.order_products. \
                     filter_by(id=order_product.id).delete(synchronize_session='fetch')
             # Remove empty suborders
             for suborder in order.suborders:
                 if suborder.order_products.count() == 0:
+                    current_app.logger.info("Removing suborder %s as it has no products.",
+                        suborder.id)
                     db.session.delete(suborder)
         db.session.flush()
         try:
@@ -387,6 +392,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
         )).first()
         if suborder is None:
             add_suborder(order, suborder_data, errors)
+            db.session.flush()
         else:
             subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
@@ -549,6 +555,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
+    logger = current_app.logger.getChild('admin_save_order')
     order_input = request.get_json()
     order = Order.query.get(order_id)
     if not order:
@@ -560,8 +567,9 @@ def admin_save_order(order_id):
                 'error': "Couldn't edit an order",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
-            }), 400
-
+            })
+    logger.info('Modifying order %s by %s with data: %s',
+                order_id, current_user, order_input)
     modify_object(order, order_input, ['tracking_id', 'tracking_url'])
     if order_input.get('status'):
         try:
@@ -738,7 +746,7 @@ def validate_subcustomer():
     current_app.logger.debug(f"Validating subcustomer {payload}")
     try:
         subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
-        atomy_login(subcustomer.username, subcustomer.password)
+        atomy_login(subcustomer.username, subcustomer.password, run_browser=False)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})

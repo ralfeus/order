@@ -13,25 +13,25 @@ from app.purchase.jobs import *
 import cProfile
 
 with create_app().app_context():
-    with db.session.no_autoflush:
-        po = PurchaseOrder.query.get('PO-2021-01-0015-001')
-        po.status = PurchaseOrderStatus.pending
-        po.vendor = 'AtomyCenter'
-        po.company_id = 3
-        # po.customer.username = '20589846'
-        # po.customer.password = 'atom777'
-        po.suborder.order_products[0].product = Product.query.get('172')
-        po.suborder.order_products[0].product_id = '172'
-        po.suborder.order_products[0].quantity = 2
-        current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
-        del current_app.config['SELENIUM_URL']
-        browser = Browser(config=current_app.config)
-        vendor = PurchaseOrderVendorManager.get_vendor(
-            po.vendor,
-            browser=browser, config=current_app.config)
-        vendor.post_purchase_order(po)
-        # post_purchase_orders(po_id='PO-2021-01-0015-001')
-        # print(po.to_dict())
-        # cProfile.run('build_network(update=False, incremental=True)', filename='build_network.stat')
-        # build_network(root_id='16222950', incremental=True)
-        # copy_subtree(root_id='S9945812')
+    po = PurchaseOrder.query.get('PO-2021-04-0002-001')
+    po.status = PurchaseOrderStatus.pending
+    po.vendor = 'AtomyQuick'
+    po.company_id = 4
+    po.customer.username = '23426444'
+    po.customer.password = 'atomy#01'
+    po.purchase_restricted_products = True
+    db.session.flush()
+    # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
+    # del current_app.config['SELENIUM_URL']
+    # update_purchase_orders_status('PO-2021-03-0001-001')
+    # browser = Browser(config=current_app.config)
+#     vendor = PurchaseOrderVendorManager.get_vendor(
+#         po.vendor,5
+#         browser=browser, config=current_app.config)
+#     vendor.post_purchase_order(po)
+    post_purchase_orders(po_id='PO-2021-04-0002-001')
+    db.session.rollback()
+    # print(po.to_dict())
+    # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
+    # build_network(incremental=True)
+    # copy_subtree(root_id='S9945812')

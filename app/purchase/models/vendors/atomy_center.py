@@ -1,26 +1,29 @@
+from functools import reduce
+from app.tools import get_document_from_url
 from datetime import datetime, timedelta
 import logging
 import re
-from time import sleep
+import subprocess
+from urllib.parse import urlencode
 
 from pytz import timezone
 
-from app.exceptions import AtomyLoginError, ProductNotFoundError, PurchaseOrderError
+from app.exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder
-from app.utils.browser import Browser, Keys
 from . import PurchaseOrderVendorBase
 
-ERROR_OUT_OF_STOCK = '품절상품입니다'
-WARNING_SEPARATE_SHIPPING = '무료배송(합포불가 개별발송) 상품입니다'
-
 class AtomyCenter(PurchaseOrderVendorBase):
-    __is_browser_created_locally = False
+    __po_params = {}
+    __purchase_order = None
+    __session_cookies = []
+    __username = 'atomy1026'
+    __password = '5714'
 
     def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
-        self.__browser_attr = browser
+        # self.__browser_attr = browser
         log_level = None
         if logger:
             log_level = logger.level
@@ -35,38 +38,22 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__original_logger = self.__logger = logger
         self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
         self.__config = config
-        self.__username = 'atomy1026'
-        self.__password = '5714'
 
     def __str__(self):
         return "Atomy - Center"
-
-    @property
-    def __browser(self):
-        if self.__browser_attr is None:
-            self.__browser_attr = Browser(config=self.__config)
-            self.__is_browser_created_locally = True
-        return self.__browser_attr
-
-    def __del__(self):
-        if self.__is_browser_created_locally:
-            try:
-                self.__browser_attr.quit()
-            except:
-                pass
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
         '''Posts purchase order on AtomyCenter'''
         self.__logger = self.__original_logger.getChild(purchase_order.id)
         self.__purchase_order = purchase_order
-        self.login()
-        self.__open_order()
+        self.__session_cookies = self.login()
+        self.__init_order_request()
         self.__set_customer_id(purchase_order.customer.username)
         self.__set_purchase_date(purchase_order.purchase_date)
         self.__set_phones(purchase_order.contact_phone)
         ordered_products = self.__add_products(purchase_order.order_products)
         self.__set_receiver_address(purchase_order.address)
-        self.__set_combined_shipment()
+        self.__set_shipment_options(ordered_products)
         self.__set_purchase_order_id(purchase_order.id[11:])
         self.__set_payment_method()
         self.__set_payment_destination(purchase_order.bank_id)
@@ -78,61 +65,42 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order
 
+    def __init_order_request(self):
+        self.__po_params = {
+            'deli_check': 3,
+            'tag_sum':0,
+            'card_amt': 0,
+            'verify': 1,
+            'bu_code': 1026,
+            'deli_gubun': 3,
+            'mile_amt': 0
+        }
+
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
         self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
-        proxy = AtomyQuick(self.__browser, self.__logger, self.__config)
+        proxy = AtomyQuick(None, self.__logger, self.__config)
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
-    def login(self):
-        self.__logger.debug("Logging in")
-        self.__browser.get('https://atomy.kr/center/login.asp')
-        self.__browser.get_element_by_css('input[name="admin_id"]').send_keys(self.__username)
-        password_input = self.__browser.get_element_by_css('input[name="passwd"]')
-        password_input.send_keys(self.__password)
-        password_input.send_keys(Keys.RETURN)
-        try:
-            self.__browser.wait_for_url('https://atomy.kr/center/center_main.asp')
-        except Exception as ex:
-            raise AtomyLoginError(ex)
-
-    def __set_product_quantity(self, input, value):
-        input_id = input.get_attribute('id')
-        self.__logger.debug("Clicking %s field...", input_id)
-        self.__browser.doubleclick(input)
-        self.__logger.debug("Typing %s to %s...", value, input_id)
-        input.send_keys(value, Keys.TAB)
-        sleep(0.3)
-        if input.get_attribute('value') != str(value):
-            self.__logger.debug("Qty field value is %s whilst must be %s",
-                input.get_attribute('value'), value)
-            raise Exception(f"Couldn't set product quantity {value}")
-        self.__logger.debug("Now %s is %s", input_id, input.get_attribute('value'))
-
-    def __check_total(self, field_num):
-        sleep(0.3)
-        tot_amt = self.__browser.get_element_by_name(f'tot_amt{field_num}').\
-            get_attribute('value')
-        sale_price = self.__browser.get_element_by_name(f'sale_price{field_num}').\
-            get_attribute('value')
-        quantity = self.__browser.get_element_by_name(f'sale_qty{field_num}').\
-            get_attribute('value')
-        if not sale_price:
-            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
-                message=f"No product code in cell {field_num} is entered. Will retry",
-                retry=True)
-        if int(sale_price) * int(quantity) != int(tot_amt):
-            self.__logger.debug("\t...not yet")
-            raise PurchaseOrderError(po=self.__purchase_order, vendor=self,
-                message="The tot_amt is not updated")
-        self.__logger.debug("Now tot_amt%s is %s", field_num, tot_amt)
+    def __get_product(self, product_id):
+        result = get_document_from_url(
+            url=f"https://atomy.kr/center/pop_mcode.asp?id={product_id}",
+            encoding='euc-kr',
+            headers=[{'Cookie': c} for c in self.__session_cookies ]
+        )
+        script = result.cssselect('script')[0].text
+        return {
+            'vat_price': int(re.search(r'vat_price\.value = "(\d+)"', script).groups()[0])
+        } \
+            if re.search(r'alert\(.+\);', result.text) is None \
+            else None
 
     def __add_products(self, order_products):
         self.__logger.info("Adding products")
-        self.__browser.execute_script("$('img[src$=\"btn_D_add.gif\"]').click()")
         ordered_products = []
         field_num = 1
+        tot_amt = tot_pv = tot_qty = tot_vat = 0
         for op in order_products:
             if not op.product.purchase:
                 self.__logger.warning("The product %s is exempted from purchase", op.product_id)
@@ -142,50 +110,60 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                self.__logger.debug("Getting input field material_code%s...", field_num)
-                product_code_input = self.__browser.get_element_by_id(
-                    f'material_code{field_num}')
-                self.__logger.debug("\t...done")
-                self.__logger.debug("Entering product code %s...", op.product_id)
-                product_code_input.send_keys(op.product_id, Keys.TAB)
-                sleep(.4)
-                alert = self.__browser.get_alert()
-                if alert:
-                    if WARNING_SEPARATE_SHIPPING in alert:
-                        self.__logger.info(alert)
-                    elif ERROR_OUT_OF_STOCK in alert:
-                        self.__logger.info( "Product %s is out of stock", op.product_id)
-                        product_code_input.clear()
-                        continue
-                    else:
-                        self.__logger.warning(alert)
-                self.__logger.debug("\t...done")
-                self.__logger.debug("Entering product %s quantity %s...", op.product_id, op.quantity)
-                self.__logger.debug("Getting input field sale_qty%s...", field_num)
-                product_qty_input = self.__browser.get_element_by_id(f'sale_qty{field_num}')
-                self.__logger.debug("\t...done")
-                self._try_action(lambda:
-                    self.__set_product_quantity(product_qty_input, op.quantity))
-                
-                self.__logger.debug("Waiting tot_amt%s to update...", field_num)
-                self._try_action(lambda:
-                    self.__check_total(field_num))
-                
-                ordered_products.append(op)
-                field_num += 1
-                self.__logger.info("Added product %s", op.product_id)
+                product_id = '0' * (6 - len(op.product_id)) + op.product_id
+                product = self.__get_product(product_id)
+                if product:
+                    self.__po_params = {**self.__po_params,
+                        f'mgubun{field_num}': 1,
+                        f'vat_price{field_num}': product['vat_price'],
+                        f'vat_amt{field_num}' : product['vat_price'] * op.quantity,
+                        f'pv_price{field_num}': op.product.points,
+                        f'pv_amt{field_num}': op.product.points * op.quantity,
+                        f'sale_qty{field_num}': op.quantity,
+                        f'sale_price{field_num}': op.price,
+                        f'sale_amt{field_num}': (op.price - product['vat_price']) * op.quantity,
+                        f'deli_amt{field_num}': op.price * op.quantity,
+                        f'tot_amt{field_num}': op.price * op.quantity,
+                        f'mdeli_gubun{field_num}': 0,
+                        f'mquick_product{field_num}': 0,
+                        f'material_code{field_num}': product_id,
+                        f'limit_per_qty{field_num}': 0
+                    }
+                    tot_amt += op.price * op.quantity
+                    tot_qty += op.quantity
+                    tot_pv += op.product.points * op.quantity
+                    tot_vat += product['vat_price']
+                    ordered_products.append(op)
+                    field_num += 1
+                    self.__logger.info("Added product %s", op.product_id)
+                else:
+                    self.__logger.warning("The product %s is not available", product_id)
             except Exception:
-                product_code_input.clear()
                 self.__logger.exception("Couldn't add product %s", op.product_id)
+        self.__po_params['good_amt'] = tot_amt
+        self.__po_params['ipgum_amt'] = tot_amt
+        self.__po_params['tot_amt'] = tot_amt
+        self.__po_params['tot_deli'] = tot_amt
+        self.__po_params['tot_pv'] = tot_pv
+        self.__po_params['tot_qty'] = tot_qty
+        self.__po_params['tot_vat'] = tot_vat
         return ordered_products
 
-    def __set_combined_shipment(self):
-        local_shipment_node = self.__browser.get_element_by_css('span#stot_sum')
-        if int(re.sub('\\D', '', local_shipment_node.text)) < 30000:
-            self.__logger.info("Setting combined shipment")
-            combined_shipment_input = self.__browser.get_element_by_id('cPackingMemo2')
-            self.__browser.execute_script("arguments[0].click();", combined_shipment_input)
-            self.__browser.dismiss_alert()
+    def __set_shipment_options(self, ordered_products):
+        logger = self.__logger.getChild('__set_shipment_options')
+        logger.debug('Set shipment options')
+        free_shipping_eligible_amount = reduce(
+            lambda acc, op: acc + (op.price * op.quantity)
+                if not op.product.separate_shipping else 0,
+            ordered_products, 0)
+        local_shipment = free_shipping_eligible_amount < self.__config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']
+        if local_shipment:
+            logger.debug("Setting combined shipment params")
+            self.__po_params['tag_gubun'] = 1
+            self.__po_params['cPackingMemo2'] = 'on'
+        else:
+            logger.debug('No combined shipment is needed')
+            self.__po_params['tag_gubun'] = 0
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
@@ -195,138 +173,125 @@ class AtomyCenter(PurchaseOrderVendorBase):
         return purchase_date is None or \
             (purchase_date >= min_date and purchase_date <= max_date)
 
-    def __open_order(self):
-        self.__browser.get('https://atomy.kr/center/c_sale_ins.asp')
+    # def __open_order(self):
+    #     self.__browser.get('https://atomy.kr/center/c_sale_ins.asp')
 
     def __set_customer_id(self, customer_id):
         self.__logger.debug("Setting customer ID")
-        cust_no_input = self.__browser.get_element_by_id('cust_no')
-        cust_no_input.send_keys(customer_id)
-        cust_no_input.send_keys(Keys.RETURN)
+        self.__po_params['cust_no'] = customer_id
+        self.__po_params['ipgum_name'] = self.__purchase_order.customer.name
 
     def __set_payment_destination(self, bank_id='06'):
         self.__logger.debug("Setting payment receiver")
-        self.__browser.execute_script(
-            f"document.getElementsByName('bank')[0].value = '{bank_id}'")
-        self.__browser.execute_script("check_ipgum_amt();")
+        self.__po_params['bank_gubun'] = 1
+        self.__po_params['bank'] = bank_id
 
     def __set_payment_method(self):
         self.__logger.debug("Setting payment method")
-        method_input = self.__browser.get_element_by_css('input[name=settle_gubun][value="2"]')
-        self.__browser.execute_script('arguments[0].click();', method_input)
+        self.__po_params['settle_gubun'] = 2
 
     def __set_phones(self, phone='010-6275-2045'):
         self.__logger.debug("Setting receiver phone number")
-        phone = phone.split('-')
-        self.__browser.execute_script(
-            f"document.getElementsByName('orphone1')[0].value = '{phone[0]}'")
-        self.__browser.get_element_by_name('orphone2').send_keys(phone[1])
-        self.__browser.get_element_by_name('orphone3').send_keys(phone[2])
-        self.__browser.execute_script(
-            f"document.getElementsByName('revhp1')[0].value = '{phone[0]}'")
-        self.__browser.get_element_by_name("revhp2").send_keys(phone[1])
-        self.__browser.get_element_by_name('revhp3').send_keys(phone[2])
-        self.__browser.get_element_by_name('phone2').send_keys('0000')
-        self.__browser.get_element_by_name('phone3').send_keys('0000')
-        self.__browser.get_element_by_name('revphone2').send_keys('0000')
-        self.__browser.get_element_by_name('revphone3').send_keys('0000')
+        self.__po_params['orderhp'] = phone
+        self.__po_params['revhp'] = phone
 
     def __set_payment_mobile(self, phone='010-6275-2045'):
         self.__logger.debug("Setting payment phone number")
-        phone = phone.split('-')
-        if len(phone) == 0:
+        if not re.match(r'^\d{3}-\d{4}-\d{4}', phone):
             self.__logger.info("Payment phone isn't set as it isn't provided")
             return
-        self.__browser.execute_script(
-            f"document.getElementsByName('virhp1')[0].value = '{phone[0]}'")
-        self.__browser.get_element_by_name('virhp2').send_keys(phone[1])
-        self.__browser.get_element_by_name('virhp3').send_keys(phone[2])
+        self.__po_params['virhp'] = phone
 
     def __set_purchase_date(self, purchase_date):
+        self.__logger.debug("Setting sale date")
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
-            date_str = purchase_date.strftime('%Y-%m-%d')
-            self.__browser.execute_script(
-                f"document.getElementById('sale_date').value = '{date_str}'")
+            sale_date = purchase_date
+        else:
+            sale_date = datetime.now()
+        if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
+            sale_date += timedelta(days=1)
+        self.__po_params['sale_date'] = sale_date.strftime('%Y-%m-%d')
 
     def __set_purchase_order_id(self, purchase_order_id):
         self.__logger.debug("Setting purchase order ID")
-        adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
-        self.__browser.get_element_by_name('revname').send_keys(adapted_po_id)
+        self.__po_params['revname'] = purchase_order_id.replace('-', 'ㅡ')
 
     def __set_receiver_address(self, address={
             'zip': '08584',
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
         self.__logger.debug("Setting shipment address")
-        self.__browser.execute_script("$('#deli_gubun2').click()")
-        self.__browser.execute_script(
-            f"$('[name=zip1]').val(\"{address['zip'][:2]}\");")
-        self.__browser.execute_script(
-            f"$('[name=zip2]').val(\"{address['zip'][2:]}\");")
-        self.__browser.execute_script(
-            f"$('[name=addr1]').val(\"{address['address_1']}\");")
-        self.__browser.get_element_by_name('addr2').send_keys(address['address_2'])
+        self.__po_params['revzip'] = address['zip']
+        self.__po_params['addr1'] = address['address_1']
+        self.__po_params['addr2'] = address['address_2']
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.debug("Setting counteragent tax information")
+        self.__logger.debug(tax_id)
         if tax_id == ('', '', ''): # No company
-            self.__browser.execute_script("$('input[name=tax_gubun][value=\"0\"]').click()")
+            self.__po_params = {**self.__po_params,
+                'tax_check': 0,
+                'tax_l_gubun': 0,
+                'tax_m_gubun': 0
+            }
         else:
-            self.__browser.execute_script("$('input[name=tax_gubun][value=\"1\"]').click()")
-            # self.__browser.execute_script(
-            #     "document.getElementById('tTaxGubun1').value = '2'")
-                
-            tax_l_gubun = self.__browser.get_element_by_name('tax_l_gubun')
-            # self.__browser.execute_script("arguments[0].click()", tax_l_gubun)
-            self.__browser.execute_script("arguments[0].value = 2", tax_l_gubun)
-            self.__browser.execute_script("chk_l_gubun();")
-            # tTaxGubun1 = self.__browser.get_element_by_name('tax_l_gubun')
-            # tTaxGubun1.click()
-            # tTaxGubun1.send_keys(Keys.DOWN)
-            # tTaxGubun1.send_keys(Keys.DOWN)
-            # tTaxGubun1.send_keys(Keys.RETURN)
-            self.__browser.get_element_by_name('tax_b_num1').send_keys(tax_id[0])
-            self.__browser.get_element_by_name('tax_b_num2').send_keys(tax_id[1])
-            self.__browser.get_element_by_name('tax_b_num3').send_keys(tax_id[2])
+            self.__po_params = {**self.__po_params,
+                'tax_check': 1,
+                'tax_l_gubun': 2,
+                'tax_m_gubun': 3,
+                'tax_b_num1': tax_id[0],
+                'tax_b_num2': tax_id[1],
+                'tax_b_num3': tax_id[2],
+                'tax_l_num': '%s-%s-%s' % tax_id
+            }
 
     def __submit_order(self):
         self.__logger.info("Submitting the order")
-        self.__browser.execute_script("Submit()")
-        try:
-            self.__logger.debug('Waiting for order completion page')
-            self.__browser.wait_for_url('https://atomy.kr/center/c_sale_ok.asp')
-        except Exception as ex:
-            self.__logger.warning("Couldn't get order completion page")
-            raise Exception(ex)
-            
-
-        self.__logger.debug("Order completion page is loaded.")
-        return self.__get_po_params()
+        result = self.__send_order_post_request()
+        self.__logger.debug(result)
+        return result
         
-
-    def __get_po_params(self):
-        self.__logger.debug('Looking for purchase order number')
-        po_id = None
+    def __send_order_post_request(self):
+        self.__logger.debug(self.__po_params)
         try:
-            po_id_node = self.__browser.get_element_by_css(
-                'font[color="#FF0000"] strong')
-            po_id = po_id_node.text
-                
-        except Exception as ex:
-            raise Exception("Couldn't get PO number", ex)
+            post_order_doc = get_document_from_url(
+                url='https://atomy.kr/center/payreq.asp',
+                encoding='euc-kr',
+                headers=[{'Cookie': c} for c in self.__session_cookies] + [
+                    {'Referer': 'https://atomy.kr/center/c_sale_ins.asp'}
+                ],
+                raw_data=urlencode(self.__po_params, encoding='euc-kr')
+            )
+            script = post_order_doc.cssselect('head script')[0].text
+            message_match = re.search(r"alert\(['\"](.*)['\"]\);", script)
+            if message_match is not None:
+                message = message_match.groups()[0]
+                raise PurchaseOrderError(self.__purchase_order, self, message)
+            return \
+                post_order_doc.cssselect('#LGD_OID')[0].attrib['value'], \
+                self.__get_bank_account_number(script)
+        except HTTPError:
+            self.__logger.warning(self.__po_params)
+            raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
-        self.__logger.debug('Looking for account number to pay')
-        for attempt in range(1, 4): # Let's try to get account number several times
-            divs = self.__browser.find_elements_by_css_selector('div[align="center"]')
-            bank_account = None
-            for div in divs:
-                match = re.search(r'입금계좌번호\s+:\s+(\d+)', div.text)
-                if match:
-                    bank_account = match.groups()[0]
-                    break
-            if bank_account:
-                return po_id, bank_account
-            self.__logger.warning("Couldn't find account number at attempt %d.", attempt)
-            sleep(5)
-        self.__logger.warning("Gave up trying")  
-        raise Exception("Couldn't find account number to pay to")
+    def __get_bank_account_number(self, content):
+        match = re.search(r'LGD_ACCOUNTNUM[^"]+"(\d+)"', content)
+        if match is not None:
+            return match.groups()[0]
+        return None
+
+    def login(self, username='atomy1026', password='5714'):
+        ''' Logins to Atomy customer section '''
+        output = subprocess.run([
+            '/usr/bin/curl',
+            'https://www.atomy.kr/center/check_user.asp',
+            '-H',
+            'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',
+            '--data-raw',
+            f'src=&admin_id={username}&passwd={password}',
+            '-v'
+            ],
+            encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
+        if re.search('< location: center_main', output.stderr):
+            return re.findall('set-cookie: (.*)', output.stderr)
+        raise AtomyLoginError(username)

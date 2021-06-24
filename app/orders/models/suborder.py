@@ -24,13 +24,13 @@ class Suborder(db.Model, BaseModel):
     seq_num = Column(Integer)
     subcustomer_id = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
-    order_id = Column(String(16), ForeignKey('orders.id'), nullable=False)
+    order_id = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
     order = relationship('Order', foreign_keys=[order_id])
     buyout_date = Column(DateTime, index=True)
     # subtotal_krw = Column(Integer(), default=0)
     #subtotal_rur = Column(Numeric(10, 2), default=0)
     #subtotal_usd = Column(Numeric(10, 2), default=0)
-    order_products = relationship('OrderProduct', lazy='dynamic')
+    order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
     local_shipping = Column(Integer(), default=0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
@@ -44,10 +44,9 @@ class Suborder(db.Model, BaseModel):
         self.order_id = order_id
 
         prefix = self.__id_pattern.format(order_num=order_id[4:16])
-        # if not seq_num:
-        suborders = order.suborders.count()
-        seq_num = suborders + 1
-        self.seq_num = seq_num
+        last_suborder = Suborder.query.filter_by(order_id=self.order_id).\
+            order_by(Suborder.seq_num.desc()).first()
+        self.seq_num = last_suborder.seq_num + 1 if last_suborder else 1
         self.id = prefix + '{:03d}'.format(int(self.seq_num))
 
         attributes = [a[0] for a in type(self).__dict__.items()
@@ -83,14 +82,26 @@ class Suborder(db.Model, BaseModel):
                    if op.status != OrderProductStatus.unavailable]
 
     def get_subtotal(self, currency=None):
-        rate = 1 if currency is None else currency.rate
+        rate = 1 if currency is None else currency.get_rate(self.order.when_created)
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) * rate
 
+    def get_shipping(self, currency=None):
+        return self.get_weight() / self.order.total_weight \
+            * float(self.order.get_shipping(currency))
+
+    def get_total(self, currency=None):
+        return float(self.get_subtotal(currency)) + self.get_shipping(currency)
+
     def get_total_points(self):
         return reduce(
             lambda acc, op: acc + op.product.points * op.quantity, 
+            self.get_order_products(), 0)
+
+    def get_weight(self):
+        return reduce(
+            lambda acc, op: acc + op.product.weight * op.quantity,
             self.get_order_products(), 0)
 
     def is_for_internal(self):

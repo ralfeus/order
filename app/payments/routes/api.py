@@ -1,17 +1,15 @@
 '''
 Contains API endpoint routes of the payment services
 '''
-from app.payments.validators.payment import PaymentValidator
 from datetime import datetime
-from hashlib import md5
 import os, os.path
+import re
 import shutil
 from tempfile import NamedTemporaryFile
 
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
-from sqlalchemy import not_
 
 from app import db
 from app.payments import bp_api_admin, bp_api_user
@@ -19,6 +17,7 @@ from app.currencies.models.currency import Currency
 from app.orders.models.order import Order
 from app.payments.models.payment import Payment, PaymentStatus
 from app.payments.models.payment_method import PaymentMethod
+from app.payments.validators.payment import PaymentValidator
 from app.models.file import File
 from app.users.models.user import User
 
@@ -45,9 +44,7 @@ def admin_get_payments(payment_id):
 @bp_api_admin.route('/<int:payment_id>', methods=['POST'])
 @roles_required('admin')
 def admin_save_payment(payment_id):
-    '''
-    Saves updates in user profile.
-    '''
+    ''' Saves updates of user payment '''
     payload = request.get_json()
     payment = Payment.query.get(payment_id)
     if not payment:
@@ -112,12 +109,13 @@ def user_create_payment():
         if not validator.validate():
             return jsonify({
                 'data': [],
-                'error': "Couldn't update a Payment",
+                'error': "Couldn't create a Payment",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
-            }), 400
+            })
     if isinstance(payload['amount_sent_original'], str):
-        payload['amount_sent_original'] = payload['amount_sent_original'].replace(',', '.')
+        payload['amount_sent_original'] = re.sub(
+            r'[\s,]', '', payload['amount_sent_original'])
     currency = Currency.query.get(payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
@@ -147,13 +145,28 @@ def user_create_payment():
     db.session.commit()
     return jsonify({'data': [payment.to_dict()]})
 
+@bp_api_user.route('/<payment_id>', methods=['DELETE'])
+@login_required
+def user_delete_payment(payment_id):
+    ''' Cancels payment request '''
+    payment = Payment.query.get(payment_id)
+    if payment is None:
+        abort(404)
+    if not payment.is_editable():
+        return jsonify({
+            'error': f"Can't cancel payment in state [{payment.status}]"
+        })
+    payment.status = PaymentStatus.cancelled
+    db.session.commit()
+    return jsonify({})
+
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
     evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
     shutil.move(evidence_src_file, os.path.abspath(evidence_file))
     return evidence_file
 
-@bp_api_user.route('/<int:payment_id>', methods=['POST'])
+# @bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
 def user_save_payment(payment_id):
     '''Saves updates in payment'''

@@ -1,7 +1,16 @@
 class AtomyLoginError(Exception):
-    pass
+    def __init__(self, username=None):
+        super().__init__()
+        self.username = username
+        self.args = (username,)
 
 class EmptySuborderError(Exception):
+    pass
+
+class FilterError(Exception):
+    pass
+
+class HTTPError(Exception):
     pass
 
 class NoPurchaseOrderError(Exception):
@@ -21,12 +30,13 @@ class PurchaseOrderError(Exception):
         super().__init__()
         self.final = False
         self.message = message
-        self.po_id = po.id
+        self.po_id = po.id if po else None
         self.retry = retry
         self.vendor = str(vendor)
+        self.args = (message,)
     
     def __str__(self):
-        return f"Couldn't post PO {self.po_id} at {self.vendor}: {self.message}"
+        return f"Couldn't post {self.po_id} at {self.vendor}: {self.message}"
 
 class ProductNotAvailableError(PurchaseOrderError):
     def __init__(self, product_id, final=False):

@@ -1,10 +1,12 @@
+from app.models.address import Address
 from datetime import datetime
 
 from app.users.models.role import Role
 from app.users.models.user import User
-from app.orders.models import Order, Suborder
+from app.orders.models import Order, OrderProduct, OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
 from app.purchase.models import PurchaseOrder
+from app.purchase.models.company import Company
 
 from tests import BaseTestCase, db
 
@@ -42,3 +44,27 @@ class TestPurchaseOrdersApi(BaseTestCase):
             lambda: self.client.get('/api/v1/admin/purchase/vendor')
         )
         self.assertEqual(len(res.json), 2)
+
+    def test_create_purchase_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_int_id = int(datetime.now().timestamp())
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user, status=OrderStatus.can_be_paid),
+            Subcustomer(id=gen_int_id),
+            Subcustomer(id=gen_int_id + 1),
+            Suborder(id=gen_id, order_id=gen_id, subcustomer_id=gen_int_id),
+            Suborder(id=gen_id + '1', order_id=gen_id, subcustomer_id=gen_int_id + 1),
+            OrderProduct(suborder_id=gen_id, product_id='0000'),
+            OrderProduct(suborder_id=gen_id + '1', product_id='0000'),
+            Address(id=gen_int_id, zip='00000'),
+            Company(id=gen_int_id, address_id=gen_int_id)
+        ])
+
+        # res = self.try_admin_operation(
+        #     lambda: self.client.post('/api/v1/admin/purchase/order', json={
+        #         'order_id': gen_id,
+        #         'company_id': gen_int_id,
+        #         'vendor': 'AtomyCenter',
+        #         'contact_phone': '1-1-1'
+        #     })
+        # )

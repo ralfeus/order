@@ -1,4 +1,5 @@
 var g_filter_sources;
+var g_countries;
 var g_order_statuses;
 var g_orders_table;
 var g_payment_methods;
@@ -11,7 +12,7 @@ $.fn.dataTable.ext.buttons.invoice = {
 };
 
 $.fn.dataTable.ext.buttons.status = {
-    extent: 'select',
+    extend: 'selected',
     action: function(e, dt, node, config) {
         set_status(dt.rows({selected: true}), this.text());
     }
@@ -72,12 +73,14 @@ function delete_order(_target, row) {
 }
 
 async function get_dictionaries() {
+    g_countries = await get_list('/api/v1/country');
     g_order_statuses = await get_list('/api/v1/order/status');
     g_payment_methods = (await get_payment_methods()).map(
         item => ({ id: item.id, text: item.name }));
     g_shipping_methods = (await get_list('/api/v1/shipping')).map(
         item => ({ id: item.id, text: item.name }));
     g_filter_sources = {
+        'country': g_countries.map(i => ({id: i.id, text: i.name})),
         'status': g_order_statuses,
         'payment_method': g_payment_methods,
         'shipping': g_shipping_methods
@@ -294,23 +297,32 @@ function init_orders_table() {
             {data: 'total_krw'},
             {data: 'status'},
             {data: 'payment_method'},
-            {
-                data: 'shipping',
-                render: 'name' 
-            },
+            {data: 'shipping', render: 'name'},
+            {data: 'country', render: 'name'},
             {data: 'purchase_date'},
+            {
+                data: 'when_po_posted',
+                orderable: false,
+                render: (data, type, row, meta) => {
+                    return data 
+                        ? "<a href=\"/admin/purchase/orders?id=" + 
+                            row.id.replace('ORD', 'PO') + "\">" + 
+                            format_date(new Date(data)) + "</a>"
+                        : format_date(new Date(data));
+                }
+            },
             {data: 'when_created'},
             {data: 'when_changed'},
         ],
         columnDefs: [
             {
-                targets: [12, 13, 14],
+                targets: [13, 15, 16],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
             }
         ],
-        order: [[13, 'desc']],
+        order: [[15, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

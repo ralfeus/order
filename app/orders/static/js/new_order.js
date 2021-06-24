@@ -246,12 +246,13 @@ function get_shipping_cost(shipping_method, weight) {
 
 function update_shipping_methods(country, weight) {
     var promise = $.Deferred();
-    if ($('#shipping').val()) {
-        g_selected_shipping_method = $('#shipping').val();
-        var shipping_options = $('#shipping')[0].options;
-        var selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
-    }
-    $('#shipping').html('');
+    // var shipping_options, selected_shipping_method_name;
+    // if ($('#shipping').val()) {
+    //     g_selected_shipping_method = $('#shipping').val();
+    //     shipping_options = $('#shipping')[0].options;
+    //     selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
+    // }
+    // $('#shipping').html('');
     $.ajax({
         url: '/api/v1/shipping/' + country + '/' + weight,
         data: 'products=' +
@@ -259,6 +260,12 @@ function update_shipping_methods(country, weight) {
                 .map(e => e[1].product_id ? e[1].product_id : e[1].id)
                 .filter((value, index, self) => self.indexOf(value) === index),
         success: (data, _status, xhr) => {
+            var shipping_options, selected_shipping_method_name;
+            if ($('#shipping').val()) {
+                g_selected_shipping_method = $('#shipping').val();
+                shipping_options = $('#shipping')[0].options;
+                selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
+            }
             $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
             if (data.map(i => i.id).includes(parseInt(g_selected_shipping_method))) {
                 $('#shipping').val(g_selected_shipping_method);
@@ -385,9 +392,9 @@ function shipping_changed() {
 
 function submit_order(_sender, draft=false) {
     $('.wait').show();
-    if (typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
-        g_order_id = undefined;
-    }
+    // if (!draft && typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
+    //     g_order_id = undefined;
+    // }
     $.ajax({
         url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
         method: 'post',
@@ -483,7 +490,8 @@ function update_grand_totals() {
 async function update_item_subtotal(item) {
     if (g_cart[item.id]) {
         g_cart[item.id].user = '';
-        g_cart[item.id].quantity = parseInt($('.item-quantity', item).val());
+        g_cart[item.id].quantity = /^\d+$/.test($('.item-quantity', item).val())
+            ? parseInt($('.item-quantity', item).val()) : 0;
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
         $('td.cost-krw', item).html(g_cart[item.id].costKRW);
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);

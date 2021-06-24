@@ -1,3 +1,7 @@
+var g_filter_sources = {
+    'in_network': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
+};
+
 $(document).ready( function () {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
@@ -46,7 +50,7 @@ $(document).ready( function () {
         editor.inline(this);
     });   
     var table = $('#subcustomers').DataTable({
-        dom: 'lfrBtip',
+        dom: 'lrBtip',
         buttons: [
             { extend: 'create', editor: editor, text: 'Create' },
             { extend: 'remove', editor: editor, text: 'Delete'}
@@ -57,15 +61,20 @@ $(document).ready( function () {
         },
         rowId: 'id',
         columns: [
-            {data: 'id'},
-            {data: 'name', className: 'editable'},
-            {data: 'username', className: 'editable'},
+            {name: 'id', data: 'id'},
+            {name: 'name', data: 'name', className: 'editable'},
+            {name: 'username', data: 'username', className: 'editable'},
             {data: 'password', className: 'editable'},
-            {data: 'in_network', className: 'editable'},
+            {name: 'in_network', data: 'in_network', className: 'editable'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
         order: [[5, 'desc']],
-        select: true
+        select: true,
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources)
+            .then(() => init_table_filter(table)); 
+        }
     });
 });

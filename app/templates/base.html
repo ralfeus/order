@@ -70,6 +70,7 @@
             <li><a class="dropdown-item" href="/admin/orders">Orders</a></li>
             <li><a class="dropdown-item" href="/admin/orders/products">Order products</a></li>
             <li><a class="dropdown-item" href="/admin/purchase/orders">Purchase orders</a></li>
+            <li><a class="dropdown-item" href="/admin/notifications">Notifications</a></li>
             <li class="dropdown-divider"></li>
             <li class="dropdown-submenu">
               <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button" aria-haspopup="true" aria-expanded="false"
@@ -102,8 +103,8 @@
           </a>
           <div class="dropdown-menu">
             <a class="dropdown-item" href="/orders">List orders</a>
+            <a class="dropdown-item" href="/orders/drafts">List order drafts</a>
             <a class="dropdown-item" href="/orders/new">New order</a>
-            <a class="dropdown-item" href="/orders/draft">Open draft order</a>
             <a class="dropdown-item" href="/orders/products">Order products</a>
           </div>
         </li>
@@ -113,10 +114,17 @@
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
         </li>
-	<li class="nav-item">
-	    {{ current_user.username }}
-	</li>
+        <li class="nav-item">
+            {{ current_user.username }}
+        </li>
       </ul>
+    </div>
+    <div class="float-right">
+      {% block currencies %}
+      {% endblock %}
+      {% if extension_1 %}
+        {% include extension_1 ignore missing %}
+      {% endif %}
     </div>
   </nav>
 {% endblock %}

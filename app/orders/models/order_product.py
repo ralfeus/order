@@ -51,7 +51,8 @@ class OrderProduct(db.Model, BaseModel):
 
     # Keep for back compatibility, remove when not needed
     order_id = Column(String(16), ForeignKey('orders.id'))
-    suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
+    suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
+        nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
@@ -120,6 +121,12 @@ class OrderProduct(db.Model, BaseModel):
                 if column == 'subcustomer' \
             else base_filter
 
+    def get_price(self, currency=None, rate: float=None):
+        if rate is None:
+            rate = currency.get_rate(self.suborder.order.when_created) \
+                if currency is not None else 1
+        return self.price * rate
+
     def postpone(self):
         from . import Order, OrderStatus, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
@@ -170,6 +177,8 @@ class OrderProduct(db.Model, BaseModel):
                 current_user,
             when_created=datetime.now()
         ))
+        if status == OrderProductStatus.unavailable:
+            self.suborder.order.update_total()
 
     def to_dict(self):
         return {

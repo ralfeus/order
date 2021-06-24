@@ -97,3 +97,39 @@ class TestOrderProductsApi(BaseTestCase):
         self.assertEqual(orders[0].total_krw, 2610)
         self.assertEqual(orders[2].total_krw, 5020)
 
+    def test_set_order_product_status(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        op_id = datetime.now().microsecond
+        order = Order(id=gen_id, user=self.user)
+        self.try_add_entities([
+            Product(id='0000', name='Test product', price=10, weight=10)
+        ])
+        self.try_add_entities([
+            order,
+            Suborder(id=op_id, order=order),
+            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000',
+                price=10, quantity=10)
+        ])
+        self.try_user_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/product/{op_id}/status/pending'))
+
+    def test_set_order_product_unavailable(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        op_id = datetime.now().microsecond
+        order = Order(id=gen_id, user=self.user)
+        self.try_add_entities([
+            Product(id='0000', name='Test product', price=10, weight=10),
+            Product(id='0001', name='Test product 1', price=10, weight=10)
+        ])
+        self.try_add_entities([
+            order,
+            Suborder(id=op_id, order=order),
+            OrderProduct(id=op_id, suborder_id=op_id, product_id='0000',
+                price=10, quantity=10),
+            OrderProduct(id=op_id + 1, suborder_id=op_id, product_id='0001',
+                price=10, quantity=1)
+        ])
+        self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/product/{op_id + 1}/status/unavailable'))
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.subtotal_krw, 2600)
