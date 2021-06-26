@@ -5,7 +5,6 @@ services:
         #  image: selenium/standalone-chrome
         #  volumes:
         #   - /dev/shm:/dev/shm
-
         # nginx:
         #  image: nginx:latest
         #  volumes:
@@ -26,6 +25,6 @@ services:
      # celery:
      #  image: ralfeus/order-master
      #  depends_on:
-     #          #    - selenium-chrome-server
+     #    - selenium-chrome-server
      #    - rabbitmq
      #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
