@@ -8,7 +8,7 @@ from app.shipping import bp_api_admin, bp_api_user
 from app.exceptions import NoShippingRateError
 
 from app.models import Country
-from app.shipping import Box, Shipping
+from app.shipping import Shipping
 
 @bp_api_admin.route('')
 @roles_required('admin')
@@ -80,7 +80,7 @@ def get_shipping_rate(country, shipping_method_id: int, weight):
             status=409
         ))
 
-@bp_api_admin.route('/box')
-@roles_required('admin')
-def admin_get_shipping_boxes():
-    return jsonify([box.to_dict() for box in Box.query])
+# @bp_api_admin.route('/box')
+# @roles_required('admin')
+# def admin_get_shipping_boxes():
+#     return jsonify([box.to_dict() for box in Box.query])
