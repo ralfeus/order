@@ -4,7 +4,7 @@ var g_order_statuses;
 var g_orders_table;
 var g_payment_methods;
 var g_shipping_methods;
-var g_boxes;
+// var g_boxes;
 
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
@@ -80,7 +80,7 @@ async function get_dictionaries() {
         item => ({ id: item.id, text: item.name }));
     g_shipping_methods = (await get_list('/api/v1/shipping')).map(
         item => ({ id: item.id, text: item.name }));
-    g_boxes = await get_list('/api/v1/admin/shipping/box');
+    // g_boxes = await get_list('/api/v1/admin/shipping/box');
     g_filter_sources = {
         'country': g_countries.map(i => ({id: i.id, text: i.name})),
         'status': g_order_statuses,
