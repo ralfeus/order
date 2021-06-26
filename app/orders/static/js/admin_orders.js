@@ -221,12 +221,20 @@ function edit_shipment(sender) {
                     var obj = Object.entries(data.data)[0][1];
                     return JSON.stringify({
                         total_weight: obj.total_weight,
-                        boxes: Object.entries(obj)
-                                .filter(e => e[0].startsWith('box_'))
-                                .map(e => ({
-                                    id: e[0].replace('box_', ''),
-                                    quantity: e[1]
-                                }))
+                        boxes: Object.entries(obj.boxes.split('\n'))
+                                .map(e => {
+                                    var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
+                                    if (match === null) {
+                                        throw "Box information doesn't match format";
+                                    }
+                                    return {
+                                        quantity: match[1],
+                                        weight: match[2],
+                                        length: match[3],
+                                        width: match[4],
+                                        height: match[5]
+                                    };
+                                })
                     });
                 }
             }
@@ -235,12 +243,21 @@ function edit_shipment(sender) {
         idSrc: 'id',
         fields: [
             { name: 'total_weight', label: 'Total weight' },
-            { 
-                name: 'boxes',
+            {
+                name: 'boxes', 
                 label: 'Boxes',
-                type: 'datatable',
-                config: {
-                    
+                labelInfo: 'Enter boxes information (one box per line) in a format: ' +
+                           '<span style="color:blue;">Qty:Wght:LxWxH</span> where:<br/>' +
+                           'Qty - quantity<br/>' +
+                           'Wght - weight<br />' +
+                           'L - length<br />' +
+                           'W - width<br />' +
+                           'H - height',
+                type: 'textarea',
+                data: (data, type, set) => {
+                    return data.boxes.map(e => {return e.quantity + ":" + e.weight + ":" + 
+                                        e.length + "x" + e.width + "x" + e.height})
+                        .join("\n");
                 }
             }
         ]

@@ -9,7 +9,8 @@ from tempfile import NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
+    String, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -67,9 +68,10 @@ class Order(db.Model, BaseModel):
     zip = Column(String(10))
     phone = Column(String(64))
     comment = Column(String(128))
-    boxes = relationship(OrderBox, lazy='dynamic')
+    boxes = relationship(OrderBox, lazy='dynamic', cascade="all, delete-orphan")
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
+    total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
     shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
@@ -365,14 +367,21 @@ class Order(db.Model, BaseModel):
                 if self.shipping is None:
                     self.shipping = NoShipping()
         logger.debug("Shipping: %s", self.shipping)
-        self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
-                                   self.suborders, 0) + \
-                            reduce(lambda acc, ao: acc + ao.total_weight,
-                                   self.attached_orders, 0)
-        logger.debug("Total weight: %s", self.total_weight)
-        self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight) \
-            if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
-            else 0
+        if not self.total_weight_set_manually:
+            self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
+                                    self.suborders, 0) + \
+                                reduce(lambda acc, ao: acc + ao.total_weight,
+                                    self.attached_orders, 0)
+            self.shipping_box_weight = reduce(lambda acc, b: acc + b.weight,
+                                            self.boxes, 0) \
+                if self.boxes.count() > 0 \
+                else self.shipping.get_box_weight(self.total_weight) \
+                    if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
+                    else 0
+            logger.debug("Total weight: %s", self.total_weight)
+        else:
+            self.shipping_box_weight = 0
+            logger.debug("Total weight (set manually): %s", self.total_weight)
         logger.debug("Box weight: %s", self.shipping_box_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)

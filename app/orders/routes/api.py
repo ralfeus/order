@@ -1,4 +1,6 @@
 '''API endpoints for sale order management'''
+from more_itertools.recipes import quantify
+from app.orders.models.order import OrderBox
 from datetime import datetime
 from more_itertools import map_reduce
 import re
@@ -570,7 +572,13 @@ def admin_save_order(order_id):
             })
     logger.info('Modifying order %s by %s with data: %s',
                 order_id, current_user, order_input)
+    if order_input.get('boxes'):
+        update_order_boxes(order, order_input['boxes'])
+    if order_input.get('total_weight'):
+        order.total_weight = int(order_input['total_weight'])
+        order.total_weight_set_manually = True
     modify_object(order, order_input, ['tracking_id', 'tracking_url'])
+    order.update_total()
     if order_input.get('status'):
         try:
             order.set_status(order_input['status'], current_user)
@@ -578,7 +586,17 @@ def admin_save_order(order_id):
             abort(Response(str(ex), status=409))
 
     db.session.commit()
-    return jsonify(order.to_dict())
+    return jsonify({'data': [order.to_dict()]})
+
+def update_order_boxes(order, boxes_input):
+    order.boxes = []
+    for order_box in boxes_input:
+        order.boxes.append(OrderBox(
+            quantity=order_box['quantity'],
+            weight=order_box['weight'],
+            length=order_box['length'],
+            width=order_box['width'],
+            height=order_box['height']))
 
 @bp_api_user.route('/product')
 @bp_api_admin.route('/product')
