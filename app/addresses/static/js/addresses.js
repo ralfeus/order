@@ -7,9 +7,9 @@ $(document).ready(() => {
             var target = Object.entries(data.data)[0][1];
             var address_id = Object.entries(data.data)[0][0];
             var method = 'post';
-            var url = '/api/v1/admin/addresses/' + address_id;
+            var url = '/api/v1/admin/address/' + address_id;
             if (data.action === 'create') {
-                url = '/api/v1/admin/addresses/';   
+                url = '/api/v1/admin/address';   
                 address_id = target.id;
             } else if (data.action === 'remove') {
                 method = 'delete';
@@ -35,8 +35,6 @@ $(document).ready(() => {
             {label: 'Zip', name: 'zip'},
             {label: 'Address_1', name: 'address_1'},
             {label: 'Address_2', name: 'address_2'},
-            
-
         ]
     });
     $('#addresses').on( 'click', 'td.editable', function (e) {
@@ -45,7 +43,7 @@ $(document).ready(() => {
     g_addresses_table = $('#addresses').DataTable({
         dom: 'Btp',
         ajax: {
-            url: '/api/v1/admin/addresses/',
+            url: '/api/v1/admin/address',
             dataSrc: ''
         },
         buttons: [

@@ -6,7 +6,7 @@ $(document).ready(() => {
 });
 
 async function get_dictionaries() {
-    g_addresses = await get_list('/api/v1/addresses');
+    g_addresses = await get_list('/api/v1/address');
 }
 
 function init_table() {
@@ -16,9 +16,9 @@ function init_table() {
             var target = Object.entries(data.data)[0][1];
             var company_id = Object.entries(data.data)[0][0];
             var method = 'post';
-            var url = '/api/v1/admin/company/' + company_id;
+            var url = '/api/v1/admin/purchase/company/' + company_id;
             if (data.action === 'create') {
-                url = '/api/v1/admin/company';   
+                url = '/api/v1/admin/purchase/company';   
                 company_id = target.id;
             } else if (data.action === 'remove') {
                 method = 'delete';
@@ -58,7 +58,7 @@ function init_table() {
     $('#companies').DataTable({
         dom: 'Btp',
         ajax: {
-            url: '/api/v1/admin/company',
+            url: '/api/v1/admin/purchase/company',
             dataSrc: ''
         },
         buttons: [

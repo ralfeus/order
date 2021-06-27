@@ -12,3 +12,11 @@ def get_static(file):
 @roles_required('admin')
 def purchase_orders():
     return render_template('purchase_orders.html')
+
+@bp_client_admin.route('/companies')
+@roles_required('admin')
+def get_company():
+    '''
+    company management
+    '''
+    return render_template('companies.html')

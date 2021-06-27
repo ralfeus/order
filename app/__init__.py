@@ -48,7 +48,6 @@ def register_components(flask_app):
     from app.routes.client import client
     import app.currencies
     import app.addresses
-    import app.companies
     import app.orders
     import app.invoices
     import app.network

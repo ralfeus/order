@@ -33,8 +33,8 @@ class TestCompanyClient(BaseTestCase):
             Address(id=123, name='Address_1'),
             Company(name='Company_1', tax_id_1='123', tax_id_2='12', tax_id_3='12345',phone='012-1234-1234',address_id=123,bank_id='01',contact_person='person1')
         ])
-        res = self.try_user_operation(
-            lambda: self.client.get('/api/v1/admin/company'))
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/purchase/company'))
         self.assertEqual(res.json[0], {
             'id': 1,
             'name': 'Company_1',
@@ -57,7 +57,7 @@ class TestCompanyClient(BaseTestCase):
             Company(id=gen_id, name='Company_1', tax_id_1='123',tax_id_2='12',tax_id_3='12345', phone='012-1234-1234',address_id=123,bank_id='01',contact_person='person1')
         ])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/company/{gen_id}',
+            lambda: self.client.post(f'/api/v1/admin/purchase/company/{gen_id}',
             json={'name': 'Company_2', 'tax_id': '111-11-11111'})
         )
         self.assertEqual(res.status_code, 200)
@@ -76,7 +76,7 @@ class TestCompanyClient(BaseTestCase):
             Company(id=gen_id, name='Company_1', tax_id_1='123', tax_id_2='12', tax_id_3='12345',phone='012-1234-1234',address_id=123,bank_id='01',contact_person='person1')
         ])
         res = self.try_admin_operation(
-            lambda: self.client.delete(f'/api/v1/admin/company/{gen_id}')
+            lambda: self.client.delete(f'/api/v1/admin/purchase/company/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
         company = Company.query.get(gen_id)

@@ -16,14 +16,14 @@ def get_addresses(address_id):
     '''
     Returns all or selected address in JSON:
     '''
-    addresses = Address.query.all() \
-        if address_id is None \
-        else Address.query.filter_by(id=address_id)
+    addresses = Address.query
+    if address_id is not None:
+        addresses = addresses.filter_by(id=address_id)
 
     return jsonify([entry.to_dict() for entry in addresses])
 
 @bp_api_admin.route('/<address_id>', methods=['POST'])
-@bp_api_admin.route('/', methods=['POST'], defaults={'address_id': None}, strict_slashes=False)
+@bp_api_admin.route('', methods=['POST'], defaults={'address_id': None})
 @roles_required('admin')
 def save_address(address_id):
     '''
@@ -32,12 +32,6 @@ def save_address(address_id):
     payload = request.get_json()
     if not payload:
         abort(Response('No data was provided', status=400))
-
-    if payload.get('zip'):
-        try:
-            float(payload['zip'])
-        except: 
-            abort(Response('Not number', status=400))
 
     address = None
     if address_id is None:
@@ -49,8 +43,13 @@ def save_address(address_id):
         if not address:
             abort(Response(f'No address <{address_id}> was found', status=400))
 
-    for key, value in payload.items():
+    if payload.get('zip'):
+        try:
+            float(payload['zip'])
+        except: 
+            abort(Response('Not a number', status=400))
 
+    for key, value in payload.items():
         if getattr(address, key) != value:
             setattr(address, key, value)
             address.when_changed = datetime.now()

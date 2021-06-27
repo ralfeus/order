@@ -27,10 +27,10 @@ class TestCompanyClient(BaseTestCase):
     def try_admin_operation(self, operation):
         return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
     
-    def test_get_company(self):
+    def test_get_companies(self):
         self.try_add_entities([
             Company(id=125)
         ])
         self.try_admin_operation(
-            lambda: self.client.get('/admin/companies/')
+            lambda: self.client.get('/admin/purchase/companies')
             )

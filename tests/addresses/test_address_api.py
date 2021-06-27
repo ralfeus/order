@@ -32,7 +32,7 @@ class TestAddressAPI(BaseTestCase):
            Address(id=123, name='Address_1', zip=11111, address_1='address01', address_2='address02')
         ])
         res = self.try_user_operation(
-            lambda: self.client.get('/api/v1/admin/addresses'))
+            lambda: self.client.get('/api/v1/admin/address'))
         self.assertEqual(len(res.json), 1)
 
     def test_save_address(self):
@@ -41,14 +41,14 @@ class TestAddressAPI(BaseTestCase):
             Address(id=gen_id, name='Address_1', zip='11111', address_1='address01', address_2='address02')
         ])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/addresses/{gen_id}',
+            lambda: self.client.post(f'/api/v1/admin/address/{gen_id}',
             json={'zip': '22222'})
         )
         self.assertEqual(res.status_code, 200)
         address = Address.query.get(gen_id)
         self.assertEqual(address.zip, '22222')
 
-        res = self.client.post(f'/api/v1/admin/addresses/{gen_id}',
+        res = self.client.post(f'/api/v1/admin/address/{gen_id}',
             json={'zip': '22222@'})
         self.assertEqual(res.status_code, 400)
 
@@ -59,7 +59,7 @@ class TestAddressAPI(BaseTestCase):
             Address(id=gen_id, name='Address_1', zip='11111', address_1='address01', address_2='address02')
         ])
         res = self.try_admin_operation(
-            lambda: self.client.delete(f'/api/v1/admin/addresses/{gen_id}')
+            lambda: self.client.delete(f'/api/v1/admin/address/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
         address = Address.query.get(gen_id)
