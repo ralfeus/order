@@ -1,31 +1,30 @@
 version: '3.5'
 
 services:
- selenium-chrome-server:
-  image: selenium/standalone-chrome
-  volumes:
-   - /dev/shm:/dev/shm
-
- nginx:
-  image: nginx:latest
-  volumes:
-   - ./nginx-balancer.conf:/etc/nginx/nginx.conf:ro
-  depends_on:
-      - selenium-chrome-server
-  ports:
-   - "4444:4444"
+        # selenium-chrome-server:
+        #  image: selenium/standalone-chrome
+        #  volumes:
+        #   - /dev/shm:/dev/shm
+        # nginx:
+        #  image: nginx:latest
+        #  volumes:
+        #   - ./nginx-balancer.conf:/etc/nginx/nginx.conf:ro
+        #  depends_on:
+        #      - selenium-chrome-server
+        #  ports:
+        #   - "4444:4444"
 
  rabbitmq:
   image: rabbitmq:3-management
-  depends_on:
-   - selenium-chrome-server
+  #  depends_on:
+  #   - selenium-chrome-server
   ports:
    - "5672:5672"
    - "15672:15672"
 
- celery:
-  image: ralfeus/order-master
-  depends_on:
-    - selenium-chrome-server
-    - rabbitmq
-  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
+     # celery:
+     #  image: ralfeus/order-master
+     #  depends_on:
+     #    - selenium-chrome-server
+     #    - rabbitmq
+     #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule

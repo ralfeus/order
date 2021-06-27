@@ -18,3 +18,6 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(bp_client_user)
     from . import modules
     modules.init(flask_app)
+
+from .models import *
+from . import routes

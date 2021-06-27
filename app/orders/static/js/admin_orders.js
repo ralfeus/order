@@ -4,6 +4,7 @@ var g_order_statuses;
 var g_orders_table;
 var g_payment_methods;
 var g_shipping_methods;
+// var g_boxes;
 
 $.fn.dataTable.ext.buttons.invoice = {
     action: function(e, dt, node, config) {
@@ -79,6 +80,7 @@ async function get_dictionaries() {
         item => ({ id: item.id, text: item.name }));
     g_shipping_methods = (await get_list('/api/v1/shipping')).map(
         item => ({ id: item.id, text: item.name }));
+    // g_boxes = await get_list('/api/v1/admin/shipping/box');
     g_filter_sources = {
         'country': g_countries.map(i => ({id: i.id, text: i.name})),
         'status': g_order_statuses,
@@ -209,6 +211,65 @@ function create_invoice(rows) {
     });  
 }
 
+function edit_shipment(sender) {
+    var editor = new $.fn.dataTable.Editor({
+        ajax: {
+            edit: {
+                url: '/api/v1/admin/order/_id_',
+                contentType: 'application/json',
+                data: data => {
+                    var obj = Object.entries(data.data)[0][1];
+                    return JSON.stringify({
+                        total_weight: obj.total_weight,
+                        boxes: Object.entries(obj.boxes.split('\n'))
+                                .map(e => {
+                                    var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
+                                    if (match === null) {
+                                        throw "Box information doesn't match format";
+                                    }
+                                    return {
+                                        quantity: match[1],
+                                        weight: match[2],
+                                        length: match[3],
+                                        width: match[4],
+                                        height: match[5]
+                                    };
+                                })
+                    });
+                }
+            }
+        },
+        table: '#orders',
+        idSrc: 'id',
+        fields: [
+            { name: 'total_weight', label: 'Total weight' },
+            {
+                name: 'boxes', 
+                label: 'Boxes',
+                labelInfo: 'Enter boxes information (one box per line) in a format: ' +
+                           '<span style="color:blue;">Qty:Wght:LxWxH</span> where:<br/>' +
+                           'Qty - quantity<br/>' +
+                           'Wght - weight<br />' +
+                           'L - length<br />' +
+                           'W - width<br />' +
+                           'H - height',
+                type: 'textarea',
+                data: (data, type, set) => {
+                    return data.boxes.map(e => {return e.quantity + ":" + e.weight + ":" + 
+                                        e.length + "x" + e.width + "x" + e.height})
+                        .join("\n");
+                }
+            }
+        ]
+    });
+    var order_row = g_orders_table.row($(sender).closest('tr'));
+    editor
+        .edit(order_row, true, {
+            title: 'Set shipment info',
+            buttons: 'Update'
+        });
+}
+
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
         dom: 'lrBtip',
@@ -287,7 +348,10 @@ function init_orders_table() {
                         onclick="open_order(this);">Open</button> \
                     <button \
                         class="btn btn-sm btn-secondary btn-invoice" \
-                        onclick="open_order_invoice(this);">Invoice</button>'
+                        onclick="open_order_invoice(this);">Invoice</button> \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-shipment" \
+                        onclick="edit_shipment(this);">Shipment</button>'
             },            
             {name: 'id', data: 'id'},
             {data: 'user'},
@@ -327,6 +391,9 @@ function init_orders_table() {
         serverSide: true,
         processing: true,
         createdRow: (row, data) => {
+            if (data.status != 'packed') {
+                $('.btn-shipment', row).remove();
+            }
             if (data.status != 'shipped') {
                 $('.btn-invoice', row).remove();
             }

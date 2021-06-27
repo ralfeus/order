@@ -9,7 +9,8 @@ from tempfile import NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
-from sqlalchemy import Column, Enum, DateTime, Numeric, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
+    String, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -17,7 +18,6 @@ from app import db
 from app.exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.currencies.models.currency import Currency
-from app.payments.models.transaction import Transaction
 from app.settings.models.setting import Setting
 
 class OrderStatus(enum.Enum):
@@ -29,6 +29,26 @@ class OrderStatus(enum.Enum):
     packed = 4
     shipped = 5
     cancelled = 6
+
+class OrderBox(db.Model, BaseModel):
+    ''' Specific box used in order '''
+    __tablename__ = 'order_boxes'
+
+    order_id = Column(String(16), ForeignKey('orders.id'))
+    length = Column(Integer)
+    width = Column(Integer)
+    height = Column(Integer)
+    weight = Column(Integer)
+    quantity = Column(Integer)
+
+    def to_dict(self):
+        return {
+            'length': self.length,
+            'width': self.width,
+            'height': self.height,
+            'weight': self.weight,
+            'quantity': self.quantity
+        }
 
 class Order(db.Model, BaseModel):
     ''' Sale order '''
@@ -45,13 +65,14 @@ class Order(db.Model, BaseModel):
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
     country = relationship('Country', foreign_keys=[country_id])
-    zip = Column(String(10))
+    zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(128))
+    boxes = relationship(OrderBox, lazy='dynamic', cascade="all, delete-orphan")
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
+    total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    # __shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
@@ -84,6 +105,7 @@ class Order(db.Model, BaseModel):
 
     @property
     def order_products(self):
+        ''' Returns aggregated list of order products for all suborders '''
         if self.suborders.count() > 0:
             return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
@@ -94,6 +116,7 @@ class Order(db.Model, BaseModel):
         self.purchase_date_sort = value
 
     def set_status(self, value, actor):
+        ''' Sets status of the order '''
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
@@ -162,6 +185,7 @@ class Order(db.Model, BaseModel):
             self.attached_orders = []
 
     def __pay(self, actor):
+        from app.payments.models.transaction import Transaction
         #TODO: wrong approach
         if not self.total_krw:
             logging.debug("%s totals are undefined. Updating...", self.id)
@@ -207,6 +231,9 @@ class Order(db.Model, BaseModel):
                                for status in filter_values])) \
                 if column.key == 'status' \
             else base_filter.filter(column.like(part_filter))
+
+    def get_boxes_weight(self):
+        return reduce(lambda acc, b: acc + b.weight * b.quantity, self.boxes, 0)
 
     def get_payee(self):
         return self.payment_method.payee if self.payment_method \
@@ -289,6 +316,7 @@ class Order(db.Model, BaseModel):
             'country': self.country.to_dict() if self.country else None,
             'zip': self.zip,
             'shipping': self.shipping.to_dict() if self.shipping else None,
+            'boxes': [box.to_dict() for box in self.boxes],
             'status': self.status.name if self.status else None,
             'payment_method': self.payment_method.name \
                 if self.payment_method else None,
@@ -339,14 +367,21 @@ class Order(db.Model, BaseModel):
                 if self.shipping is None:
                     self.shipping = NoShipping()
         logger.debug("Shipping: %s", self.shipping)
-        self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
-                                   self.suborders, 0) + \
-                            reduce(lambda acc, ao: acc + ao.total_weight,
-                                   self.attached_orders, 0)
-        logger.debug("Total weight: %s", self.total_weight)
-        self.shipping_box_weight = self.shipping.get_box_weight(self.total_weight) \
-            if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
-            else 0
+        if not self.total_weight_set_manually:
+            self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
+                                    self.suborders, 0) + \
+                                reduce(lambda acc, ao: acc + ao.total_weight,
+                                    self.attached_orders, 0)
+            self.shipping_box_weight = reduce(lambda acc, b: acc + b.weight,
+                                            self.boxes, 0) \
+                if self.boxes.count() > 0 \
+                else self.shipping.get_box_weight(self.total_weight) \
+                    if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
+                    else 0
+            logger.debug("Total weight: %s", self.total_weight)
+        else:
+            self.shipping_box_weight = 0
+            logger.debug("Total weight (set manually): %s", self.total_weight)
         logger.debug("Box weight: %s", self.shipping_box_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)

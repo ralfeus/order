@@ -16,3 +16,6 @@ def register_blueprints(flask_app):
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
+
+from .models import *
+from . import routes

@@ -26,7 +26,7 @@ def _atomy_login_curl(username, password):
     if len(username) < 8:
         username = 'S' + username
     output = subprocess.run([
-        '/usr/bin/curl',
+        'curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
         '--data-raw',
         urlencode({

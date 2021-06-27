@@ -1,9 +1,7 @@
-'''
-Initialization of the application
-'''
-import inspect
+''' Initialization of the application '''
 import logging
 import os
+import types
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -12,7 +10,6 @@ from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
 
-import app.tools
 from app.utils.services import get_celery, init_celery
 
 celery = get_celery(__name__, 
@@ -20,13 +17,11 @@ celery = get_celery(__name__,
 db = SQLAlchemy()
 migrate = Migrate()
 # login = LoginManager()
-from app.users.forms import LoginForm
 security = Security()
 
 def create_app(config=None):
-    '''
-    Application factory
-    '''
+    ''' Application factory '''
+    from app.users.forms import LoginForm
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
@@ -51,35 +46,31 @@ def create_app(config=None):
 def register_components(flask_app):
     from app.routes.api import api
     from app.routes.client import client
-    import app.currencies, app.currencies.routes
-    import app.addresses, app.addresses.routes
-    import app.invoices, app.invoices.routes
-    import app.network, app.network.routes
-    import app.notifications, app.notifications.routes
-    import app.orders, app.orders.routes
-    import app.payments, app.payments.routes
-    import app.products, app.products.routes
-    import app.purchase, app.purchase.routes
-    import app.settings, app.settings.routes
-    import app.shipping, app.shipping.routes
-    import app.users, app.users.routes
-    import app.companies, app.companies.routes
+    import app.currencies
+    import app.addresses
+    import app.companies
+    import app.orders
+    import app.invoices
+    import app.network
+    import app.notifications
+    import app.payments
+    import app.products
+    import app.purchase
+    import app.settings
+    import app.shipping
+    import app.users
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(client)
-    app.currencies.register_blueprints(flask_app)
-    app.addresses.register_blueprints(flask_app)
-    app.companies.register_blueprints(flask_app)
-    app.invoices.register_blueprints(flask_app)
-    app.network.register_blueprints(flask_app)
-    app.notifications.register_blueprints(flask_app)
-    app.orders.register_blueprints(flask_app)
-    app.payments.register_blueprints(flask_app)
-    app.products.register_blueprints(flask_app)
-    app.purchase.register_blueprints(flask_app)
-    app.settings.register_blueprints(flask_app)
-    app.shipping.register_blueprints(flask_app)
-    app.users.register_blueprints(flask_app)
+    components_modules = [m[1] for m in globals().items() 
+                          if isinstance(m[1], types.ModuleType) 
+                             and m[1].__name__ != 'app.models'
+                             and m[1].__name__.startswith('app.') 
+                             and m[1].__file__ 
+                             and m[1].__file__.endswith('__init__.py')
+                         ]
+    for component_module in components_modules:
+        component_module.register_blueprints(flask_app)
     flask_app.logger.info('Blueprints are registered')
 
     load_modules(flask_app)
@@ -121,7 +112,3 @@ def load_modules(flask_app):
     from app.modules import init
     init(flask_app)
 
-# __frm = inspect.stack()
-# __command = __frm[len(__frm) - 1].filename
-# if __command.endswith('celery'):
-#     create_app()

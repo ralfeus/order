@@ -9,3 +9,6 @@ bp_client_admin = Blueprint('settings_client_admin', __name__,
 def register_blueprints(flask_app):
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_client_admin)
+
+from .models import *
+from . import routes

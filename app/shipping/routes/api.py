@@ -1,5 +1,4 @@
 from flask_security.decorators import roles_required
-from more_itertools import map_reduce
 from operator import itemgetter
 
 from flask import Response, abort, jsonify, request
@@ -9,7 +8,7 @@ from app.shipping import bp_api_admin, bp_api_user
 from app.exceptions import NoShippingRateError
 
 from app.models import Country
-from app.shipping.models import Shipping, ShippingRate
+from app.shipping import Shipping
 
 @bp_api_admin.route('')
 @roles_required('admin')
@@ -80,3 +79,8 @@ def get_shipping_rate(country, shipping_method_id: int, weight):
             f"Couldn't find rate for {weight}g parcel to {country.title()}",
             status=409
         ))
+
+# @bp_api_admin.route('/box')
+# @roles_required('admin')
+# def admin_get_shipping_boxes():
+#     return jsonify([box.to_dict() for box in Box.query])

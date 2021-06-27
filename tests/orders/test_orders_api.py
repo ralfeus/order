@@ -209,6 +209,25 @@ class TestOrdersApi(BaseTestCase):
             "customer_name":"User1",
             "address":"Address1",
             "country":"c1",
+            'zip': '00001111222233334444',
+            "shipping":"1",
+            "phone":"1",
+            'comment': None,
+            "suborders": [
+                {
+                    "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                    "items": [
+                        {"item_code":"0000", "quantity":"1"},
+                        {"item_code":"1", "quantity": "11"}
+                    ]
+                }
+            ]
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "country":"c1",
             'zip': '0000',
             "shipping":"1",
             "phone":"1",

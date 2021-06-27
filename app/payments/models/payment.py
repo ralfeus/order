@@ -8,7 +8,6 @@ from sqlalchemy.orm import relationship
 from app import db
 from app.exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
-from app.payments.models.transaction import Transaction
 
 payments_orders = db.Table('payments_orders',
         db.Column('payment_id', db.Integer(), db.ForeignKey('payments.id')),
@@ -71,6 +70,7 @@ class Payment(db.Model, BaseModel):
             self.add_payment(messages)
 
     def add_payment(self, messages):
+        from app.payments.models.transaction import Transaction
         transaction = Transaction(
             amount=self.amount_received_krw,
             customer=self.user,
