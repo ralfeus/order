@@ -1,4 +1,5 @@
 '''Validator for order input'''
+from app.orders.models.order import Order
 import re
 from flask_inputs import Inputs
 from wtforms import ValidationError
@@ -26,18 +27,22 @@ def _is_dhl_compliant(form, field):
             raise ValidationError(
                 f'{field.id}: The value must contain only latin latters and numbers')
 
-def _is_valid_address(form, field):
+def _is_valid_string_field(form, field):
     validators = {
         DHL: _is_dhl_compliant,
         NoShipping: None,
         PostponeShipping: None
     }
     shipping = Shipping.query.get(form.data['shipping'])
+    field_length = getattr(Order, field.name).type.length
     if type(shipping) in validators:
         if validators[type(shipping)] is not None:
             validators[type(shipping)](form, field)
     elif not field.data:
-        raise ValidationError('address:Field is required')
+        raise ValidationError(f'{field.name}:Field is required')
+    elif len(field.data) > field_length:
+        raise ValidationError(
+            f'{field.name}:Field value must not be longer than {field_length}')
 
 def _is_valid_country(_form, field):
     country = Country.query.get(field.data)
@@ -47,13 +52,13 @@ def _is_valid_country(_form, field):
 class OrderValidator(Inputs):
     '''Validator for order input'''
     json = {
-        'address': [_is_valid_address],
+        'address': [_is_valid_string_field],
         'country': [_is_valid_country],
-        'customer_name': [DataRequired('customer_name:Field is required'), _is_dhl_compliant],
-        'phone': [DataRequired("phone:Field is required"), _is_dhl_compliant],
+        'customer_name': [_is_valid_string_field],
+        'phone': [_is_valid_string_field],
         'shipping': [DataRequired("shipping:Field is required")],
         'suborders': [DataRequired("suborders:Field is required"), _are_suborders_valid],
-        'zip': [DataRequired('zip:Field is required'), _is_dhl_compliant]
+        'zip': [_is_valid_string_field]
     }
 
     def __enter__(self):

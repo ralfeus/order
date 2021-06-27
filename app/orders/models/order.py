@@ -65,7 +65,7 @@ class Order(db.Model, BaseModel):
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
     country = relationship('Country', foreign_keys=[country_id])
-    zip = Column(String(10))
+    zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(128))
     boxes = relationship(OrderBox, lazy='dynamic', cascade="all, delete-orphan")
