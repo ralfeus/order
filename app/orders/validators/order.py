@@ -19,6 +19,8 @@ def _are_suborders_valid(_form, field):
             except (KeyError, ValueError):
                 raise ValidationError(
                     f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
+        else:
+            raise ValidationError("suborder.order_product.item_code:Empty product code")
 
 def _is_dhl_compliant(form, field):
     shipping = Shipping.query.get(form.data['shipping'])

@@ -1,5 +1,4 @@
 '''API endpoints for sale order management'''
-from more_itertools.recipes import quantify
 from app.orders.models.order import OrderBox
 from datetime import datetime
 from more_itertools import map_reduce
@@ -135,11 +134,13 @@ def user_create_order():
     Accepts order details in payload
     Returns JSON
     '''
+    logger = current_app.logger.getChild('user_create_order')
     with OrderValidator(request) as validator:
         if not validator.validate():
             return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
 
     payload = request.get_json()
+    logger.debug(f"Create sale order with data: {payload}")
     result = {}
     shipping = Shipping.query.get(payload['shipping'])
     country = Country.query.get(payload['country'])
