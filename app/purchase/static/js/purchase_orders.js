@@ -253,7 +253,8 @@ function init_table() {
             var table = this;
             init_search(table, g_filter_sources)
             .then(() => init_table_filter(table));
-            if (table.DataTable().row(0).data().purchase_restricted_products === null) {
+            if (table.DataTable().row(0).length == 0 ||
+                table.DataTable().row(0).data().purchase_restricted_products === null) {
                 table.DataTable().column('purchase_restricted:name').visible(false, true);
             }
         }
