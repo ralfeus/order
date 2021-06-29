@@ -95,7 +95,7 @@ function save_order(target, row) {
     if (row.data().status != new_status) {
         modal(
             "Order status change", 
-            "Are you sure you want to change order status to <" + new_status + ">?",
+            "Are you sure you want to change order status to &lt;" + new_status + "&gt;?",
             "confirmation")
         .then(result => {
             if (result == 'yes') {
@@ -125,7 +125,7 @@ function save_order_action(order_node, row) {
             $('.wait').hide();
         },
         success: function(data) {
-            row.data(data).draw();
+            row.data(data.data[0]).draw();
         },
         error: xhr => {
             modal('Order save error', xhr.responseText);
@@ -439,7 +439,7 @@ function set_status(target, new_status) {
                             }
                         },
                         success: (data, status, xhr) => {
-                            g_orders_table.row("#" + data.id).data(data).draw();
+                            g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
                         },
                         error: (xhr, status, error) => {
                             modal("Set order status failure", xhr.responseText);
