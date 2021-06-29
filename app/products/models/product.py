@@ -35,7 +35,7 @@ class Product(db.Model, BaseModel):
     available_shipping = relationship(Shipping, secondary=_products_shipping, lazy='dynamic')
     # Appearance
     image_id = Column(Integer, ForeignKey('files.id'))
-    image = relationship(File, lazy='dynamic')
+    image = relationship(File, uselist=False)
     color = Column(String(7))
 
     def __repr__(self):
