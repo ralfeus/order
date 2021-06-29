@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 
 from app import db
 from app.models.base import BaseModel
+from app.models.file import File
 from app.shipping.models import Shipping
 
 _products_shipping = db.Table('products_shipping',
@@ -31,8 +32,10 @@ class Product(db.Model, BaseModel):
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)
     purchase = Column(Boolean, default=True)
-    available_shipping = relationship('Shipping', secondary=_products_shipping, lazy='dynamic')
+    available_shipping = relationship(Shipping, secondary=_products_shipping, lazy='dynamic')
     # Appearance
+    image_id = Column(Integer, ForeignKey('files.id'))
+    image = relationship(File, lazy='dynamic')
     color = Column(String(7))
 
     def __repr__(self):
