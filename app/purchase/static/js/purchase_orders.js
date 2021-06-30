@@ -179,7 +179,7 @@ function init_table() {
         ]
     });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
-        g_edit_editor.inline(this, { submitOnBlur: true, drawType: 'none'});
+        g_edit_editor.inline(this, { onBlur: 'submit', drawType: 'none'});
     }); 
 
     g_purchase_orders_table = $('#purchase_orders').DataTable({
