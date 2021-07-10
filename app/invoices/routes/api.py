@@ -123,25 +123,33 @@ def create_invoice_excel(reference_invoice):
     total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
     ws = invoice_wb.worksheets[0]
     pl = invoice_wb.worksheets[1]
-
+    payee = reference_invoice.orders[0].get_payee()
     # Set invoice header
     ws.cell(7, 2, reference_invoice.id)
     ws.cell(7, 5, reference_invoice.when_created)
+    ws.cell(13, 2, payee.contact_person)
     ws.cell(13, 4, reference_invoice.customer)
     ws.cell(15, 2, reference_invoice.payee)
+    ws.cell(17, 2, payee.address.address_1_eng)
     ws.cell(17, 4, reference_invoice.orders[0].address)
-    ws.cell(21, 4, '') # city
+    ws.cell(19, 2, payee.address.address_2_eng)
+    ws.cell(21, 2, payee.address.city_eng)
     ws.cell(23, 5, reference_invoice.orders[0].country.name)
+    ws.cell(25, 2, payee.phone)
     ws.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set packing list header
     pl.cell(7, 2, reference_invoice.id)
     pl.cell(7, 5, reference_invoice.when_created)
+    pl.cell(13, 2, payee.contact_person)
     pl.cell(13, 4, reference_invoice.customer)
-    ws.cell(15, 2, reference_invoice.payee)
+    pl.cell(15, 2, reference_invoice.payee)
+    pl.cell(17, 2, payee.address.address_1_eng)
     pl.cell(17, 4, reference_invoice.orders[0].address)
-    pl.cell(21, 4, '') # city
+    pl.cell(19, 2, payee.address.address_2_eng)
+    pl.cell(21, 2, payee.address.city_eng)
     pl.cell(23, 5, reference_invoice.orders[0].country.name)
+    pl.cell(25, 2, payee.phone)
     pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer
