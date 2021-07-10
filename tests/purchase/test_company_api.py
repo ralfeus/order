@@ -45,7 +45,10 @@ class TestCompanyClient(BaseTestCase):
                 'name': 'Address_1',
                 'address_1': None,
                 'address_2': None,
-                'zip': None
+                'zip': None,
+                'address_1_eng': None,
+                'address_2_eng': None,
+                'city_eng': None
             },
             'bank_id': '01',
             'contact_person': 'person1'
