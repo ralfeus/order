@@ -129,6 +129,8 @@ def create_invoice_excel(reference_invoice):
     ws.cell(7, 5, reference_invoice.when_created)
     ws.cell(13, 4, reference_invoice.customer)
     ws.cell(15, 2, reference_invoice.payee)
+    # ws.cell(17, 2, reference_invoice.address_1)
+    # ws.cell(19, 2, reference_invoice.address_2)
     ws.cell(17, 4, reference_invoice.orders[0].address)
     ws.cell(21, 4, '') # city
     ws.cell(23, 5, reference_invoice.orders[0].country.name)

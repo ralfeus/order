@@ -131,46 +131,6 @@ function init_payments_table() {
                 }
             }
         },
-        // ajax: (_method, _url, data, success, error_callback) => {
-        //     var payment_id = Object.entries(data.data)[0][0];
-        //     var target = Object.entries(data.data)[0][1];
-        //     target.evidences = target.evidences.map(e => (e.url 
-        //         ? {
-        //             path: e.path
-        //         }
-        //         : {
-        //             id: e[0],
-        //             file_name: g_editor.files().files[e].filename
-        //     }));
-        //     var method = 'post';
-        //     var url = '/api/v1/admin/payment/' + payment_id;
-        //     if (data.action === 'create') {
-        //         url = '/api/v1/admin/payment';
-        //         payment_id = target.id;
-        //     }
-        //     $.ajax({
-        //         url: url,
-        //         method: method,
-        //         dataType: 'json',
-        //         contentType: 'application/json',
-        //         data: JSON.stringify(target),
-        //         success: data => { success(data); },
-        //         error: (xhr, error, status) => {
-        //             if (xhr.responseJSON) {
-        //                 var error_data = xhr.responseJSON
-        //                 if (error_data.error) {
-        //                     g_editor.error(error_data.error);
-        //                 }
-        //                 error_data.fieldErrors.forEach(e => {
-        //                     if (g_editor.fields().includes(e.name)) {
-        //                         g_editor.error(e.name, e.status);
-        //                     }
-        //                 });
-        //             }
-        //             error_callback(xhr, error, status);
-        //         }
-        //     });
-        // },
         table: '#payments',
         idSrc: 'id',
         fields: [

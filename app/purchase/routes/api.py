@@ -6,7 +6,6 @@ from flask import Response, abort, current_app, jsonify, request
 from flask_security import roles_required
 
 from sqlalchemy import or_
-from werkzeug.exceptions import HTTPException
 
 from app import db
 from app.purchase import bp_api_admin
@@ -172,69 +171,3 @@ def get_statuses():
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))
-
-
-@bp_api_admin.route('/company', defaults={'company_id': None})
-@bp_api_admin.route('/company/<company_id>')
-@roles_required('admin')
-def get_company(company_id):
-    ''' Returns all or selected company in JSON '''
-    company = Company.query
-    if company_id is not None:
-        company = company.filter_by(id=company_id)
-        
-    return jsonify([entry.to_dict() for entry in company])
-    
-@bp_api_admin.route('/company/<company_id>', methods=['POST'])
-@bp_api_admin.route('/company', methods=['POST'], defaults={'company_id': None})
-@roles_required('admin')
-def save_company(company_id):
-    ''' Creates or modifies existing company '''
-    payload = request.get_json()
-    if not payload:
-        abort(Response('No data was provided', status=400))
-
-    if payload.get('id'):
-        try:
-            float(payload['id'])
-        except: 
-            abort(Response('Not number', status=400))
-
-    company = None
-    if company_id is None:
-        company = Company()
-        company.when_created = datetime.now()
-        db.session.add(company)
-    else:
-        company = Company.query.get(company_id)
-        if not company:
-            abort(Response(f'No company <{company_id}> was found', status=400))
-
-    # for key, value in payload.items():
-
-    #     if getattr(company, key) != value:
-    #         setattr(company, key, value)
-    #         company.when_changed = datetime.now()
-    payload['tax_id_1'], payload['tax_id_2'], payload['tax_id_3'] = payload['tax_id'].split('-')
-    modify_object(company, payload, 
-        ['name', 'contact_person', 'tax_id_1', 'tax_id_2', 'tax_id_3', 'phone',
-         'address_id', 'bank_id'])
-
-    db.session.commit()
-    return jsonify(company.to_dict())
-
-@bp_api_admin.route('/company/<company_id>', methods=['DELETE'])
-@roles_required('admin')
-def delete_company(company_id):
-    '''
-    Deletes existing company item
-    '''
-    company = Company.query.get(company_id)
-    if not company:
-        abort(Response(f'No company <{company_id}> was found', status=404))
-
-    db.session.delete(company)
-    db.session.commit()
-    return jsonify({
-        'status': 'success'
-    })

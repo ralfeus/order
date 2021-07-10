@@ -9,21 +9,18 @@
 {{ super() }}
 <h1>Companies {{ id }}</h1>
 <div class="container row col-12">
-    <div class="col-8">
-        <table id="companies" class="table" style="width: 100%;">
-            <thead>
-                <th scope="col">Id</th>
-                <th scope="col">Name</th>
-                <th scope="col">Tax_id</th>
-                <th scope="col">Phone</th>
-                <th scope="col">Address</th>
-                <th scope="col">Bank_id</th>
-                <th scope="col">Contact_person</th>
-
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-    
+    <table id="companies" class="table" style="width: 100%;">
+        <thead>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Tax ID</th>
+            <th scope="col">Phone</th>
+            <th scope="col">Address</th>
+            <th scope="col">Bank</th>
+            <th scope="col">Contact_person</th>
+            <th scope="col">Simplified taxation</th>
+        </thead>
+        <tbody></tbody>
+    </table>    
 </div>
 {% endblock %}
