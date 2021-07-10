@@ -230,7 +230,12 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'user_name'},
-            {name: 'orders', data: 'orders'},
+            {
+                name: 'orders', data: 'orders', 
+                render: data => {
+                    return "<a href=\"/admin/orders?id=" + data + "\">" + data + "</a>";
+                }
+            },
             {
                 name: 'payment_method',
                 data: (row, type, set, meta) => {
