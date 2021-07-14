@@ -13,10 +13,10 @@ from app.purchase.jobs import *
 import cProfile
 
 with create_app().app_context():
-    po = PurchaseOrder.query.get('PO-2021-04-0002-001')
+    po = PurchaseOrder.query.get('PO-2021-02-0001-016')
     po.status = PurchaseOrderStatus.pending
     po.vendor = 'AtomyQuick'
-    po.company_id = 4
+    # po.company_id = 4
     po.customer.username = '23426444'
     po.customer.password = 'atomy#01'
     po.purchase_restricted_products = True
@@ -29,7 +29,7 @@ with create_app().app_context():
 #         po.vendor,5
 #         browser=browser, config=current_app.config)
 #     vendor.post_purchase_order(po)
-    post_purchase_orders(po_id='PO-2021-04-0002-001')
+    post_purchase_orders(po_id='PO-2021-02-0001-016')
     db.session.rollback()
     # print(po.to_dict())
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')

@@ -36,8 +36,9 @@ def save_address(address_id):
 
     address = None
     if address_id is None:
-        address = Address()
-        address.when_created = datetime.now()
+        address = Address(
+            user_created=True,
+            when_created=datetime.now())
         db.session.add(address)
     else:
         address = Address.query.get(address_id)
@@ -52,7 +53,7 @@ def save_address(address_id):
 
     modify_object(address, payload,
         ['name', 'zip', 'address_1', 'address_2', 'address_1_eng', 
-         'address_2_eng', 'city_eng']
+         'address_2_eng', 'city_eng', 'delivery_comment']
     )
 
     db.session.commit()

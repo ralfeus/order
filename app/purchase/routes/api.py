@@ -94,6 +94,7 @@ def create_purchase_order():
             zip=company.address.zip,
             address_1=company.address.address_1,
             address_2=company.address.address_2,
+            address=company.address,
             company=company,
             vendor=vendor.id,
             purchase_restricted_products=payload.get('purchase_restricted_products', False),

@@ -29,8 +29,7 @@ $(document).ready(() => {
         },
         table: '#addresses',
         idSrc: 'id',
-        fields: [
-          
+        fields: [ 
             {label: 'Name', name: 'name'},
             {label: 'Zip', name: 'zip'},
             {label: 'Address 1', name: 'address_1'},
@@ -38,6 +37,7 @@ $(document).ready(() => {
             {label: 'Address 1 (eng)', name: 'address_1_eng'},
             {label: 'Address 2 (eng)', name: 'address_2_eng'},
             {label: 'City (eng)', name: 'city_eng'},
+            {label: 'Delivery comment', name: 'delivery_comment'}
         ]
     });
     $('#addresses').on( 'click', 'td.editable', function (e) {

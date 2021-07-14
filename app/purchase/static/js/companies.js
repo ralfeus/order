@@ -26,15 +26,17 @@ function init_table() {
     function advanced_taxation_hide() {
         editor.field('tax_phone').hide();
         editor.field('tax_address.id').hide();
-        editor.field('business_status').hide();
-        editor.field('business_sectors').hide();
+        editor.field('email').hide();
+        editor.field('business_type').hide();
+        editor.field('business_category').hide();
     }
     
     function advanced_taxation_show() {
         editor.field('tax_phone').show();
         editor.field('tax_address.id').show();
-        editor.field('business_status').show();
-        editor.field('business_sectors').show();
+        editor.field('email').show();
+        editor.field('business_type').show();
+        editor.field('business_category').show();
     }
         
     var editor = new $.fn.dataTable.Editor({
@@ -99,8 +101,9 @@ function init_table() {
                     label: c.name
                 }))                
             },
-            {label: 'Business status', name: 'business_status'},
-            {label: 'Business sectors', name: 'business_sectors'}
+            {label: 'E-mail', name: 'email'},
+            {label: 'Business type', name: 'business_type'},
+            {label: 'Business category', name: 'business_category'}
         ]
     });
     editor.on('open', () => {

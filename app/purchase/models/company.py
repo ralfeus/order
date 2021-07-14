@@ -21,8 +21,9 @@ class Company(db.Model, BaseModel):
     tax_phone = Column(String(13))
     tax_address_id = Column(Integer, ForeignKey('addresses.id'))
     tax_address = relationship(Address, foreign_keys=[tax_address_id])
-    business_status = Column(String(64))
-    business_sectors = Column(String(64))
+    business_type = Column(String(64))
+    business_category = Column(String(64))
+    email = Column(String(64))
     bank_id = Column(String(2))
 
     def __repr__(self):
@@ -47,6 +48,7 @@ class Company(db.Model, BaseModel):
             'tax_simplified': self.tax_simplified,
             'tax_address': self.tax_address.to_dict() if self.tax_address else None,
             'tax_phone': self.tax_phone,
-            'business_status': self.business_status,
-            'business_sectors': self.business_sectors
+            'email': self.email,
+            'business_type': self.business_type,
+            'business_category': self.business_category
         }

@@ -47,12 +47,14 @@ def save_company(company_id):
             abort(Response(f'No company <{company_id}> was found', status=400))
 
     payload['tax_id_1'], payload['tax_id_2'], payload['tax_id_3'] = payload['tax_id'].split('-')
-    payload['address_id'] = payload['address']['id']
-    payload['tax_address_id'] = payload['tax_address']['id']
+    if payload.get('address') is not None:
+        payload['address_id'] = payload['address']['id']
+    if payload.get('tax_address') is not None:
+        payload['tax_address_id'] = payload['tax_address']['id']
     modify_object(company, payload,
         ['name', 'contact_person', 'tax_id_1', 'tax_id_2', 'tax_id_3', 'phone',
          'address_id', 'bank_id', 'tax_simplified', 'tax_phone', 'tax_address_id',
-         'business_status', 'business_sectors'])
+         'business_type', 'business_category', 'email'])
 
     db.session.commit()
     return jsonify({'data': [company.to_dict()]})
