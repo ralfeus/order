@@ -256,7 +256,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.debug("Setting combined shipment params")
             self.__po_params['PackingGubun'] = 1
             self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
-                '/' + purchase_order.address['zip']
+                '/' + purchase_order.address.zip
         else:
             logger.debug('No combined shipment is needed')
             self.__po_params['PackingGubun'] = 0
