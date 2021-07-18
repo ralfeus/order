@@ -61,11 +61,11 @@ def register_components(flask_app):
 
     flask_app.register_blueprint(api)
     flask_app.register_blueprint(client)
-    components_modules = [m[1] for m in globals().items() 
-                          if isinstance(m[1], types.ModuleType) 
+    components_modules = [m[1] for m in globals().items()
+                          if isinstance(m[1], types.ModuleType)
                              and m[1].__name__ != 'app.models'
-                             and m[1].__name__.startswith('app.') 
-                             and m[1].__file__ 
+                             and m[1].__name__.startswith('app.')
+                             and m[1].__file__
                              and m[1].__file__.endswith('__init__.py')
                          ]
     for component_module in components_modules:

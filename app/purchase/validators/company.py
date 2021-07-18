@@ -8,6 +8,10 @@ def _is_integer(_form, field):
     if not re.match(r'\d+', field.data):
         raise ValidationError(f'{field.id}:Must be integer')
 
+def _is_valid_phone(_form, field):
+    if not re.match(r'\d{3}-\d{4}-\d{4}', field.data):
+        raise ValidationError(f'{field.id}:Must be in format 000-0000-0000')
+
 def _is_valid_tax_id(_form, field):
     if not re.match(r'\d{3}-\d{2}-\d{5}', field.data):
         raise ValidationError('tax_id:Must be in format 000-00-0000')
@@ -20,7 +24,9 @@ class CompanyValidator(Inputs):
     '''Validator for order input'''
     json = {
         'id': [Optional(), _is_integer],
-        'tax_id': [_no_empty_field, _is_valid_tax_id]
+        'phone': [Optional(), _is_valid_phone],
+        'tax_id': [_no_empty_field, _is_valid_tax_id],
+        'tax_phone': [Optional(), _is_valid_phone]
     }
 
     def __enter__(self):
