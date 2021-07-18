@@ -11,6 +11,7 @@ from app import db
 from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query, modify_object
 
+from app.models.address import Address
 from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 
@@ -70,15 +71,9 @@ def create_purchase_order():
     payload = request.get_json()
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
-    
     order = Order.query.get(payload['order_id'])
-    if not order:
-        abort(Response("No order to purchase was found", status=400))
-
     company = Company.query.get(payload['company_id'])
-    if not company:
-        abort(Response("No counter agent company was found", status=400))
-
+    address = Address.query.get(payload['address_id'])
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
@@ -91,10 +86,10 @@ def create_purchase_order():
             contact_phone=payload['contact_phone'],
             payment_phone=company.phone,
             status=PurchaseOrderStatus.pending,
-            zip=company.address.zip,
-            address_1=company.address.address_1,
-            address_2=company.address.address_2,
-            address=company.address,
+            zip=address.zip,
+            address_1=address.address_1,
+            address_2=address.address_2,
+            address=address,
             company=company,
             vendor=vendor.id,
             purchase_restricted_products=payload.get('purchase_restricted_products', False),

@@ -1,3 +1,4 @@
+var g_addresses;
 var g_companies;
 var g_create_editor;
 var g_edit_editor;
@@ -53,6 +54,11 @@ function get_companies() {
 
 async function get_dictionaries() {
     // g_vendors = await get_vendors();
+    g_addresses = (await get_list('/api/v1/address')).map(
+        a => ({
+            value: a.id,
+            label: a.name
+        }));
     g_vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
         i => {
             entry = Object.entries(i)[0]; 
@@ -122,6 +128,12 @@ function init_table() {
                 label: 'Company', 
                 name: 'company_id',
                 type: 'select2'
+            },
+            {
+                label: 'Address',
+                name: 'address_id',
+                type: 'select2',
+                options: g_addresses
             },
             {label: 'Contact phone', name: 'contact_phone'},
             {
@@ -280,6 +292,7 @@ function on_company_change() {
     if (g_create_editor.field('company_id').val()) {
         var company = g_companies.filter(c => c.id == g_create_editor.field('company_id').val())[0];
         g_create_editor.field('contact_phone').val(company.phone);
+        g_create_editor.field('address_id').val(company.address.id);
     }
 }
 
