@@ -272,7 +272,8 @@ function edit_shipment(sender) {
 
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
-        dom: 'lrBtip',
+        // dom: 'lfrBtip',
+        lengthChange: false,
         buttons: [
             {
                 extend: 'print',
@@ -291,7 +292,8 @@ function init_orders_table() {
                         text: s
                     }
                 })]
-            }
+            },
+            'pageLength'
         ],
         ajax: {
             url: '/api/v1/admin/order',
@@ -400,6 +402,7 @@ function init_orders_table() {
         },
         initComplete: function() { 
             var table = this;
+            this.api().buttons().container().appendTo( '#orders_wrapper .col-sm-12:eq(0)' ); 
             init_search(table, g_filter_sources) 
             .then(() => init_table_filter(table));
         }

@@ -26,19 +26,14 @@ class BaseModel:
                 setattr(self, arg, kwargs[arg])
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column = None, filter_value = None):
+        '''Abstract method for returning a filter for a model'''
         raise NotImplementedError(f'get_filter() is not implemented for {cls}')
 
     def delete(self):
+        '''Deletes an entity itself'''
         db.session.delete(self)
 
     def is_editable(self):
+        '''Returns a state of the entity whether it's editable'''
         return True
-
-
-    # @classmethod
-    # def from_dict(cls, attr):
-    #     for attribute in cls.__dict__.items():
-    #         if attribute[0] == attr:
-    #             return attribute[1]
-    #     return None

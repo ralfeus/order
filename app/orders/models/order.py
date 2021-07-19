@@ -10,7 +10,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
-    String, func
+    String, func, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -204,12 +204,23 @@ class Order(db.Model, BaseModel):
         super().delete()
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column = None, filter_value = None):
+        if filter_value is None:
+            return base_filter
         from .suborder import Suborder
         from app.purchase.models.purchase_order import PurchaseOrder
         from app.users.models.user import User
         part_filter = f'%{filter_value}%'
         filter_values = filter_value.split(',')
+        if column is None:
+            return \
+                base_filter.filter(or_(
+                    cls.id.like(part_filter),
+                    cls.customer_name.like(part_filter),
+                    cls.user.has(User.username.like(part_filter)),
+                    cls.comment.like(part_filter),
+                    cls.status.like(part_filter)
+                ))
         if isinstance(column, str):
             return \
                 base_filter.filter(

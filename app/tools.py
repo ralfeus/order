@@ -61,24 +61,23 @@ def prepare_datatables_query(query, args, filter_clause):
     records_total = query.count()
     query_filtered = query
     # Filtering .....
+    target_model = query_filtered.column_descriptions[0]['entity']
     if isinstance(args['search']['value'], str) and args['search']['value'] != '':
-        query_filtered = query.filter(filter_clause)
-    else:
-        for column_data in columns:
-            if column_data['search']['value'] != '':
-                column_name = column_data['name'] if column_data['name'] else column_data['data']
-                column = get_column(query_filtered, column_name)
-                target_model = query_filtered.column_descriptions[0]['entity']
+        query_filtered = target_model.get_filter(query_filtered, None, args['search']['value'])
+    for column_data in columns:
+        if column_data['search']['value'] != '':
+            column_name = column_data['name'] if column_data['name'] else column_data['data']
+            column = get_column(query_filtered, column_name)
+            try:
+                query_filtered = target_model \
+                    .get_filter(query_filtered, column, column_data['search']['value'])
+            except NotImplementedError:
                 try:
-                    query_filtered = target_model \
-                        .get_filter(query_filtered, column, column_data['search']['value'])
-                except NotImplementedError:
-                    try:
-                        query_filtered = query_filtered.filter(
-                            get_column(query_filtered, column_name)
-                                .like('%' + column_data['search']['value'] + '%'))
-                    except:
-                        raise FilterError(f"Couldn't figure out how to filter the column '{column_name}' in the object {target_model}. Probably {target_model} has no get_filter() implemented or get_filter() doesn't filter by '{column_name}'")
+                    query_filtered = query_filtered.filter(
+                        get_column(query_filtered, column_name)
+                            .like('%' + column_data['search']['value'] + '%'))
+                except:
+                    raise FilterError(f"Couldn't figure out how to filter the column '{column_name}' in the object {target_model}. Probably {target_model} has no get_filter() implemented or get_filter() doesn't filter by '{column_name}'")
     records_filtered = query_filtered.count()
     # Sorting
     for sort_column_input in args['order']:

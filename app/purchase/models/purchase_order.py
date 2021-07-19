@@ -97,7 +97,9 @@ class PurchaseOrder(db.Model, BaseModel):
         return "<PurchaseOrder: {}>".format(self.id)
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column=None, filter_value=None):
+        if column is None or filter_value is None:
+            return base_filter
         from app.orders.models.subcustomer import Subcustomer
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):
@@ -119,6 +121,12 @@ class PurchaseOrder(db.Model, BaseModel):
                     Suborder.buyout_date == filter_value)) \
                     if column == 'purchase_date' \
                 else base_filter
+        if isinstance(column, str):
+            return \
+                base_filter.filter(PurchaseOrder.customer.has(
+                    Subcustomer.name.like(part_filter))) \
+                    if column == 'customer.name' \
+                    else base_filter
         return base_filter
 
     def is_editable(self):

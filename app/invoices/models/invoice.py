@@ -89,7 +89,9 @@ class Invoice(db.Model):
         return f"<Invoice: {self.id}>"
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column = None, filter_value = None):
+        if column == None or filter_value == None:
+            return base_filter
         from app.orders.models.order import Order
         part_filter = f'%{filter_value}%'
         return \
