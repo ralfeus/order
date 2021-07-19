@@ -49,7 +49,7 @@ class Product(db.Model, BaseModel):
 
     @classmethod
     def get_filter(cls, base_filter, column = None, filter_value = None):
-        if column == None or filter_value == None:
+        if column is None or filter_value is None:
             return base_filter
         part_filter = f'%{filter_value}%'
         return \
