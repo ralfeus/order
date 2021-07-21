@@ -4,6 +4,7 @@ import os
 import types
 
 from flask import Flask
+from flask.signals import Namespace
 from flask_bootstrap import Bootstrap
 from flask_migrate import Migrate
 from flask_security import Security
@@ -18,6 +19,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 # login = LoginManager()
 security = Security()
+signals = Namespace()
 
 def create_app(config=None):
     ''' Application factory '''

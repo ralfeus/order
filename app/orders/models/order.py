@@ -124,6 +124,9 @@ class Order(db.Model, BaseModel):
 
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
+        if value == OrderStatus.packed:
+            from ..signals import sale_order_packed
+            sale_order_packed.send(self)
         if value == OrderStatus.shipped:
             from app.orders.models.order_product import OrderProductStatus
             unfinished_ops = []
