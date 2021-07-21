@@ -94,6 +94,12 @@ class Payment(db.Model, BaseModel):
                     order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
                     messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
 
+    def execute_payment(self):
+        '''
+        Execute the paymant automatically
+        '''
+        
+
     def to_dict(self):
         '''
         Get representation of the payment as dictionary for JSON conversion
