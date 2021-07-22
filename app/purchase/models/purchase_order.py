@@ -155,6 +155,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'suborder_id': self.suborder_id,
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
+            'company': self.company.name,
             'total_krw': self.suborder.total_krw,
             'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,

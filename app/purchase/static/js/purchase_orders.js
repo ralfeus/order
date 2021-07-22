@@ -66,8 +66,8 @@ async function get_dictionaries() {
         });
     g_po_statuses = await get_list('/api/v1/admin/purchase/status')
     g_filter_sources = {
-        'vendor': g_vendors.map(v => ({id: v.value, text: v.label})),
-        'status': g_po_statuses
+        vendor: g_vendors.map(v => ({id: v.value, text: v.label})),
+        status: g_po_statuses
     };
 }
 
@@ -127,7 +127,8 @@ function init_table() {
             {
                 label: 'Company', 
                 name: 'company_id',
-                type: 'select2'
+                type: 'select2',
+                options: g_companies
             },
             {
                 label: 'Address',
@@ -236,6 +237,7 @@ function init_table() {
             {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
+            {name: 'company', data: 'company', orderable: false},
             {
                 data: 'status',
                 render: function (data, type, row, meta) {
@@ -250,7 +252,7 @@ function init_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[10, 'desc']],
+        order: [[11, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
