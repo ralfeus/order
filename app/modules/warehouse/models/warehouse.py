@@ -57,7 +57,13 @@ class WarehouseProduct(db.Model):
     product = relationship(Product)
     quantity = Column(Integer)
 
-    def __init__(self, warehouse=None, product=None, quantity=0):
-        self.warehouse = warehouse
-        self.product = product
-        self.quantity = quantity
+    def to_dict(self):
+        return {
+            'warehouse_id': self.warehouse_id,
+            'warehouse': self.warehouse.to_dict(),
+            'product_id': self.product_id,
+            'product': {
+                'name': self.product.name
+            },
+            'quantity': self.quantity
+        }

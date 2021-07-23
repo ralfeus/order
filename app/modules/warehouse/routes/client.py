@@ -14,3 +14,9 @@ def get_static(file):
 def admin_get_warehouses():
     '''Warehouse management'''
     return render_template('admin_warehouses.html')
+
+@bp_client_admin.route('/<warehouse_id>')
+@roles_required('admin')
+def admin_get_warehouse(warehouse_id):
+    '''Warehouse products management'''
+    return render_template('admin_warehouse_products.html', warehouse_id=warehouse_id)

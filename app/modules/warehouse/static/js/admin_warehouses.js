@@ -58,7 +58,10 @@ function init_warehouses_table() {
         rowId: 'id',
         columns: [
             {name: 'id', data: 'id'},
-            {data: 'name'},
+            {
+                data: 'name',
+                render: (data, _d1, object) => "<a href=\"/admin/warehouses/" + object.id + "\">" + data + "</a>"
+            },
             {data: 'is_local'},
             {data: 'when_created'},
             {data: 'when_changed'}
