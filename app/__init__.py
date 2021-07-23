@@ -4,11 +4,14 @@ import os
 import types
 
 from flask import Flask
+from flask.signals import Namespace
 from flask_bootstrap import Bootstrap
 from flask_migrate import Migrate
 from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_sqlalchemy import SQLAlchemy
+# from flask_navbar import Nav
+# from flask_navbar.elements import Link, Navbar, Subgroup, View
 
 from app.utils.services import get_celery, init_celery
 
@@ -16,8 +19,9 @@ celery = get_celery(__name__,
                     job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
 db = SQLAlchemy()
 migrate = Migrate()
-# login = LoginManager()
 security = Security()
+signals = Namespace()
+# nav = Nav()
 
 def create_app(config=None):
     ''' Application factory '''
@@ -38,6 +42,7 @@ def create_app(config=None):
     security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(flask_app)
+    # init_navbar(flask_app)
     if flask_app.config.get('DEBUG'):
         init_debug(flask_app)
    
@@ -97,6 +102,9 @@ def init_debug(flask_app):
             # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
         flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')
 
+# def init_navbar(app):
+#     nav.init_app(app)
+
 def init_logging(flask_app):
     logger = logging.getLogger()
     logger.setLevel(flask_app.config['LOG_LEVEL'])
@@ -111,3 +119,23 @@ def load_modules(flask_app):
     from app.modules import init
     init(flask_app)
 
+# from blinker import ANY
+# from flask_login.signals import user_logged_in, user_accessed, user_loaded_from_cookie
+# @user_loaded_from_cookie.connect_via(ANY)
+# @user_logged_in.connect_via(ANY)
+# def register_navbar(sender, user, **kwargs):
+#     user_navbar = Navbar(
+#         Subgroup('Orders',
+#             View('Orders', 'user_orders'),
+#             View('Draft orders', 'get_order_drafts'),
+#             View('New order', 'user_new_order'),
+#             View('Ordered products', 'user_order_products')
+#         ),
+#         View('Wallet', 'user_wallet'),
+#         Link('Logout', '/logout')
+#     )
+#     admin_navbar = Navbar(title="Admin")
+#     if user is not None and user.has_role('admin'):
+#         nav.register_element('top', admin_navbar)
+#     else:
+#         nav.register_element('top', user_navbar)

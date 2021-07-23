@@ -62,7 +62,7 @@ def admin_get_product(product_id):
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return _filter_products(products, request.values)
 
-    return jsonify([product.to_dict(details=True) for product in products])
+    return jsonify([product.to_dict(details=False) for product in products])
 
 def _filter_products(products, filter_params):
     products, records_total, records_filtered = prepare_datatables_query(

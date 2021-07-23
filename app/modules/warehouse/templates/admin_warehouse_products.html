@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_warehouse_products.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<input type="hidden" id="warehouse_id" value="{{ warehouse_id }}" />
+<div class="container-fluid">
+    <table id="warehouse_products" class="table">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 2em;">Product&nbsp;ID</th>
+                <th scope="col" style="width: max-content;">Product Name</th>
+                <th scope="col" style="width: 8em;">Quantity</th>
+            </tr>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+{% endblock %}
