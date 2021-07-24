@@ -448,6 +448,7 @@ class Order(db.Model, BaseModel):
                               self.order_products, 0))
         # Set shipping
         ws.cell(1, 6, self.shipping.name)
+        ws.cell(1, 7, self.tracking_id)
         ws.cell(2, 6, self.country.name)
         # Set packaging
         ws.cell(11, 7, self.shipping_box_weight)
