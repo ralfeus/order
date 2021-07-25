@@ -22,6 +22,7 @@ $.fn.dataTable.ext.buttons.status = {
 
 $.fn.dataTable.ext.buttons.excel = {
     extend: 'selected',
+    text: 'Export to Excel',
     action: function(e, dt, node, config) {
         open_order_invoice(dt.rows({selected: true}));
     }
@@ -291,7 +292,7 @@ function init_orders_table() {
                 }
             },
             {extend: 'invoice', text: 'Create invoice'},
-            {extend: 'excel', text: 'Export to excel'},
+            {extend: 'excel'},
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -358,9 +359,6 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-open" \
                         onclick="open_order(this);">Open</button> \
                     <button \
-                        class="btn btn-sm btn-secondary btn-invoice" \
-                        onclick="open_order_invoice(this);">Invoice</button> \
-                    <button \
                         class="btn btn-sm btn-secondary btn-shipment" \
                         onclick="edit_shipment(this);">Shipment</button>'
             },            
@@ -404,9 +402,6 @@ function init_orders_table() {
         createdRow: (row, data) => {
             if (data.status != 'packed') {
                 $('.btn-shipment', row).remove();
-            }
-            if (data.status != 'shipped') {
-                $('.btn-invoice', row).remove();
             }
         },
         initComplete: function() { 
