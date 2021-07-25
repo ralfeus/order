@@ -7,6 +7,7 @@ var g_shipping_methods;
 // var g_boxes;
 
 $.fn.dataTable.ext.buttons.invoice = {
+    extend: 'selected',
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
     }
@@ -16,6 +17,13 @@ $.fn.dataTable.ext.buttons.status = {
     extend: 'selected',
     action: function(e, dt, node, config) {
         set_status(dt.rows({selected: true}), this.text());
+    }
+};
+
+$.fn.dataTable.ext.buttons.excel = {
+    extend: 'selected',
+    action: function(e, dt, node, config) {
+        open_order_invoice(dt.rows({selected: true}));
     }
 };
 
@@ -283,6 +291,7 @@ function init_orders_table() {
                 }
             },
             {extend: 'invoice', text: 'Create invoice'},
+            {extend: 'excel', text: 'Export to excel'},
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -414,9 +423,19 @@ function open_order(target) {
 }
 
 function open_order_invoice(target) {
-    window.location = '/api/v1/order/' + 
-        g_orders_table.row($(target).parents('tr')).data().id +
-        '/excel';
+    var error = '';
+    for (var i = 0; i < target.count(); i++) {
+        if (target.data()[i].status == 'shipped') {
+            window.open('/api/v1/order/' + target.data()[i].id + '/excel');
+        } else {
+            error += "Can't export order " + 
+                target.data()[i].id + 
+                " to Excel because it's not in 'shipped' status<br />"
+        }
+    }
+    if (error != '') {
+        modal('Order excel export error', error)
+    }
 }
 
 function set_status(target, new_status) {
