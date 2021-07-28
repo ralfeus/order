@@ -80,8 +80,8 @@
               </ul>
             </li>
             <li class="dropdown-submenu">
-              <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button" aria-haspopup="true" aria-expanded="false"
-                data-toggle="dropdown" href="#">Lists</a>
+              <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button"
+                aria-haspopup="true" aria-expanded="false" data-toggle="dropdown" href="#">Lists</a>
               <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                 <li><a class="dropdown-item" href="/admin/currencies">Currencies</a></li>
                 <li><a class="dropdown-item" href="/admin/addresses">Addresses</a></li>
@@ -91,6 +91,13 @@
                 <li><a class="dropdown-item" href="/admin/orders/subcustomers">Subcustomers</a></li>
                 <li><a class="dropdown-item" href="/admin/users">Users</a></li>
               </ul>          
+            </li>
+            <li class="dropdown-submenu">
+              <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button"
+                aria-haspopup="true" aria-expanded="false" data-toggle="dropdown" href="#">Warehouse management</a>
+              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="/admin/warehouses">Warehouses</a></li>
+              </ul>
             </li>
           </ul>
         </li>
@@ -126,6 +133,11 @@
     </div>
   </nav>
 {% endblock %}
+
+{#% block navbar %}
+{{nav.top.render()}}
+{% endblock %#}
+
 
 {% block content %}
 {{ super() }}

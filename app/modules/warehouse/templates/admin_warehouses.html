@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_warehouses.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="warehouses" class="table">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 2em;">Warehouse&nbsp;ID</th>
+                <th scope="col" style="width: max-content;">Name</th>
+                <th scope="col" style="width: 8em;">Is local</th>
+                <th scope="col" style="width: 8em;">When changed</th>
+                <th scope="col" style="width: 8em;">When changed</th>
+            </tr>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+{% endblock %}

@@ -124,6 +124,9 @@ class Order(db.Model, BaseModel):
 
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
+        if value == OrderStatus.packed:
+            from ..signals import sale_order_packed
+            sale_order_packed.send(self)
         if value == OrderStatus.shipped:
             from app.orders.models.order_product import OrderProductStatus
             unfinished_ops = []
@@ -445,6 +448,7 @@ class Order(db.Model, BaseModel):
                               self.order_products, 0))
         # Set shipping
         ws.cell(1, 6, self.shipping.name)
+        ws.cell(1, 7, self.tracking_id)
         ws.cell(2, 6, self.country.name)
         # Set packaging
         ws.cell(11, 7, self.shipping_box_weight)
