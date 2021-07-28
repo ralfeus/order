@@ -30,7 +30,7 @@ class TestPurchaseOrdersApi(BaseTestCase):
     def test_get_purchase_orders(self):
         order = Order()
         suborder = Suborder(order=order)
-        po = PurchaseOrder(suborder=suborder)
+        po = PurchaseOrder(suborder=suborder, company=Company(name='Test'))
         self.try_add_entities([
             order, suborder, po,
         ])

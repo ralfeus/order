@@ -234,10 +234,10 @@ function init_table() {
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
             {name: 'purchase_restricted', data: 'purchase_restricted_products'},
+            {name: 'company', data: 'company', orderable: false},
             {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
-            {name: 'company', data: 'company', orderable: false},
             {
                 data: 'status',
                 render: function (data, type, row, meta) {
