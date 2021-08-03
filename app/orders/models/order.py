@@ -222,7 +222,8 @@ class Order(db.Model, BaseModel):
                     cls.customer_name.like(part_filter),
                     cls.user.has(User.username.like(part_filter)),
                     cls.comment.like(part_filter),
-                    cls.status.like(part_filter)
+                    cls.status.like(part_filter),
+                    cls.tracking_id.like(part_filter)
                 ))
         if isinstance(column, str):
             return \
