@@ -1,6 +1,7 @@
 from datetime import datetime
 import enum
 from functools import reduce
+import logging
 
 from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -82,17 +83,30 @@ class Payment(db.Model, BaseModel):
         self.update_orders(messages)
 
     def update_orders(self, messages):
+        logger = logging.getLogger('update_orders')
+        logger.debug("Updating orders related to payment %s", self.id)
+        logger.debug("There are %s orders related to the payment %s: %s",
+                     self.orders.count(),
+                     self.id,
+                     reduce(
+                         lambda acc, o: acc + "; " + o.id,
+                         self.orders, ""))
         from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
             lambda acc, o: acc + o.total_krw,
             self.orders.filter_by(status=OrderStatus.pending), 0
         )
         if self.amount_received_krw >= total_orders_amount:
+            logger.debug("Received payment amount %s is larger than total amount of related orders %s. Marking orders as can_be_paid",
+                         self.amount_received_krw, total_orders_amount)
             for order in self.orders:
                 order.payment_method_id = self.payment_method_id
                 if order.status == OrderStatus.pending:
                     order.set_status(OrderStatus.can_be_paid, actor=self.changed_by)
                     messages.append(f"Order <{order.id}> status is set to CAN_BE_PAID")
+        else:
+            logger.debug("Received payment amount %s is less than total amount of related orders %s.",
+                         self.amount_received_krw, total_orders_amount)
 
     def execute_payment(self):
         '''
