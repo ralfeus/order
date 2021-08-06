@@ -29,6 +29,7 @@ class OrderStatus(enum.Enum):
     packed = 4
     shipped = 5
     cancelled = 6
+    ready_to_ship = 7
 
 class OrderBox(db.Model, BaseModel):
     ''' Specific box used in order '''
