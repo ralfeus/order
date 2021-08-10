@@ -1,3 +1,4 @@
+var g_invoice;
 var g_invoice_id = window.location.href.slice(-16);
 var g_invoice_items_table;
 var g_products;
@@ -6,7 +7,8 @@ var g_usd_rate;
 $(document).ready(() => {
     var editor;
     get_usd()
-        .then(() => get_products()
+	.then(get_invoice)
+        .then(get_products)
         .then(() => {
             editor = new $.fn.dataTable.Editor({
                 ajax: (_method, _url, data, success, error) => {
@@ -80,8 +82,13 @@ $(document).ready(() => {
                 select: true,
                 initComplete: update_totals
             });
-        }));
+        });
 });
+
+async function get_invoice() {
+    g_invoice = (await (await fetch('/api/v1/admin/invoice/' + g_invoice_id)).json())[0];
+    $('#export-id').val(g_invoice.export_id);
+}
 
 function update_totals() {
     var total_weight = g_invoice_items_table.data().reduce((acc, row) => 

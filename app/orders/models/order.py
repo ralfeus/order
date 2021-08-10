@@ -212,6 +212,7 @@ class Order(db.Model, BaseModel):
         if filter_value is None:
             return base_filter
         from .suborder import Suborder
+        from app.invoices.models.invoice import Invoice
         from app.purchase.models.purchase_order import PurchaseOrder
         from app.users.models.user import User
         part_filter = f'%{filter_value}%'
@@ -233,7 +234,11 @@ class Order(db.Model, BaseModel):
                         PurchaseOrder.suborder_id == Suborder.id,
                         func.date(PurchaseOrder.when_posted) == filter_value,
                         Suborder.order_id == Order.id).exists()) \
-                    if column == 'when_po_posted' else base_filter
+                    if column == 'when_po_posted' else \
+                base_filter.filter(
+                    Order.invoice.has(Invoice.export_id.like(part_filter))) \
+                    if column == 'invoice_export_id' \
+                else base_filter
         return \
             base_filter.filter(cls.country_id.in_(filter_values)) \
                 if column.key == 'country' else \
@@ -322,6 +327,7 @@ class Order(db.Model, BaseModel):
             'phone': self.phone,
             'comment': self.comment,
             'invoice_id': self.invoice_id,
+            'invoice': self.invoice.to_dict() if self.invoice is not None else None,
             'subtotal_krw': self.subtotal_krw,
             'total_weight': self.total_weight,
             'shipping_krw': self.shipping_krw,

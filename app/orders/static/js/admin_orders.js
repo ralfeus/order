@@ -372,6 +372,11 @@ function init_orders_table() {
             {data: 'payment_method'},
             {data: 'shipping', render: 'name'},
             {data: 'country', render: 'name'},
+            {
+		name: 'invoice_export_id', 
+		data: null,
+		render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
+	    },
             {data: 'purchase_date'},
             {
                 data: 'when_po_posted',
@@ -389,13 +394,13 @@ function init_orders_table() {
         ],
         columnDefs: [
             {
-                targets: [13, 15, 16],
+                targets: [14, 16, 17],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
             }
         ],
-        order: [[15, 'desc']],
+        order: [[16, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

@@ -23,6 +23,7 @@ class Invoice(db.Model):
     customer = Column(String(128))
     payee = Column(String(32))
     orders = relationship(Order)
+    export_id = Column(String(32))
     _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
 
@@ -99,7 +100,7 @@ class Invoice(db.Model):
                 if column.key == 'orders' \
             else base_filter.filter(column.like(f'%{filter_value}%'))
 
-    def to_dict(self):
+    def to_dict(self, details=False):
         '''
         Returns dictionary of the invoice ready to be jsonified
         '''
@@ -127,7 +128,7 @@ class Invoice(db.Model):
         if is_dirty:
             db.session.commit()
         
-        return {
+        result = {
             'id': self.id,
             'customer': self.customer,
             'payee': self.payee,
@@ -136,10 +137,15 @@ class Invoice(db.Model):
             'phone': self.orders[0].phone if self.orders else None,
             'weight': weight,
             'total': round(float(total), 2),
+            'orders': [order.id for order in self.orders],
+            'export_id': self.export_id,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
                             if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') 
-                            if self.when_changed else None,
-            'orders': [order.id for order in self.orders],
-            'invoice_items': list([ii.to_dict() for ii in self.get_invoice_items()])
+                            if self.when_changed else None
         }
+        if details:
+            result = { **result,
+                'invoice_items': list([ii.to_dict() for ii in self.get_invoice_items()])
+            }
+        return result

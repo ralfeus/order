@@ -3,6 +3,7 @@ import enum
 from datetime import datetime
 from glob import glob
 import itertools
+import logging
 import subprocess
 from functools import reduce
 import os
@@ -48,10 +49,12 @@ def write_to_file(path, data):
         file.close()
 
 def prepare_datatables_query(query, args, filter_clause):
+    logger = logging.getLogger('prepare_datatables_query')
     def get_column(query, column_name):
         try:
             return getattr(query.column_descriptions[0]['type'], column_name)
         except AttributeError:
+            logger.debug("Couldn't get column %s from %s", column_name, query.column_descriptions[0]['type'])
             return column_name
 
     if not isinstance(args, MultiDict):
@@ -82,6 +85,7 @@ def prepare_datatables_query(query, args, filter_clause):
     # Sorting
     for sort_column_input in args['order']:
         sort_column_name = columns[int(sort_column_input['column'])]['data']
+        logger.debug(sort_column_name)
         if sort_column_name != '':
             sort_column = get_column(query_filtered, sort_column_name)
             if sort_column_input['dir'] == 'desc':
