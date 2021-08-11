@@ -147,7 +147,7 @@ function save_order_action(order_node, row) {
  * @param {object} row - row object 
  * @param {object} data - data object for the row
  */
-function format ( row, data ) {
+async function format(row, data) {
     var order_details = $('.order-details')
         .clone()
         .show();
@@ -175,8 +175,11 @@ function format ( row, data ) {
             }
         }
     });
+    var order = await (await fetch('/api/v1/admin/order/' + data.id)).json()
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
+    $('#po-company', order_details).val(order.purchase_orders.length ? 
+	    order.purchase_orders[0].company : null);
     $('#shipping', order_details).val(data.shipping.name);
     $('#subtotal', order_details).val(data.subtotal_krw.toLocaleString());
     $('#shipping-cost', order_details).val(data.shipping_krw.toLocaleString());

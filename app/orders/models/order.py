@@ -112,6 +112,13 @@ class Order(db.Model, BaseModel):
                                   for order_product in suborder.order_products]
         return list(self.__order_products)
 
+    @property
+    def purchase_orders(self):
+        ''' Returns list of purchase orders for all suborders '''
+        from app.purchase.models.purchase_order import PurchaseOrder
+        return PurchaseOrder.query.filter(
+            PurchaseOrder.suborder_id.in_([suborder.id for suborder in self.suborders]))
+
     def set_purchase_date(self, value):
         self.purchase_date = value
         self.purchase_date_sort = value
@@ -364,7 +371,8 @@ class Order(db.Model, BaseModel):
             result = { **result,
                 'suborders': [so.to_dict() for so in self.suborders],
                 'order_products': [op.to_dict() for op in self.order_products],
-                'attached_orders': [o.to_dict() for o in self.attached_orders]
+                'attached_orders': [o.to_dict() for o in self.attached_orders],
+                'purchase_orders': [po.to_dict() for po in self.purchase_orders]
             }
         return result
 
