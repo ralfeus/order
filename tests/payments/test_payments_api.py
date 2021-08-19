@@ -5,6 +5,7 @@ from datetime import datetime
 
 from tests import BaseTestCase, db
 from app.currencies.models import Currency
+from app.payments.models.payment_method import PaymentMethod
 from app.users.models.role import Role
 from app.users.models.user import User
 
@@ -27,13 +28,34 @@ class TestPaymentsApi(BaseTestCase):
         ])
 
     def test_create_payment(self):
+        self.try_add_entities([
+            PaymentMethod(id=1)
+        ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/payment', json={
                 "currency_code":"USD",
                 'amount_sent_original': 100,
                 'payment_method': {'id': 1}
         }))
-        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json.get('error'))
+        res = self.client.post('/api/v1/payment', json={
+                "currency_code":"USD",
+                'amount_sent_original': "100.50",
+                'payment_method': {'id': 1}
+        })
+        self.assertIsNone(res.json.get('error'))
+        res = self.client.post('/api/v1/payment', json={
+                "currency_code":"USD",
+                'amount_sent_original': "100,50",
+                'payment_method': {'id': 1}
+        })
+        self.assertIsNone(res.json.get('error'))
+        res = self.client.post('/api/v1/payment', json={
+                "currency_code":"USD",
+                'amount_sent_original': "100.50.3",
+                'payment_method': {'id': 1}
+        })
+        self.assertIsNotNone(res.json['error'])
         res = self.client.post('/api/v1/payment', json={
                 "currency_code":"EUR",
                 'amount_sent_original': 100,

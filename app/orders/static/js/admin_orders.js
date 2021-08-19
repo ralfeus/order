@@ -178,6 +178,7 @@ async function format(row, data) {
     var order = await (await fetch('/api/v1/admin/order/' + data.id)).json()
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
+    $('#export-id', order_details).val(order.invoice.export_id);
     $('#po-company', order_details).val(order.purchase_orders.length ? 
 	    order.purchase_orders[0].company : null);
     $('#shipping', order_details).val(data.shipping.name);

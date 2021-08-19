@@ -2,6 +2,7 @@
 Contains API endpoint routes of the payment services
 '''
 from datetime import datetime
+import logging
 import os, os.path
 import re
 import shutil
@@ -96,6 +97,7 @@ def user_get_payments(payment_id):
 @bp_api_user.route('', methods=['POST'])
 @login_required
 def user_create_payment():
+    logger = logging.getLogger('user_create_payment')
     user = None
     payload = request.get_json()
     if not current_user.has_role('admin') or 'user_id' not in request.json.keys():
@@ -107,12 +109,14 @@ def user_create_payment():
         user = User.query.get(payload['user_id'])
     with PaymentValidator(request) as validator:
         if not validator.validate():
-            return jsonify({
+            error = {
                 'data': [],
                 'error': "Couldn't create a Payment",
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
-            })
+            }
+            logger.debug(error)
+            return jsonify(error)
     if isinstance(payload['amount_sent_original'], str):
         payload['amount_sent_original'] = re.sub(
             r'[\s,]', '', payload['amount_sent_original'])
@@ -130,7 +134,7 @@ def user_create_payment():
     payment = Payment(
         user=user,
         changed_by=current_user,
-        orders=Order.query.filter(Order.id.in_(payload['orders'])).all(),
+        orders=Order.query.filter(Order.id.in_(payload['orders'])).all() if payload.get('orders') else [],
         currency=currency,
         amount_sent_original=payload.get('amount_sent_original'),
         amount_sent_krw=float(payload.get('amount_sent_original')) / float(currency.rate),

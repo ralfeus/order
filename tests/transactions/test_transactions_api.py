@@ -5,7 +5,8 @@ from app.currencies.models.currency import Currency
 from app.orders.models.order import Order, OrderStatus
 from app.orders.models.order_product import OrderProduct
 from app.orders.models.suborder import Suborder
-from app.payments.models.payment import Payment, Transaction
+from app.payments.models.payment import Payment
+from app.payments.models.transaction import Transaction
 from app.purchase.models.company import Company
 from app.products.models.product import Product
 from app.shipping.models.shipping import Shipping, ShippingRate

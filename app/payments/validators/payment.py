@@ -9,14 +9,10 @@ from app.users.models.user import User
 from app.payments.models.payment_method import PaymentMethod
 
 def _is_int(_form, field):
-    if field.data is not None \
-       and not isinstance(field.data, int):
-        try:
-           val = int(re.sub(r'[\s]', '', field.data))
-           if val is None:
-            raise Exception()
-        except:
-            raise ValidationError(f'{field.id}: The value must be integer')
+    if field.data is not None:
+        val = re.sub(r'[\s]', '', str(field.data))
+        if re.match(r'^\d+((\.|,)\d{2})?$', val) is None:
+            raise ValidationError(f'{field.id}: The value must be number')
 
 
 def _is_valid_currency(_form, field):

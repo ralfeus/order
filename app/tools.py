@@ -85,7 +85,7 @@ def prepare_datatables_query(query, args, filter_clause):
     # Sorting
     for sort_column_input in args['order']:
         sort_column_name = columns[int(sort_column_input['column'])]['data']
-        logger.debug(sort_column_name)
+        #logger.debug(sort_column_name)
         if sort_column_name != '':
             sort_column = get_column(query_filtered, sort_column_name)
             if sort_column_input['dir'] == 'desc':
