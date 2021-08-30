@@ -1,9 +1,10 @@
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from datetime import datetime
+import logging
 from operator import itemgetter
 
 from flask import Response, abort, current_app, jsonify, request
-from flask_security import roles_required
+from flask_security import current_user, roles_required
 
 from sqlalchemy import or_
 
@@ -59,6 +60,7 @@ def create_purchase_order():
     Accepts order details in payload
     Returns JSON
     '''
+    logger = logging.getLogger('create_purchase_order')
     with PurchaseOrderValidator(request) as validator:
         if not validator.validate():
             return jsonify({
@@ -98,6 +100,8 @@ def create_purchase_order():
         purchase_orders.append(purchase_order)
         db.session.add(purchase_order)
         db.session.flush()
+    logger.info('Creating purchase order by %s with data: %s',
+                current_user, payload)
     order.set_status(OrderStatus.po_created, current_app)
     db.session.commit()
     
@@ -116,6 +120,7 @@ def update_purchase_order(po_id):
         abort(Response("No purchase order <{po_id}> was found", status=404))
 
     from ..jobs import post_purchase_orders, update_purchase_orders_status
+    payload = request.get_json()
     try:
         if request.values.get('action') == 'repost':
             po.reset_status()
@@ -123,15 +128,18 @@ def update_purchase_order(po_id):
             task = post_purchase_orders.apply_async(
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
-            current_app.logger.info("Post purchase orders task ID is %s", task.id)
+            logger.info("Reposting PO %s by %s", po_id, current_user)
+            logger.info("Post purchase orders task ID is %s", task.id)
             result = jsonify({'data': [po.to_dict()]})
         elif request.values.get('action') == 'update_status':
-            current_app.logger.info("Updating POs status")
+            logger.info("Updating POs status")
             task = update_purchase_orders_status.apply_async(
                 kwargs={'po_id': po_id}, retry=False, connect_timeout=1)
-            current_app.logger.info("Update POs status task ID is %s", task.id)
+            logger.info("Update POs status task ID is %s", task.id)
             result = jsonify({'data': [po.to_dict()]})
         else:
+            logger.info('Modifying purchase order %s by %s with data: %s',
+                        po_id, current_user, payload)
             if not po.is_editable():
                 return jsonify({
                     'data': po.to_dict(),
@@ -139,10 +147,10 @@ def update_purchase_order(po_id):
                 })
             editable_attributes = ['payment_account', 'purchase_date',
                 'status', 'vendor', 'vendor_po_id']
-            po = modify_object(po, request.get_json(), editable_attributes)
+            po = modify_object(po, payload, editable_attributes)
             result = jsonify({'data': [po.to_dict()]})
     except: # Exception as ex:
-        current_app.logger.exception("Couldn't update PO %s", po_id)
+        logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
     db.session.commit()
     return result
