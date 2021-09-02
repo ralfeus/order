@@ -63,17 +63,18 @@ function init_payments_table() {
             create: {
                 url: '/api/v1/payment',
                 contentType: 'application/json',
-                data: data => JSON.stringify({
-                    additional_info: data.data[0].additional_info,
-                    amount_sent_original: data.data[0].amount_sent_original,
-                    currency_code: data.data[0].currency_code,
-                    evidences: data.data[0].evidences.map(e => ({
-                        id: e[0],
-                        file_name: editor.files().files[e].filename
-                    })),
-                    orders: data.data[0].orders,
-                    payment_method: data.data[0].payment_method
-                })
+                data: data => {
+                    var target = Object.entries(data.data)[0][1];
+                    target.evidences = target.evidences.map(e => (e.url 
+                        ? {
+                            path: e.path
+                        }
+                        : {
+                            id: e[0],
+                            file_name: editor.files().files[e].filename
+                    }));
+                    return JSON.stringify(target);
+                }
             },
             remove: {
                 url: '/api/v1/payment/_id_',
@@ -84,6 +85,10 @@ function init_payments_table() {
         table: '#payments',
         idSrc: 'id',
         fields: [
+            {
+                label: 'Sender',
+                name: 'sender_name'
+            },
             {
                 label: 'Currency',
                 name: 'currency_code',
@@ -144,6 +149,7 @@ function init_payments_table() {
         },
         columns: [
             {data: 'id'},
+            {data: 'sender_name'},
             {data: 'orders'},
             {
                 data: 'payment_method.name',
@@ -164,7 +170,7 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[6, 'desc']],
+        order: [[7, 'desc']],
         select: true,
         initComplete: function() { init_search(this, g_filter_sources); }
     });

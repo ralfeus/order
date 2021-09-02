@@ -1,15 +1,19 @@
-from . import Payment
+import re
 from app import db
 
-class PayPal(Payment):
+from . import PaymentMethod
 
-     __mapper_args__ = {'polymorphic_identity': 'paypal'}
+class PayPal(PaymentMethod):
+    __mapper_args__ = {'polymorphic_identity': 'paypal'}
     
     def __init__(self):
         self.name = 'PayPal'
     
     def execute_payment(self):
+        pass
 
+    def validate_sender_name(self, name):
+        pass
 
 #if response is not None:
 #         # Check to see if the API request was successfully received and acted upon

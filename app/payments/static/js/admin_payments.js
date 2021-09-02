@@ -144,6 +144,10 @@ function init_payments_table() {
                 }))
             },
             {
+                label: 'Sender',
+                name: 'sender_name'
+            },
+            {
                 label: 'Orders', 
                 name: 'orders',
                 type: 'select2',
@@ -230,6 +234,7 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'user_name'},
+            {data: 'sender_name'},
             {
                 name: 'orders', data: 'orders', 
                 render: data => {
@@ -251,7 +256,7 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[9, 'desc']],
+        order: [[10, 'desc']],
         select: true,
         footerCallback: function(row, data, start, end, display) {
             var api = this.api(), data;
@@ -277,13 +282,13 @@ function init_payments_table() {
             totalSentOriginalString = Object.entries(totalSentOriginal)
                 .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
             totalSentKRW = api
-                .column( 6 )
+                .column( 7 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;
                 }, 0 );
             totalReceivedKRW = api
-                .column( 7 )
+                .column( 8 )
                 .data()
                 .reduce( function (a, b) {
                     return a + b;

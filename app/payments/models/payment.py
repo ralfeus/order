@@ -32,6 +32,7 @@ class Payment(db.Model, BaseModel):
 
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
+    sender_name = Column(String(128))
     orders = db.relationship('Order', secondary=payments_orders,
                              backref=db.backref('payments', lazy='dynamic'),
                              lazy='dynamic')
@@ -50,6 +51,7 @@ class Payment(db.Model, BaseModel):
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
+
 
     def is_editable(self):
         return self.status != PaymentStatus.approved
@@ -126,6 +128,7 @@ class Payment(db.Model, BaseModel):
             'orders': [order.id for order in self.orders],
             'user_id': self.user_id,
             'user_name': self.user.username,
+            'sender_name': self.sender_name,
             'amount_original': float(self.amount_sent_original),
             'amount_sent_original': float(self.amount_sent_original),
             'amount_sent_original_string': self.currency.format(self.amount_sent_original),

@@ -46,6 +46,7 @@ def admin_get_payments(payment_id):
 @roles_required('admin')
 def admin_save_payment(payment_id):
     ''' Saves updates of user payment '''
+    logger = logging.getLogger('admin_save_payment')
     payload = request.get_json()
     payment = Payment.query.get(payment_id)
     if not payment:
@@ -56,6 +57,7 @@ def admin_save_payment(payment_id):
         abort(Response("No payment data was provided", status=400))
 
     messages = []
+    logger.info("Updating payment %s by %s with data %s", payment_id, current_user, payload)
     payment.when_changed = datetime.now()
     payment.changed_by = current_user
     if payload.get('amount_sent_original'):
@@ -103,7 +105,8 @@ def user_create_payment():
     if not current_user.has_role('admin') or 'user_id' not in request.json.keys():
         request.json['user_id'] = current_user.id
         user = current_user
-    elif int(payload['user_id']) == current_user.id:
+    elif payload.get('user_id') is not None \
+        and int(payload['user_id']) == current_user.id:
         user = current_user
     else:
         user = User.query.get(payload['user_id'])
@@ -133,6 +136,7 @@ def user_create_payment():
 
     payment = Payment(
         user=user,
+        sender_name=payload.get('sender_name'),
         changed_by=current_user,
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all() if payload.get('orders') else [],
         currency=currency,
