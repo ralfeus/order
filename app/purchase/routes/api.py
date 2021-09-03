@@ -115,6 +115,7 @@ def create_purchase_order():
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
 def update_purchase_order(po_id):
+    logger = logging.getLogger('update_purchase_order')
     po = PurchaseOrder.query.get(po_id)
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
@@ -145,7 +146,7 @@ def update_purchase_order(po_id):
                     'data': po.to_dict(),
                     'error': f"The purchase order &lt;{po.id}&gt; isn't in editable state"
                 })
-            editable_attributes = ['payment_account', 'purchase_date',
+            editable_attributes = ['customer_id', 'payment_account', 'purchase_date',
                 'status', 'vendor', 'vendor_po_id']
             po = modify_object(po, payload, editable_attributes)
             result = jsonify({'data': [po.to_dict()]})
