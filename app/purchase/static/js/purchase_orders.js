@@ -60,11 +60,11 @@ async function get_dictionaries() {
             value: a.id,
             label: a.name
         }));
-    g_customers = (await get_list('/api/v1/admin/order/subcustomer')).map(
-        s => ({
-            value: s.id,
-            label: s.name + " | " + s.username
-        }));
+    // g_customers = (await get_list('/api/v1/admin/order/subcustomer')).map(
+    //     s => ({
+    //         value: s.id,
+    //         label: s.name + " | " + s.username
+    //     }));
     g_vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
         i => {
             entry = Object.entries(i)[0]; 
@@ -179,7 +179,7 @@ function init_table() {
                 label: 'Customer',
                 name: 'customer_id',
                 type: 'select2',
-                options: g_customers
+                options: g_customers,
             },
             {
                 label: 'Purchase date', 
@@ -231,7 +231,7 @@ function init_table() {
             {
                 data: 'customer.name', 
                 orderable: false,
-                className: 'editable',
+                // className: 'editable',
                 editField: 'customer_id',
                 render: function(data, type, row, meta) {
                     return "" +
