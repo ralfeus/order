@@ -373,9 +373,9 @@ function init_orders_table() {
             {data: 'shipping_krw'},
             {data: 'total_krw'},
             {data: 'status'},
-            {data: 'payment_method'},
-            {data: 'shipping', render: 'name'},
-            {data: 'country', render: 'name'},
+            {data: 'payment_method', orderable: false},
+            {data: 'shipping', render: 'name', orderable: false},
+            {data: 'country', render: 'name', orderable: false},
             {
 		name: 'invoice_export_id', 
 		data: null,
