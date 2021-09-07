@@ -33,30 +33,40 @@ class TestPaymentsApi(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/payment', json={
+                'sender_name': 'test',
+                'user_id': self.user.id,
                 "currency_code":"USD",
                 'amount_sent_original': 100,
                 'payment_method': {'id': 1}
         }))
         self.assertIsNone(res.json.get('error'))
         res = self.client.post('/api/v1/payment', json={
+                'sender_name': 'test',
+                'user_id': self.user.id,
                 "currency_code":"USD",
                 'amount_sent_original': "100.50",
                 'payment_method': {'id': 1}
         })
         self.assertIsNone(res.json.get('error'))
         res = self.client.post('/api/v1/payment', json={
+                'sender_name': 'test',
+                'user_id': self.user.id,
                 "currency_code":"USD",
                 'amount_sent_original': "100,50",
                 'payment_method': {'id': 1}
         })
         self.assertIsNone(res.json.get('error'))
         res = self.client.post('/api/v1/payment', json={
+                'sender_name': 'test',
+                'user_id': self.user.id,
                 "currency_code":"USD",
                 'amount_sent_original': "100.50.3",
                 'payment_method': {'id': 1}
         })
         self.assertIsNotNone(res.json['error'])
         res = self.client.post('/api/v1/payment', json={
+                'sender_name': 'test',
+                'user_id': self.user.id,
                 "currency_code":"EUR",
                 'amount_sent_original': 100,
                 'payment_method': {'id': 1}

@@ -12,9 +12,6 @@ class PayPal(PaymentMethod):
     def execute_payment(self):
         pass
 
-    def validate_sender_name(self, name):
-        pass
-
 #if response is not None:
 #         # Check to see if the API request was successfully received and acted upon
 #         if response.messages.resultCode == "Ok":

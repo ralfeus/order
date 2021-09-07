@@ -50,33 +50,55 @@ def admin_save_payment(payment_id):
     payload = request.get_json()
     payment = Payment.query.get(payment_id)
     if not payment:
-        abort(Response(f"No payment <{payment_id}> was found", status=404))
+        abort(404)
     if not payment.is_editable():
-        abort(Response(f"Can't update payment in state <{payment.status}>", status=409))
-    if not payload:
-        abort(Response("No payment data was provided", status=400))
-
+        return jsonify({
+                'data': [],
+                'error': f"Can't update payment in state <{payment.status}>"
+            })   
     messages = []
     logger.info("Updating payment %s by %s with data %s", payment_id, current_user, payload)
-    payment.when_changed = datetime.now()
-    payment.changed_by = current_user
-    if payload.get('amount_sent_original'):
-        payment.amount_sent_original = payload['amount_sent_original']
-    if payload.get('currency_code'):
-        payment.currency = Currency.query.get(payload['currency_code'])
-    if payload.get('amount_sent_krw'):
-        payment.amount_sent_krw = payload['amount_sent_krw']
-    if payload.get('amount_received_krw'):
-        payment.amount_received_krw = payload['amount_received_krw']
     if payload.get('status'):
         try:
             payment.set_status(payload['status'].lower(), messages)
         except PaymentNoReceivedAmountException as ex:
-            abort(Response(str(ex), status=409))
-
+            return jsonify({
+                    'data': [],
+                    'error': str(ex)
+                })   
+    else:
+        with PaymentValidator(request) as validator:
+            if not validator.validate():
+                return jsonify({
+                    'data': [],
+                    'error': "Couldn't save the payment",
+                    'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                    for message in validator.errors]
+                })
+        payment.when_changed = datetime.now()
+        payment.changed_by = current_user
+        modify_object(payment, payload,
+            ['additional_info', 'amount_sent_krw', 'amount_sent_original', 'amount_received_krw',
+            'currency_code', 'sender_name', 'user_id'])
+        if payload.get('payment_method') \
+            and payment.payment_method_id != payload['payment_method']['id']:
+            payment.payment_method_id = payload['payment_method']['id']
+            payment.when_changed = datetime.now()
+        evidences = {e.path: e for e in payment.evidences}
+        payment.evidences = []
+        if payload.get('evidences') and isinstance(payload['evidences'], list):
+            for evidence in payload.get('evidences'):
+                if evidence.get('id'):
+                    payment.evidences.append(File(
+                        file_name=evidence['file_name'],
+                        path=_move_uploaded_file(evidence['id'])
+                    ))
+                elif evidence.get('path'):
+                    payment.evidences.append(evidences[evidence['path']])
+        if payload.get('orders'):
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
     db.session.commit()
-
-    return jsonify({'payment': payment.to_dict(), 'message': messages})
+    return jsonify({'data': [payment.to_dict()], 'message': messages})
 
 @bp_api_user.route('', defaults={'payment_id': None})
 @bp_api_user.route('/<int:payment_id>')
@@ -250,6 +272,7 @@ def _upload_payment_evidence():
 @bp_api_user.route('/<int:payment_id>/evidence', methods=['POST'])
 @login_required
 def user_upload_payment_evidence(payment_id):
+    logger = logging.getLogger('user_upload_payment_evidence')
     if payment_id is None:
         file_ids, file_names = _upload_payment_evidence()
         return jsonify({
@@ -285,8 +308,8 @@ def user_upload_payment_evidence(payment_id):
         db.session.commit()
     else:
         from pprint import pformat
-        current_app.logger.warning("Payment %s upload evidence: no file was uploaded", payment_id)
-        current_app.logger.debug(pformat(request.__dict__))
+        logger.warning("Payment %s upload evidence: no file was uploaded", payment_id)
+        logger.debug(pformat(request.__dict__))
         abort(Response("No file is uploaded", status=400))
     return jsonify({})
 

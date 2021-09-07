@@ -58,13 +58,13 @@ function format ( row, data ) {
         }
     });
 
-    if (['approved', 'cancelled'].includes(data.status)) {
-        $('.btn-save', payment_details).hide()
-    } else {
-        $('.btn-save', payment_details).on('click', function() {
-            save_payment(row);
-        })
-    }
+    // if (['approved', 'cancelled'].includes(data.status)) {
+    //     $('.btn-save', payment_details).hide()
+    // } else {
+    //     $('.btn-save', payment_details).on('click', function() {
+    //         save_payment(row);
+    //     })
+    // }
 
     for (var currency in g_currencies) {
         $('.dropdown-menu', payment_details).append(
@@ -401,43 +401,43 @@ function on_orders_change() {
     return {};
 }
 
-function save_payment(row) {
-    $('.wait').show();
-    $.ajax({
-        url: '/api/v1/admin/payment/' + row.data().id,
-        method: 'post',
-        dataType: 'json',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            amount_sent_original: row.data().amount_sent_original,
-            amount_sent_krw: row.data().amount_sent_krw,
-            amount_received_krw: row.data().amount_received_krw,
-            currency_code: row.data().currency_code
-        }),
-        complete: function() {
-            $('.wait').hide();
-        },
-        success: function(data) {
-            row.data(data.payment).draw();
-            if (data.message && data.message.length) {
-                modal('Transaction save', data.message.join('<br />'));
-            }
-        }
-    });
+// function save_payment(row) {
+//     $('.wait').show();
+//     $.ajax({
+//         url: '/api/v1/admin/payment/' + row.data().id,
+//         method: 'post',
+//         dataType: 'json',
+//         contentType: 'application/json',
+//         data: JSON.stringify({
+//             amount_sent_original: row.data().amount_sent_original,
+//             amount_sent_krw: row.data().amount_sent_krw,
+//             amount_received_krw: row.data().amount_received_krw,
+//             currency_code: row.data().currency_code
+//         }),
+//         complete: function() {
+//             $('.wait').hide();
+//         },
+//         success: function(data) {
+//             row.data(data.payment).draw();
+//             if (data.message && data.message.length) {
+//                 modal('Transaction save', data.message.join('<br />'));
+//             }
+//         }
+//     });
 
-    var form_data = new FormData();
-    form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
-    if (form_data) {
-        $.ajax({
-            url: '/api/v1/payment/' + row.data().id + '/evidence', 
-            method: 'post',
-            data: form_data, 
-            contentType: false,
-            cache: false,
-            processData: false
-        });
-    }
-}
+//     var form_data = new FormData();
+//     form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
+//     if (form_data) {
+//         $.ajax({
+//             url: '/api/v1/payment/' + row.data().id + '/evidence', 
+//             method: 'post',
+//             data: form_data, 
+//             contentType: false,
+//             cache: false,
+//             processData: false
+//         });
+//     }
+// }
 
 /**
  * Sets status of the order
@@ -467,8 +467,8 @@ function set_status(target, newStatus) {
                 success: function(response, _status, _xhr) {
                     target.cell(
                         (_idx, data, _node) => 
-                            data.id === parseInt(response.payment.id), 
-                        5).data(response.payment.status).draw();
+                            data.id === parseInt(response.data[0].id), 
+                        5).data(response.data[0].status).draw();
                     if (response.message && response.message.length) {
                         modal('Transaction save', response.message.join('<br />'));
                     }

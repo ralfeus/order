@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy import Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
@@ -21,7 +23,8 @@ class PaymentMethod(db.Model, BaseModel):
         return str(self.name)
 
     def validate_sender_name(self, name):
-        pass
+        if re.match(r'^[a-zA-Z ]+$', name) is None:
+            raise Exception('Must contain only latin letters')
 
     def to_dict(self):
         return {

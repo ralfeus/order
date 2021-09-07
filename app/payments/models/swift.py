@@ -11,7 +11,3 @@ class Swift(PaymentMethod):
     
     def execute_payment(self):
         pass
-
-    def validate_sender_name(self, name):
-        if re.match(r'^[a-zA-Z ]+$', name) is None:
-            raise Exception('Must contain only latin letters')
