@@ -193,18 +193,11 @@ function get_countries() {
     return promise;
 }
 
-function get_currencies() {
-    var promise = $.Deferred();
-    $.ajax({
-        url: '/api/v1/currency',
-        success: function(data, _status, _xhr) {
-            for (var currency in data) {
-                currencyRates[data[currency].code] = data[currency].rate;
-            }
-            promise.resolve();
-        }
-    });
-    return promise;
+async function init_currencies() {
+    var currencies = await get_currencies();
+    for (var currency in currencies) {
+        currencyRates[currencies[currency].code] = currencies[currency].rate;
+    }
 }
 
 function get_products() {
@@ -350,7 +343,7 @@ function load_dictionaries() {
     var dict_left = 3;
     get_countries()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
-    get_currencies()
+    init_currencies()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });    
     get_products()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });

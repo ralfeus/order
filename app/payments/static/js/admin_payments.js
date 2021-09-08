@@ -75,7 +75,7 @@ function format ( row, data ) {
 }
 
 async function get_dictionaries() {
-    g_currencies = await get_currencies();
+    g_currencies = await init_currencies();
     g_customers = await get_users();
     g_payment_methods = await get_payment_methods();
     g_payment_statuses = (await get_list('/api/v1/payment/status'))
