@@ -8,6 +8,7 @@ def init(app: Flask):
         logger = logging.getLogger('add_notification_block')
         if not request.full_path.startswith('/api') and \
            not request.full_path.startswith('/admin'):
+            logger.debug(request.full_path)
             from app.notifications.models.notification import Notification
             last_read_notification = current_user.get_profile().get('last_read_notification', 0) \
                 if not current_user.is_anonymous else 0
