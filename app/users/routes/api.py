@@ -63,8 +63,27 @@ def delete_user(user_ids):
 @roles_required('admin')
 def get_user():
     '''Returns list of products in JSON'''
-    user_query = User.query
-    return jsonify(User.get_user(user_query))
+    users = User.query
+
+    if request.values.get('initialValue') is not None:
+        user = users.get(request.values.get('value'))
+        return jsonify(
+            {'id': user.id, 'text': user.username} \
+                if user is not None else {})
+    if request.values.get('q') is not None:
+        users = users.filter(User.username.like(f'%{request.values["q"]}%'))
+    if request.values.get('page') is not None:
+        page = int(request.values['page'])
+        total_results = users.count()
+        users = users.offset((page - 1) * 100).limit(page * 100)
+        return jsonify({
+            'results': [entry.to_dict() for entry in users],
+            'pagination': {
+                'more': total_results > page * 100
+            }
+        })
+
+    return jsonify([user.to_dict() for user in users])
 
 
 @bp_api_admin.route('/<int:user_id>', methods=['POST'])

@@ -7,7 +7,8 @@ def init(app: Flask):
     def add_notification_block():
         logger = logging.getLogger('add_notification_block')
         if not request.full_path.startswith('/api') and \
-           not request.full_path.startswith('/admin'):
+           not request.full_path.startswith('/admin') and \
+           not request.full_path.startswith('/static'):
             logger.debug(request.full_path)
             from app.notifications.models.notification import Notification
             last_read_notification = current_user.get_profile().get('last_read_notification', 0) \
