@@ -124,7 +124,8 @@ class Invoice(db.Model):
             is_dirty = True
         if not self.payee and self.orders:
             self.payee = self.orders[0].get_payee()
-            is_dirty = True
+            if self.payee:
+                is_dirty = True
         if is_dirty:
             db.session.commit()
         

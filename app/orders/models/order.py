@@ -196,10 +196,11 @@ class Order(db.Model, BaseModel):
             self.attached_orders = []
 
     def __pay(self, actor):
+        logger = logging.getLogger('Order.__pay')
         from app.payments.models.transaction import Transaction
         #TODO: wrong approach
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         transaction = Transaction(
             amount=-self.total_krw,
@@ -296,20 +297,21 @@ class Order(db.Model, BaseModel):
 
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
+        logger = logging.getLogger('Order.to_dict')
         from app.payments.models.payment import PaymentStatus
         from app.purchase.models.purchase_order import PurchaseOrder
         from .suborder import Suborder
         is_order_updated = False
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
         if not self.total_rur:
-            logging.debug("%s total RUR is undefined. Updating...", self.id)
+            logger.debug("%s total RUR is undefined. Updating...", self.id)
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
             is_order_updated = True
         if not self.total_usd:
-            logging.debug("%s total USD is undefined. Updating...", self.id)
+            logger.debug("%s total USD is undefined. Updating...", self.id)
             self.total_usd = self.total_krw * Currency.query.get('USD').rate
             is_order_updated = True
         if is_order_updated:
@@ -435,10 +437,11 @@ class Order(db.Model, BaseModel):
 
 
     def get_order_excel(self):
+        logger = logging.getLogger('Order.get_order_excel')
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
         suborder_fill = PatternFill(

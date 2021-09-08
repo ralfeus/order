@@ -34,7 +34,7 @@ class TestCurrencyClient(BaseTestCase):
         ])
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/admin/currency'))
-        self.assertEqual(res.json[0], {
+        self.assertEqual(res.json['data'][0], {
             'code': '0001',
             'name': 'Currency_1',
             'rate': 1.0
