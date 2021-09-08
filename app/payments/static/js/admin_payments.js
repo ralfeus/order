@@ -205,6 +205,7 @@ function init_payments_table() {
     g_editor.field('amount_sent_original').input().on('focus', function() {
         this.old_value = this.value});
     g_editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
+    g_editor.field('amount_sent_original').input().on('change', on_amount_sent_original_change);
 
     g_table = $('#payments').DataTable({
         dom: 'lrBtip',
@@ -364,6 +365,12 @@ function on_amount_sent_original_blur(data) {
     if (data.target.value != data.target.old_value) {
         g_amount_set_manually = true;
     }
+}
+
+function on_amount_sent_original_change() {
+    g_editor.field('amount_sent_krw').val(
+        g_editor.field('amount_sent_original').val() / 
+        g_currencies.filter(c => c.code == g_editor.field('currency_code').val())[0].rate);
 }
 
 function on_customer_change() {
