@@ -261,47 +261,50 @@ function init_payments_table() {
         select: true,
         serverSide: true,
         processing: true,
-        footerCallback: function(row, data, start, end, display) {
-            var api = this.api(), data;
+          /////////// No need to do footer so far //////////////////
+         ///////////  Mihwa will clarify         //////////////////
+        ////////////////////////////////////////////////////////// 
+        // footerCallback: function(row, data, start, end, display) {
+        //     var api = this.api(), data;
 
-            // // Remove the formatting to get integer data for summation
-            // var intVal = function ( i ) {
-            //     return typeof i === 'string' ?
-            //         i.replace(/[\$,]/g, '')*1 :
-            //         typeof i === 'number' ?
-            //             i : 0;
-            // };
+        //     // // Remove the formatting to get integer data for summation
+        //     // var intVal = function ( i ) {
+        //     //     return typeof i === 'string' ?
+        //     //         i.replace(/[\$,]/g, '')*1 :
+        //     //         typeof i === 'number' ?
+        //     //             i : 0;
+        //     // };
 
-            // Total over all pages
-            totalSentOriginal = api
-                .data()
-                .reduce(function (accumulator, current) {
-                    if (!accumulator[current.currency_code]) { 
-                        accumulator[current.currency_code] = 0;
-                    }
-                    accumulator[current.currency_code] += current.amount_sent_original;
-                    return accumulator;
-                }, {})
-            totalSentOriginalString = Object.entries(totalSentOriginal)
-                .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
-            totalSentKRW = api
-                .column( 7 )
-                .data()
-                .reduce( function (a, b) {
-                    return a + b;
-                }, 0 );
-            totalReceivedKRW = api
-                .column( 8 )
-                .data()
-                .reduce( function (a, b) {
-                    return a + b;
-                }, 0 );
+        //     // Total over all pages
+        //     totalSentOriginal = api
+        //         .data()
+        //         .reduce(function (accumulator, current) {
+        //             if (!accumulator[current.currency_code]) { 
+        //                 accumulator[current.currency_code] = 0;
+        //             }
+        //             accumulator[current.currency_code] += current.amount_sent_original;
+        //             return accumulator;
+        //         }, {})
+        //     totalSentOriginalString = Object.entries(totalSentOriginal)
+        //         .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+        //     totalSentKRW = api
+        //         .column( 7 )
+        //         .data()
+        //         .reduce( function (a, b) {
+        //             return a + b;
+        //         }, 0 );
+        //     totalReceivedKRW = api
+        //         .column( 8 )
+        //         .data()
+        //         .reduce( function (a, b) {
+        //             return a + b;
+        //         }, 0 );
 
-            // Update footer
-            $(api.column(5).footer()).html(totalSentOriginalString);
-            $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
-            $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-        },
+        //     // Update footer
+        //     $(api.column(5).footer()).html(totalSentOriginalString);
+        //     $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+        //     $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+        // },
         initComplete: function() { 
             var table = this;
             init_search(table, g_filter_sources)
