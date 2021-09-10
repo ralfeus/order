@@ -1,8 +1,12 @@
 ''' Client routes for finance management '''
-from flask import render_template, send_file
+from flask import render_template, send_file, Response, abort, escape, request
 from flask_security import current_user, login_required, roles_required
+from flask.globals import current_app
+import json
 
 from app.payments import bp_client_admin, bp_client_user
+# from app.payments.models import Payment
+
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
@@ -41,4 +45,3 @@ def admin_transactions():
 @login_required
 def user_wallet():
     return render_template('wallet.html', balance=current_user.balance)
-
