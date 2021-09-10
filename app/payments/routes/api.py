@@ -23,6 +23,7 @@ from app.users.models.user import User
 
 from app.exceptions import PaymentNoReceivedAmountException
 from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
+from app.tools import prepare_datatables_query, stream_and_close
 
 @bp_api_admin.route('', defaults={'payment_id': None})
 @bp_api_admin.route('/<int:payment_id>')
@@ -39,7 +40,28 @@ def admin_get_payments(payment_id):
         payments = payments.filter(
             Payment.orders.has(Order.id == request.values['order_id']))
 
+    if request.values.get('status'):
+        payments = payments.filter_by(status=PaymentStatus[request.args['status']].payment_id)
+    if request.values.get('draw') is not None: # Args were provided by DataTables
+        return filter_payments(payments, request.values)
+    if payments.count() == 0:
+        abort(Response("No payments were found", status=404))
+    else:
+        return jsonify([entry.to_dict(details=request.values.get('details'))
+                        for entry in payments])
+
     return jsonify([entry.to_dict() for entry in payments])
+
+def filter_payments(payments, filter_params):
+    payments, records_total, records_filtered = prepare_datatables_query(
+        payments, filter_params, None
+    )
+    return jsonify({
+        'draw': int(filter_params['draw']),
+        'recordsTotal': records_total,
+        'recordsFiltered': records_filtered,
+        'data': [entry.to_dict() for entry in payments]
+    })
 
 @bp_api_admin.route('/<int:payment_id>', methods=['POST'])
 @roles_required('admin')

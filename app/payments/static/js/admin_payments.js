@@ -219,7 +219,7 @@ function init_payments_table() {
         ],        
         ajax: {
             url: '/api/v1/admin/payment',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {
@@ -253,6 +253,8 @@ function init_payments_table() {
         ],
         order: [[9, 'desc']],
         select: true,
+        serverSide: true,
+        processing: true,
         footerCallback: function(row, data, start, end, display) {
             var api = this.api(), data;
 
@@ -297,7 +299,7 @@ function init_payments_table() {
         initComplete: function() { 
             var table = this;
             init_search(table, g_filter_sources)
-            .then(() => init_table_filter(table)); 
+            .then(() => init_table_filter(table));
         }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
