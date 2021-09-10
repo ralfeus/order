@@ -140,7 +140,7 @@ function init_payments_table() {
         ],        
         ajax: {
             url: '/api/v1/payment',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {data: 'id'},
@@ -166,6 +166,8 @@ function init_payments_table() {
         ],
         order: [[6, 'desc']],
         select: true,
+        serverSide: true,
+        processing: true,
         initComplete: function() { init_search(this, g_filter_sources); }
     });
 

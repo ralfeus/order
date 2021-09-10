@@ -113,6 +113,16 @@ def user_get_payments(payment_id):
         payments = payments.filter(
             Payment.orders.any(Order.id == request.values['order_id']))
 
+    if request.values.get('status'):
+        payments = payments.filter_by(status=PaymentStatus[request.args['status']].payment_id)
+    if request.values.get('draw') is not None: # Args were provided by DataTables
+        return filter_payments(payments, request.values)
+    if payments.count() == 0:
+        abort(Response("No payments were found", status=404))
+    else:
+        return jsonify([entry.to_dict(details=request.values.get('details'))
+                        for entry in payments])
+
     return jsonify([tran.to_dict() for tran in payments])
 
 @bp_api_user.route('', methods=['POST'])
