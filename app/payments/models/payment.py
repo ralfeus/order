@@ -5,6 +5,7 @@ import logging
 
 from sqlalchemy import Column, Enum, Numeric, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.exceptions import PaymentNoReceivedAmountException
@@ -52,6 +53,31 @@ class Payment(db.Model, BaseModel):
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
 
+    @classmethod
+    def get_filter(cls, base_filter, column=None, filter_value=None):
+        if column is None or filter_value is None:
+            return base_filter
+        from app.users.models.user import User
+        from app.payments.models.payment_method import PaymentMethod
+        from app.orders.models.order import Order
+        part_filter = f'%{filter_value}%'
+        filter_values = filter_value.split(',')
+        if isinstance(column, str):
+            return \
+                base_filter.filter(cls.user.has(User.username.like(part_filter))) \
+                    if column == 'user_name' \
+                else base_filter
+                
+        if isinstance(column, InstrumentedAttribute):       
+            return \
+                base_filter.filter(column.in_([PaymentStatus[status]
+                    for status in filter_values])) \
+                    if column.key == 'status' else \
+                base_filter.filter(column.any(Order.id.like(part_filter))) \
+                    if column.key == 'orders' else \
+                base_filter.filter(cls.payment_method.has(PaymentMethod.name.in_(filter_values))) \
+                    if column.key == 'payment_method' \
+                else base_filter.filter(column.like(part_filter))           
 
     def is_editable(self):
         return self.status != PaymentStatus.approved
