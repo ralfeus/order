@@ -31,6 +31,10 @@ def paypal_callback():
     if event_type == 'CHECKOUT.ORDER.APPROVED':
         payment_data = payload['resource']['purchase_units'][0]
         payment_id = payment_data['reference_id']
+        capture = payment_data['payments']['captures'][0]
+        if capture['status'] != 'COMPLETED':
+            logger.info("Payment %s is yet pending. Ignoring...", payment_id)
+            return jsonify(payload), 202
         logger.info("Got PayPal completion for payment %s", payment_id)
         from app.currencies.models.currency import Currency
         from app.payments.models.payment import Payment
@@ -38,17 +42,24 @@ def paypal_callback():
         payment = Payment.query.get(payment_id)
         if payment is None:
             logger.warning('No payment %s was found', payment_id)
-            return jsonify({})
-        net_amount = \
-            payment_data['payments']['captures'][0]['seller_receivable_breakdown']['net_amount']
+            return jsonify(payload), 202
+        if payment.status == PaymentStatus.approved:
+            logger.info("The payment %s is already approved. Ignoring...", payment_id)
+            return jsonify(payload), 202
+        try:
+            net_amount = \
+                payment_data['payments']['captures'][0]['seller_receivable_breakdown']['net_amount']
+        except KeyError:
+            logger.exception(payload)
+            return jsonify(payload), 202
         received_currency = Currency.query.get(net_amount['currency_code'])
         if received_currency is None:
             logger.info("Unknown currency is received %s", net_amount['currency_code'])
-            return jsonify({})
+            return jsonify(payload), 202
         net_amount = int(float(net_amount['value']) / float(received_currency.get_rate()))
         payment.amount_received_krw = net_amount
         payment.set_status(PaymentStatus.approved)
         db.session.commit()
     else:
         logger.debug(event_type)
-    return jsonify({})
+    return jsonify(payload), 202
