@@ -26,6 +26,11 @@ class PaymentMethod(db.Model, BaseModel):
         if re.match(r'^[a-zA-Z ]+$', name) is None:
             raise Exception('Must contain only latin letters')
 
+    def execute_payment(self, _payment):
+        '''Executes automated payment.
+        In general case just does nothing. Specifics are implemented in descendants'''
+        return None
+
     def to_dict(self):
         return {
             'id': self.id,

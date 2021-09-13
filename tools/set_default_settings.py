@@ -12,7 +12,8 @@ settings = [
     {'key': 'crisp.id', 'value': None, 'description': 'Crisp chat ID. If is set to None the Crisp chat is disabled' },
     {'key': 'jivochat.id', 'value': None, 'description': 'Jivochat ID. If is set to None the Jivochat is disabled' },
     {'key': 'network.root_id', 'value': None, 'description': 'ID of the tree\'s root node'},
-    {'key': 'purchase.allow_purchase_restricted_products', 'value': False, 'description': 'Allows to decide whether to purchase restricted products (ones that can\'t be purchased by foreign members'}
+    {'key': 'purchase.allow_purchase_restricted_products', 'value': False, 'description': 'Allows to decide whether to purchase restricted products (ones that can\'t be purchased by foreign members'},
+    {'key': 'payment.paypal.client_id', 'value': None, 'description': 'PayPal API client ID'}
 ]
 
 for setting in settings:

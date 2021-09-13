@@ -53,6 +53,16 @@ class Payment(db.Model, BaseModel):
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
 
+    def __init__(self, **kwargs):
+        attributes = [a[0] for a in type(self).__dict__.items()
+                           if isinstance(a[1], InstrumentedAttribute)]
+        for arg in kwargs:
+            if arg in attributes:
+                setattr(self, arg, kwargs[arg])
+        if self.payment_method is None:
+            from .payment_method import PaymentMethod
+            self.payment_method = PaymentMethod.query.get(self.payment_method_id)   
+
     @classmethod
     def get_filter(cls, base_filter, column=None, filter_value=None):
         if column is None or filter_value is None:
@@ -77,7 +87,7 @@ class Payment(db.Model, BaseModel):
                     if column.key == 'orders' else \
                 base_filter.filter(cls.payment_method.has(PaymentMethod.name.in_(filter_values))) \
                     if column.key == 'payment_method' \
-                else base_filter.filter(column.like(part_filter))           
+                else base_filter.filter(column.like(part_filter)) 
 
     def is_editable(self):
         return self.status != PaymentStatus.approved
@@ -138,9 +148,9 @@ class Payment(db.Model, BaseModel):
 
     def execute_payment(self):
         '''
-        Execute the paymant automatically
+        Execute the paymant automatically depending on payment method
         '''
-        
+        return self.payment_method.execute_payment(self)
 
     def to_dict(self):
         '''

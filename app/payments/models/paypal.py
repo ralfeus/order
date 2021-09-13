@@ -9,8 +9,12 @@ class PayPal(PaymentMethod):
     def __init__(self):
         self.name = 'PayPal'
     
-    def execute_payment(self):
-        pass
+    def execute_payment(self, payment):
+        from app.settings.models.setting import Setting
+        client_id = Setting.query.get('payment.paypal.client_id')
+        client_id = client_id.value if client_id is not None else None
+        client_id = client_id not in (None, '')
+        return {'url': '%s/paypal' % payment.id} if client_id else None
 
 #if response is not None:
 #         # Check to see if the API request was successfully received and acted upon

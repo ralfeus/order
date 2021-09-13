@@ -205,7 +205,10 @@ def user_create_payment():
 
     db.session.add(payment)
     db.session.commit()
-    return jsonify({'data': [payment.to_dict()]})
+    payment_execution_result = payment.execute_payment()
+    extra_action = {'extra_action': payment_execution_result} \
+        if payment_execution_result is not None else {}
+    return jsonify({'data': [payment.to_dict()], **extra_action})
 
 @bp_api_user.route('/<payment_id>', methods=['DELETE'])
 @login_required

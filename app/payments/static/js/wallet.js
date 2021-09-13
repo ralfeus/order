@@ -60,21 +60,30 @@ function get_orders_to_pay() {
 function init_payments_table() {
     editor = new $.fn.dataTable.Editor({
         ajax: {
-            create: {
-                url: '/api/v1/payment',
-                contentType: 'application/json',
-                data: data => {
-                    var target = Object.entries(data.data)[0][1];
-                    target.evidences = target.evidences.map(e => (e.url 
-                        ? {
-                            path: e.path
+            create: (_method, _url, data, success, error) => {
+                var target = Object.entries(data.data)[0][1];
+                target.evidences = target.evidences.map(e => (e.url 
+                    ? {
+                        path: e.path
+                    }
+                    : {
+                        id: e[0],
+                        file_name: editor.files().files[e].filename
+                }));
+                data = JSON.stringify(target);
+                $.ajax({
+                    url: '/api/v1/payment',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: data,
+                    success: data => {
+                        if (data.extra_action) {
+                            window.open(data.extra_action.url);
                         }
-                        : {
-                            id: e[0],
-                            file_name: editor.files().files[e].filename
-                    }));
-                    return JSON.stringify(target);
-                }
+                        success(data);
+                    },
+                    error: error
+                })
             },
             remove: {
                 url: '/api/v1/payment/_id_',

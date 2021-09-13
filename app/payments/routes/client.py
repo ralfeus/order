@@ -1,5 +1,5 @@
 ''' Client routes for finance management '''
-from flask import render_template, send_file, Response, abort, escape, request
+from flask import render_template, send_file
 from flask_security import current_user, login_required, roles_required
 from flask.globals import current_app
 import json

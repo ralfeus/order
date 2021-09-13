@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+</head>
+<body>
+  <script
+    src="https://www.paypal.com/sdk/js?client-id={{client_id}}&currency={{'RUB' if payment.currency_code == 'RUR' else payment.currency_code}}">
+  </script>
+  
+  <div id="paypal-button-container"></div>
+  <script>
+    paypal.Buttons({
+      createOrder: function (data, actions) {
+        return actions.order.create({
+          purchase_units: [{
+            amount: {
+              currency_code: '{{"RUB" if payment.currency_code == "RUR" else payment.currency_code}}',
+              value: '{{payment.amount_sent_original}}'
+            },
+            reference_id: '{{payment.id}}'
+          }]
+        })
+      }
+    }).render('#paypal-button-container');
+  </script>
+</body>
