@@ -14,6 +14,9 @@
       createOrder: function (data, actions) {
         return actions.order.create({
           purchase_units: [{
+            payee: {
+              email_address: '{{payee_name}}'
+            },
             amount: {
               currency_code: '{{"RUB" if payment.currency_code == "RUR" else payment.currency_code}}',
               value: '{{payment.amount_sent_original}}'

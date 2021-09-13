@@ -92,7 +92,7 @@ class Payment(db.Model, BaseModel):
     def is_editable(self):
         return self.status != PaymentStatus.approved
 
-    def set_status(self, value, messages):
+    def set_status(self, value, messages=[]):
         if isinstance(value, str):
             value = PaymentStatus[value]
         elif isinstance(value, int):

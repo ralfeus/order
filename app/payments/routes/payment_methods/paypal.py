@@ -15,8 +15,10 @@ def get_paypal_checkout(payment_id):
     if payment is None:
         abort(404)
     paypal_client_id = Setting.query.get('payment.paypal.client_id').value
+    payee_name = Setting.query.get('payment.paypal.payee_address').value
     return render_template('payment_methods/paypal.html',
         client_id=paypal_client_id,
+        payee_name=payee_name,
         payment=payment
     )
 
@@ -27,14 +29,26 @@ def paypal_callback():
     # logger.info(request.get_json())
     event_type = payload['event_type']
     if event_type == 'CHECKOUT.ORDER.APPROVED':
-        payment_id = payload['resource']['purchase_units'][0]['reference_id']
-        logger.info("Got PayPal approval for payment %s", payment_id)
+        payment_data = payload['resource']['purchase_units'][0]
+        payment_id = payment_data['reference_id']
+        logger.info("Got PayPal completion for payment %s", payment_id)
+        from app.currencies.models.currency import Currency
         from app.payments.models.payment import Payment
         from app import db
         payment = Payment.query.get(payment_id)
         if payment is None:
             logger.warning('No payment %s was found', payment_id)
             return jsonify({})
-        payment.status = PaymentStatus.approved
+        net_amount = \
+            payment_data['payments']['captures'][0]['seller_receivable_breakdown']['net_amount']
+        received_currency = Currency.query.get(net_amount['currency_code'])
+        if received_currency is None:
+            logger.info("Unknown currency is received %s", net_amount['currency_code'])
+            return jsonify({})
+        net_amount = int(float(net_amount['value']) / float(received_currency.get_rate()))
+        payment.amount_received_krw = net_amount
+        payment.set_status(PaymentStatus.approved)
         db.session.commit()
+    else:
+        logger.debug(event_type)
     return jsonify({})
