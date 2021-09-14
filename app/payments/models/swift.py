@@ -8,6 +8,3 @@ class Swift(PaymentMethod):
     
     def __init__(self):
         self.name = 'SWIFT'
-    
-    def execute_payment(self):
-        pass
