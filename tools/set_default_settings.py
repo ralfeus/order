@@ -14,6 +14,7 @@ settings = [
     {'key': 'network.root_id', 'value': None, 'description': 'ID of the tree\'s root node'},
     {'key': 'purchase.allow_purchase_restricted_products', 'value': False, 'description': 'Allows to decide whether to purchase restricted products (ones that can\'t be purchased by foreign members'},
     {'key': 'payment.paypal.client_id', 'value': None, 'description': 'PayPal API client ID'},
+    {'key': 'payment.paypal.client_secret', 'value': None, 'description': 'PayPal API client secret'},
     {'key': 'payment.paypal.payee_address', 'value': None, 'description': 'PayPal payee e-mail address'}
 ]
 
