@@ -3,8 +3,6 @@
 {% block scripts %}
 {{ super() }}
 <script src="static/js/new_order.js"></script>
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/xlsx.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js"></script> -->
 <script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
 <script src="static/js/upload_excel.js"></script>
 {% if order_id %}
@@ -15,22 +13,79 @@
 {% block content %}
 {{ super() }}
     <!-- <form method='post'> -->
-    <div class="container-fluid row">
+    <div class="row" style="position: sticky; top: 0px; z-index: 999; background: white;">
         <div class="col-3 width-adjusted">
             <input class="form-control" id="name" placeholder="Customer name"/>
             <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
         </div>
-        <div class="col-4 width-adjusted">
+        <div class="col-3 width-adjusted">
             <input class="form-control" id="address" placeholder="Address" />
-            <input class="form-control" id="zip" placeholder="Zip code"/>
-            <select class="form-control" id="country" onchange="country_changed()"></select>
-            <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
+            <div class="row">
+                <div class="col-4">
+                    <input class="form-control" id="zip" placeholder="Zip code"/>
+                </div>
+                <div class="col-8">
+                    <select class="form-control" id="country" onchange="country_changed()"></select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12" id="shipping-method">
+                    <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
+                </div>
+                <div class="col-1" id="shipping-notification" 
+                    style="padding-left: 0px; padding-right: 0px; display: none;">
+                    <i class='fas fa-exclamation' style="color: red;"></i>
+                </div>
+            </div>
             <input class="form-control" id="phone" placeholder="+(country code) phone" />
         </div>
-        <div class="col-3 width-adjusted" style="font-size: 94%;">
+        <div class="col-3" style="font-size: 94%;">
             <select class="form-control" id="attached_orders" 
                 data-placeholder="Attach postponed orders" multiple></select>
         </div>
+        <div class="col-3 cart">
+            <table class="table-sm table-bordered table-light table-striped table-condensed" style="width:100%;">
+                <thead>
+                    <th></th>
+                    <th>Subtotal</th>
+                    <th>Weight</th>
+                    <th>Shipping</th>
+                    <th>Total</th>
+                </thead>
+                <colgroup>
+                    <col style="background-color: rgb(240, 240, 240);" />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td>KRW</td>
+                        <td id="totalItemsCostKRW"></td>
+                        <td class="total-weight"></td>
+                        <td id="totalShippingCostKRW"></td>
+                        <td id="totalGrandTotalKRW"></td>
+                    </tr>
+                    <tr>
+                        <td>RUR</td>
+                        <td id="totalItemsCostRUR"></td>
+                        <td class="total-weight"></td>
+                        <td id="totalShippingCostRUR"></td>
+                        <td id="totalGrandTotalRUR"></td>
+                    </tr>
+                    <tr>
+                        <td>USD</td>
+                        <td id="totalItemsCostUSD"></td>
+                        <td class="total-weight"></td>
+                        <td id="totalShippingCostUSD"></td>
+                        <td id="totalGrandTotalUSD"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <input type="hidden" id="order_id" value="{{ order_id }}"/>
+            <input type="button" class="btn btn-primary" id="submit" value="Submit" />
+        </div> 
     </div>
     <div class="container-fluid row">&nbsp;</div>
     <div class="container-fluid">
@@ -131,46 +186,12 @@
         </div>
     </div>
     <!-- </form> -->
-    <div class="position-fixed cart" style="top:0; right:0">
-        <table class="table-sm table-bordered table-light">
-            <thead>
-                <th></th>
-                <th>Subtotal</th>
-                <th>Weight</th>
-                <th>Shipping</th>
-                <th>Total</th>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>KRW</td>
-                    <td id="totalItemsCostKRW"></td>
-                    <td class="total-weight"></td>
-                    <td id="totalShippingCostKRW"></td>
-                    <td id="totalGrandTotalKRW"></td>
-                </tr>
-                <tr>
-                    <td>RUR</td>
-                    <td id="totalItemsCostRUR"></td>
-                    <td class="total-weight"></td>
-                    <td id="totalShippingCostRUR"></td>
-                    <td id="totalGrandTotalRUR"></td>
-                </tr>
-                <tr>
-                    <td>USD</td>
-                    <td id="totalItemsCostUSD"></td>
-                    <td class="total-weight"></td>
-                    <td id="totalShippingCostUSD"></td>
-                    <td id="totalGrandTotalUSD"></td>
-                </tr>
-            </tbody>
-        </table>
-        <input type="hidden" id="order_id" value="{{ order_id }}"/>
-        <input type="button" class="btn btn-primary" id="submit" value="Submit" />
-    </div> 
+
     <div class="fixed-bottom excel" style="display: none;">
         <div class="custom-file">
             <label class="custom-file-label " for="excel">Import from Excel</label>
             <input type="file" id="excel" class="custom-file-input" />
         </div>
     </div>
+
 {% endblock %}

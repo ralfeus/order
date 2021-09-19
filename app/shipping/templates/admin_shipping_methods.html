@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_shipping_methods.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Shipping methods</h1>
+<div class="container row col-12">
+    <table id="shipping_methods" class="table" style="width: 100%;">
+        <thead>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Enabled</th>
+            <th scope="col">Notification</th>
+        </thead>
+        <tbody></tbody>
+    </table>    
+</div>
+{% endblock %}

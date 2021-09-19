@@ -1,14 +1,16 @@
-from flask_security.decorators import roles_required
+from datetime import datetime
 from operator import itemgetter
 
 from flask import Response, abort, jsonify, request
-from flask_security import login_required
+from flask_security import login_required, roles_required
 
-from app.shipping import bp_api_admin, bp_api_user
+from app import db
+from app.tools import modify_object
 from app.exceptions import NoShippingRateError
-
 from app.models import Country
-from app.shipping import Shipping
+from app.shipping import bp_api_admin, bp_api_user
+from app.shipping.models.shipping import Shipping
+
 
 @bp_api_admin.route('')
 @roles_required('admin')
@@ -84,3 +86,40 @@ def get_shipping_rate(country, shipping_method_id: int, weight):
 # @roles_required('admin')
 # def admin_get_shipping_boxes():
 #     return jsonify([box.to_dict() for box in Box.query])
+
+@bp_api_admin.route('/<shipping_method_id>', methods=['POST'])
+@roles_required('admin')
+def admin_save_shipping_method(shipping_method_id):
+    '''Creates or modifies existing shipping_method'''
+    # with ShippingMethodValidator(request) as validator:
+    #     if not validator.validate():
+    #         return jsonify({
+    #             'data': [],
+    #             'error': "Couldn't update a shipping method",
+    #             'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+    #                             for message in validator.errors]
+    #         }), 400
+    payload = request.get_json()
+    if shipping_method_id == 'null':
+        shipping_method = Shipping()
+        db.session.add(shipping_method)
+    else:
+        shipping_method = Shipping.query.get(shipping_method_id)
+        if not shipping_method:
+            abort(Response(f'No shipping_method <{shipping_method_id}> was found', status=400))
+
+    modify_object(shipping_method, payload, ['name', 'enabled', 'notification'])
+
+    db.session.commit()
+    return jsonify({'data': [shipping_method.to_dict()]})
+
+@bp_api_admin.route('/<shipping_method_id>', methods=['DELETE'])
+@roles_required('admin')
+def delete_shipping_method(shipping_method_id):
+    '''Deletes existing shipping method'''
+    shipping_method = Shipping.query.get(shipping_method_id)
+    if not shipping_method:
+        abort(Response(f'No shipping method <{shipping_method_id}> was found', status=404))
+    db.session.delete(shipping_method)
+    db.session.commit()
+    return jsonify({})

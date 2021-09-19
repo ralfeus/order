@@ -61,7 +61,7 @@ class Payment(db.Model, BaseModel):
                 setattr(self, arg, kwargs[arg])
         if self.payment_method is None:
             from .payment_method import PaymentMethod
-            self.payment_method = PaymentMethod.query.get(self.payment_method_id)   
+            self.payment_method = PaymentMethod.query.get(self.payment_method_id)
 
     @classmethod
     def get_filter(cls, base_filter, column=None, filter_value=None):
