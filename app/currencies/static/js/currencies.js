@@ -2,29 +2,22 @@ var g_currencies_table;
 
 $(document).ready(() => {
     var editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
-            var target = Object.entries(data.data)[0][1];
-            var currency_id = Object.entries(data.data)[0][0];
-            var method = 'post';
-            var url = '/api/v1/admin/currency/' + currency_id;
-            if (data.action === 'create') {
-                url = '/api/v1/admin/currency/';   
-                currency_id = target.code;
-            } else if (data.action === 'remove') {
-                method = 'delete';
+        ajax: {
+            create: {
+                url: '/api/v1/admin/currency',
+                data: data => JSON.stringify(Object.entries(data.data)[0][1]),
+                contentType: 'application/json'
+            },
+            edit: {
+                url: '/api/v1/admin/currency/_id_',
+                data: data => JSON.stringify(Object.entries(data.data)[0][1]),
+                contentType: 'application/json'
+            },
+            remove: {
+                url: '/api/v1/admin/currency/_id_',
+                method: 'DELETE',
+                contentType: 'application/json'
             }
-            $.ajax({
-                url: url,
-                method: method,
-                dataType: 'json',
-                contentType: 'application/json',
-                data: JSON.stringify(target),
-                success: data => {
-                    success(({data: [data]}))
-                    // update_totals()
-                },
-                error: error
-            });
         },
         table: '#currencies',
         idSrc: 'code',
@@ -45,7 +38,7 @@ $(document).ready(() => {
         dom: 'Btp',
         ajax: {
             url: '/api/v1/admin/currency',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         buttons: [
             {extend: 'create', editor: editor, text: "New item"},

@@ -3,7 +3,7 @@ Shipping method model
 '''
 from functools import reduce
 
-from sqlalchemy import Boolean, Column, String, or_
+from sqlalchemy import Boolean, Column, String, Text, or_
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -31,6 +31,7 @@ class Shipping(db.Model, BaseModel):
     name = Column(String(16))
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
+    notification = Column(Text)
     rates = relationship('ShippingRate', lazy='dynamic')
 
     __mapper_args__ = {'polymorphic_on': discriminator}
@@ -81,7 +82,8 @@ class Shipping(db.Model, BaseModel):
         return {
             'id': self.id,
             'name': self.name,
-            'enabled': self.enabled
+            'enabled': self.enabled,
+            'notification': self.notification
         }
 
     @staticmethod

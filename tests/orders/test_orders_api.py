@@ -803,3 +803,9 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         order = Order.query.get(gen_id)
         self.assertEqual(order.suborders.count(), 1)
+
+    def test_order_status(self):
+        order = Order(status=OrderStatus.ready_to_ship)
+        db.session.add(order)
+        db.session.flush()
+

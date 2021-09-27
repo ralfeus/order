@@ -202,18 +202,11 @@ function get_countries() {
     return promise;
 }
 
-function get_currencies() {
-    var promise = $.Deferred();
-    $.ajax({
-        url: '/api/v1/currency',
-        success: function(data, _status, _xhr) {
-            for (var currency in data) {
-                currencyRates[data[currency].code] = data[currency].rate;
-            }
-            promise.resolve();
-        }
-    });
-    return promise;
+async function init_currencies() {
+    var currencies = await get_currencies();
+    for (var currency in currencies) {
+        currencyRates[currencies[currency].code] = currencies[currency].rate;
+    }
 }
 
 function get_products() {
@@ -275,7 +268,8 @@ function update_shipping_methods(country, weight) {
                 shipping_options = $('#shipping')[0].options;
                 selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
             }
-            $('#shipping').html(data.map(e => '<option value="' + e.id + '">' + e.name + '</option>'));
+            $('#shipping').html(data.map(
+                e => '<option value="' + e.id + '" data-notification="' + e.notification + '">' + e.name + '</option>'));
             if (data.map(i => i.id).includes(parseInt(g_selected_shipping_method))) {
                 $('#shipping').val(g_selected_shipping_method);
             } else if (g_selected_shipping_method) {
@@ -284,6 +278,7 @@ function update_shipping_methods(country, weight) {
                     "is not available for your combination of country, weight and products"
                 );
             }
+            shipping_changed();
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
                 complete: () => {
@@ -359,7 +354,7 @@ function load_dictionaries() {
     var dict_left = 3;
     get_countries()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
-    get_currencies()
+    init_currencies()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });    
     get_products()
         .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
@@ -397,6 +392,19 @@ async function update_total_weight(products) {
 
 function shipping_changed() {
     get_shipping_cost($('#shipping').val(), g_total_weight);
+    if ($('#shipping')[0].selectedOptions[0].dataset.notification == 'null') {
+        $('#shipping-method')
+            .removeClass('col-11')
+            .addClass('col-12');
+        $('#shipping-notification').hide();
+    } else {
+        $('#shipping-method')
+            .removeClass('col-12')
+            .addClass('col-11');
+        $('#shipping-notification').show();
+        $('#shipping-notification')[0].title = 
+            $('#shipping')[0].selectedOptions[0].dataset.notification;
+    }
 }
 
 function submit_order(_sender, draft=false) {

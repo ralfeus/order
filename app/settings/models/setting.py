@@ -14,6 +14,14 @@ class Setting(db.Model, BaseModel):
     default_value = Column(String(128))
     description = Column(String(256))
 
+    @classmethod
+    def get(cls, setting_name):
+        '''Gets setting's value or None if setting doesn't exist'''
+        setting = Setting.query.get(setting_name)
+        if setting is not None:
+            return setting.value
+        return None
+
     def to_dict(self):
         return {
             'id': self.id,

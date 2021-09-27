@@ -1,87 +1,104 @@
+var g_editor;
+var g_invoice;
 var g_invoice_id = window.location.href.slice(-16);
 var g_invoice_items_table;
 var g_products;
 var g_usd_rate;
 
 $(document).ready(() => {
-    var editor;
     get_usd()
-        .then(() => get_products()
-        .then(() => {
-            editor = new $.fn.dataTable.Editor({
-                ajax: (_method, _url, data, success, error) => {
-                    var invoice_item_id = Object.entries(data.data)[0][0];
-                    var method = 'post';
-                    var url = '/api/v1/admin/invoice/' + g_invoice_id + '/item/' + invoice_item_id;
-                    if (data.action === 'create') {
-                        url = '/api/v1/admin/invoice/' + g_invoice_id + '/item/new';   
-                    } else if (data.action === 'remove') {
-                        method = 'delete';
-                    }
-                    $.ajax({
-                        url: url,
-                        method: method,
-                        dataType: 'json',
-                        contentType: 'application/json',
-                        data: JSON.stringify(data.data[invoice_item_id]),
-                        success: data => {
-                            success(({data: [data]}))
-                            update_totals()
-                        },
-                        error: error
-                    });
-                },
-                table: '#invoice-items',
-                idSrc: 'id',
-                fields: [
-                    {
-                        label: 'Product ID', 
-                        name: 'product_id', 
-                        type: 'autoComplete', 
-                        opts: {
-                            source: (query, response) => {
-                                var result = g_products.filter(product =>
-                                    product.value.includes(query.term)
-                                    || product.label.includes(query.term)
-                                );
-                                response(result);
-                            },
-                            minLength: 2
-                        }
-                    },
-                    {label: 'Price', name: 'price'},
-                    {label: 'Quantity', name: 'quantity', def: 1}
-                ]
-            });
-            $('#invoice-items').on( 'click', 'td.editable', function (e) {
-                editor.inline(this);
-            } );    
-            $('input', editor.field('product_id').node()).on( 'blur', event => {
-                editor.field('price').set(
-                    g_products.filter(obj => obj.value == event.target.value)[0].price);
-            } );        
-            g_invoice_items_table = $('#invoice-items').DataTable({
-                dom: 'Btp',
-                ajax: {
-                    url: '/api/v1/admin/invoice/' + g_invoice_id,
-                    dataSrc: json => json[0].invoice_items
-                },
-                buttons: [
-                    {extend: 'create', editor: editor, text: "New item"},
-                    {extend: 'remove', editor: editor, text: "Remove item"}
-                ],
-                columns: [
-                    {data: 'product_id', className: 'editable'},
-                    {data: 'product', class: 'wrapok'},
-                    {data: 'price', className: 'editable'},
-                    {data: 'quantity', className: 'editable'},
-                    {data: 'subtotal'}
-                ],
-                select: true,
-                initComplete: update_totals
-            });
-        }));
+	.then(get_invoice)
+    .then(get_products)
+    .then(init_invoices_table);
 });
+
+async function get_invoice() {
+    g_invoice = (await (await fetch('/api/v1/admin/invoice/' + g_invoice_id)).json())[0];
+    $('#export-id').val(g_invoice.export_id);
+}
+
+function init_invoices_table() {
+    g_editor = new $.fn.dataTable.Editor({
+        ajax: (_method, _url, data, success, error) => {
+            var invoice_item_id = Object.entries(data.data)[0][0];
+            var method = 'post';
+            var url = '/api/v1/admin/invoice/' + g_invoice_id + '/item/' + invoice_item_id;
+            if (data.action === 'create') {
+                url = '/api/v1/admin/invoice/' + g_invoice_id + '/item/new';   
+            } else if (data.action === 'remove') {
+                method = 'delete';
+            }
+            $.ajax({
+                url: url,
+                method: method,
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify(data.data[invoice_item_id]),
+                success: data => {
+                    success(({data: [data]}))
+                    update_totals()
+                },
+                error: error
+            });
+        },
+        table: '#invoice-items',
+        idSrc: 'id',
+        fields: [
+            {
+                label: 'Product ID', 
+                name: 'product_id', 
+                type: 'select2', 
+                opts: {
+                    ajax: {
+                        url: '/api/v1/admin/product',
+                        data: params => ({
+                            q: params.term,
+                            page: params.page || 1
+                        }),
+                        processResults: data => ({
+                            results: data.results.map(i => ({
+                                text: i.id + " | " + i.name,
+                                id: i.id
+                            })),
+                            pagination: data.pagination
+                        })
+                    }
+                }
+            },
+            {label: 'Price', name: 'price'},
+            {label: 'Quantity', name: 'quantity', def: 1}
+        ]
+    });
+    $('#invoice-items').on( 'click', 'td.editable', function (e) {
+        g_editor.inline(this);
+    } );    
+    g_editor.field('product_id').input().on('change', event => {
+        if (event.target.value) {
+            g_editor.field('price').set(
+                g_products.filter(obj => obj.value == event.target.value)[0].price);
+        }
+    } );        
+    g_invoice_items_table = $('#invoice-items').DataTable({
+        dom: 'Btp',
+        ajax: {
+            url: '/api/v1/admin/invoice/' + g_invoice_id,
+            dataSrc: json => json[0].invoice_items
+        },
+        buttons: [
+            {extend: 'create', editor: g_editor, text: "New item"},
+            {extend: 'remove', editor: g_editor, text: "Remove item"}
+        ],
+        columns: [
+            {data: 'product_id', className: 'editable'},
+            {data: 'product', class: 'wrapok'},
+            {data: 'price', className: 'editable'},
+            {data: 'quantity', className: 'editable'},
+            {data: 'subtotal'}
+        ],
+        select: true,
+        initComplete: update_totals
+    });
+}
 
 function update_totals() {
     var total_weight = g_invoice_items_table.data().reduce((acc, row) => 
@@ -119,18 +136,8 @@ function get_excel() {
     window.open('/api/v1/admin/invoice/' + g_invoice_id + '/excel');
 }
 
-function get_usd() {
-    var promise = $.Deferred()
-    $.ajax({
-        url: '/api/v1/currency',
-        success: function(data) {
-            if (data) {
-                g_usd_rate = data.USD
-            }
-            promise.resolve();
-        }
-    })
-    return promise;
+async function get_usd() {
+    g_usd_rate = (await (await fetch('/api/v1/currency/USD')).json()).data[0].rate;
 }
 
 function round_up(number, signs) {

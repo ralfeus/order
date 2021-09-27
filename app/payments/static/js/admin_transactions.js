@@ -6,11 +6,50 @@ $(document).ready(() => {
 });
 
 function init_transactions_table() {
+    var editor = new $.fn.dataTable.Editor({
+        table: '#transactions',
+        idSrc: 'id',
+        ajax: {
+            create: {
+                url: '/api/v1/admin/payment/transaction',
+                contentType: 'application/json',
+                data: data => JSON.stringify(Object.entries(data.data)[0][1])
+            }
+        },
+        fields: [
+            {
+                label: 'Customer',
+                name: 'customer_id',
+                type: 'select2',
+                opts: {
+                    ajax: {
+                        url: '/api/v1/admin/user',
+                        data: params => ({
+                            q: params.term,
+                            page: params.page || 1
+                        }),
+                        processResults: data => ({
+                            results: data.results.map(i => ({
+                                text: i.username,
+                                id: i.id
+                            })),
+                            pagination: data.pagination
+                        })
+                    }
+                }
+            },
+            {
+                label: 'Amount',
+                name: 'amount'
+            }
+        ]
+    });
     $('#transactions').DataTable({
-        dom: 'lrtip',
+        dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/payment/transaction'
         },
+        buttons: [{extend:'create', text: 'Create', editor: editor}],
         columns: [
             {data: 'id'},
             {data: 'order_id'},

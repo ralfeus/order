@@ -697,7 +697,26 @@ def admin_get_subcustomers():
             'recordsFiltered': records_filtered,
             'data': outcome
         })
-    
+    if request.values.get('initialValue') is not None:
+        sub = Subcustomer.query.get(request.values.get('value'))
+        return jsonify(
+            {'id': sub.id, 'text': sub.name} \
+                if sub is not None else {})
+    if request.values.get('q') is not None:
+        subcustomers = subcustomers.filter(or_(
+            Subcustomer.name.like(f'%{request.values["q"]}%'),
+            Subcustomer.username.like(f'%{request.values["q"]}%')
+        ))
+    if request.values.get('page') is not None:
+        page = int(request.values['page'])
+        total_results = subcustomers.count()
+        subcustomers = subcustomers.offset((page - 1) * 100).limit(page * 100)
+        return jsonify({
+            'results': [entry.to_dict() for entry in subcustomers],
+            'pagination': {
+                'more': total_results > page * 100
+            }
+        })
     return jsonify([entry.to_dict() for entry in subcustomers])
 
 @bp_api_admin.route('/subcustomer', methods=['POST'])

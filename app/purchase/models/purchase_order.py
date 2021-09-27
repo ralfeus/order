@@ -1,4 +1,5 @@
 ''' Represents purchase order '''
+from app.models.address import Address
 from datetime import datetime, date
 import enum
 
@@ -38,6 +39,8 @@ class PurchaseOrder(db.Model, BaseModel):
     payment_phone = Column(String(13))
     payment_account = Column(String(32))
     status = Column(Enum(PurchaseOrderStatus))
+    address_id = Column(Integer, ForeignKey('addresses.id'))
+    address = relationship(Address, foreign_keys=[address_id])
     zip = Column(String(5))
     address_1 = Column(String(64))
     address_2 = Column(String(64))
@@ -82,9 +85,9 @@ class PurchaseOrder(db.Model, BaseModel):
     # def purchase_date(cls):
     #     return Suborder.buyout_date
 
-    @property
-    def address(self):
-        return {'zip': self.zip, 'address_1': self.address_1, 'address_2': self.address_2}
+    # @property
+    # def address(self):
+    #     return {'zip': self.zip, 'address_1': self.address_1, 'address_2': self.address_2}
 
     @property
     def bank_id(self):
@@ -94,7 +97,9 @@ class PurchaseOrder(db.Model, BaseModel):
         return "<PurchaseOrder: {}>".format(self.id)
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column=None, filter_value=None):
+        if column is None or filter_value is None:
+            return base_filter
         from app.orders.models.subcustomer import Subcustomer
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):
@@ -116,6 +121,12 @@ class PurchaseOrder(db.Model, BaseModel):
                     Suborder.buyout_date == filter_value)) \
                     if column == 'purchase_date' \
                 else base_filter
+        if isinstance(column, str):
+            return \
+                base_filter.filter(PurchaseOrder.customer.has(
+                    Subcustomer.name.like(part_filter))) \
+                    if column == 'customer.name' \
+                    else base_filter
         return base_filter
 
     def is_editable(self):
@@ -144,8 +155,9 @@ class PurchaseOrder(db.Model, BaseModel):
             'suborder_id': self.suborder_id,
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
+            'company': self.company.name,
             'total_krw': self.suborder.total_krw,
-            'address': self.address,
+            'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
             'status_details': self.status_details,

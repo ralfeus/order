@@ -58,13 +58,13 @@ function format ( row, data ) {
         }
     });
 
-    if (['approved', 'cancelled'].includes(data.status)) {
-        $('.btn-save', payment_details).hide()
-    } else {
-        $('.btn-save', payment_details).on('click', function() {
-            save_payment(row);
-        })
-    }
+    // if (['approved', 'cancelled'].includes(data.status)) {
+    //     $('.btn-save', payment_details).hide()
+    // } else {
+    //     $('.btn-save', payment_details).on('click', function() {
+    //         save_payment(row);
+    //     })
+    // }
 
     for (var currency in g_currencies) {
         $('.dropdown-menu', payment_details).append(
@@ -131,46 +131,6 @@ function init_payments_table() {
                 }
             }
         },
-        // ajax: (_method, _url, data, success, error_callback) => {
-        //     var payment_id = Object.entries(data.data)[0][0];
-        //     var target = Object.entries(data.data)[0][1];
-        //     target.evidences = target.evidences.map(e => (e.url 
-        //         ? {
-        //             path: e.path
-        //         }
-        //         : {
-        //             id: e[0],
-        //             file_name: g_editor.files().files[e].filename
-        //     }));
-        //     var method = 'post';
-        //     var url = '/api/v1/admin/payment/' + payment_id;
-        //     if (data.action === 'create') {
-        //         url = '/api/v1/admin/payment';
-        //         payment_id = target.id;
-        //     }
-        //     $.ajax({
-        //         url: url,
-        //         method: method,
-        //         dataType: 'json',
-        //         contentType: 'application/json',
-        //         data: JSON.stringify(target),
-        //         success: data => { success(data); },
-        //         error: (xhr, error, status) => {
-        //             if (xhr.responseJSON) {
-        //                 var error_data = xhr.responseJSON
-        //                 if (error_data.error) {
-        //                     g_editor.error(error_data.error);
-        //                 }
-        //                 error_data.fieldErrors.forEach(e => {
-        //                     if (g_editor.fields().includes(e.name)) {
-        //                         g_editor.error(e.name, e.status);
-        //                     }
-        //                 });
-        //             }
-        //             error_callback(xhr, error, status);
-        //         }
-        //     });
-        // },
         table: '#payments',
         idSrc: 'id',
         fields: [
@@ -182,6 +142,10 @@ function init_payments_table() {
                     value: c.id,
                     label: c.username
                 }))
+            },
+            {
+                label: 'Sender',
+                name: 'sender_name'
             },
             {
                 label: 'Orders', 
@@ -241,6 +205,7 @@ function init_payments_table() {
     g_editor.field('amount_sent_original').input().on('focus', function() {
         this.old_value = this.value});
     g_editor.field('amount_sent_original').input().on('blur', on_amount_sent_original_blur);
+    g_editor.field('amount_sent_original').input().on('change', on_amount_sent_original_change);
 
     g_table = $('#payments').DataTable({
         dom: 'lrBtip',
@@ -259,7 +224,7 @@ function init_payments_table() {
         ],        
         ajax: {
             url: '/api/v1/admin/payment',
-            dataSrc: ''
+            dataSrc: 'data'
         },
         columns: [
             {
@@ -270,7 +235,13 @@ function init_payments_table() {
             },
             {data: 'id'},
             {data: 'user_name'},
-            {name: 'orders', data: 'orders'},
+            {data: 'sender_name'},
+            {
+                name: 'orders', data: 'orders', 
+                render: data => {
+                    return "<a href=\"/admin/orders?id=" + data + "\">" + data + "</a>";
+                }
+            },
             {
                 name: 'payment_method',
                 data: (row, type, set, meta) => {
@@ -286,53 +257,58 @@ function init_payments_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[9, 'desc']],
+        order: [[10, 'desc']],
         select: true,
-        footerCallback: function(row, data, start, end, display) {
-            var api = this.api(), data;
+        serverSide: true,
+        processing: true,
+          /////////// No need to do footer so far //////////////////
+         ///////////  Mihwa will clarify         //////////////////
+        ////////////////////////////////////////////////////////// 
+        // footerCallback: function(row, data, start, end, display) {
+        //     var api = this.api(), data;
 
-            // // Remove the formatting to get integer data for summation
-            // var intVal = function ( i ) {
-            //     return typeof i === 'string' ?
-            //         i.replace(/[\$,]/g, '')*1 :
-            //         typeof i === 'number' ?
-            //             i : 0;
-            // };
+        //     // // Remove the formatting to get integer data for summation
+        //     // var intVal = function ( i ) {
+        //     //     return typeof i === 'string' ?
+        //     //         i.replace(/[\$,]/g, '')*1 :
+        //     //         typeof i === 'number' ?
+        //     //             i : 0;
+        //     // };
 
-            // Total over all pages
-            totalSentOriginal = api
-                .data()
-                .reduce(function (accumulator, current) {
-                    if (!accumulator[current.currency_code]) { 
-                        accumulator[current.currency_code] = 0;
-                    }
-                    accumulator[current.currency_code] += current.amount_sent_original;
-                    return accumulator;
-                }, {})
-            totalSentOriginalString = Object.entries(totalSentOriginal)
-                .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
-            totalSentKRW = api
-                .column( 6 )
-                .data()
-                .reduce( function (a, b) {
-                    return a + b;
-                }, 0 );
-            totalReceivedKRW = api
-                .column( 7 )
-                .data()
-                .reduce( function (a, b) {
-                    return a + b;
-                }, 0 );
+        //     // Total over all pages
+        //     totalSentOriginal = api
+        //         .data()
+        //         .reduce(function (accumulator, current) {
+        //             if (!accumulator[current.currency_code]) { 
+        //                 accumulator[current.currency_code] = 0;
+        //             }
+        //             accumulator[current.currency_code] += current.amount_sent_original;
+        //             return accumulator;
+        //         }, {})
+        //     totalSentOriginalString = Object.entries(totalSentOriginal)
+        //         .map(e => e[0] + ": " + e[1].toLocaleString() + "<br />");
+        //     totalSentKRW = api
+        //         .column( 7 )
+        //         .data()
+        //         .reduce( function (a, b) {
+        //             return a + b;
+        //         }, 0 );
+        //     totalReceivedKRW = api
+        //         .column( 8 )
+        //         .data()
+        //         .reduce( function (a, b) {
+        //             return a + b;
+        //         }, 0 );
 
-            // Update footer
-            $(api.column(5).footer()).html(totalSentOriginalString);
-            $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
-            $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
-        },
+        //     // Update footer
+        //     $(api.column(5).footer()).html(totalSentOriginalString);
+        //     $( api.column(6).footer() ).html('₩' + totalSentKRW.toLocaleString());        
+        //     $( api.column(7).footer() ).html('₩' + totalReceivedKRW.toLocaleString());        
+        // },
         initComplete: function() { 
             var table = this;
             init_search(table, g_filter_sources)
-            .then(() => init_table_filter(table)); 
+            .then(() => init_table_filter(table));
         }
     });
     $('#payments tbody').on('click', 'td.details-control', function () {
@@ -396,6 +372,12 @@ function on_amount_sent_original_blur(data) {
     }
 }
 
+function on_amount_sent_original_change() {
+    g_editor.field('amount_sent_krw').val(
+        g_editor.field('amount_sent_original').val() / 
+        g_currencies.filter(c => c.code == g_editor.field('currency_code').val())[0].rate);
+}
+
 function on_customer_change() {
     if (g_editor.field('user_id').val()) {
         get_orders_to_pay(g_editor.field('user_id').val())
@@ -431,43 +413,43 @@ function on_orders_change() {
     return {};
 }
 
-function save_payment(row) {
-    $('.wait').show();
-    $.ajax({
-        url: '/api/v1/admin/payment/' + row.data().id,
-        method: 'post',
-        dataType: 'json',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            amount_sent_original: row.data().amount_sent_original,
-            amount_sent_krw: row.data().amount_sent_krw,
-            amount_received_krw: row.data().amount_received_krw,
-            currency_code: row.data().currency_code
-        }),
-        complete: function() {
-            $('.wait').hide();
-        },
-        success: function(data) {
-            row.data(data.payment).draw();
-            if (data.message && data.message.length) {
-                modal('Transaction save', data.message.join('<br />'));
-            }
-        }
-    });
+// function save_payment(row) {
+//     $('.wait').show();
+//     $.ajax({
+//         url: '/api/v1/admin/payment/' + row.data().id,
+//         method: 'post',
+//         dataType: 'json',
+//         contentType: 'application/json',
+//         data: JSON.stringify({
+//             amount_sent_original: row.data().amount_sent_original,
+//             amount_sent_krw: row.data().amount_sent_krw,
+//             amount_received_krw: row.data().amount_received_krw,
+//             currency_code: row.data().currency_code
+//         }),
+//         complete: function() {
+//             $('.wait').hide();
+//         },
+//         success: function(data) {
+//             row.data(data.payment).draw();
+//             if (data.message && data.message.length) {
+//                 modal('Transaction save', data.message.join('<br />'));
+//             }
+//         }
+//     });
 
-    var form_data = new FormData();
-    form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
-    if (form_data) {
-        $.ajax({
-            url: '/api/v1/payment/' + row.data().id + '/evidence', 
-            method: 'post',
-            data: form_data, 
-            contentType: false,
-            cache: false,
-            processData: false
-        });
-    }
-}
+//     var form_data = new FormData();
+//     form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
+//     if (form_data) {
+//         $.ajax({
+//             url: '/api/v1/payment/' + row.data().id + '/evidence', 
+//             method: 'post',
+//             data: form_data, 
+//             contentType: false,
+//             cache: false,
+//             processData: false
+//         });
+//     }
+// }
 
 /**
  * Sets status of the order
@@ -497,8 +479,8 @@ function set_status(target, newStatus) {
                 success: function(response, _status, _xhr) {
                     target.cell(
                         (_idx, data, _node) => 
-                            data.id === parseInt(response.payment.id), 
-                        5).data(response.payment.status).draw();
+                            data.id === parseInt(response.data[0].id), 
+                        5).data(response.data[0].status).draw();
                     if (response.message && response.message.length) {
                         modal('Transaction save', response.message.join('<br />'));
                     }

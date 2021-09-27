@@ -88,7 +88,9 @@ class OrderProduct(db.Model, BaseModel):
         db.session.delete(self)
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column=None, filter_value=None):
+        if column is None or filter_value is None:
+            return base_filter
         from app.orders.models.order import Order
         from app.orders.models.subcustomer import Subcustomer
         from app.orders.models.suborder import Suborder

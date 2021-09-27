@@ -1,4 +1,17 @@
 var g_addresses = [];
+var g_banks = [
+    {value: "03", label: '기업'},
+    {value: "07", label: '수협'},
+    {value: "31", label: '대구'},
+    {value: "06", label: '국민'},
+    {value: "11", label: '농협'},
+    {value: "81", label: 'KEB하나'},
+    {value: "20", label: '우리'},
+    {value: "26", label: '신한'},
+    {value: "39", label: '경남'},
+    {value: "71", label: '우체국'},
+    {value: "32", label: '부산'}
+]
 
 $(document).ready(() => {
     get_dictionaries()
@@ -10,31 +23,42 @@ async function get_dictionaries() {
 }
 
 function init_table() {
-    var editor;
-    editor = new $.fn.dataTable.Editor({
-        ajax: (_method, _url, data, success, error) => {
-            var target = Object.entries(data.data)[0][1];
-            var company_id = Object.entries(data.data)[0][0];
-            var method = 'post';
-            var url = '/api/v1/admin/purchase/company/' + company_id;
-            if (data.action === 'create') {
-                url = '/api/v1/admin/purchase/company';   
-                company_id = target.id;
-            } else if (data.action === 'remove') {
-                method = 'delete';
-            }
-            $.ajax({
-                url: url,
-                method: method,
-                dataType: 'json',
+    function advanced_taxation_hide() {
+        editor.field('tax_phone').hide();
+        editor.field('tax_address.id').hide();
+        editor.field('email').hide();
+        editor.field('business_type').hide();
+        editor.field('business_category').hide();
+    }
+    
+    function advanced_taxation_show() {
+        editor.field('tax_phone').show();
+        editor.field('tax_address.id').show();
+        editor.field('email').show();
+        editor.field('business_type').show();
+        editor.field('business_category').show();
+    }
+        
+    var editor = new $.fn.dataTable.Editor({
+        ajax: {
+            create: {
+                url: '/api/v1/admin/purchase/company',
                 contentType: 'application/json',
-                data: JSON.stringify(target),
-                success: data => {
-                    success(({data: [data]}))
-                    // update_totals()
-                },
-                error: error
-            });
+                data: data => {
+                    var target = Object.entries(data.data)[0][1];
+                    target.tax_simplified = target.tax_simplified[0];
+                    return JSON.stringify(target);                        
+                }
+            },
+            edit: {
+                url: '/api/v1/admin/purchase/company/_id_',
+                contentType: 'application/json',
+                data: data => {
+                    var target = Object.entries(data.data)[0][1];
+                    target.tax_simplified = target.tax_simplified[0];
+                    return JSON.stringify(target);                        
+                }
+            }
         },
         table: '#companies',
         idSrc: 'id',
@@ -44,16 +68,55 @@ function init_table() {
             {label: 'Phone', name: 'phone'},
             { 
                 label: 'Address',
-                name: 'address_id',
+                name: 'address.id',
                 type: 'select2',
                 options: g_addresses.map(c => ({
                     value: c.id,
                     label: c.name
                 }))                
             },                 
-            {label: 'Bank_id', name: 'bank_id'},
+            {
+                label: 'Bank', 
+                name: 'bank_id',
+                type: 'select2',
+                options: g_banks
+            },
             {label: 'Contact_person', name: 'contact_person'},
+            {label: 'Taxation type', name: 'tax_type', type: 'title'},
+            {
+                label: 'Simplified taxation', 
+                name: 'tax_simplified', 
+                type: 'checkbox', 
+                options: [{label:'', value:true}],
+                def: true,
+                unselectedValue: false
+            },
+            {label: 'Tax phone', name: 'tax_phone'},
+            {
+                label: 'Tax address',
+                name: 'tax_address.id',
+                type: 'select2',
+                options: g_addresses.map(c => ({
+                    value: c.id,
+                    label: c.name
+                }))                
+            },
+            {label: 'E-mail', name: 'email'},
+            {label: 'Business type', name: 'business_type'},
+            {label: 'Business category', name: 'business_category'}
         ]
+    });
+    editor.on('open', () => {
+        if (editor.field('tax_simplified').val()[0]) {
+            advanced_taxation_hide();
+        }
+    });
+    editor.field('tax_simplified').input().on('click', event => {
+        if (event.target.checked) {
+            advanced_taxation_hide();
+        } else {
+            advanced_taxation_show();
+        }
     });
     $('#companies').DataTable({
         dom: 'Btp',
@@ -72,8 +135,9 @@ function init_table() {
             {data: 'tax_id'},
             {data: 'phone'},
             {data: 'address.name'},
-            {data: 'bank_id'},
+            {data: 'bank_id', render: v => g_banks.filter(e => e.value == v)[0].label},
             {data: 'contact_person'},
+            {data: 'tax_simplified'}
         ],
         select: true
     });

@@ -52,7 +52,7 @@ function format_date(date) {
 }
 
 async function get_currencies() {
-    return await get_list('/api/v1/currency');
+    return (await get_list('/api/v1/currency')).data;
 }
 
 async function get_list(url) {

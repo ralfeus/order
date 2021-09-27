@@ -69,7 +69,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__set_payment_method()
             self.__set_payment_mobile(purchase_order.payment_phone)
             self.__set_payment_destination(purchase_order.bank_id)
-            self.__set_tax_info(purchase_order.company.tax_id)
+            self.__set_tax_info(purchase_order.company)
             # self.__set_mobile_consent()
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
@@ -256,7 +256,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.debug("Setting combined shipment params")
             self.__po_params['PackingGubun'] = 1
             self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
-                '/' + purchase_order.address['zip']
+                '/' + purchase_order.address.zip
         else:
             logger.debug('No combined shipment is needed')
             self.__po_params['PackingGubun'] = 0
@@ -279,14 +279,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         else:
             self.__logger.info('Payment phone isn\'t provided')
 
-    def __set_receiver_address(self, address={
-            'zip': '08584',
-            'address_1': '서울특별시 금천구 두산로 70 (독산동)',
-            'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
+    def __set_receiver_address(self, address):
         self.__logger.debug("Setting shipment address")
-        self.__po_params['Addr1'] = address['address_1']
-        self.__po_params['Addr2'] = address['address_2']
-        self.__po_params['Revzip'] = address['zip']
+        self.__po_params['Addr1'] = address.address_1
+        self.__po_params['Addr2'] = address.address_2
+        self.__po_params['Revzip'] = address.zip
+        self.__po_params['Request'] = address.delivery_comment
 
     def __set_payment_method(self):
         self.__logger.debug("Setting payment method")
@@ -298,13 +296,31 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__logger.debug("Setting payment receiver")
         self.__po_params['Bank'] = bank_id
 
-    def __set_tax_info(self, tax_id=(123, 34, 26780)):
+    def __set_tax_info(self, company):
         self.__logger.debug("Setting counteragent tax information")
-        if tax_id != ('', '', ''): # Company is set
-            self.__po_params['TaxCheck'] = 1
-            self.__po_params['TaxLGubun'] = 2
-            self.__po_params['TaxMGubun'] = 3
-            self.__po_params['TaxLNum'] = "%s-%s-%s" % tax_id
+        if company.tax_id != ('', '', ''): # Company is taxable
+            if company.tax_simplified:
+                self.__po_params['TaxCheck'] = 1
+                self.__po_params['TaxLGubun'] = 2
+                self.__po_params['TaxMGubun'] = 3
+                self.__po_params['TaxLNum'] = "%s-%s-%s" % company.tax_id
+            else:
+                self.__po_params['TaxCheck'] = 2
+                self.__po_params['TaxLGubun'] = 0
+                self.__po_params['TaxMGubun'] = 0
+                # self.__po_params['TaxLNum'] = "%s-%s-%s" % company.tax_id
+                self.__po_params['BusinessName'] = company.name
+                self.__po_params['BusinessNo'] = "%s%s%s" % company.tax_id
+                self.__po_params['ContactP'] = company.contact_person
+                self.__po_params['Emailid'] = company.email.split('@')[0]
+                self.__po_params['Emailserver'] = company.email.split('@')[1]
+                self.__po_params['IndCategory'] = company.business_category
+                self.__po_params['IndType'] = company.business_type
+                self.__po_params['TAddr1'] = company.tax_address.address_1
+                self.__po_params['TAddr2'] = company.tax_address.address_2
+                self.__po_params['TZip'] = company.tax_address.zip
+                self.__po_params['TaxCustName'] = company.contact_person
+                self.__po_params['THp'] = company.tax_phone
         else:
             self.__po_params['TaxCheck'] = 0
             self.__po_params['TaxLGubun'] = 0

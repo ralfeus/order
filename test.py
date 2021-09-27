@@ -14,7 +14,7 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     ]))
     raw_data = ['--data-raw', raw_data] if raw_data else []
     output = subprocess.run([
-        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
+        'curl.exe',
         url,
         '-v'
         ] + headers_list + raw_data,
@@ -51,7 +51,7 @@ def save_image(image_url):
     image_name = image_url.split('/')[-1]
     r = requests.get(image_url)
     path_image = '/static/images/products/' + image_name
-    with open('D:/Projects/order/app/static/images/products/'+ image_name, 'wb') as f:
+    with open('app/static/images/products/'+ image_name, 'wb') as f:
         for chunk in r.iter_content(8192):
             f.write(chunk)
     return path_image, image_name

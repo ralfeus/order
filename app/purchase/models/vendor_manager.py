@@ -8,8 +8,9 @@ class PurchaseOrderVendorManager:
 
     @classmethod
     def get_vendor(self, vendor_id, **kwargs):
+        from .vendors import vendors
         try:
-            vendor = [v for v in self.get_vendors(**kwargs) if type(v).__name__ == vendor_id][0]
+            vendor = [v for v in vendors if v.__name__ == vendor_id][0](**kwargs)
             return vendor
         except KeyError:
             raise Exception(f"The vendor {vendor_id} doesn't exist")

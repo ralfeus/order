@@ -30,7 +30,7 @@ class TestPurchaseOrdersApi(BaseTestCase):
     def test_get_purchase_orders(self):
         order = Order()
         suborder = Suborder(order=order)
-        po = PurchaseOrder(suborder=suborder)
+        po = PurchaseOrder(suborder=suborder, company=Company(name='Test'))
         self.try_add_entities([
             order, suborder, po,
         ])
@@ -60,11 +60,28 @@ class TestPurchaseOrdersApi(BaseTestCase):
             Company(id=gen_int_id, address_id=gen_int_id)
         ])
 
-        # res = self.try_admin_operation(
-        #     lambda: self.client.post('/api/v1/admin/purchase/order', json={
-        #         'order_id': gen_id,
-        #         'company_id': gen_int_id,
-        #         'vendor': 'AtomyCenter',
-        #         'contact_phone': '1-1-1'
-        #     })
-        # )
+    # def test_create_po_alternative_address(self):
+    #     gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+    #     gen_int_id = int(datetime.now().timestamp())
+    #     self.try_add_entities([
+    #         Order(id=gen_id, user=self.user, status=OrderStatus.can_be_paid),
+    #         Subcustomer(id=gen_int_id),
+    #         Subcustomer(id=gen_int_id + 1),
+    #         Suborder(id=gen_id, order_id=gen_id, subcustomer_id=gen_int_id),
+    #         Suborder(id=gen_id + '1', order_id=gen_id, subcustomer_id=gen_int_id + 1),
+    #         OrderProduct(suborder_id=gen_id, product_id='0000'),
+    #         OrderProduct(suborder_id=gen_id + '1', product_id='0000'),
+    #         Address(id=gen_int_id, zip='00000'),
+    #         Address(id=gen_int_id + 1, zip='11111'),
+    #         Company(id=gen_int_id, address_id=gen_int_id)
+    #     ])
+    #     self.try_admin_operation(lambda: self.client.post('/api/v1/admin/purchase/order',
+    #         json={
+    #             'order_id': gen_id,
+    #             'company_id': gen_int_id,
+    #             'address_id': gen_int_id + 1,
+    #             'contact_phone': '111-1111-1111',
+    #             'vendor': 'AtomyQuick'
+    #     }))
+    #     po = PurchaseOrder.query.all()[0]
+    #     self.assertEqual(po.address.zip, '11111')

@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.orders.models.order import Order
 
 class Invoice(db.Model):
     '''
@@ -21,7 +22,8 @@ class Invoice(db.Model):
     seq_num = Column(Integer)
     customer = Column(String(128))
     payee = Column(String(32))
-    orders = relationship('Order')
+    orders = relationship(Order)
+    export_id = Column(String(32))
     _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
 
@@ -88,7 +90,9 @@ class Invoice(db.Model):
         return f"<Invoice: {self.id}>"
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column = None, filter_value = None):
+        if column is None or filter_value is None:
+            return base_filter
         from app.orders.models.order import Order
         part_filter = f'%{filter_value}%'
         return \
@@ -96,7 +100,7 @@ class Invoice(db.Model):
                 if column.key == 'orders' \
             else base_filter.filter(column.like(f'%{filter_value}%'))
 
-    def to_dict(self):
+    def to_dict(self, details=False):
         '''
         Returns dictionary of the invoice ready to be jsonified
         '''
@@ -120,11 +124,12 @@ class Invoice(db.Model):
             is_dirty = True
         if not self.payee and self.orders:
             self.payee = self.orders[0].get_payee()
-            is_dirty = True
+            if self.payee:
+                is_dirty = True
         if is_dirty:
             db.session.commit()
         
-        return {
+        result = {
             'id': self.id,
             'customer': self.customer,
             'payee': self.payee,
@@ -133,10 +138,15 @@ class Invoice(db.Model):
             'phone': self.orders[0].phone if self.orders else None,
             'weight': weight,
             'total': round(float(total), 2),
+            'orders': [order.id for order in self.orders],
+            'export_id': self.export_id,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
                             if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') 
-                            if self.when_changed else None,
-            'orders': [order.id for order in self.orders],
-            'invoice_items': list([ii.to_dict() for ii in self.get_invoice_items()])
+                            if self.when_changed else None
         }
+        if details:
+            result = { **result,
+                'invoice_items': list([ii.to_dict() for ii in self.get_invoice_items()])
+            }
+        return result

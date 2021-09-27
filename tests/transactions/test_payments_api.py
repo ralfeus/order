@@ -38,6 +38,7 @@ class TestPaymentApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/payment', json={
                 'orders': [gen_id],
+                'sender_name': 'Test',
                 'amount_sent_original': 100,
                 'currency_code': 'USD',
                 'payment_method': {'id': gen_id_int}
@@ -51,16 +52,24 @@ class TestPaymentApi(BaseTestCase):
             lambda: self.client.get('/api/v1/admin/payment'))
 
     def test_save_payment(self):
+        gen_id_int = datetime.now().microsecond
         self.try_add_entities([
             Currency(code='USD', name='US Dollar', rate=1),
+            Address(id=gen_id_int),
+            Company(id=gen_id_int, address_id=gen_id_int),
+            PaymentMethod(id=gen_id_int, payee_id=gen_id_int),
             Payment(id=0, user=self.user, currency_code='USD',
-                        status=PaymentStatus.pending)
+                    status=PaymentStatus.pending, payment_method_id=gen_id_int)
         ])
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/payment/0', json={
-                'amount_received_krw': 100
+                'user_id': self.user.id,
+                'amount_received_krw': 100,
+                'sender_name': 'Test',
+                'payment_method': {'id': gen_id_int},
+                'currency_code': 'USD'
         }))
-        self.assertEqual(res.json['payment']['amount_received_krw'], 100)
+        self.assertEqual(res.json['data'][0]['amount_received_krw'], 100)
 
     def test_approve_payment_no_received_krw(self):
         currency = Currency(code='KRW', rate=1)
@@ -71,7 +80,7 @@ class TestPaymentApi(BaseTestCase):
             lambda: self.client.post(f'/api/v1/admin/payment/{transaction.id}', json={
                 'status': 'approved'
         }))
-        self.assertEqual(res.status_code, 409)
+        self.assertIsNotNone(res.json.get('error'))
     
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -87,7 +96,7 @@ class TestPaymentApi(BaseTestCase):
             lambda: self.client.post(f'/api/v1/admin/payment/{payment.id}', json={
                 'status': 'approved'
             }))
-        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json.get('error'))
         order = Order.query.get(gen_id)
         self.assertEqual(order.status, OrderStatus.can_be_paid)
 

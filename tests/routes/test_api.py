@@ -50,10 +50,10 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/shipping'))
         self.assertEqual(res.json, [
-            {'id': 4, 'name': 'DHL', 'enabled': True},
-            {'id': 1, 'name': 'Shipping1', 'enabled': True},
-            {'id': 2, 'name': 'Shipping2', 'enabled': True},
-            {'id': 3, 'name': 'Shipping3', 'enabled': True}
+            {'id': 4, 'name': 'DHL', 'enabled': True, 'notification': None},
+            {'id': 1, 'name': 'Shipping1', 'enabled': True, 'notification': None},
+            {'id': 2, 'name': 'Shipping2', 'enabled': True, 'notification': None},
+            {'id': 3, 'name': 'Shipping3', 'enabled': True, 'notification': None}
         ])
         res = self.client.get('/api/v1/shipping/c1')
         self.assertEqual(len(res.json), 2)

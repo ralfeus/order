@@ -221,9 +221,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
         self.__logger.debug("Setting shipment address")
-        self.__po_params['revzip'] = address['zip']
-        self.__po_params['addr1'] = address['address_1']
-        self.__po_params['addr2'] = address['address_2']
+        self.__po_params['revzip'] = address.zip
+        self.__po_params['addr1'] = address.address_1
+        self.__po_params['addr2'] = address.address_2
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
         self.__logger.debug("Setting counteragent tax information")

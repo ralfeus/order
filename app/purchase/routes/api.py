@@ -1,17 +1,18 @@
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from datetime import datetime
+import logging
 from operator import itemgetter
 
 from flask import Response, abort, current_app, jsonify, request
-from flask_security import roles_required
+from flask_security import current_user, roles_required
 
 from sqlalchemy import or_
-from werkzeug.exceptions import HTTPException
 
 from app import db
 from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query, modify_object
 
+from app.models.address import Address
 from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 
@@ -59,6 +60,7 @@ def create_purchase_order():
     Accepts order details in payload
     Returns JSON
     '''
+    logger = logging.getLogger('create_purchase_order')
     with PurchaseOrderValidator(request) as validator:
         if not validator.validate():
             return jsonify({
@@ -71,15 +73,9 @@ def create_purchase_order():
     payload = request.get_json()
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
-    
     order = Order.query.get(payload['order_id'])
-    if not order:
-        abort(Response("No order to purchase was found", status=400))
-
     company = Company.query.get(payload['company_id'])
-    if not company:
-        abort(Response("No counter agent company was found", status=400))
-
+    address = Address.query.get(payload['address_id'])
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
@@ -92,9 +88,10 @@ def create_purchase_order():
             contact_phone=payload['contact_phone'],
             payment_phone=company.phone,
             status=PurchaseOrderStatus.pending,
-            zip=company.address.zip,
-            address_1=company.address.address_1,
-            address_2=company.address.address_2,
+            zip=address.zip,
+            address_1=address.address_1,
+            address_2=address.address_2,
+            address=address,
             company=company,
             vendor=vendor.id,
             purchase_restricted_products=payload.get('purchase_restricted_products', False),
@@ -103,6 +100,8 @@ def create_purchase_order():
         purchase_orders.append(purchase_order)
         db.session.add(purchase_order)
         db.session.flush()
+    logger.info('Creating purchase order by %s with data: %s',
+                current_user, payload)
     order.set_status(OrderStatus.po_created, current_app)
     db.session.commit()
     
@@ -116,11 +115,13 @@ def create_purchase_order():
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @roles_required('admin')
 def update_purchase_order(po_id):
+    logger = logging.getLogger('update_purchase_order')
     po = PurchaseOrder.query.get(po_id)
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
 
     from ..jobs import post_purchase_orders, update_purchase_orders_status
+    payload = request.get_json()
     try:
         if request.values.get('action') == 'repost':
             po.reset_status()
@@ -128,26 +129,29 @@ def update_purchase_order(po_id):
             task = post_purchase_orders.apply_async(
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
-            current_app.logger.info("Post purchase orders task ID is %s", task.id)
+            logger.info("Reposting PO %s by %s", po_id, current_user)
+            logger.info("Post purchase orders task ID is %s", task.id)
             result = jsonify({'data': [po.to_dict()]})
         elif request.values.get('action') == 'update_status':
-            current_app.logger.info("Updating POs status")
+            logger.info("Updating POs status")
             task = update_purchase_orders_status.apply_async(
                 kwargs={'po_id': po_id}, retry=False, connect_timeout=1)
-            current_app.logger.info("Update POs status task ID is %s", task.id)
+            logger.info("Update POs status task ID is %s", task.id)
             result = jsonify({'data': [po.to_dict()]})
         else:
+            logger.info('Modifying purchase order %s by %s with data: %s',
+                        po_id, current_user, payload)
             if not po.is_editable():
                 return jsonify({
                     'data': po.to_dict(),
                     'error': f"The purchase order &lt;{po.id}&gt; isn't in editable state"
                 })
-            editable_attributes = ['payment_account', 'purchase_date',
+            editable_attributes = ['customer_id', 'payment_account', 'purchase_date',
                 'status', 'vendor', 'vendor_po_id']
-            po = modify_object(po, request.get_json(), editable_attributes)
+            po = modify_object(po, payload, editable_attributes)
             result = jsonify({'data': [po.to_dict()]})
     except: # Exception as ex:
-        current_app.logger.exception("Couldn't update PO %s", po_id)
+        logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
     db.session.commit()
     return result
@@ -172,69 +176,3 @@ def get_statuses():
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))
-
-
-@bp_api_admin.route('/company', defaults={'company_id': None})
-@bp_api_admin.route('/company/<company_id>')
-@roles_required('admin')
-def get_company(company_id):
-    ''' Returns all or selected company in JSON '''
-    company = Company.query
-    if company_id is not None:
-        company = company.filter_by(id=company_id)
-        
-    return jsonify([entry.to_dict() for entry in company])
-    
-@bp_api_admin.route('/company/<company_id>', methods=['POST'])
-@bp_api_admin.route('/company', methods=['POST'], defaults={'company_id': None})
-@roles_required('admin')
-def save_company(company_id):
-    ''' Creates or modifies existing company '''
-    payload = request.get_json()
-    if not payload:
-        abort(Response('No data was provided', status=400))
-
-    if payload.get('id'):
-        try:
-            float(payload['id'])
-        except: 
-            abort(Response('Not number', status=400))
-
-    company = None
-    if company_id is None:
-        company = Company()
-        company.when_created = datetime.now()
-        db.session.add(company)
-    else:
-        company = Company.query.get(company_id)
-        if not company:
-            abort(Response(f'No company <{company_id}> was found', status=400))
-
-    # for key, value in payload.items():
-
-    #     if getattr(company, key) != value:
-    #         setattr(company, key, value)
-    #         company.when_changed = datetime.now()
-    payload['tax_id_1'], payload['tax_id_2'], payload['tax_id_3'] = payload['tax_id'].split('-')
-    modify_object(company, payload, 
-        ['name', 'contact_person', 'tax_id_1', 'tax_id_2', 'tax_id_3', 'phone',
-         'address_id', 'bank_id'])
-
-    db.session.commit()
-    return jsonify(company.to_dict())
-
-@bp_api_admin.route('/company/<company_id>', methods=['DELETE'])
-@roles_required('admin')
-def delete_company(company_id):
-    '''
-    Deletes existing company item
-    '''
-    company = Company.query.get(company_id)
-    if not company:
-        abort(Response(f'No company <{company_id}> was found', status=404))
-
-    db.session.delete(company)
-    db.session.commit()
-    return jsonify({
-        'status': 'success'
-    })

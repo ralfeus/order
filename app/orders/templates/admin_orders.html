@@ -33,6 +33,7 @@
                 <td><select></select></td>
                 <td><select></select></td>
                 <td><select></select></td>
+		<td><input type="text" placeholder="Search Export ID" style="width: 100%;"/></td>
                 <td><input type="date" style="width: 100%;"/></td>
                 <td><input type="date" style="width: 100%;"/></td>
                 <td></td>
@@ -52,6 +53,7 @@
                 <th scope="col" style="width: 2em;">Payment method</th>
                 <th scope="col" style="width: 2em;">Shipping method</th>
                 <th scope="col" style="width: 2em;">Country</th>
+                <th scope="col" style="width: 2em;">Export ID</th>
                 <th scope="col" style="width: 2em;">Purchase date</th>
                 <th scope="col" style="width: 8em;">When PO posted</th>
                 <th scope="col" style="width: 8em;">When changed</th>
@@ -92,6 +94,18 @@
                     <label id="label" class="input-group-text" for="invoice-id">Invoice</label>
                 </div>
                 <input id="invoice-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+            <div id='export-id-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="export-id">Export ID</label>
+                </div>
+                <input id="export-id" class="form-control" aria-label="Small" aria-describedby="label" disabled />
+            </div>
+            <div id='po-company-input-group' class="input-group input-group-sm mb-2">
+                <div class="input-group-prepend">
+                    <label id="label" class="input-group-text" for="po-company">PO Company</label>
+                </div>
+                <input id="po-company" class="form-control" aria-label="Small" aria-describedby="label" disabled />
             </div>
             <div id='shipping-input-group' class="input-group input-group-sm mb-2">
                 <div class="input-group-prepend">

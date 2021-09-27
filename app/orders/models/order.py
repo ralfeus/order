@@ -10,7 +10,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
-    String, func
+    String, func, or_
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -29,6 +29,7 @@ class OrderStatus(enum.Enum):
     packed = 4
     shipped = 5
     cancelled = 6
+    ready_to_ship = 7
 
 class OrderBox(db.Model, BaseModel):
     ''' Specific box used in order '''
@@ -111,6 +112,13 @@ class Order(db.Model, BaseModel):
                                   for order_product in suborder.order_products]
         return list(self.__order_products)
 
+    @property
+    def purchase_orders(self):
+        ''' Returns list of purchase orders for all suborders '''
+        from app.purchase.models.purchase_order import PurchaseOrder
+        return PurchaseOrder.query.filter(
+            PurchaseOrder.suborder_id.in_([suborder.id for suborder in self.suborders]))
+
     def set_purchase_date(self, value):
         self.purchase_date = value
         self.purchase_date_sort = value
@@ -124,6 +132,9 @@ class Order(db.Model, BaseModel):
 
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
+        if value == OrderStatus.packed:
+            from ..signals import sale_order_packed
+            sale_order_packed.send(self)
         if value == OrderStatus.shipped:
             from app.orders.models.order_product import OrderProductStatus
             unfinished_ops = []
@@ -185,10 +196,11 @@ class Order(db.Model, BaseModel):
             self.attached_orders = []
 
     def __pay(self, actor):
+        logger = logging.getLogger('Order.__pay')
         from app.payments.models.transaction import Transaction
         #TODO: wrong approach
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         transaction = Transaction(
             amount=-self.total_krw,
@@ -204,12 +216,25 @@ class Order(db.Model, BaseModel):
         super().delete()
 
     @classmethod
-    def get_filter(cls, base_filter, column, filter_value):
+    def get_filter(cls, base_filter, column = None, filter_value = None):
+        if filter_value is None:
+            return base_filter
         from .suborder import Suborder
+        from app.invoices.models.invoice import Invoice
         from app.purchase.models.purchase_order import PurchaseOrder
         from app.users.models.user import User
         part_filter = f'%{filter_value}%'
         filter_values = filter_value.split(',')
+        if column is None:
+            return \
+                base_filter.filter(or_(
+                    cls.id.like(part_filter),
+                    cls.customer_name.like(part_filter),
+                    cls.user.has(User.username.like(part_filter)),
+                    cls.comment.like(part_filter),
+                    cls.status.like(part_filter),
+                    cls.tracking_id.like(part_filter)
+                ))
         if isinstance(column, str):
             return \
                 base_filter.filter(
@@ -217,7 +242,11 @@ class Order(db.Model, BaseModel):
                         PurchaseOrder.suborder_id == Suborder.id,
                         func.date(PurchaseOrder.when_posted) == filter_value,
                         Suborder.order_id == Order.id).exists()) \
-                    if column == 'when_po_posted' else base_filter
+                    if column == 'when_po_posted' else \
+                base_filter.filter(
+                    Order.invoice.has(Invoice.export_id.like(part_filter))) \
+                    if column == 'invoice_export_id' \
+                else base_filter
         return \
             base_filter.filter(cls.country_id.in_(filter_values)) \
                 if column.key == 'country' else \
@@ -268,20 +297,21 @@ class Order(db.Model, BaseModel):
 
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
+        logger = logging.getLogger('Order.to_dict')
         from app.payments.models.payment import PaymentStatus
         from app.purchase.models.purchase_order import PurchaseOrder
         from .suborder import Suborder
         is_order_updated = False
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
         if not self.total_rur:
-            logging.debug("%s total RUR is undefined. Updating...", self.id)
+            logger.debug("%s total RUR is undefined. Updating...", self.id)
             self.total_rur = self.total_krw * Currency.query.get('RUR').rate
             is_order_updated = True
         if not self.total_usd:
-            logging.debug("%s total USD is undefined. Updating...", self.id)
+            logger.debug("%s total USD is undefined. Updating...", self.id)
             self.total_usd = self.total_krw * Currency.query.get('USD').rate
             is_order_updated = True
         if is_order_updated:
@@ -306,6 +336,7 @@ class Order(db.Model, BaseModel):
             'phone': self.phone,
             'comment': self.comment,
             'invoice_id': self.invoice_id,
+            'invoice': self.invoice.to_dict() if self.invoice is not None else None,
             'subtotal_krw': self.subtotal_krw,
             'total_weight': self.total_weight,
             'shipping_krw': self.shipping_krw,
@@ -342,7 +373,8 @@ class Order(db.Model, BaseModel):
             result = { **result,
                 'suborders': [so.to_dict() for so in self.suborders],
                 'order_products': [op.to_dict() for op in self.order_products],
-                'attached_orders': [o.to_dict() for o in self.attached_orders]
+                'attached_orders': [o.to_dict() for o in self.attached_orders],
+                'purchase_orders': [po.to_dict() for po in self.purchase_orders]
             }
         return result
 
@@ -405,10 +437,11 @@ class Order(db.Model, BaseModel):
 
 
     def get_order_excel(self):
+        logger = logging.getLogger('Order.get_order_excel')
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
         if not self.total_krw:
-            logging.debug("%s totals are undefined. Updating...", self.id)
+            logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
         suborder_fill = PatternFill(
@@ -434,6 +467,7 @@ class Order(db.Model, BaseModel):
                               self.order_products, 0))
         # Set shipping
         ws.cell(1, 6, self.shipping.name)
+        ws.cell(1, 7, self.tracking_id)
         ws.cell(2, 6, self.country.name)
         # Set packaging
         ws.cell(11, 7, self.shipping_box_weight)

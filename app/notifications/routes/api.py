@@ -17,9 +17,7 @@ def admin_create_notification():
     notification = Notification(**payload, when_created=datetime.now())
     db.session.add(notification)
     db.session.commit()
-    return jsonify({
-        'data': notification.to_dict()
-    })
+    return jsonify({'data': [notification.to_dict()]})
 
 @bp_api_admin.route('/<notification_id>', methods=['POST'])
 @roles_required('admin')
@@ -32,9 +30,7 @@ def admin_update_notification(notification_id):
         return jsonify({'error': 'No payload'})
     modify_object(notification, payload, ['short_desc', 'long_desc'])
     db.session.commit()
-    return jsonify({
-        'data': notification.to_dict()
-    })
+    return jsonify({'data': [notification.to_dict()]})
 
 @bp_api_admin.route('/<notification_id>', methods=['DELETE'])
 @roles_required('admin')

@@ -180,7 +180,7 @@ function init_table() {
                 "data":           null,
                 "defaultContent": ''
             },
-            {data: 'id'},
+            {name: 'id', data: 'id'},
             {data: 'name'},
             {data: 'name_english'},
             {data: 'weight'},

@@ -45,10 +45,20 @@ class TestCompanyClient(BaseTestCase):
                 'name': 'Address_1',
                 'address_1': None,
                 'address_2': None,
-                'zip': None
+                'zip': None,
+                'address_1_eng': None,
+                'address_2_eng': None,
+                'city_eng': None,
+                'delivery_comment': None
             },
             'bank_id': '01',
-            'contact_person': 'person1'
+            'contact_person': 'person1',
+            'business_category': None,
+            'business_type': None,
+            'email': None,
+            'tax_address': None,
+            'tax_phone': None,
+            'tax_simplified': True
         })
     def test_save_company(self):
         gen_id = int(datetime.now().timestamp())

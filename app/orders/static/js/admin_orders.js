@@ -7,6 +7,7 @@ var g_shipping_methods;
 // var g_boxes;
 
 $.fn.dataTable.ext.buttons.invoice = {
+    extend: 'selected',
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
     }
@@ -16,6 +17,14 @@ $.fn.dataTable.ext.buttons.status = {
     extend: 'selected',
     action: function(e, dt, node, config) {
         set_status(dt.rows({selected: true}), this.text());
+    }
+};
+
+$.fn.dataTable.ext.buttons.excel = {
+    extend: 'selected',
+    text: 'Export to Excel',
+    action: function(e, dt, node, config) {
+        open_order_invoice(dt.rows({selected: true}));
     }
 };
 
@@ -95,7 +104,7 @@ function save_order(target, row) {
     if (row.data().status != new_status) {
         modal(
             "Order status change", 
-            "Are you sure you want to change order status to <" + new_status + ">?",
+            "Are you sure you want to change order status to &lt;" + new_status + "&gt;?",
             "confirmation")
         .then(result => {
             if (result == 'yes') {
@@ -125,7 +134,7 @@ function save_order_action(order_node, row) {
             $('.wait').hide();
         },
         success: function(data) {
-            row.data(data).draw();
+            row.data(data.data[0]).draw();
         },
         error: xhr => {
             modal('Order save error', xhr.responseText);
@@ -138,7 +147,7 @@ function save_order_action(order_node, row) {
  * @param {object} row - row object 
  * @param {object} data - data object for the row
  */
-function format ( row, data ) {
+async function format(row, data) {
     var order_details = $('.order-details')
         .clone()
         .show();
@@ -166,8 +175,12 @@ function format ( row, data ) {
             }
         }
     });
+    var order = await (await fetch('/api/v1/admin/order/' + data.id)).json()
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
+    $('#export-id', order_details).val(order.invoice_id ? order.invoice.export_id : null);
+    $('#po-company', order_details).val(order.purchase_orders.length ? 
+	    order.purchase_orders[0].company : null);
     $('#shipping', order_details).val(data.shipping.name);
     $('#subtotal', order_details).val(data.subtotal_krw.toLocaleString());
     $('#shipping-cost', order_details).val(data.shipping_krw.toLocaleString());
@@ -272,7 +285,8 @@ function edit_shipment(sender) {
 
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
-        dom: 'lrBtip',
+        // dom: 'lfrBtip',
+        lengthChange: false,
         buttons: [
             {
                 extend: 'print',
@@ -282,6 +296,7 @@ function init_orders_table() {
                 }
             },
             {extend: 'invoice', text: 'Create invoice'},
+            {extend: 'excel'},
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -291,7 +306,8 @@ function init_orders_table() {
                         text: s
                     }
                 })]
-            }
+            },
+            'pageLength'
         ],
         ajax: {
             url: '/api/v1/admin/order',
@@ -347,9 +363,6 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-open" \
                         onclick="open_order(this);">Open</button> \
                     <button \
-                        class="btn btn-sm btn-secondary btn-invoice" \
-                        onclick="open_order_invoice(this);">Invoice</button> \
-                    <button \
                         class="btn btn-sm btn-secondary btn-shipment" \
                         onclick="edit_shipment(this);">Shipment</button>'
             },            
@@ -360,9 +373,14 @@ function init_orders_table() {
             {data: 'shipping_krw'},
             {data: 'total_krw'},
             {data: 'status'},
-            {data: 'payment_method'},
-            {data: 'shipping', render: 'name'},
-            {data: 'country', render: 'name'},
+            {data: 'payment_method', orderable: false},
+            {data: 'shipping', render: 'name', orderable: false},
+            {data: 'country', render: 'name', orderable: false},
+            {
+		name: 'invoice_export_id', 
+		data: null,
+		render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
+	    },
             {data: 'purchase_date'},
             {
                 data: 'when_po_posted',
@@ -380,13 +398,13 @@ function init_orders_table() {
         ],
         columnDefs: [
             {
-                targets: [13, 15, 16],
+                targets: [14, 16, 17],
                 render: (data, type, row, meta) => {
                     return format_date(new Date(data));
                 }
             }
         ],
-        order: [[15, 'desc']],
+        order: [[16, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
@@ -394,12 +412,10 @@ function init_orders_table() {
             if (data.status != 'packed') {
                 $('.btn-shipment', row).remove();
             }
-            if (data.status != 'shipped') {
-                $('.btn-invoice', row).remove();
-            }
         },
         initComplete: function() { 
             var table = this;
+            this.api().buttons().container().appendTo( '#orders_wrapper .col-sm-12:eq(0)' ); 
             init_search(table, g_filter_sources) 
             .then(() => init_table_filter(table));
         }
@@ -411,9 +427,19 @@ function open_order(target) {
 }
 
 function open_order_invoice(target) {
-    window.location = '/api/v1/order/' + 
-        g_orders_table.row($(target).parents('tr')).data().id +
-        '/excel';
+    var error = '';
+    for (var i = 0; i < target.count(); i++) {
+        if (target.data()[i].status == 'shipped') {
+            window.open('/api/v1/order/' + target.data()[i].id + '/excel');
+        } else {
+            error += "Can't export order " + 
+                target.data()[i].id + 
+                " to Excel because it's not in 'shipped' status<br />"
+        }
+    }
+    if (error != '') {
+        modal('Order excel export error', error)
+    }
 }
 
 function set_status(target, new_status) {
@@ -439,7 +465,7 @@ function set_status(target, new_status) {
                             }
                         },
                         success: (data, status, xhr) => {
-                            g_orders_table.row("#" + data.id).data(data).draw();
+                            g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
                         },
                         error: (xhr, status, error) => {
                             modal("Set order status failure", xhr.responseText);

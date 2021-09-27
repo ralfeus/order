@@ -7,5 +7,5 @@ class TestPurchaseOrdersVendorAtomyCenter(BaseTestCase):
         super().setUp()
         db.create_all()
 
-    def test_create_atomy_quick_instance(self):
+    def test_create_atomy_center_instance(self):
         PurchaseOrderVendorManager.get_vendor('AtomyCenter')

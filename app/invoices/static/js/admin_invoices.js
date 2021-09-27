@@ -10,32 +10,31 @@ $(document).ready( function () {
         table: '#invoices',
         idSrc: 'id',
         fields: [
-            {label: "Customer name", name: 'customer'}
+            {label: "Customer name", name: 'customer'},
+	    {label: "Export ID", name: "export_id"}
         ],
-        ajax: (_method, _url, data, success, error) => {
-            var invoice_id = Object.entries(data.data)[0][0];
-            $.ajax({
-                url: '/api/v1/admin/invoice/' + invoice_id,
+        ajax: {
+	    edit: {
+                url: '/api/v1/admin/invoice/_id_',
                 method: 'post',
                 dataType: 'json',
                 contentType: 'application/json',
-                data: JSON.stringify(data.data[invoice_id]),
-                success: data => {
-                    success(({data: [data]}));
-                }
-            })
+                data: data => JSON.stringify(data.data[editor.ids()[0]])
+            }
         }
     });
-    $('#invoices').on( 'click', 'td.editable', function (e) {
-        editor.inline(this);
-    });  
+	//    Disable inline editing as more fields to edit emerge
+//    $('#invoices').on( 'click', 'td.editable', function (e) {
+//        editor.inline(this);
+//    });  
     g_invoice_table = $('#invoices').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/invoice'
         },
         buttons: [
-            { extend: 'xls', text: 'Download' }
+            { extend: 'xls', text: 'Download' },
+	    { extend: 'edit', text: 'Edit', editor: editor }
         ],
         columns: [
             {

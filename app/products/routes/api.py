@@ -61,8 +61,28 @@ def admin_get_product(product_id):
         products = Product.query
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return _filter_products(products, request.values)
+    if request.values.get('initialValue') is not None:
+        sub = Product.query.get(request.values.get('value'))
+        return jsonify(
+            {'id': sub.id, 'text': sub.name} \
+                if sub is not None else {})
+    if request.values.get('q') is not None:
+        products = products.filter(or_(
+            Product.id.like(f'%{request.values["q"]}%'),
+            Product.name.like(f'%{request.values["q"]}%')
+        ))
+    if request.values.get('page') is not None:
+        page = int(request.values['page'])
+        total_results = products.count()
+        products = products.offset((page - 1) * 100).limit(page * 100)
+        return jsonify({
+            'results': [entry.to_dict() for entry in products],
+            'pagination': {
+                'more': total_results > page * 100
+            }
+        })
 
-    return jsonify([product.to_dict(details=True) for product in products])
+    return jsonify([product.to_dict(details=False) for product in products])
 
 def _filter_products(products, filter_params):
     products, records_total, records_filtered = prepare_datatables_query(

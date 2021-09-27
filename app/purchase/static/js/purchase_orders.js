@@ -1,4 +1,6 @@
+var g_addresses;
 var g_companies;
+var g_customers;
 var g_create_editor;
 var g_edit_editor;
 var g_filter_sources;
@@ -53,6 +55,16 @@ function get_companies() {
 
 async function get_dictionaries() {
     // g_vendors = await get_vendors();
+    g_addresses = (await get_list('/api/v1/address')).map(
+        a => ({
+            value: a.id,
+            label: a.name
+        }));
+    g_customers = (await get_list('/api/v1/admin/order/subcustomer')).map(
+        s => ({
+            value: s.id,
+            label: s.name + " | " + s.username
+        }));
     g_vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
         i => {
             entry = Object.entries(i)[0]; 
@@ -60,8 +72,8 @@ async function get_dictionaries() {
         });
     g_po_statuses = await get_list('/api/v1/admin/purchase/status')
     g_filter_sources = {
-        'vendor': g_vendors.map(v => ({id: v.value, text: v.label})),
-        'status': g_po_statuses
+        vendor: g_vendors.map(v => ({id: v.value, text: v.label})),
+        status: g_po_statuses
     };
 }
 
@@ -121,7 +133,14 @@ function init_table() {
             {
                 label: 'Company', 
                 name: 'company_id',
-                type: 'select2'
+                type: 'select2',
+                options: g_companies
+            },
+            {
+                label: 'Address',
+                name: 'address_id',
+                type: 'select2',
+                options: g_addresses
             },
             {label: 'Contact phone', name: 'contact_phone'},
             {
@@ -157,6 +176,27 @@ function init_table() {
         idSrc: 'id',
         fields: [
             {
+                label: 'Customer',
+                name: 'customer_id',
+                type: 'select2',
+                opts: {
+                    ajax: {
+                        url: '/api/v1/admin/order/subcustomer',
+                        data: params => ({
+                            q: params.term,
+                            page: params.page || 1
+                        }),
+                        processResults: data => ({
+                            results: data.results.map(i => ({
+                                text: i.name + " | " + i.username,
+                                id: i.id
+                            })),
+                            pagination: data.pagination
+                        })
+                    }
+                }
+            },
+            {
                 label: 'Purchase date', 
                 name: 'purchase_date',
                 type: 'datetime',
@@ -179,7 +219,7 @@ function init_table() {
         ]
     });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
-        g_edit_editor.inline(this, { submitOnBlur: true, drawType: 'none'});
+        g_edit_editor.inline(this, { onBlur: 'submit', drawType: 'none'});
     }); 
 
     g_purchase_orders_table = $('#purchase_orders').DataTable({
@@ -206,6 +246,8 @@ function init_table() {
             {
                 data: 'customer.name', 
                 orderable: false,
+                className: 'editable',
+                editField: 'customer_id',
                 render: function(data, type, row, meta) {
                     return "" +
                         "<span " +
@@ -221,6 +263,7 @@ function init_table() {
             {data: 'total_krw', orderable: false},
             {data: 'purchase_date', className: 'editable', orderable: false},
             {name: 'purchase_restricted', data: 'purchase_restricted_products'},
+            {name: 'company', data: 'company', orderable: false},
             {data: 'vendor', className: 'editable', orderable: false},
             {data: 'vendor_po_id', className: 'editable', orderable: false},
             {data: 'payment_account', className: 'editable', orderable: false},
@@ -238,7 +281,7 @@ function init_table() {
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[10, 'desc']],
+        order: [[11, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
@@ -280,6 +323,7 @@ function on_company_change() {
     if (g_create_editor.field('company_id').val()) {
         var company = g_companies.filter(c => c.id == g_create_editor.field('company_id').val())[0];
         g_create_editor.field('contact_phone').val(company.phone);
+        g_create_editor.field('address_id').val(company.address.id);
     }
 }
 

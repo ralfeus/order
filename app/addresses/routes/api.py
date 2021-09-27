@@ -4,6 +4,7 @@ from flask import Response, abort, jsonify, request
 from flask_security import login_required, roles_required
 
 from app import db
+from app.tools import modify_object
 from app.addresses import bp_api_admin, bp_api_user
 from app.models.address import Address
 
@@ -35,8 +36,9 @@ def save_address(address_id):
 
     address = None
     if address_id is None:
-        address = Address()
-        address.when_created = datetime.now()
+        address = Address(
+            user_created=True,
+            when_created=datetime.now())
         db.session.add(address)
     else:
         address = Address.query.get(address_id)
@@ -49,10 +51,10 @@ def save_address(address_id):
         except: 
             abort(Response('Not a number', status=400))
 
-    for key, value in payload.items():
-        if getattr(address, key) != value:
-            setattr(address, key, value)
-            address.when_changed = datetime.now()
+    modify_object(address, payload,
+        ['name', 'zip', 'address_1', 'address_2', 'address_1_eng', 
+         'address_2_eng', 'city_eng', 'delivery_comment']
+    )
 
     db.session.commit()
     return jsonify(address.to_dict())
