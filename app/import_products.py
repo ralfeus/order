@@ -1,8 +1,10 @@
 import itertools
+import json
 import lxml.html
 from lxml.cssselect import CSSSelector
 import re
 import subprocess
+import requests
 
 sel_item = CSSSelector('td.line_C_r input[name=chk]')
 sel_item_code = CSSSelector('td.line_C_r:nth-child(2)')
@@ -10,6 +12,7 @@ sel_item_name = CSSSelector('td.line_L_r a')
 sel_item_name_sold_out = CSSSelector('td.line_L_r a span')
 sel_item_price = CSSSelector('td.line_C_r:nth-child(4)')
 sel_item_points = CSSSelector('td.line_C_r:nth-child(5)')
+sel_item_image_url = CSSSelector('ul.bxslider img.scr')
 
 def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     # headers_list = [
@@ -21,7 +24,7 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     ]))
     raw_data = ['--data-raw', raw_data] if raw_data else []
     output = subprocess.run([
-        '/usr/bin/curl',
+        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
         url,
         '-v'
         ] + headers_list + raw_data,
@@ -32,6 +35,18 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
         return doc
 
     raise Exception(f"Couldn't get page {url}: " + output.stderr)
+
+def get_atomy_images(item_code):
+    product_url = "https://www.atomy.kr/v2/Home/Product/GetShoopGoodsForImg"
+    doc = get_document_from_url(product_url, headers=[{"content-type": "application/json"}],
+        raw_data='{"GdsCode" :"%s"}' % item_code, encoding='utf8')
+    data = json.loads(doc.text)
+    if data['jsonData']['GdsImg1'] is None:
+        image_url = ''
+    else:
+        image_url = "https://static.atomy.com"+data['jsonData']['GdsImg1']
+   
+    return image_url
 
 def get_atomy_products():
     product_url = "https://www.atomy.kr/center/popup_material.asp"
@@ -44,6 +59,7 @@ def get_atomy_products():
         product_line = item.getparent().getparent()
         item_code = sel_item_code(product_line)[0].text.strip()
         item_name = sel_item_name(product_line)[0].text.strip()
+        item_image_url = get_atomy_images(item_code)
         item_sold_out_name_node = sel_item_name_sold_out(product_line)
         item_sold_out_name = item_sold_out_name_node[0].text.strip() \
                 if item_sold_out_name_node and item_sold_out_name_node[0].text \
@@ -55,12 +71,14 @@ def get_atomy_products():
             item_available = False
         else:
             item_available = True
+     
         result.append({
             'id': item_code,
             'name': item_name,
             'price': item_price,
             'points': item_points,
-            'available': item_available
+            'available': item_available,
+            'image_url' : item_image_url
         })
     return result
 
@@ -69,7 +87,7 @@ def atomy_login(username='atomy1026', password='5714'):
     Logins to Atomy customer section
     '''
     output = subprocess.run([
-        '/usr/bin/curl',
+        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
         'https://www.atomy.kr/center/check_user.asp',
         '-H',
         'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',
@@ -85,3 +103,4 @@ def atomy_login(username='atomy1026', password='5714'):
 
 if __name__ == '__main__':
     get_atomy_products()
+      

@@ -85,6 +85,7 @@ class Product(db.Model, BaseModel):
             'synchronize': self.synchronize,
             'purchase': self.purchase,
             'color': self.color,
+            'image': self.image.path
         }
         if details:
             result = {**result,

@@ -165,19 +165,28 @@ async function update_product(product_row, product) {
         $('.item-code', product_row).addClass('is-invalid');
         $('.item-code', product_row).removeClass('is-valid');
     }
-    var color = product.color ? product.color : '#000000';
+    var color = product.color ? product.color : '#0000FF';
+////////////////////////////////////////////////////////    
     $('.item-name', product_row).html(
-        "<font color=\"" + color + "\">" +
-        (product.name_english == null
-            ? product.name
-            : product.name_english + " | " + product.name_russian) +
+        "<a href='#' onclick=show_product('" + product.id + "')><font color=\"" + color + "\">"+(product.name_english == null ? product.name : product.name_english + " | " + product.name_russian)+"</a>" +
         "</font>");
     $('.item-price', product_row).html(product.price);
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
     await update_item_subtotal(product_row);
+    
 }
-
+///////////////////////////////////////////////////
+function show_product(product_id) {
+    var product = g_products.filter(p => p.value == product_id)[0];
+    modal(product.label,
+    '<img src=product.image.path width="300"; height=auto; align="left";>' +    
+    'price: '+product.price+'\n'+
+    'points: '+product.points+'\n'+
+    'available: '+(product.available ? 'available' : 'unavailable')
+    );
+}
+//////////////////////////////////////////////////
 function get_countries() {
     var promise = $.Deferred();
     $.ajax({

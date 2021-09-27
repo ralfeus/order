@@ -1,6 +1,7 @@
 from datetime import datetime
 from celery.utils.log import get_task_logger
-
+import requests
+from app.models.file import File
 from app import celery, db
 
 @celery.on_after_finalize.connect
@@ -51,6 +52,12 @@ def import_products():
                         atomy_product['id'], atomy_product['available'], product.available)
                     product.available = atomy_product['available']
                     is_dirty = True
+                if product.image is None:
+                    path_image, image_name = save_image(atomy_product['image_url'])
+                    product.image = File(
+                        path = path_image,
+                        file_name = image_name)
+                    is_dirty = True
                 if is_dirty:
                     logger.debug('\t%s: MODIFIED', atomy_product['id'])
                     product.when_changed = datetime.now()
@@ -72,7 +79,8 @@ def import_products():
                 points=atomy_product['points'],
                 weight=0,
                 available=atomy_product['available'],
-                when_created=datetime.now()
+                when_created=datetime.now(),
+                image=product.image.path
             )
             new += 1
             db.session.add(product)
@@ -97,3 +105,12 @@ def add_together(a, b):
 #        sleep(1)
     return a + b
 
+
+def save_image(image_url):
+    image_name = image_url.split('/')[-1]
+    r = requests.get(image_url)
+    path_image = '/static/images/products/' + image_name
+    with open('D:/Projects/order/app/static/images/products/'+ image_name, 'wb') as f:
+        for chunk in r.iter_content(8192):
+            f.write(chunk)
+    return path_image, image_name

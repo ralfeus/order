@@ -1,37 +1,71 @@
-from datetime import datetime
-from flask import current_app
-from app import db, create_app
-from app.purchase.models import PurchaseOrder
-from app.orders.models import Subcustomer
-from app.products.models import *
-from app.utils.browser import Browser
-import logging
-logging.basicConfig(level=logging.DEBUG)
-from app.jobs import *
-from network_builder.build_network import build_network
-from app.purchase.jobs import *
-import cProfile
+import itertools
+import json
+import lxml.html
+from lxml.cssselect import CSSSelector
+from app import db
+import re
+import subprocess
+import requests
 
-with create_app().app_context():
-    po = PurchaseOrder.query.get('PO-2021-04-0002-001')
-    po.status = PurchaseOrderStatus.pending
-    po.vendor = 'AtomyQuick'
-    po.company_id = 4
-    po.customer.username = '23426444'
-    po.customer.password = 'atomy#01'
-    po.purchase_restricted_products = True
-    db.session.flush()
-    # current_app.config['SELENIUM_BROWSER'] = 'localhost:9222'
-    # del current_app.config['SELENIUM_URL']
-    # update_purchase_orders_status('PO-2021-03-0001-001')
-    # browser = Browser(config=current_app.config)
-#     vendor = PurchaseOrderVendorManager.get_vendor(
-#         po.vendor,5
-#         browser=browser, config=current_app.config)
-#     vendor.post_purchase_order(po)
-    post_purchase_orders(po_id='PO-2021-04-0002-001')
-    db.session.rollback()
-    # print(po.to_dict())
-    # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    # build_network(incremental=True)
-    # copy_subtree(root_id='S9945812')
+def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
+   
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
+    ]))
+    raw_data = ['--data-raw', raw_data] if raw_data else []
+    output = subprocess.run([
+        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
+        url,
+        '-v'
+        ] + headers_list + raw_data,
+        encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+    if re.search('HTTP.*? 200', output.stderr):
+        doc = lxml.html.fromstring(output.stdout)
+        return doc
+
+    raise Exception(f"Couldn't get page {url}: " + output.stderr)
+##############################################################
+#########  Спроба ...  #######################################
+def get_atomy_images():
+    
+    product_url = "https://www.atomy.kr/v2/Home/Product/GetShoopGoodsForImg"
+    doc = get_document_from_url(product_url, headers=[{"content-type": "application/json"}],
+        raw_data='{"GdsCode": "000333"}', encoding='utf8')
+    data = json.loads(doc.text)
+    result = []
+    item_image_id = data['jsonData']['GdsCode']
+    item_image_url = "https://static.atomy.com"+data['jsonData']['GdsImg1']
+   
+    for item in item_image_id:
+      
+        result.append({
+            'image_id' : item_image_id,
+            'image_url' : item_image_url
+        })
+    path_image, image_name = save_image(item_image_url)
+    product_image(path_image, image_name)
+    return result
+##############################################################
+def save_image(image_url):
+    image_name = image_url.split('/')[-1]
+    r = requests.get(image_url)
+    path_image = '/static/images/products/' + image_name
+    with open('D:/Projects/order/app/static/images/products/'+ image_name, 'wb') as f:
+        for chunk in r.iter_content(8192):
+            f.write(chunk)
+    return path_image, image_name
+
+def product_image(path_image, image_name):
+    from app.products.models import Product
+    from app.models.file import File
+    
+    products = Product.query.all()
+    products.image = File(
+        path = path_image,
+        file_name = image_name)
+    return path_image, image_name
+
+if __name__ == '__main__':
+    get_atomy_images()
+    
