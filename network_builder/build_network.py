@@ -77,7 +77,7 @@ logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
 logger = logging.getLogger('build_network')
 
-def build_network(username='S5832131', password='mkk03020529!', root_id='S5832131',
+def build_network(username='S5832131', password='mkk03020529!!', root_id='S5832131',
     update=False, incremental=False, cont=False, active=True, threads=10):
     if not root_id:
         root_id = 'S5832131'
