@@ -120,7 +120,7 @@ def _set_draft(order):
     if not order.id.startswith(draft_order_id_prefix):
         last_draft = Order.query \
             .filter(Order.id.startswith(draft_order_id_prefix)) \
-            .order_by(Order.id.desc()).first()
+            .order_by(Order.seq_num.desc()).first()
         order.seq_num = last_draft.seq_num + 1 if last_draft else 1
         order.id = draft_order_id_prefix + str(order.seq_num)
     order.status = OrderStatus.draft

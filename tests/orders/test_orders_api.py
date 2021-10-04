@@ -809,3 +809,33 @@ class TestOrdersApi(BaseTestCase):
         db.session.add(order)
         db.session.flush()
 
+    def test_create_11th_order_draft(self):
+        self.try_add_entities([
+            Order(id=f'ORD-draft-{self.user.id}-9', seq_num=9),
+            Order(id=f'ORD-draft-{self.user.id}-10', seq_num=10),
+            Product(id='0001', name='Product 1', price=10, weight=10)
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                'draft': True,
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        created_order_id = res.json['order_id']
+        order = Order.query.get(created_order_id)
+        self.assertEqual(order.id, f'ORD-draft-{self.user.id}-11')
