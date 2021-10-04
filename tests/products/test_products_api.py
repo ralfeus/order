@@ -45,7 +45,8 @@ class TestProductsApi(BaseTestCase):
                 'weight': 10,
                 'separate_shipping': False,
                 'purchase': True,
-                'color': None
+                'color': None,
+                'image':'/static/images/no_image.jpg'
             }
         ])
         res = self.client.get('/api/v1/product')
@@ -78,7 +79,8 @@ class TestProductsApi(BaseTestCase):
                 'available': True,
                 'synchronize': True,
                 'purchase': True,
-                'color': None
+                'color': None,
+                'image': '/static/images/no_image.jpg'
             }
         ])
 
@@ -97,7 +99,7 @@ class TestProductsApi(BaseTestCase):
     def test_edit_product(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
-            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
+            Product(id='0001', name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True, image_id=1111)
         ])
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/product/{gen_id}', json={
@@ -113,7 +115,7 @@ class TestProductsApi(BaseTestCase):
     def test_delete_product(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
-            Product(id=gen_id, name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True)
+            Product(id=gen_id, name='Korean name 1', name_english='English name', name_russian='Russian name', price=1, available=True, image_id=1111)
         ])        
         res = self.try_admin_operation(
             lambda: self.client.delete(f'/api/v1/admin/product/{gen_id}'))
