@@ -80,10 +80,14 @@ def import_products():
                 weight=0,
                 available=atomy_product['available'],
                 when_created=datetime.now(),
-                image=product.image.path
+                image=File(
+                    path = path_image,
+                    file_name = image_name)
             )
             new += 1
-            db.session.add(product)
+            try: 
+                db.session.add(product)
+            except: logger.exception("error")
     logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
         len(products))
     for product in products:
@@ -107,10 +111,14 @@ def add_together(a, b):
 
 
 def save_image(image_url):
-    image_name = image_url.split('/')[-1]
-    r = requests.get(image_url)
-    path_image = '/static/images/products/' + image_name
-    with open('D:/Projects/order/app/static/images/products/'+ image_name, 'wb') as f:
-        for chunk in r.iter_content(8192):
-            f.write(chunk)
+    if image_url!='':
+        image_name = image_url.split('/')[-1]
+        r = requests.get(image_url)
+        path_image = '/static/images/products/' + image_name
+        with open('app/static/images/products/'+ image_name, 'wb') as f:
+            for chunk in r.iter_content(8192):
+                f.write(chunk)
+    else:
+        image_name=''
+        path_image=''
     return path_image, image_name

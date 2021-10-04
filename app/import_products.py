@@ -1,5 +1,6 @@
 import itertools
 import json
+import logging
 import lxml.html
 from lxml.cssselect import CSSSelector
 import re
@@ -24,7 +25,7 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     ]))
     raw_data = ['--data-raw', raw_data] if raw_data else []
     output = subprocess.run([
-        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
+        'curl',
         url,
         '-v'
         ] + headers_list + raw_data,
@@ -49,6 +50,7 @@ def get_atomy_images(item_code):
     return image_url
 
 def get_atomy_products():
+    logger = logging.getLogger("get_atomy_products")
     product_url = "https://www.atomy.kr/center/popup_material.asp"
     session_cookies = atomy_login()
     doc = get_document_from_url(product_url, 
@@ -58,6 +60,7 @@ def get_atomy_products():
     for item in sel_item(doc):
         product_line = item.getparent().getparent()
         item_code = sel_item_code(product_line)[0].text.strip()
+        logger.debug("Getting product %s", item_code)
         item_name = sel_item_name(product_line)[0].text.strip()
         item_image_url = get_atomy_images(item_code)
         item_sold_out_name_node = sel_item_name_sold_out(product_line)
@@ -87,7 +90,7 @@ def atomy_login(username='atomy1026', password='5714'):
     Logins to Atomy customer section
     '''
     output = subprocess.run([
-        'c:\\Program Files\\Git\\mingw64\\bin\\curl.exe',
+        'curl',
         'https://www.atomy.kr/center/check_user.asp',
         '-H',
         'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',

@@ -180,7 +180,7 @@ async function update_product(product_row, product) {
 function show_product(product_id) {
     var product = g_products.filter(p => p.value == product_id)[0];
     modal(product.label,
-    '<img src=product.image.path width="300"; height=auto; align="left";>' +    
+    '<img src=' + product.image + ' width="250"; height=250; align="left";>' +    
     'price: '+product.price+'\n'+
     'points: '+product.points+'\n'+
     'available: '+(product.available ? 'available' : 'unavailable')
@@ -225,7 +225,8 @@ function get_products() {
                     separate_shipping: product.separate_shipping,
                     available: product.available,
                     weight: product.weight,
-                    color: product.color
+                    color: product.color,
+                    image: product.image
                 }));
             }
             promise.resolve();
