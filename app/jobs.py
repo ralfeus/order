@@ -21,6 +21,10 @@ def import_products():
     products = Product.query.all()
     same = new = modified = ignored = 0
     vendor_products = get_atomy_products()
+    try:
+        db.session.commit()
+    except:
+        db.session.rollback()
     logger.info("Got %d products", len(vendor_products))
     if len(vendor_products) == 0: # Something went wrong
         logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
@@ -81,13 +85,14 @@ def import_products():
                 available=atomy_product['available'],
                 when_created=datetime.now(),
                 image=File(
-                    path = path_image,
-                    file_name = image_name)
+                    path=path_image,
+                    file_name=image_name)
             )
             new += 1
-            try: 
+            try:
                 db.session.add(product)
-            except: logger.exception("error")
+            except:
+                logger.exception("error")
     logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
         len(products))
     for product in products:
