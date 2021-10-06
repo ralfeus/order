@@ -2,6 +2,7 @@ var g_invoice_table;
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
+        get_pdf(dt.rows({selected: true}));
     }
 };
 
@@ -72,6 +73,20 @@ function get_excel(rows) {
             invoices += 'invoices=' + rows.data()[i].id + '&';
         }
         window.open('/api/v1/admin/invoice/excel?' + invoices);
+    }
+    $('.wait').hide()
+}
+
+function get_pdf(rows) {
+    $('.wait').show();
+    if (rows.count() == 1) {
+        window.open('/api/v1/admin/invoice/' + rows.data()[0].id + '/pdf');
+    } else {
+        var invoices = '';
+        for (var i = 0; i < rows.count(); i++) {
+            invoices += 'invoices=' + rows.data()[i].id + '&';
+        }
+        window.open('/api/v1/admin/invoice/pdf?' + invoices);
     }
     $('.wait').hide()
 }

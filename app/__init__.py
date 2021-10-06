@@ -43,8 +43,8 @@ def create_app(config=None):
 
     register_components(flask_app)
     # init_navbar(flask_app)
-    if flask_app.config.get('DEBUG'):
-        init_debug(flask_app)
+    # if flask_app.config.get('DEBUG'):
+    #     init_debug(flask_app)
    
     return flask_app
 
