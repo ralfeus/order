@@ -2,6 +2,10 @@ var g_invoice_table;
 $.fn.dataTable.ext.buttons.xls = {
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
+    }
+};
+$.fn.dataTable.ext.buttons.pdf = {
+    action: function(e, dt, node, config) {
         get_pdf(dt.rows({selected: true}));
     }
 };
