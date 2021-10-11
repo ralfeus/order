@@ -12,6 +12,9 @@ _current_dir = os.path.dirname(__file__)
 
 def init(app: Flask):
     '''Initializes a Warehouse module'''
+    if app.config.get('modules') is None:
+        app.config['modules'] = {}
+    app.config['modules']['warehouse'] = True
     _register_signals()
     _import_models()
     _register_routes(app)
@@ -34,10 +37,28 @@ def _register_routes(app):
 
 
 def _register_signals():
-    from app.orders.signals import sale_order_packed
+    from app.orders.signals import sale_order_packed, \
+        admin_order_products_rendering, order_product_model_preparing
     sale_order_packed.connect(_on_sale_order_packed)
+    admin_order_products_rendering.connect(_on_admin_order_products_rendering)
+    order_product_model_preparing.connect(_on_order_product_model_preparing)
     from app.purchase.signals import purchase_order_delivered
     purchase_order_delivered.connect(_on_purchase_order_delivered)
+
+def _on_admin_order_products_rendering(_sender, **_extra):
+    return {
+        'fields': [
+            {'label': 'Take from warehouse', 'name': 'warehouse'}
+        ],
+        'columns': [
+            {'name': 'Warehouse', 'data': 'warehouse'}
+        ]
+    }
+
+def _on_order_product_model_preparing(order_product, **_extra):
+    return {
+        'warehouse': order_product
+    }
 
 def _on_sale_order_packed(sender, **_extra):
     '''Handles packed sale order (removes products from a local warehouse)'''

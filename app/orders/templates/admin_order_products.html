@@ -2,7 +2,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="static/js/admin_order_products.js"></script>
+<script src="dynamic/admin_order_products.js"></script>
 {% endblock %}
     
 {% block content %}
@@ -25,6 +25,9 @@
                 <td><select></select></td>
                 <td><select></select></td>
                 <td></td>
+                {% for column in ext_columns %}
+                <td></td>
+                {% endfor %}
             </tr>
             <tr>
                 <th></th>
@@ -40,6 +43,9 @@
                 <th scope="col">Order status</th>
                 <th scope="col">OP Status</th>
                 <th scope="col">When created</th>
+                {% for column in ext_columns %}
+                <th scope="col">{{ column.name }}</th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody></tbody>

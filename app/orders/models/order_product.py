@@ -1,6 +1,6 @@
-from app.orders.models.order import OrderStatus
 from datetime import datetime
 import enum
+import itertools
 
 from flask_security import current_user
 
@@ -10,6 +10,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
+from app.orders.models.order import OrderStatus
 from app.shipping.models import PostponeShipping
 
 class OrderProductStatus(enum.Enum):
@@ -183,6 +184,8 @@ class OrderProduct(db.Model, BaseModel):
             self.suborder.order.update_total()
 
     def to_dict(self):
+        from app.orders.signals import order_product_model_preparing
+        ext_model = dict(itertools.chain(order_product_model_preparing.send()))
         return {
             'id': self.id,
             'order_id': self.suborder.order_id if self.suborder else self.order_id,
@@ -209,5 +212,6 @@ class OrderProduct(db.Model, BaseModel):
             'available': self.product.available,
             'color': self.product.color,
             'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
-            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
+            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None,
+            **ext_model
         }
