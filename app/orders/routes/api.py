@@ -689,7 +689,7 @@ def admin_get_subcustomers():
                 Subcustomer.username.like(filter_clause)
             )
         )
-        outcome = list(map(lambda entry: entry.to_dict(), subcustomers))
+        outcome = [entry.to_dict() for entry in subcustomers]
 
         return jsonify({
             'draw': request.values['draw'],

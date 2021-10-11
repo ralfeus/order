@@ -261,10 +261,7 @@ def save_invoice_item(invoice_id, invoice_item_id):
     else:
         invoice_item = InvoiceItem(invoice=invoice, when_created=datetime.now())
     
-    for key, value in payload.items():
-        if getattr(invoice_item, key) != value:
-            setattr(invoice_item, key, value)
-            invoice_item.when_changed = datetime.now()
+    modify_object(invoice_item, payload, ['product_id', 'price', 'quantity'])
     if invoice_item_id == 'new':
         db.session.add(invoice_item)
     db.session.commit()
