@@ -8,6 +8,7 @@ var g_payment_statuses = [];
 var g_table;
 
 $.fn.dataTable.ext.buttons.status = {
+    extend: 'selected',
     action: function(_e, dt, _node, _config) {
         set_status(dt.rows({selected: true}), this.text());
     }
@@ -456,43 +457,47 @@ function on_orders_change() {
  * @param {*} target - table rows representing orders whose status is to be changed
  * @param {string} status - new status
  */
-function set_status(target, newStatus) {
-    if (target.count()) {
-        $('.wait').show();
-        var remained = 0;
-        for (var i = 0; i < target.count(); i++) {
-            remained++;
-            $.ajax({
-                url: '/api/v1/admin/payment/' + target.data()[i].id,
-                method: 'POST',
-                dataType: 'json', 
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    'status': newStatus,
-                }),
-                complete: function() {
-                    remained--;
-                    if (!remained) {
-                        $('.wait').hide();
-                    }
-                },
-                success: function(response, _status, _xhr) {
+async function set_status(target, newStatus) {
+    $('.wait').show();
+    // var remained = 0;
+    var errors = '';
+    var successful = '';
+    for (var i = 0; i < target.count(); i++) {
+        // remained++;
+        await $.ajax({
+            url: '/api/v1/admin/payment/' + target.data()[i].id,
+            method: 'POST',
+            dataType: 'json', 
+            contentType: 'application/json',
+            data: JSON.stringify({
+                'status': newStatus,
+            }),
+            // complete: function() {
+            //     remained--;
+            //     if (!remained) {
+            //         $('.wait').hide();
+            //     }
+            // },
+            success: function(response, _status, _xhr) {
+                if (response.data.length > 0) {
                     target.cell(
                         (_idx, data, _node) => 
                             data.id === parseInt(response.data[0].id), 
                         5).data(response.data[0].status).draw();
-                    if (response.message && response.message.length) {
-                        modal('Transaction save', response.message.join('<br />'));
-                    }
-                },
-                error: xhr => {
-                    modal("Transaction set status", xhr.responseText);
                 }
-            });     
-        }
-    } else {
-        alert('Nothing selected');
+                if (response.message && response.message.length) {
+                    successful += response.message.join('<br />') + '<br />';
+                }
+                if (response.error && response.error.length) {
+                    errors += response.error + '<br />';
+                }
+            },
+            error: xhr => {
+                errors += xhr.responseText + "<br />";
+            }
+        });     
     }
+    $('.wait').hide();
 }
 
 function update_amount_krw(target, target_data) {

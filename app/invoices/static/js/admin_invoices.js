@@ -1,5 +1,6 @@
 var g_invoice_table;
 $.fn.dataTable.ext.buttons.xls = {
+    extend: 'selected',
     action: function(e, dt, node, config) {
         get_excel(dt.rows({selected: true}));
     }
@@ -73,7 +74,7 @@ function get_excel(rows) {
         }
         window.open('/api/v1/admin/invoice/excel?' + invoices);
     }
-    $('.wait').hide()
+    $('.wait').hide();
 }
 
 function open_invoice(target) {
