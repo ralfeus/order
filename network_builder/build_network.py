@@ -77,7 +77,7 @@ logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
 logger = logging.getLogger('build_network')
 
-def build_network(username='S5832131', password='mkk03020529!!', root_id='S5832131',
+def build_network(username, password, root_id='S5832131',
     update=False, incremental=False, cont=False, active=True, threads=10):
     if not root_id:
         root_id = 'S5832131'
@@ -425,6 +425,8 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="Build network")
     group = arg_parser.add_mutually_exclusive_group()
     arg_parser.add_argument('--root', metavar='ROOT_ID', help="ID of the tree or subtree root")
+    arg_parser.add_argument('--user', help="User name to log on to Atomy", default='S5832131')
+    arg_parser.add_argument('--password', help="Password to log on to Atomy", default='mkk03020529!!')
     group.add_argument('--update', help='Update data of existing nodes', action='store_true')
     group.add_argument('--incremental', help='Build trees from all leaves',
                     action='store_true')
@@ -445,4 +447,5 @@ if __name__ == '__main__':
 
     build_network(
         root_id=args.root, cont=args.cont, incremental=args.incremental,
-        update=args.update, active=args.active, threads=args.threads)
+        update=args.update, active=args.active, threads=args.threads,
+        username=args.user, password=args.password)

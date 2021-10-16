@@ -13,25 +13,27 @@ from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
 from app.tools import modify_object, prepare_datatables_query
 
+
 @bp_api_user.route('', defaults={'product_id': None})
 @bp_api_user.route('/<product_id>')
 @login_required
 def get_product(product_id):
     '''Returns list of products in JSON'''
-    product_query = None
+    products = None
     error_message = None
     if product_id:
         error_message = f"No product with code <{product_id}> was found"
         stripped_id = product_id.lstrip('0')
-        product_query = Product.query.filter(Product.id.endswith(stripped_id))
-        product_query = [product for product in product_query
-                        if product.id.lstrip('0') == stripped_id]
+        products = Product.query.filter(Product.id.endswith(stripped_id))
+        products = [product for product in products
+                    if product.id.lstrip('0') == stripped_id]
     else:
         error_message = "There are no products in store now"
-        product_query = Product.query.all()
-    if len(product_query) != 0:
-        return jsonify([product.to_dict(details=False) for product in product_query])
+        products = Product.query.all()
+    if len(products) != 0:
+        return jsonify([product.to_dict(details=False) for product in products])
     abort(Response(error_message, status=404))
+
 
 @bp_api_user.route('/search/<term>')
 @login_required
@@ -59,13 +61,13 @@ def admin_get_product(product_id):
         products = Product.query.filter_by(id=product_id)
     else:
         products = Product.query
-    if request.values.get('draw') is not None: # Args were provided by DataTables
+    if request.values.get('draw') is not None:  # Args were provided by DataTables
         return _filter_products(products, request.values)
     if request.values.get('initialValue') is not None:
-        sub = Product.query.get(request.values.get('value'))
+        sub = Product.query.get(request.values.get('value')[1:-1])
         return jsonify(
-            {'id': sub.id, 'text': sub.name} \
-                if sub is not None else {})
+            {'id': sub.id, 'text': sub.name}
+            if sub is not None else {})
     if request.values.get('q') is not None:
         products = products.filter(or_(
             Product.id.like(f'%{request.values["q"]}%'),
@@ -84,6 +86,7 @@ def admin_get_product(product_id):
 
     return jsonify([product.to_dict(details=False) for product in products])
 
+
 def _filter_products(products, filter_params):
     products, records_total, records_filtered = prepare_datatables_query(
         products, filter_params, None
@@ -94,6 +97,7 @@ def _filter_products(products, filter_params):
         'recordsFiltered': records_filtered,
         'data': [entry.to_dict(details=True) for entry in products]
     })
+
 
 @bp_api_admin.route('', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<product_id>', methods=['POST'])
@@ -125,6 +129,7 @@ def save_product(product_id):
     db.session.commit()
 
     return jsonify(product.to_dict(details=True))
+
 
 @bp_api_admin.route('/<product_id>', methods=['DELETE'])
 @roles_required('admin')
