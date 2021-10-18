@@ -112,7 +112,7 @@ def filter_orders(orders, filter_params):
         'draw': int(filter_params['draw']),
         'recordsTotal': records_total,
         'recordsFiltered': records_filtered,
-        'data': list(map(lambda entry: entry.to_dict(), orders))
+        'data': [entry .to_dict() for entry in orders]
     })
 
 def _set_draft(order):
@@ -209,7 +209,7 @@ def add_suborders(order, suborders, errors):
         for index in range(0, len(suborder_data['items']), 10):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
-                add_suborder(order, suborder_data_subset, errors)
+                _add_suborder(order, suborder_data_subset, errors)
                 db.session.flush()
                 suborders_count += 1
             except EmptySuborderError as ex:
@@ -217,7 +217,7 @@ def add_suborders(order, suborders, errors):
     if suborders_count == 0:
         abort(Response("The order is empty. Please add at least one product.", status=409))
 
-def add_suborder(order, suborder_data, errors):
+def _add_suborder(order, suborder_data, errors):
     try:
         subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
         if is_new:
@@ -394,7 +394,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
             Suborder.seq_num == suborder_data.get('seq_num')
         )).first()
         if suborder is None:
-            add_suborder(order, suborder_data, errors)
+            _add_suborder(order, suborder_data, errors)
             db.session.flush()
         else:
             subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
@@ -636,7 +636,7 @@ def get_order_products():
                 OrderProduct.status == request.values['search[value]']
             )
         )
-        outcome = list(map(lambda entry: entry.to_dict(), order_products))
+        outcome = [entry.to_dict() for entry in order_products]
         if not current_user.has_role('admin'):
             for entry in outcome:
                 entry.pop('private_comment', None)
@@ -650,7 +650,7 @@ def get_order_products():
     if order_products.count() == 0:
         abort(Response("No order products were fond", status=404))
 
-    outcome = list(map(lambda entry: entry.to_dict(), order_products))
+    outcome = [entry.to_dict() for entry in order_products]
     if not current_user.has_role('admin'):
         for entry in outcome:
             entry.pop('private_comment', None)
@@ -660,12 +660,12 @@ def get_order_products():
 @bp_api_user.route('/status')
 @login_required
 def user_get_order_statuses():
-    return jsonify(list(map(lambda i: i.name, OrderStatus)))
+    return jsonify([i.name for i in OrderStatus])
 
 @bp_api_user.route('/product/status')
 @login_required
 def user_get_order_product_statuses():
-    return jsonify(list(map(lambda i: i.name, OrderProductStatus)))
+    return jsonify([i.name for i in OrderProductStatus])
 
 @bp_api_user.route('/product/<int:order_product_id>/status/history')
 @login_required
@@ -674,7 +674,7 @@ def user_get_order_product_status_history(order_product_id):
     if not order_product:
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
-    return jsonify(list(map(lambda entry: entry.to_dict(), order_product.status_history)))
+    return jsonify([entry.to_dict() for entry in order_product.status_history])
 
 @bp_api_admin.route('/subcustomer')
 @roles_required('admin')

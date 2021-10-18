@@ -22,23 +22,3 @@ def get_products():
     Product catalog management
     '''
     return render_template('products.html')
-
-# @bp_client_admin.route('/new', methods=['GET', 'POST'])
-# @roles_required('admin')
-# def product():
-#     '''
-#     Creates and edits product
-#     '''
-#     form = ProductForm()
-#     if form.validate_on_submit():
-#         new_product = Product()
-#         form.populate_obj(new_product)
-
-#         db.session.add(new_product)
-#         try:
-#             db.session.commit()
-#             flash("The product is created", category='info')
-#             return redirect('/admin/products')
-#         except IntegrityError as ex:
-#             flash(f"The product couldn't be created. {ex}", category="error")
-#     return render_template('product.html', title="Create product", form=form)

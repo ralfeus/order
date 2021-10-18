@@ -55,10 +55,9 @@ def _on_admin_order_products_rendering(_sender, **_extra):
         ]
     }
 
-def _on_order_product_model_preparing(order_product, **_extra):
-    return {
-        'warehouse': order_product
-    }
+def _on_order_product_model_preparing(sender, **_extra):
+    from .models.order_product_warehouse import OrderProductWarehouse
+    return OrderProductWarehouse.get_warehouse_for_order_product(sender)
 
 def _on_sale_order_packed(sender, **_extra):
     '''Handles packed sale order (removes products from a local warehouse)'''

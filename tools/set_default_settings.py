@@ -15,7 +15,8 @@ settings = [
     {'key': 'purchase.allow_purchase_restricted_products', 'value': False, 'description': 'Allows to decide whether to purchase restricted products (ones that can\'t be purchased by foreign members'},
     {'key': 'payment.paypal.client_id', 'value': None, 'description': 'PayPal API client ID'},
     {'key': 'payment.paypal.client_secret', 'value': None, 'description': 'PayPal API client secret'},
-    {'key': 'payment.paypal.payee_address', 'value': None, 'description': 'PayPal payee e-mail address'}
+    {'key': 'payment.paypal.payee_address', 'value': None, 'description': 'PayPal payee e-mail address'},
+    {'key': 'module.warehouse.enabled', 'value': False, 'description': 'Define whether Warehouse module is enabled'}
 ]
 
 for setting in settings:

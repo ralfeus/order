@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql.schema import ForeignKey
 
 from app import db
 from app.models.base import BaseModel
@@ -10,9 +11,9 @@ class OrderProductWarehouse(db.Model, BaseModel):
     '''Represents a warehouse usage for an order product'''
     __tablename__ = 'order_products_warehouses'
 
-    order_product_id = Column(Integer)
+    order_product_id = Column(Integer, ForeignKey('order_products.id'))
     order_product = relationship(OrderProduct, foreign_keys=[order_product_id])
-    warehouse_id = Column(Integer)
+    warehouse_id = Column(Integer, ForeignKey('warehouses.id'))
     warehouse = relationship(Warehouse, foreign_keys=[warehouse_id])
 
     def to_dict(self):
@@ -21,3 +22,12 @@ class OrderProductWarehouse(db.Model, BaseModel):
             'warehouse_id': self.warehouse_id,
             'warehouse': self.warehouse.name if self.warehouse is not None else None
         }
+
+    @classmethod
+    def get_warehouse_for_order_product(cls, order_product):
+        op_warehouse = cls.query.filter_by(order_product_id=order_product.id).first()
+        return \
+            op_warehouse.to_dict() if op_warehouse is not None \
+            else {
+                'warehouse': None
+            }
