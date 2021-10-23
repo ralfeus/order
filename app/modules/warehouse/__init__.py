@@ -3,6 +3,8 @@ from importlib import import_module
 import os, os.path
 from flask import Blueprint, Flask
 
+from .exceptions import WarehouseError
+
 bp_api_admin = Blueprint('warehouse_api_admin', __name__,
                          url_prefix='/api/v1/admin/warehouse')
 bp_client_admin = Blueprint('warehouse_client_admin', __name__,
@@ -38,17 +40,29 @@ def _register_routes(app):
 
 def _register_signals():
     from app.orders.signals import sale_order_packed, \
-        admin_order_products_rendering, order_product_model_preparing
+        admin_order_products_rendering, order_product_model_preparing, \
+        order_product_saving
     sale_order_packed.connect(_on_sale_order_packed)
     admin_order_products_rendering.connect(_on_admin_order_products_rendering)
     order_product_model_preparing.connect(_on_order_product_model_preparing)
     from app.purchase.signals import purchase_order_delivered
     purchase_order_delivered.connect(_on_purchase_order_delivered)
+    order_product_saving.connect(_on_order_product_saving)
 
 def _on_admin_order_products_rendering(_sender, **_extra):
+    from .models.warehouse import Warehouse
+    warehouses = Warehouse.query
     return {
         'fields': [
-            {'label': 'Take from warehouse', 'name': 'warehouse'}
+            {
+                'label': 'Take from warehouse',
+                'name': 'warehouse',
+                'type': 'select2',
+                'options': [{'value': 0, 'label': '--None--'}] + [{
+                    'value': warehouse.id,
+                    'label': warehouse.name
+                } for warehouse in warehouses]
+            }
         ],
         'columns': [
             {'name': 'Warehouse', 'data': 'warehouse'}
@@ -58,6 +72,19 @@ def _on_admin_order_products_rendering(_sender, **_extra):
 def _on_order_product_model_preparing(sender, **_extra):
     from .models.order_product_warehouse import OrderProductWarehouse
     return OrderProductWarehouse.get_warehouse_for_order_product(sender)
+
+def _on_order_product_saving(order_product, payload, **_extra):
+    from app import db
+    from .models.warehouse import Warehouse
+    from .models.order_product_warehouse import OrderProductWarehouse
+    order_product_warehouse = OrderProductWarehouse.query.filter_by(order_product_id=order_product.id).first()
+    if order_product_warehouse is None:
+        order_product_warehouse = OrderProductWarehouse(order_product_id=order_product.id)
+        db.session.add(order_product_warehouse)
+    warehouse = Warehouse.query.get(payload['warehouse_id'])
+    if warehouse is None:
+        raise WarehouseError(f"No warehouse <{payload['warehouse_id']}> is found")
+    order_product_warehouse.warehouse = warehouse
 
 def _on_sale_order_packed(sender, **_extra):
     '''Handles packed sale order (removes products from a local warehouse)'''
@@ -74,4 +101,3 @@ def _on_purchase_order_delivered(sender, **_extra):
     if local_warehouse is not None:
         for pp in sender.products:
             local_warehouse.add_product(pp.product, pp.quantity)
-
