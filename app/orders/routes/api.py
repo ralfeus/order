@@ -579,7 +579,9 @@ def admin_save_order(order_id):
         order.total_weight = int(order_input['total_weight'])
         order.total_weight_set_manually = True
     modify_object(order, order_input, ['tracking_id', 'tracking_url'])
-    order.update_total()
+    if len(set(['subtotal_krw', 'total_weight', 'shipping_krw', 'country', 'suborders']) &
+           set(order_input.keys())) > 0:
+        order.update_total()
     if order_input.get('status'):
         try:
             order.set_status(order_input['status'], current_user)
