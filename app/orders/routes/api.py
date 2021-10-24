@@ -22,7 +22,7 @@ from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.users.models.user import User
 from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query, modify_object, stream_and_close
+from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -559,7 +559,6 @@ def admin_save_order(order_id):
     Payload is provided in JSON
     '''
     logger = current_app.logger.getChild('admin_save_order')
-    order_input = request.get_json()
     order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
@@ -571,6 +570,7 @@ def admin_save_order(order_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
+    order_input = cleanse_payload(order, request.get_json())
     logger.info('Modifying order %s by %s with data: %s',
                 order_id, current_user, order_input)
     if order_input.get('boxes'):
