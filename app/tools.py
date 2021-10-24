@@ -147,6 +147,21 @@ def modify_object(entity, payload, editable_attributes):
             entity.when_changed = datetime.now()
     return entity
 
+def cleanse_payload(entity, payload):
+    new_payload = {}
+    for key, value in payload.items():
+        try:
+            attr = getattr(entity, key)
+            if isinstance(attr, enum.Enum):
+                if type(attr)[value] != attr:
+                    new_payload[key] = value
+            else:
+                if type(attr)(value) != attr:
+                    new_payload[key] = value
+        except:
+            new_payload[key] = value
+    return new_payload
+
 def stream_and_close(file_handle):
     yield from file_handle
     file_handle.close()
