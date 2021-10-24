@@ -17,6 +17,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
+from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
@@ -160,6 +161,7 @@ def user_create_order():
         )
         if 'draft' in payload.keys() and payload['draft']:
             order = _set_draft(order)
+        logger.info("Order %s is created", order.id)
 
         order.attach_orders(payload.get('attached_orders'))
         db.session.add(order)
@@ -173,8 +175,8 @@ def user_create_order():
             abort(Response("No shipping rate available", status=409))
 
     try:
-        # db.session.commit()
         db.session.commit()
+        logger.debug("Order %s is saved", order.id)
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
@@ -557,7 +559,6 @@ def admin_save_order(order_id):
     Payload is provided in JSON
     '''
     logger = current_app.logger.getChild('admin_save_order')
-    order_input = request.get_json()
     order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
@@ -569,19 +570,20 @@ def admin_save_order(order_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
+    payload = cleanse_payload(order, request.get_json())
     logger.info('Modifying order %s by %s with data: %s',
-                order_id, current_user, order_input)
-    if order_input.get('boxes'):
-        update_order_boxes(order, order_input['boxes'])
-    if order_input.get('total_weight'):
-        order.total_weight = int(order_input['total_weight'])
+                order_id, current_user, payload)
+    if payload.get('boxes'):
+        update_order_boxes(order, payload['boxes'])
+    if payload.get('total_weight'):
+        order.total_weight = int(payload['total_weight'])
         order.total_weight_set_manually = True
-    modify_object(order, order_input, ['tracking_id', 'tracking_url'])
-    if order.need_to_update_total(order_input):
+    modify_object(order, payload, ['tracking_id', 'tracking_url'])
+    if order.need_to_update_total(payload):
         order.update_total()
-    if order_input.get('status'):
+    if payload.get('status'):
         try:
-            order.set_status(order_input['status'], current_user)
+            order.set_status(payload['status'], current_user)
         except UnfinishedOrderError as ex:
             abort(Response(str(ex), status=409))
 
