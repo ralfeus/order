@@ -1,5 +1,4 @@
 '''API endpoints for sale order management'''
-from app.orders.models.order import OrderBox
 from datetime import datetime
 from more_itertools import map_reduce
 import re
@@ -15,14 +14,14 @@ from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateEr
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
+from app.orders.models.order import OrderBox
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
-from app.users.models.user import User
 from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query, modify_object, stream_and_close
+from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -439,7 +438,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
 
 @bp_api_admin.route('/product/<int:order_product_id>', methods=['POST'])
 @roles_required('admin')
-def save_order_product(order_product_id):
+def admin_save_order_product(order_product_id):
     '''
     Modifies order products
     Order product payload is received as JSON
@@ -451,13 +450,15 @@ def save_order_product(order_product_id):
     order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
+    payload = cleanse_payload(order_product, payload)
 
     modify_object(order_product, payload, ['product_id', 'price', 'quantity',
-                                           'subcustomer', 'private_comment',
-                                           'public_comment', 'status'])
-    order_product_saving.send(order_product=order_product, payload=payload)
+                                           'private_comment', 'public_comment',
+                                           'status'])
+    order_product_saving.send(order_product, payload=payload)
     try:
-        order_product.suborder.order.update_total()
+        if order_product.need_to_update_total(payload):
+            order_product.suborder.order.update_total()
         db.session.commit()
         return jsonify(order_product.to_dict())
     except NoShippingRateError:
@@ -576,8 +577,7 @@ def admin_save_order(order_id):
         order.total_weight = int(order_input['total_weight'])
         order.total_weight_set_manually = True
     modify_object(order, order_input, ['tracking_id', 'tracking_url'])
-    if len(set(['subtotal_krw', 'total_weight', 'shipping_krw', 'country', 'suborders']) &
-           set(order_input.keys())) > 0:
+    if order.need_to_update_total(order_input):
         order.update_total()
     if order_input.get('status'):
         try:

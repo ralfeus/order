@@ -80,9 +80,9 @@ function init_order_products_table() {
         table: '#order_products',
         idSrc: 'id',
         fields: [
-            {label: 'Order product ID', name: 'id'},
+            // {label: 'Order product ID', name: 'id'},
             // {label: 'Customer', name: 'customer'},
-            {label: 'Subcustomer', name: 'subcustomer'},
+            {label: 'Subcustomer', name: 'subcustomer', type: 'readonly'},
             {label: 'Product ID', name: 'product_id'},
             // {label: 'Product', name: 'product'},
             {label: 'Price', name: 'price'},

@@ -29,5 +29,6 @@ class OrderProductWarehouse(db.Model, BaseModel):
         return \
             op_warehouse.to_dict() if op_warehouse is not None \
             else {
-                'warehouse': None
+                'warehouse': None,
+                'warehouse_id': None
             }

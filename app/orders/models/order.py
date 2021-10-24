@@ -295,6 +295,10 @@ class Order(db.Model, BaseModel):
     def is_editable(self):
         return self.status in [OrderStatus.draft]
 
+    def need_to_update_total(self, payload):
+        return len({'subtotal_krw', 'total_weight', 'shipping_krw', 'country', 'suborders'} &
+                   set(payload.keys())) > 0
+
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
         logger = logging.getLogger('Order.to_dict')

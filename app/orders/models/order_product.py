@@ -129,6 +129,10 @@ class OrderProduct(db.Model, BaseModel):
                 if currency is not None else 1
         return self.price * rate
 
+    def need_to_update_total(self, payload):
+        return len({'product_id', 'product', 'price', 'quantity'} &
+                   set(payload.keys())) > 0 
+
     def postpone(self):
         from . import Order, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
