@@ -56,12 +56,19 @@ def _on_admin_order_products_rendering(_sender, **_extra):
         'fields': [
             {
                 'label': 'Take from warehouse',
-                'name': 'warehouse',
+                'name': 'warehouse_id',
                 'type': 'select2',
-                'options': [{'value': 0, 'label': '--None--'}] + [{
+                'options': [{
                     'value': warehouse.id,
                     'label': warehouse.name
-                } for warehouse in warehouses]
+                } for warehouse in warehouses],
+                'opts': {
+                    'allowClear': 1,
+                    'placeholder': {
+                        'id': '',
+                        'text': '-- None --'
+                    }
+                }
             }
         ],
         'columns': [
@@ -77,14 +84,21 @@ def _on_order_product_saving(order_product, payload, **_extra):
     from app import db
     from .models.warehouse import Warehouse
     from .models.order_product_warehouse import OrderProductWarehouse
+    if payload.get('warehouse_id') is not None:
+        warehouse = Warehouse.query.get(payload['warehouse_id'])
+        if warehouse is None:
+            raise WarehouseError(f"No warehouse <{payload['warehouse_id']}> is found")
+    else:
+        warehouse = None
     order_product_warehouse = OrderProductWarehouse.query.filter_by(order_product_id=order_product.id).first()
-    if order_product_warehouse is None:
-        order_product_warehouse = OrderProductWarehouse(order_product_id=order_product.id)
-        db.session.add(order_product_warehouse)
-    warehouse = Warehouse.query.get(payload['warehouse_id'])
-    if warehouse is None:
-        raise WarehouseError(f"No warehouse <{payload['warehouse_id']}> is found")
-    order_product_warehouse.warehouse = warehouse
+    if warehouse is not None:
+        if order_product_warehouse is None:
+            order_product_warehouse = OrderProductWarehouse(order_product_id=order_product.id)
+            db.session.add(order_product_warehouse)
+        order_product_warehouse.warehouse = warehouse
+    else:
+        if order_product_warehouse is not None:
+            db.session.delete(order_product_warehouse)
 
 def _on_sale_order_packed(sender, **_extra):
     '''Handles packed sale order (removes products from a local warehouse)'''
