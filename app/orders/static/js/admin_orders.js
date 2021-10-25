@@ -377,11 +377,11 @@ function init_orders_table() {
             {data: 'shipping', render: 'name', orderable: false},
             {data: 'country', render: 'name', orderable: false},
             {
-		name: 'invoice_export_id', 
-		data: null,
-		render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
-	    },
-            {data: 'purchase_date'},
+                name: 'invoice_export_id', 
+                data: null,
+                render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
+            },
+            {data: 'purchase_date', render: dt_render_local_time},
             {
                 data: 'when_po_posted',
                 orderable: false,
@@ -389,8 +389,8 @@ function init_orders_table() {
                     return data 
                         ? "<a href=\"/admin/purchase/orders?id=" + 
                             row.id.replace('ORD', 'PO') + "\">" + 
-                            format_date(new Date(data)) + "</a>"
-                        : format_date(new Date(data));
+                            dt_render_local_time(data, type, row) + "</a>"
+                        : dt_render_local_time(data, type, row);
                 }
             },
             {data: 'when_created', render: dt_render_local_time},

@@ -178,7 +178,14 @@ var dt_render_local_time = function(data, type, _row) {
     if (type == 'display') {
         var time = new Date(data);
         return new Date(time + ' GMT+2')
-            .toLocaleString(navigator.language, {dateStyle: 'short', timeStyle: 'short'});
+            .toLocaleString(navigator.language, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            });
     } else {
         return data;
     }
