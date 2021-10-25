@@ -63,8 +63,8 @@ function init_warehouses_table() {
                 render: (data, _d1, object) => "<a href=\"/admin/warehouses/" + object.id + "\">" + data + "</a>"
             },
             {data: 'is_local'},
-            {data: 'when_created'},
-            {data: 'when_changed'}
+            {data: 'when_created', render: dt_render_local_time},
+            {data: 'when_changed', render: dt_render_local_time}
         ],
         select: true,
         processing: true,

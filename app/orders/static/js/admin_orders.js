@@ -393,8 +393,8 @@ function init_orders_table() {
                         : format_date(new Date(data));
                 }
             },
-            {data: 'when_created'},
-            {data: 'when_changed'},
+            {data: 'when_created', render: dt_render_local_time},
+            {data: 'when_changed', render: dt_render_local_time},
         ],
         columnDefs: [
             {

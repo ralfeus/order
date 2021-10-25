@@ -125,12 +125,19 @@
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
         </li>
-        <li class="nav-item">
+        <li class="navbar-text" style="color: blue;">
             {{ current_user.username }}
         </li>
       </ul>
     </div>
-    <div class="float-right">
+    <div class="float-right" style="font-size: 0.7rem; text-align:right; font-weight: bolder;">
+      <li class="navbar-text">Korean time:<div id="kr-time"></div></li>
+      <script>
+        setInterval(() => {
+          $('#kr-time').html((new Date()).toLocaleString(navigator.languages[0], {
+            timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short'}));
+        }, 5000)
+      </script>
       {% block currencies %}
       {% endblock %}
       {% if extension_1 %}
