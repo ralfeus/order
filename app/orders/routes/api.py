@@ -559,7 +559,7 @@ def admin_save_order(order_id):
     Payload is provided in JSON
     '''
     logger = current_app.logger.getChild('admin_save_order')
-    order = Order.query.get(order_id)
+    order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
     with OrderEditValidator(request) as validator:

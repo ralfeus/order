@@ -22,5 +22,10 @@
     "CELERY_TASK_DEFAULT_QUEUE": "order",
 
     "SELENIUM_URL": "http://localhost:4444/wd/hub",
-    "SELENIUM_DRIVER": "/usr/local/bin/chromedriver"
+    "SELENIUM_DRIVER": "/usr/local/bin/chromedriver",
+    "MODULES": {
+        "warehouse": {
+            "enabled": true
+        }
+    }
 }

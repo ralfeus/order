@@ -17,7 +17,9 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from app import db
 from app.exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
+from app.models.country import Country
 from app.currencies.models.currency import Currency
+from app.users.models.user import User
 from app.settings.models.setting import Setting
 
 class OrderStatus(enum.Enum):
@@ -59,22 +61,22 @@ class Order(db.Model, BaseModel):
     id = Column(String(16), primary_key=True, nullable=False)
     seq_num = Column(Integer)
     user_id = Column(Integer, ForeignKey('users.id'))
-    user = relationship('User', foreign_keys=[user_id])
+    user = relationship(User, foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
-    country = relationship('Country', foreign_keys=[country_id])
+    country = relationship(Country, foreign_keys=[country_id])
     zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(128))
-    boxes = relationship(OrderBox, lazy='dynamic', cascade="all, delete-orphan")
+    boxes = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    shipping = relationship("Shipping", foreign_keys=[shipping_method_id])
+    shipping = relationship('Shipping', foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
     subtotal_usd = Column(Numeric(10, 2), default=0)
@@ -84,8 +86,7 @@ class Order(db.Model, BaseModel):
     total_krw = Column(Integer(), default=0)
     total_rur = Column(Numeric(10, 2), default=0)
     total_usd = Column(Numeric(10, 2), default=0)
-    status = Column(Enum(OrderStatus),
-        default=OrderStatus.pending.name)
+    status = Column(Enum(OrderStatus), default='pending')
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
     when_created = Column(DateTime)

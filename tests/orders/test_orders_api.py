@@ -809,6 +809,26 @@ class TestOrdersApi(BaseTestCase):
         db.session.add(order)
         db.session.flush()
 
+    def test_set_status_shipped_twice(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user, status=OrderStatus.pending, country_id='c1', total_krw=1000)        
+        ])
+        self.user.balance = 1000
+        db.session.commit()
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                "status": "shipped"
+        }))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.user.balance, 0)
+        self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                "status": "shipped"
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.user.balance, 0)
+
+
     def test_create_11th_order_draft(self):
         self.try_add_entities([
             Order(id=f'ORD-draft-{self.user.id}-9', seq_num=9),

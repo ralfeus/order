@@ -9,7 +9,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.orders.models.order import Order
 
 class Invoice(db.Model):
     '''
@@ -22,7 +21,7 @@ class Invoice(db.Model):
     seq_num = Column(Integer)
     customer = Column(String(128))
     payee = Column(String(32))
-    orders = relationship(Order)
+    orders = relationship('Order')
     export_id = Column(String(32))
     _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)

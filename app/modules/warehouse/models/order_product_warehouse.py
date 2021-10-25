@@ -11,7 +11,8 @@ class OrderProductWarehouse(db.Model, BaseModel):
     '''Represents a warehouse usage for an order product'''
     __tablename__ = 'order_products_warehouses'
 
-    order_product_id = Column(Integer, ForeignKey('order_products.id'))
+    id = None
+    order_product_id = Column(Integer, ForeignKey('order_products.id'), primary_key=True)
     order_product = relationship(OrderProduct, foreign_keys=[order_product_id])
     warehouse_id = Column(Integer, ForeignKey('warehouses.id'))
     warehouse = relationship(Warehouse, foreign_keys=[warehouse_id])

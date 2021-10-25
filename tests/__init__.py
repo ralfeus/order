@@ -1,8 +1,7 @@
 from unittest import TestCase
 # import unittest
 #unittest.TestCase.run = lambda self,*args,**kw: unittest.TestCase.debug(self)
-from app import create_app, db
-
+from app import db, create_app
 app = create_app("../tests/config-test.json")
 app.app_context().push()
 

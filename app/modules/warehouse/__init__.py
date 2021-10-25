@@ -3,7 +3,9 @@ from importlib import import_module
 import os, os.path
 from flask import Blueprint, Flask
 
-from .exceptions import WarehouseError
+from .signal_handlers import on_admin_order_products_rendering, \
+    on_order_product_model_preparing, on_order_product_saving, on_sale_order_packed, \
+    on_purchase_order_delivered
 
 bp_api_admin = Blueprint('warehouse_api_admin', __name__,
                          url_prefix='/api/v1/admin/warehouse')
@@ -42,76 +44,9 @@ def _register_signals():
     from app.orders.signals import sale_order_packed, \
         admin_order_products_rendering, order_product_model_preparing, \
         order_product_saving
-    sale_order_packed.connect(_on_sale_order_packed)
-    admin_order_products_rendering.connect(_on_admin_order_products_rendering)
-    order_product_model_preparing.connect(_on_order_product_model_preparing)
+    sale_order_packed.connect(on_sale_order_packed)
+    admin_order_products_rendering.connect(on_admin_order_products_rendering)
+    order_product_model_preparing.connect(on_order_product_model_preparing)
     from app.purchase.signals import purchase_order_delivered
-    purchase_order_delivered.connect(_on_purchase_order_delivered)
-    order_product_saving.connect(_on_order_product_saving)
-
-def _on_admin_order_products_rendering(_sender, **_extra):
-    from .models.warehouse import Warehouse
-    warehouses = Warehouse.query
-    return {
-        'fields': [
-            {
-                'label': 'Take from warehouse',
-                'name': 'warehouse_id',
-                'type': 'select2',
-                'options': [{
-                    'value': warehouse.id,
-                    'label': warehouse.name
-                } for warehouse in warehouses],
-                'opts': {
-                    'allowClear': 1,
-                    'placeholder': {
-                        'id': '',
-                        'text': '-- None --'
-                    }
-                }
-            }
-        ],
-        'columns': [
-            {'name': 'Warehouse', 'data': 'warehouse'}
-        ]
-    }
-
-def _on_order_product_model_preparing(sender, **_extra):
-    from .models.order_product_warehouse import OrderProductWarehouse
-    return OrderProductWarehouse.get_warehouse_for_order_product(sender)
-
-def _on_order_product_saving(order_product, payload, **_extra):
-    from app import db
-    from .models.warehouse import Warehouse
-    from .models.order_product_warehouse import OrderProductWarehouse
-    if payload.get('warehouse_id') is not None:
-        warehouse = Warehouse.query.get(payload['warehouse_id'])
-        if warehouse is None:
-            raise WarehouseError(f"No warehouse <{payload['warehouse_id']}> is found")
-    else:
-        warehouse = None
-    order_product_warehouse = OrderProductWarehouse.query.filter_by(order_product_id=order_product.id).first()
-    if warehouse is not None:
-        if order_product_warehouse is None:
-            order_product_warehouse = OrderProductWarehouse(order_product_id=order_product.id)
-            db.session.add(order_product_warehouse)
-        order_product_warehouse.warehouse = warehouse
-    else:
-        if order_product_warehouse is not None:
-            db.session.delete(order_product_warehouse)
-
-def _on_sale_order_packed(sender, **_extra):
-    '''Handles packed sale order (removes products from a local warehouse)'''
-    from .models.warehouse import Warehouse
-    local_warehouse = Warehouse.get_local()
-    if local_warehouse is not None:
-        for op in sender.order_products:
-            local_warehouse.sub_product(op.product, op.quantity)
-
-def _on_purchase_order_delivered(sender, **_extra):
-    '''Handles delivered purchase order (add products to a local warehouse)'''
-    from .models.warehouse import Warehouse
-    local_warehouse = Warehouse.get_local()
-    if local_warehouse is not None:
-        for pp in sender.products:
-            local_warehouse.add_product(pp.product, pp.quantity)
+    purchase_order_delivered.connect(on_purchase_order_delivered)
+    order_product_saving.connect(on_order_product_saving)

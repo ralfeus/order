@@ -15,9 +15,10 @@ from flask_sqlalchemy import SQLAlchemy
 
 from app.utils.services import get_celery, init_celery
 
+db = SQLAlchemy()
+
 celery = get_celery(__name__, 
                     job_modules=['app.jobs', 'app.network.jobs', 'app.purchase.jobs'])
-db = SQLAlchemy()
 migrate = Migrate()
 security = Security()
 signals = Namespace()
@@ -49,6 +50,7 @@ def create_app(config=None):
     return flask_app
 
 def register_components(flask_app):
+    import_models(flask_app)
     from app.routes.api import api
     from app.routes.client import client
     import app.currencies
@@ -68,7 +70,7 @@ def register_components(flask_app):
     flask_app.register_blueprint(client)
     components_modules = [m[1] for m in globals().items()
                           if isinstance(m[1], types.ModuleType)
-                             and m[1].__name__ != 'app.models'
+                             and m[1].__name__ not in ['app.models', 'app.modules']
                              and m[1].__name__.startswith('app.')
                              and m[1].__file__
                              and m[1].__file__.endswith('__init__.py')
@@ -78,6 +80,22 @@ def register_components(flask_app):
     flask_app.logger.info('Blueprints are registered')
 
     load_modules(flask_app)
+
+def import_models(flask_app):
+    import app.currencies.models
+    import app.addresses.models
+    import app.orders.models
+    import app.invoices.models
+    import app.network.models
+    import app.notifications.models
+    import app.payments.models
+    import app.products.models
+    import app.purchase.models
+    import app.settings.models
+    import app.shipping.models
+    import app.users.models
+    with flask_app.app_context():
+        db.create_all()
 
 def init_debug(flask_app):
     import flask_debugtoolbar

@@ -12,6 +12,7 @@ bp_client_user = Blueprint('notifications_client_user', __name__,
 
 def register_blueprints(flask_app):
     ''' Register blueprints '''
+    from . import routes
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
@@ -19,5 +20,3 @@ def register_blueprints(flask_app):
     from . import modules
     modules.init(flask_app)
 
-from .models import *
-from . import routes
