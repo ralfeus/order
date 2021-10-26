@@ -133,10 +133,13 @@
     <div class="float-right" style="font-size: 0.7rem; text-align:right; font-weight: bolder;">
       <li class="navbar-text">Korean time:<div id="kr-time"></div></li>
       <script>
+        document.getElementById('kr-time').innerText = 
+          new Date().toLocaleString(navigator.languages[0], {
+            timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short'});
         setInterval(() => {
-          $('#kr-time').html((new Date()).toLocaleString(navigator.languages[0], {
+          $('#kr-time').html(new Date().toLocaleString(navigator.languages[0], {
             timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short'}));
-        }, 5000)
+        }, 60000);
       </script>
       {% block currencies %}
       {% endblock %}
