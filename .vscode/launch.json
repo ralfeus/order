@@ -17,67 +17,6 @@
             "justMyCode": true
         },
         {
-            "type": "firefox",
-            "request": "attach",
-            "name": "Javascript: Firefox",
-            "url": "http://sandlet:5000/",
-            "webRoot": "${workspaceFolder}",
-            "pathMappings": [
-                {
-                    "url": "http://sandlet:5000/admin/transactions",
-                    "path": "${workspaceFolder}/app/payments"
-                },
-                {
-                    "url": "http://sandlet:5000/admin",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000/admin",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/invoices/",
-                    "path": "${workspaceFolder}/app/invoices/"
-                },
-                {
-                    "url": "http://sandlet:5000/invoices/",
-                    "path": "${workspaceFolder}/app/invoices/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/orders/",
-                    "path": "${workspaceFolder}/app/orders/"
-                },
-                {
-                    "url": "http://sandlet:5000/orders/",
-                    "path": "${workspaceFolder}/app/orders/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/products/",
-                    "path": "${workspaceFolder}/app/products/"
-                },
-                {
-                    "url": "http://sandlet:5000/products/",
-                    "path": "${workspaceFolder}/app/products/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/transactions/",
-                    "path": "${workspaceFolder}/app/payments/"
-                },
-                {
-                    "url": "http://sandlet:5000/transactions/",
-                    "path": "${workspaceFolder}/app/payments/"
-                }
-            ],
-            "skipFiles": [
-                "**/jquery*",
-                "**/popper.js/**"
-            ]
-        },
-        {
             "name": "Python: Flask",
             "type": "python",
             "request": "launch",

@@ -1,5 +1,5 @@
 import logging
-from flask import current_app, request
+from flask import request
 from flask_security import current_user
 
 def add_notification_block():
@@ -18,9 +18,8 @@ def add_notification_block():
             filter(Notification.id > last_read_notification).count()
         logger.debug("There are %s unread notifications for %s",
             unread_notifications, current_user)
-        current_app.jinja_env.globals.update(
-            extension_1='badge.jinja',
-            notifications=unread_notifications)
-    else:
-        current_app.jinja_env.globals.update(
-            extension_1=None, notifications=None)
+        return {
+            'extension_1': 'badge.jinja',
+            'notifications': unread_notifications
+        }
+    return {}

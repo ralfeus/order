@@ -130,8 +130,12 @@
         </li>
       </ul>
     </div>
-    <div class="float-right" style="font-size: 0.7rem; text-align:right; font-weight: bolder;">
-      <li class="navbar-text">Korean time:<div id="kr-time"></div></li>
+    <div class="float-right">
+      <li class="navbar-text" style="
+        padding-top: 0px; padding-bottom: 0px;
+        font-size: 0.7rem; text-align:right; font-weight: bolder;">
+        Korean time:<div id="kr-time"></div>
+      </li>
       <script>
         document.getElementById('kr-time').innerText = 
           new Date().toLocaleString(navigator.languages[0], {
