@@ -381,7 +381,7 @@ function init_orders_table() {
                 data: null,
                 render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
             },
-            {data: 'purchase_date', render: dt_render_local_time},
+            {data: 'purchase_date'},
             {
                 data: 'when_po_posted',
                 orderable: false,
@@ -393,14 +393,14 @@ function init_orders_table() {
                         : dt_render_local_time(data, type, row);
                 }
             },
-            {data: 'when_created', render: dt_render_local_time},
-            {data: 'when_changed', render: dt_render_local_time},
+            {data: 'when_created'},
+            {data: 'when_changed'},
         ],
         columnDefs: [
             {
                 targets: [14, 16, 17],
                 render: (data, type, row, meta) => {
-                    return format_date(new Date(data));
+                    return dt_render_local_time(data, type, row);
                 }
             }
         ],
