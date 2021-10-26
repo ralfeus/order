@@ -1,11 +1,8 @@
 import logging
-from flask import Flask, current_app, request
+from flask import current_app, request
 from flask_security import current_user
 
-def init(app: Flask):
-    app.before_request(_add_notification_block)
-
-def _add_notification_block():
+def add_notification_block():
     logger = logging.getLogger('add_notification_block')
     if not request.full_path.startswith('/api') and \
         not request.full_path.startswith('/admin') and \
