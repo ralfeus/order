@@ -10,17 +10,18 @@ from app.shipping.models.shipping import Shipping, NoShipping, PostponeShipping
 from app.shipping.models.dhl import DHL
 
 def _are_suborders_valid(_form, field):
-    if field.data.get('subcustomer') is None or field.data['subcustomer'] == '':
-        raise ValidationError('suborder.subcustomer:Field is required')
-    for op in field.data['items']:
-        if op.get('item_code') is not None:
-            try:
-                int(op['quantity'])
-            except (KeyError, ValueError):
-                raise ValidationError(
-                    f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
-        else:
-            raise ValidationError("suborder.order_product.item_code:Empty product code")
+    if field.data:
+        if field.data.get('subcustomer') is None or field.data['subcustomer'] == '':
+            raise ValidationError('suborder.subcustomer:Field is required')
+        for op in field.data['items']:
+            if op.get('item_code') is not None:
+                try:
+                    int(op['quantity'])
+                except (KeyError, ValueError):
+                    raise ValidationError(
+                        f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
+            else:
+                raise ValidationError("suborder.order_product.item_code:Empty product code")
 
 def _is_dhl_compliant(form, field):
     shipping = Shipping.query.get(form.data['shipping'])
@@ -76,6 +77,7 @@ def _no_empty_field(_form, field):
 class OrderEditValidator(Inputs):
     '''Validator for order edit input'''
     json = {
+        'suborders': [_are_suborders_valid]
     }
 
     def __enter__(self):

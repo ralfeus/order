@@ -6,7 +6,7 @@ def add_notification_block():
     logger = logging.getLogger('add_notification_block')
     if not request.full_path.startswith('/api') and \
         not request.full_path.startswith('/admin') and \
-        not request.full_path.startswith('/static') and \
+        not request.full_path.__contains__('/static/') and \
         not request.full_path.startswith('/favicon.ico') and \
         not request.full_path.startswith('/_debug_toolbar'):
         logger.debug(request.full_path)
