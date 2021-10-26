@@ -8,6 +8,7 @@ def add_notification_block():
         not request.full_path.startswith('/admin') and \
         not request.full_path.__contains__('/static/') and \
         not request.full_path.startswith('/favicon.ico') and \
+        not request.full_path.startswith('/login') and \
         not request.full_path.startswith('/_debug_toolbar'):
         logger.debug(request.full_path)
         from app.notifications.models.notification import Notification
@@ -20,3 +21,6 @@ def add_notification_block():
         current_app.jinja_env.globals.update(
             extension_1='badge.jinja',
             notifications=unread_notifications)
+    else:
+        current_app.jinja_env.globals.update(
+            extension_1=None, notifications=None)
