@@ -294,6 +294,32 @@ class TestOrdersApi(BaseTestCase):
                 ]
         }))
         self.assertEqual(res.status_code, 400)
+        res = self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, "  + "P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    },
+                    {
+                        "subcustomer":"A001, Subcustomer2, "  + "P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": ""}
+                        ]
+                    }
+                ]
+        })
+        self.assertEqual(res.status_code, 409)
 
 
     def test_update_subcustomer_password(self):
