@@ -51,7 +51,7 @@ class SessionManager:
                 self.__create_session()
                 attempts_left -= 1
 
-sel_name = lambda e: e.cssselect('td span')[1].attrib['title']
+sel_name = lambda e: e.cssselect('td span')[1].attrib.get('title')
 sel_rank = lambda e: e.cssselect('td span')[2].text
 sel_highest_rank = lambda e: e.cssselect('td span')[3].text
 sel_center = lambda e: e.cssselect('td span')[4].text
@@ -313,6 +313,7 @@ def _get_node(element, parent, is_left, session):
     except Exception as ex:
         logger.error("In %s the error has happened", id)
         raise ex
+    logger.debug(element.cssselect('td span')[1].attrib)
     node = Node(
         id=id, parent_id=parent.id,
         name=sel_name(element),
