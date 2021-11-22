@@ -4,7 +4,6 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    
         {
             "name": "Python: Current File",
             "type": "python",
@@ -14,68 +13,7 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
-            "justMyCode": true
-        },
-        {
-            "type": "firefox",
-            "request": "attach",
-            "name": "Javascript: Firefox",
-            "url": "http://sandlet:5000/",
-            "webRoot": "${workspaceFolder}",
-            "pathMappings": [
-                {
-                    "url": "http://sandlet:5000/admin/transactions",
-                    "path": "${workspaceFolder}/app/payments"
-                },
-                {
-                    "url": "http://sandlet:5000/admin",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000/admin",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000",
-                    "path": "${workspaceFolder}/app"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/invoices/",
-                    "path": "${workspaceFolder}/app/invoices/"
-                },
-                {
-                    "url": "http://sandlet:5000/invoices/",
-                    "path": "${workspaceFolder}/app/invoices/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/orders/",
-                    "path": "${workspaceFolder}/app/orders/"
-                },
-                {
-                    "url": "http://sandlet:5000/orders/",
-                    "path": "${workspaceFolder}/app/orders/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/products/",
-                    "path": "${workspaceFolder}/app/products/"
-                },
-                {
-                    "url": "http://sandlet:5000/products/",
-                    "path": "${workspaceFolder}/app/products/"
-                },
-                {
-                    "url": "http://sandlet:5000/admin/transactions/",
-                    "path": "${workspaceFolder}/app/payments/"
-                },
-                {
-                    "url": "http://sandlet:5000/transactions/",
-                    "path": "${workspaceFolder}/app/payments/"
-                }
-            ],
-            "skipFiles": [
-                "**/jquery*",
-                "**/popper.js/**"
-            ]
+            "justMyCode": false
         },
         {
             "name": "Python: Flask",
@@ -96,6 +34,22 @@
             ],
             "jinja": true,
             "justMyCode": true
+        },
+        {
+            "name": "Docker: Network manager",
+            "type": "docker",
+            "request": "launch",
+            "preLaunchTask": "docker-run: debug",
+            "python": {
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}/network_builder",
+                        "remoteRoot": "/app"
+                    }
+                ],
+                "projectType": "flask"
+            },
+            "justMyCode": false
         }
     ]
 }

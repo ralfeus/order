@@ -8,7 +8,8 @@ from urllib.parse import urlencode
 
 from pytz import timezone
 
-from app.exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
+from app import db
+from exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder
@@ -62,6 +63,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         po_params = self.__submit_order()
         purchase_order.vendor_po_id = po_params[0]
         purchase_order.payment_account = po_params[1]
+        db.session.flush()
         self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order
 

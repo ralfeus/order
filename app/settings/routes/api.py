@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from flask import Response, abort, jsonify, request
 from flask_security import roles_required
@@ -55,3 +56,9 @@ def delete_setting(setting_id):
     setting.value = setting.default_value
     db.session.commit()
     return jsonify({'data': [setting.to_dict()]})
+
+@bp_api_admin.route('/restart')
+@roles_required('admin')
+def restart_app():
+    ''' Restart whole aplication'''
+    os._exit(0)

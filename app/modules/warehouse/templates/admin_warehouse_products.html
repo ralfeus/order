@@ -7,7 +7,8 @@
 
 {% block content %}
 {{ super() }}
-<input type="hidden" id="warehouse_id" value="{{ warehouse_id }}" />
+<input type="hidden" id="warehouse_id" value="{{ warehouse.id }}" />
+<h3>Warehouse: {{ warehouse.name }}</h3>
 <div class="container-fluid">
     <table id="warehouse_products" class="table">
         <thead>

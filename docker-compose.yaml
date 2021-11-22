@@ -13,14 +13,32 @@ services:
         #      - selenium-chrome-server
         #  ports:
         #   - "4444:4444"
+  neo4j:
+    image: neo4j
+    volumes:
+      - /var/lib/neo4j/conf:/conf
+      - /var/lib/neo4j/data:/data
+      - /var/lib/neo4j/logs:/logs
+      - /var/lib/neo4j/plugins:/plugins
+    environment:
+      - NEO4J_dbms_default__advertised__address=neo4j
 
- rabbitmq:
-  image: rabbitmq:3-management
-  #  depends_on:
-  #   - selenium-chrome-server
-  ports:
-   - "5672:5672"
-   - "15672:15672"
+  network-manager:
+    depends_on:
+      - neo4j
+    image: ralfeus/network-manager
+    ports:
+      - 5001:5001
+    volumes:
+      - /var/www/order/network_builder/config.json:/app/config.json
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    #  depends_on:
+    #   - selenium-chrome-server
+    ports:
+    - "5672:5672"
+    - "15672:15672"
 
      # celery:
      #  image: ralfeus/order-master

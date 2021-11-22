@@ -3,6 +3,10 @@ from importlib import import_module
 import os, os.path
 from flask import Blueprint, Flask
 
+from .signal_handlers import on_admin_order_products_rendering, \
+    on_order_product_model_preparing, on_order_product_saving, on_sale_order_packed, \
+    on_purchase_order_delivered
+
 bp_api_admin = Blueprint('warehouse_api_admin', __name__,
                          url_prefix='/api/v1/admin/warehouse')
 bp_client_admin = Blueprint('warehouse_client_admin', __name__,
@@ -12,6 +16,9 @@ _current_dir = os.path.dirname(__file__)
 
 def init(app: Flask):
     '''Initializes a Warehouse module'''
+    if app.config.get('modules') is None:
+        app.config['modules'] = {}
+    app.config['modules']['warehouse'] = True
     _register_signals()
     _import_models()
     _register_routes(app)
@@ -34,24 +41,12 @@ def _register_routes(app):
 
 
 def _register_signals():
-    from app.orders.signals import sale_order_packed
-    sale_order_packed.connect(_on_sale_order_packed)
+    from app.orders.signals import sale_order_packed, \
+        admin_order_products_rendering, order_product_model_preparing, \
+        order_product_saving
+    sale_order_packed.connect(on_sale_order_packed)
+    admin_order_products_rendering.connect(on_admin_order_products_rendering)
+    order_product_model_preparing.connect(on_order_product_model_preparing)
     from app.purchase.signals import purchase_order_delivered
-    purchase_order_delivered.connect(_on_purchase_order_delivered)
-
-def _on_sale_order_packed(sender, **_extra):
-    '''Handles packed sale order (removes products from a local warehouse)'''
-    from .models.warehouse import Warehouse
-    local_warehouse = Warehouse.get_local()
-    if local_warehouse is not None:
-        for op in sender.order_products:
-            local_warehouse.sub_product(op.product, op.quantity)
-
-def _on_purchase_order_delivered(sender, **_extra):
-    '''Handles delivered purchase order (add products to a local warehouse)'''
-    from .models.warehouse import Warehouse
-    local_warehouse = Warehouse.get_local()
-    if local_warehouse is not None:
-        for pp in sender.products:
-            local_warehouse.add_product(pp.product, pp.quantity)
-
+    purchase_order_delivered.connect(on_purchase_order_delivered)
+    order_product_saving.connect(on_order_product_saving)

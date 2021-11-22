@@ -1,5 +1,5 @@
 ''' Client routes for warehouse related activities '''
-from flask import render_template, send_file
+from flask import abort, render_template, send_file
 from flask_security import roles_required
 
 from app.modules.warehouse import bp_client_admin
@@ -19,4 +19,8 @@ def admin_get_warehouses():
 @roles_required('admin')
 def admin_get_warehouse(warehouse_id):
     '''Warehouse products management'''
-    return render_template('admin_warehouse_products.html', warehouse_id=warehouse_id)
+    from app.modules.warehouse.models import Warehouse
+    warehouse = Warehouse.query.get(warehouse_id)
+    if warehouse is None:
+        abort(404)
+    return render_template('admin_warehouse_products.html', warehouse=warehouse)

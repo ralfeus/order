@@ -8,10 +8,10 @@ bp_client_admin = Blueprint('currencies_client_admin', __name__, url_prefix='/ad
                             template_folder='templates')
 
 def register_blueprints(flask_app):
+    from . import routes    
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
 
-from . import routes
-from .models import *
+

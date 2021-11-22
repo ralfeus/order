@@ -96,6 +96,7 @@
                 <li><a class="dropdown-item" href="/admin/users">Users</a></li>
               </ul>          
             </li>
+            {% if config['MODULES']['warehouse']['enabled'] %}
             <li class="dropdown-submenu">
               <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button"
                 aria-haspopup="true" aria-expanded="false" data-toggle="dropdown" href="#">Warehouse management</a>
@@ -103,6 +104,17 @@
                 <li><a class="dropdown-item" href="/admin/warehouses">Warehouses</a></li>
               </ul>
             </li>
+            {% endif %}
+            {% if config['MODULES']['pv_stats']['enabled'] %}
+            <li class="dropdown-submenu">
+              <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button"
+                aria-haspopup="true" aria-expanded="false" data-toggle="dropdown" href="#">PV Stats</a>
+              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <!-- <li><a class="dropdown-item" href="/admin/pv_stats/">PV Stats</a></li> -->
+                <li><a class="dropdown-item" href="/admin/pv_stats/permissions">PV stats permissions</a></li>
+              </ul>
+            </li>
+            {% endif %}
           </ul>
         </li>
         {% endif %}
@@ -120,15 +132,34 @@
         <li class="nav-item">
           <a class="nav-link" href="/payments">Wallet</a>
         </li>
+        {% if config['MODULES']['pv_stats']['enabled'] %}
+        <li class="nav-item">
+          <a class="nav-link" href="/pv_stats">PV Stats</a>
+        </li>
+        {% endif %}
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
         </li>
-        <li class="nav-item">
+        <li class="navbar-text" style="color: blue;">
             {{ current_user.username }}
         </li>
       </ul>
     </div>
     <div class="float-right">
+      <li class="navbar-text" style="
+        padding-top: 0px; padding-bottom: 0px;
+        font-size: 0.7rem; text-align:right; font-weight: bolder;">
+        Korean time:<div id="kr-time"></div>
+      </li>
+      <script>
+        document.getElementById('kr-time').innerText = 
+          new Date().toLocaleString(navigator.languages[0], {
+            timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short'});
+        setInterval(() => {
+          $('#kr-time').html(new Date().toLocaleString(navigator.languages[0], {
+            timeZone: 'Asia/Seoul', dateStyle: 'short', timeStyle: 'short'}));
+        }, 60000);
+      </script>
       {% block currencies %}
       {% endblock %}
       {% if extension_1 %}

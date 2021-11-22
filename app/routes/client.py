@@ -3,6 +3,7 @@ Contains client routes of the application
 '''
 from datetime import datetime
 from glob import glob
+import logging
 import os, os.path
 from flask import Blueprint, abort, current_app, redirect, render_template, \
     send_from_directory, send_file, flash, url_for
@@ -43,7 +44,12 @@ def favicon():
 @client.route('/upload/<path:path>')
 @login_required
 def send_from_upload(path):
-    return send_file(os.path.join(os.getcwd(), current_app.config['UPLOAD_PATH'], path))
+    logger = logging.getLogger(f'{__file__}:send_from upload()')
+    try:
+        return send_file(os.path.join(os.getcwd(), current_app.config['UPLOAD_PATH'], path))
+    except FileNotFoundError:
+        logger.warn("Couldn't find file <%s>", path)
+        abort(404)
 
 @client.route('/upload/tmp/<file_id>')
 @login_required

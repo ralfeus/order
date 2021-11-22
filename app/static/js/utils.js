@@ -170,3 +170,23 @@ $(document).ready(function(){
       e.preventDefault();
     });
   });
+
+var dt_render_local_time = function(data, type, _row) {
+    if (data === null) {
+        return null;
+    }
+    if (type == 'display') {
+        var time = new Date(data);
+        return new Date(time + ' GMT+2')
+            .toLocaleString(navigator.language, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+    } else {
+        return data;
+    }
+}

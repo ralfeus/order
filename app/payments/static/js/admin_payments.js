@@ -8,6 +8,7 @@ var g_payment_statuses = [];
 var g_table;
 
 $.fn.dataTable.ext.buttons.status = {
+    extend: 'selected',
     action: function(_e, dt, _node, _config) {
         set_status(dt.rows({selected: true}), this.text());
     }
@@ -57,14 +58,6 @@ function format ( row, data ) {
             this.nextElementSibling.textContent = 'File is specified';
         }
     });
-
-    // if (['approved', 'cancelled'].includes(data.status)) {
-    //     $('.btn-save', payment_details).hide()
-    // } else {
-    //     $('.btn-save', payment_details).on('click', function() {
-    //         save_payment(row);
-    //     })
-    // }
 
     for (var currency in g_currencies) {
         $('.dropdown-menu', payment_details).append(
@@ -329,28 +322,6 @@ function init_payments_table() {
             // Open this row
             row.child( format(row, row.data()) ).show();
             tr.addClass('shown');
-            // $('.btn-save').on('click', function() {
-            //     var payment_node = $(this).closest('.payment-details');
-            //     var update = {
-            //         id: row.data().id,
-            //         amount: $('#amount', payment_node).val(),
-            //         evidence: $('#evidence', payment_node).val()
-            //     };
-            //     $('.wait').show();
-            //     $.ajax({
-            //         url: '/api/v1/admin/payment/' + update.id,
-            //         method: 'post',
-            //         dataType: 'json',
-            //         contentType: 'application/json',
-            //         data: JSON.stringify(update),
-            //         complete: function() {
-            //             $('.wait').hide();
-            //         },
-            //         success: function(data) {
-            //             row.data(data).draw();
-            //         }
-            //     })
-            // });
         }
     } );
 }
@@ -413,86 +384,44 @@ function on_orders_change() {
     return {};
 }
 
-// function save_payment(row) {
-//     $('.wait').show();
-//     $.ajax({
-//         url: '/api/v1/admin/payment/' + row.data().id,
-//         method: 'post',
-//         dataType: 'json',
-//         contentType: 'application/json',
-//         data: JSON.stringify({
-//             amount_sent_original: row.data().amount_sent_original,
-//             amount_sent_krw: row.data().amount_sent_krw,
-//             amount_received_krw: row.data().amount_received_krw,
-//             currency_code: row.data().currency_code
-//         }),
-//         complete: function() {
-//             $('.wait').hide();
-//         },
-//         success: function(data) {
-//             row.data(data.payment).draw();
-//             if (data.message && data.message.length) {
-//                 modal('Transaction save', data.message.join('<br />'));
-//             }
-//         }
-//     });
-
-//     var form_data = new FormData();
-//     form_data.append('file', $('#evidence_image', row.child())[0].files[0]);
-//     if (form_data) {
-//         $.ajax({
-//             url: '/api/v1/payment/' + row.data().id + '/evidence', 
-//             method: 'post',
-//             data: form_data, 
-//             contentType: false,
-//             cache: false,
-//             processData: false
-//         });
-//     }
-// }
-
 /**
  * Sets status of the order
  * @param {*} target - table rows representing orders whose status is to be changed
  * @param {string} status - new status
  */
-function set_status(target, newStatus) {
-    if (target.count()) {
-        $('.wait').show();
-        var remained = 0;
-        for (var i = 0; i < target.count(); i++) {
-            remained++;
-            $.ajax({
-                url: '/api/v1/admin/payment/' + target.data()[i].id,
-                method: 'POST',
-                dataType: 'json', 
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    'status': newStatus,
-                }),
-                complete: function() {
-                    remained--;
-                    if (!remained) {
-                        $('.wait').hide();
-                    }
-                },
-                success: function(response, _status, _xhr) {
+async function set_status(target, newStatus) {
+    $('.wait').show();
+    var errors = '';
+    var successful = '';
+    for (var i = 0; i < target.count(); i++) {
+        await $.ajax({
+            url: '/api/v1/admin/payment/' + target.data()[i].id,
+            method: 'POST',
+            dataType: 'json', 
+            contentType: 'application/json',
+            data: JSON.stringify({
+                'status': newStatus,
+            }),
+            success: function(response, _status, _xhr) {
+                if (response.data.length > 0) {
                     target.cell(
                         (_idx, data, _node) => 
                             data.id === parseInt(response.data[0].id), 
                         5).data(response.data[0].status).draw();
-                    if (response.message && response.message.length) {
-                        modal('Transaction save', response.message.join('<br />'));
-                    }
-                },
-                error: xhr => {
-                    modal("Transaction set status", xhr.responseText);
                 }
-            });     
-        }
-    } else {
-        alert('Nothing selected');
+                if (response.message && response.message.length) {
+                    successful += response.message.join('<br />') + '<br />';
+                }
+                if (response.error && response.error.length) {
+                    errors += response.error + '<br />';
+                }
+            },
+            error: xhr => {
+                errors += xhr.responseText + "<br />";
+            }
+        });     
     }
+    $('.wait').hide();
 }
 
 function update_amount_krw(target, target_data) {
@@ -500,5 +429,4 @@ function update_amount_krw(target, target_data) {
     target_data.amount_sent_original = $('#amount_sent_original', target).val();
     target_data.amount_sent_krw = parseFloat(target_data.amount_sent_original) / g_currencies[target_data.currency_code];
     $('#amount_sent_krw', target).val(target_data.amount_sent_krw);
-    //target_data.draw();
 }

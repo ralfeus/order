@@ -1,5 +1,6 @@
 ''' Module initialization '''
-from flask import Blueprint
+from flask import Blueprint, Flask
+from .signal_handlers import add_notification_block
 
 bp_api_user = Blueprint('notifications_api_user', __name__, url_prefix='/api/v1/notification')
 bp_api_admin = Blueprint('notifications_api_admin', __name__,
@@ -10,14 +11,14 @@ bp_client_admin = Blueprint('notifications_client_admin', __name__,
 bp_client_user = Blueprint('notifications_client_user', __name__,
                             url_prefix='/notifications')
 
-def register_blueprints(flask_app):
+def register_blueprints(flask_app: Flask):
     ''' Register blueprints '''
+    from . import routes
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
-    from . import modules
-    modules.init(flask_app)
+    _register_signals(flask_app)
 
-from .models import *
-from . import routes
+def _register_signals(app: Flask):
+    app.context_processor(add_notification_block)

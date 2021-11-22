@@ -294,6 +294,32 @@ class TestOrdersApi(BaseTestCase):
                 ]
         }))
         self.assertEqual(res.status_code, 400)
+        res = self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, "  + "P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    },
+                    {
+                        "subcustomer":"A001, Subcustomer2, "  + "P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": ""}
+                        ]
+                    }
+                ]
+        })
+        self.assertEqual(res.status_code, 409)
 
 
     def test_update_subcustomer_password(self):
@@ -808,6 +834,26 @@ class TestOrdersApi(BaseTestCase):
         order = Order(status=OrderStatus.ready_to_ship)
         db.session.add(order)
         db.session.flush()
+
+    def test_set_status_shipped_twice(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user, status=OrderStatus.pending, country_id='c1', total_krw=1000)        
+        ])
+        self.user.balance = 1000
+        db.session.commit()
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                "status": "shipped"
+        }))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.user.balance, 0)
+        self.client.post(f'/api/v1/admin/order/{gen_id}', json={
+                "status": "shipped"
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(self.user.balance, 0)
+
 
     def test_create_11th_order_draft(self):
         self.try_add_entities([

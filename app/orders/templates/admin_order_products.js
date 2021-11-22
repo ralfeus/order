@@ -80,9 +80,9 @@ function init_order_products_table() {
         table: '#order_products',
         idSrc: 'id',
         fields: [
-            {label: 'Order product ID', name: 'id'},
+            // {label: 'Order product ID', name: 'id'},
             // {label: 'Customer', name: 'customer'},
-            {label: 'Subcustomer', name: 'subcustomer'},
+            {label: 'Subcustomer', name: 'subcustomer', type: 'readonly'},
             {label: 'Product ID', name: 'product_id'},
             // {label: 'Product', name: 'product'},
             {label: 'Price', name: 'price'},
@@ -90,6 +90,9 @@ function init_order_products_table() {
             {label: 'Status', name: 'status'},
             {label: 'Private Comment', name: 'private_comment'},
             {label: 'Public Comment', name: 'public_comment'},
+            {% for field in extension.fields %}
+                {{ field }} ,
+            {% endfor %}
         ]
     });
     $('#order_products').on( 'click', 'tbody td.editable', function (e) {
@@ -133,8 +136,10 @@ function init_order_products_table() {
             {data: 'quantity', className: 'editable'},
             {data: 'order_status'},
             {data: 'status'},
-            {data: 'when_created'}
-        ],
+            {data: 'when_created'},
+            {% for column in extension.columns %}
+                {{ column }} ,
+            {% endfor %}        ],
         order: [[12, 'desc']],
         keys: {
             columns: '.editable',

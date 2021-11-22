@@ -11,7 +11,7 @@ from flask import current_app
 from selenium.common.exceptions import NoAlertPresentException, \
     NoSuchElementException, UnexpectedAlertPresentException
 
-from app.exceptions import AtomyLoginError, HTTPError
+from exceptions import AtomyLoginError, HTTPError
 # from app.utils.browser import Browser
 
 logging.basicConfig(level=logging.DEBUG)
@@ -43,7 +43,8 @@ def _atomy_login_curl(username, password):
        re.search('btnChangePassword', output.stdout):
         return re.findall('set-cookie: (.*)', output.stderr)
     elif re.search("var isLoginFail = \\'True\\';", output.stdout):
-        raise AtomyLoginError(username=username)
+        message = re.search(r"isLoginFail ==.*\n.*?alert\('(.*?)'", output.stdout, re.MULTILINE).groups()[0]
+        raise AtomyLoginError(username=username, message=message)
 
     raise HTTPError(output)
 

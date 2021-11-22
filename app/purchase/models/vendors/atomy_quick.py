@@ -8,9 +8,10 @@ import logging
 from pytz import timezone
 import re
 
-from app.exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
+from app import db
+from exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
-from app.utils.atomy import atomy_login
+from utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
 ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'
@@ -74,6 +75,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
+            db.session.flush()
             self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
             return purchase_order
         except AtomyLoginError as ex:

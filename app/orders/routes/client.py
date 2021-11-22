@@ -1,5 +1,5 @@
 ''' Client routes for order related activities '''
-from app.orders.models.order import OrderStatus
+import itertools
 import json
 from flask import Response, abort, escape, request, render_template, send_file
 from flask.globals import current_app
@@ -7,17 +7,39 @@ from flask_security import current_user, login_required, roles_required
 
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
-from app.orders.models import Order
+from app.orders.models import Order, OrderStatus
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
 def get_static(file):
     return send_file(f"orders/static/{file}")
 
+@bp_client_admin.route('/dynamic/<path:file>')
+@bp_client_user.route('/dynamic/<path:file>')
+def get_dynamic(file):
+    return render_template(file)
+
+@bp_client_admin.route('/dynamic/admin_order_products.js')
+def get_admin_order_products_js():
+    from app.orders.signals import admin_order_products_rendering
+    extensions = admin_order_products_rendering.send()
+    extension_fields = list(itertools.chain(*[
+        extension[1]['fields'] for extension in extensions]))
+    extension_columns = list(itertools.chain(*[
+        extension[1]['columns'] for extension in extensions]))
+    return render_template('admin_order_products.js', extension={
+        'fields': extension_fields,
+        'columns': extension_columns
+    })
+
 @bp_client_admin.route('/products')
 @roles_required('admin')
 def admin_order_products():
-    return render_template('admin_order_products.html')
+    from app.orders.signals import admin_order_products_rendering
+    extensions = admin_order_products_rendering.send()
+    extension_columns = list(itertools.chain(*[
+        extension[1]['columns'] for extension in extensions]))
+    return render_template('admin_order_products.html', ext_columns=extension_columns)
 
 @bp_client_user.route('/products')
 @login_required
@@ -87,7 +109,7 @@ def admin_get_orders():
 def admin_get_order(order_id):
     order = Order.query.get(order_id)
     if not order:
-        abort(Response("The order <{order_id}> was not found", status=404))
+        abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order,
             currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')

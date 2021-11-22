@@ -1,5 +1,4 @@
 '''API endpoints for sale order management'''
-from app.orders.models.order import OrderBox
 from datetime import datetime
 from more_itertools import map_reduce
 import re
@@ -10,19 +9,21 @@ from flask_security import current_user, login_required, roles_required
 from sqlalchemy import and_, not_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
-from app import db
-from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
+from utils.atomy import atomy_login
+from exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
+
+from app import db
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
+from app.orders.models.order import OrderBox
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
+from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
-from app.users.models.user import User
-from app.utils.atomy import atomy_login
-from app.tools import prepare_datatables_query, modify_object, stream_and_close
+from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -112,7 +113,7 @@ def filter_orders(orders, filter_params):
         'draw': int(filter_params['draw']),
         'recordsTotal': records_total,
         'recordsFiltered': records_filtered,
-        'data': list(map(lambda entry: entry.to_dict(), orders))
+        'data': [entry .to_dict() for entry in orders]
     })
 
 def _set_draft(order):
@@ -161,6 +162,7 @@ def user_create_order():
         )
         if 'draft' in payload.keys() and payload['draft']:
             order = _set_draft(order)
+        logger.info("Order %s is created", order.id)
 
         order.attach_orders(payload.get('attached_orders'))
         db.session.add(order)
@@ -174,8 +176,8 @@ def user_create_order():
             abort(Response("No shipping rate available", status=409))
 
     try:
-        # db.session.commit()
         db.session.commit()
+        logger.debug("Order %s is saved", order.id)
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
@@ -209,7 +211,7 @@ def add_suborders(order, suborders, errors):
         for index in range(0, len(suborder_data['items']), 10):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
-                add_suborder(order, suborder_data_subset, errors)
+                _add_suborder(order, suborder_data_subset, errors)
                 db.session.flush()
                 suborders_count += 1
             except EmptySuborderError as ex:
@@ -217,7 +219,7 @@ def add_suborders(order, suborders, errors):
     if suborders_count == 0:
         abort(Response("The order is empty. Please add at least one product.", status=409))
 
-def add_suborder(order, suborder_data, errors):
+def _add_suborder(order, suborder_data, errors):
     try:
         subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
         if is_new:
@@ -394,7 +396,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
             Suborder.seq_num == suborder_data.get('seq_num')
         )).first()
         if suborder is None:
-            add_suborder(order, suborder_data, errors)
+            _add_suborder(order, suborder_data, errors)
             db.session.flush()
         else:
             subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
@@ -439,34 +441,33 @@ def _update_suborder(order, order_products, suborder_data, errors):
 
 @bp_api_admin.route('/product/<int:order_product_id>', methods=['POST'])
 @roles_required('admin')
-def save_order_product(order_product_id):
+def admin_save_order_product(order_product_id):
     '''
     Modifies order products
     Order product payload is received as JSON
     '''
+    from app.orders.signals import order_product_saving
     payload = request.get_json()
     if not payload:
         return Response(status=304)
     order_product = get_order_product(order_product_id)
     if not order_product:
         abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
+    payload = cleanse_payload(order_product, payload)
 
-    editable_attributes = ['product_id', 'price', 'quantity', 'subcustomer',
-                           'private_comment', 'public_comment', 'status']
-    for attr in editable_attributes:
-        if payload.get(attr):
-            setattr(order_product, attr, payload[attr])
-            order_product.when_changed = datetime.now()
+    modify_object(order_product, payload, ['product_id', 'price', 'quantity',
+                                           'private_comment', 'public_comment',
+                                           'status'])
+    order_product_saving.send(order_product, payload=payload)
     try:
-        order_product.suborder.order.update_total()
+        if order_product.need_to_update_total(payload):
+            order_product.suborder.order.update_total()
         db.session.commit()
         return jsonify(order_product.to_dict())
     except NoShippingRateError:
         abort(Response(f"No shipping rate available", status=409))
     except Exception as ex:
         abort(Response(str(ex), status=500))
-
-
 
 @bp_api_user.route('/product/<int:order_product_id>', methods=['DELETE'])
 @login_required
@@ -559,8 +560,7 @@ def admin_save_order(order_id):
     Payload is provided in JSON
     '''
     logger = current_app.logger.getChild('admin_save_order')
-    order_input = request.get_json()
-    order = Order.query.get(order_id)
+    order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
     with OrderEditValidator(request) as validator:
@@ -571,18 +571,20 @@ def admin_save_order(order_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
+    payload = cleanse_payload(order, request.get_json())
     logger.info('Modifying order %s by %s with data: %s',
-                order_id, current_user, order_input)
-    if order_input.get('boxes'):
-        update_order_boxes(order, order_input['boxes'])
-    if order_input.get('total_weight'):
-        order.total_weight = int(order_input['total_weight'])
+                order_id, current_user, payload)
+    if payload.get('boxes'):
+        update_order_boxes(order, payload['boxes'])
+    if payload.get('total_weight'):
+        order.total_weight = int(payload['total_weight'])
         order.total_weight_set_manually = True
-    modify_object(order, order_input, ['tracking_id', 'tracking_url'])
-    order.update_total()
-    if order_input.get('status'):
+    modify_object(order, payload, ['tracking_id', 'tracking_url'])
+    if order.need_to_update_total(payload):
+        order.update_total()
+    if payload.get('status'):
         try:
-            order.set_status(order_input['status'], current_user)
+            order.set_status(payload['status'], current_user)
         except UnfinishedOrderError as ex:
             abort(Response(str(ex), status=409))
 
@@ -636,7 +638,7 @@ def get_order_products():
                 OrderProduct.status == request.values['search[value]']
             )
         )
-        outcome = list(map(lambda entry: entry.to_dict(), order_products))
+        outcome = [entry.to_dict() for entry in order_products]
         if not current_user.has_role('admin'):
             for entry in outcome:
                 entry.pop('private_comment', None)
@@ -650,7 +652,7 @@ def get_order_products():
     if order_products.count() == 0:
         abort(Response("No order products were fond", status=404))
 
-    outcome = list(map(lambda entry: entry.to_dict(), order_products))
+    outcome = [entry.to_dict() for entry in order_products]
     if not current_user.has_role('admin'):
         for entry in outcome:
             entry.pop('private_comment', None)
@@ -660,12 +662,12 @@ def get_order_products():
 @bp_api_user.route('/status')
 @login_required
 def user_get_order_statuses():
-    return jsonify(list(map(lambda i: i.name, OrderStatus)))
+    return jsonify([i.name for i in OrderStatus])
 
 @bp_api_user.route('/product/status')
 @login_required
 def user_get_order_product_statuses():
-    return jsonify(list(map(lambda i: i.name, OrderProductStatus)))
+    return jsonify([i.name for i in OrderProductStatus])
 
 @bp_api_user.route('/product/<int:order_product_id>/status/history')
 @login_required
@@ -674,7 +676,7 @@ def user_get_order_product_status_history(order_product_id):
     if not order_product:
         abort(Response(f"No order product <{order_product_id}> was found", status=404))
 
-    return jsonify(list(map(lambda entry: entry.to_dict(), order_product.status_history)))
+    return jsonify([entry.to_dict() for entry in order_product.status_history])
 
 @bp_api_admin.route('/subcustomer')
 @roles_required('admin')
@@ -689,7 +691,7 @@ def admin_get_subcustomers():
                 Subcustomer.username.like(filter_clause)
             )
         )
-        outcome = list(map(lambda entry: entry.to_dict(), subcustomers))
+        outcome = [entry.to_dict() for entry in subcustomers]
 
         return jsonify({
             'draw': request.values['draw'],
@@ -788,9 +790,9 @@ def validate_subcustomer():
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
-    except AtomyLoginError:
+    except AtomyLoginError as ex:
         current_app.logger.info("Couldn't validate subcustomer %s", payload)
-        return jsonify({'result': 'failure'})
+        return jsonify({'result': 'failure', 'message': str(ex)})
 
 def get_order_product(order_product_id):
     order_product = OrderProduct.query

@@ -21,5 +21,13 @@
     "CELERY_TASK_DEFAULT_QUEUE": "order",
 
     "SELENIUM_DRIVER": "/usr/local/bin/chromedriver",
-    "SELENIUM_LOG_PATH": "chromedriver.test.log"
+    "SELENIUM_LOG_PATH": "chromedriver.test.log",
+    "MODULES": {
+        "warehouse": {
+            "enabled": true
+        },
+        "pv_stats": {
+            "enabled": true
+        }
+    }
 }

@@ -1,6 +1,8 @@
-from app.orders.models.order import OrderStatus
+''' Order product model'''
 from datetime import datetime
 import enum
+from functools import reduce
+import itertools
 
 from flask_security import current_user
 
@@ -10,6 +12,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
+from app.orders.models.order import OrderStatus
+from app.orders.signals import order_product_model_preparing
 from app.shipping.models import PostponeShipping
 
 class OrderProductStatus(enum.Enum):
@@ -72,11 +76,7 @@ class OrderProduct(db.Model, BaseModel):
         if not kwargs.get('price'):
             kwargs['price'] = kwargs['product'].price
         
-        attributes = [a[0] for a in type(self).__dict__.items()
-                           if isinstance(a[1], InstrumentedAttribute)]
-        for arg in kwargs:
-            if arg in attributes:
-                setattr(self, arg, kwargs[arg])
+        super().__init__(**kwargs)
 
     def __repr__(self):
         return "<OrderProduct: Suborder: {}, Product: {}, Status: {}".format(
@@ -129,8 +129,12 @@ class OrderProduct(db.Model, BaseModel):
                 if currency is not None else 1
         return self.price * rate
 
+    def need_to_update_total(self, payload):
+        return len({'product_id', 'product', 'price', 'quantity'} &
+                   set(payload.keys())) > 0 
+
     def postpone(self):
-        from . import Order, OrderStatus, Suborder
+        from . import Order, Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
             Order.user_id == self.suborder.order.user_id,
             Order.status.in_([OrderStatus.pending, OrderStatus.can_be_paid])
@@ -183,6 +187,8 @@ class OrderProduct(db.Model, BaseModel):
             self.suborder.order.update_total()
 
     def to_dict(self):
+        res = order_product_model_preparing.send(self)
+        ext_model = reduce(lambda acc, i: {**acc, **i}, [i[1] for i in res], {})
         return {
             'id': self.id,
             'order_id': self.suborder.order_id if self.suborder else self.order_id,
@@ -209,5 +215,6 @@ class OrderProduct(db.Model, BaseModel):
             'available': self.product.available,
             'color': self.product.color,
             'when_created': self.when_created.strftime('%Y-%m-%d') if self.when_created else None,
-            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None
+            'when_changed': self.when_changed.strftime('%Y-%m-%d') if self.when_changed else None,
+            **ext_model
         }

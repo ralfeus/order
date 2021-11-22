@@ -8,10 +8,9 @@ bp_client_admin = Blueprint('users_client_admin', __name__, url_prefix='/admin/u
                             template_folder='templates')
 
 def register_blueprints(flask_app):
+    from . import routes
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
     flask_app.register_blueprint(bp_client_user)
 
-from .models import *
-from . import routes
