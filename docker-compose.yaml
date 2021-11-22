@@ -21,6 +21,7 @@ services:
       - /var/lib/neo4j/conf:/conf
       - /var/lib/neo4j/data:/data
       - /var/lib/neo4j/logs:/logs
+      - /var/lib/neo4j/plugins:/plugins
     environment:
       - NEO4J_dbms_default__advertised__address=neo4j
 
