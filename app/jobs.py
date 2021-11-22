@@ -1,6 +1,7 @@
 from datetime import datetime
 from celery.utils.log import get_task_logger
 import requests
+from sqlalchemy.sql.elements import Null
 from app.models.file import File
 from app import celery, db
 
@@ -76,6 +77,7 @@ def import_products():
             products.remove(product)
         except StopIteration:
             logger.debug('%s: No local product found. ADDING', atomy_product['id'])
+            path_image, image_name = save_image(atomy_product['image_url'])
             product = Product(
                 id=atomy_product['id'],
                 name=atomy_product['name'],
@@ -119,8 +121,8 @@ def save_image(image_url):
     if image_url!='':
         image_name = image_url.split('/')[-1]
         r = requests.get(image_url)
-        path_image = '/static/images/products/' + image_name
-        with open('app/static/images/products/'+ image_name, 'wb') as f:
+        path_image = '/upload/products/' + image_name
+        with open('app/upload/products/'+ image_name, 'wb') as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
     else:
