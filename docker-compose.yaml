@@ -26,7 +26,7 @@ services:
   network-builder:
     depends_on:
       - neo4j
-    image: ralfeus/network-builder
+    image: ralfeus/network-manager
     ports:
       - 5001:5001
     volumes:
