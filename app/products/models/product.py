@@ -87,7 +87,7 @@ class Product(db.Model, BaseModel):
             'synchronize': self.synchronize,
             'purchase': self.purchase,
             'color': self.color,
-            'image': self.image.path if self.image is not None else "/app/static/images/no_image.jpg"
+            'image': self.image.path if self.image is not None else "/static/images/no_image.jpg"
         }
         if details:
             result = {**result,

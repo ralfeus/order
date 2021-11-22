@@ -46,7 +46,7 @@ class TestProductsApi(BaseTestCase):
                 'separate_shipping': False,
                 'purchase': True,
                 'color': None,
-                'image':'/app/upload/products/no_image.jpg'
+                'image':'/static/images/no_image.jpg'
             }
         ])
         res = self.client.get('/api/v1/product')
@@ -80,7 +80,7 @@ class TestProductsApi(BaseTestCase):
                 'synchronize': True,
                 'purchase': True,
                 'color': None,
-                'image': '/app/upload/products/no_image.jpg'
+                'image': '/static/images/no_image.jpg'
             }
         ])
 
