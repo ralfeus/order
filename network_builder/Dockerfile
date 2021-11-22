@@ -1,5 +1,8 @@
 FROM python
-RUN pip3 install flask neo4j-driver neobolt Shapely pytz six
+RUN apt update
+RUN apt install -y libgeos-dev
+RUN pip install --upgrade pip
+RUN pip install flask neomodel
 COPY ./utils /
 COPY ./network_builder /app
 

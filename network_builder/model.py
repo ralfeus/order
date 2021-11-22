@@ -1,6 +1,5 @@
 '''Models for network manager'''
 from datetime import date, datetime
-import neotime
 import neo4j.time
 from neomodel import StructuredNode, RelationshipTo, db
 from neomodel.properties import BooleanProperty, DateProperty, IntegerProperty, \
@@ -14,7 +13,7 @@ class CustomDateProperty(DateProperty):
 
     @validator
     def inflate(self, value):
-        if isinstance(value, (neotime.DateTime, neo4j.time.DateTime)):
+        if isinstance(value, neo4j.time.DateTime):
             return date(value.year, value.month, value.day)
         elif isinstance(value, str):
             if "T" in value:
