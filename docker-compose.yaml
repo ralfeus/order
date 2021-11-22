@@ -15,6 +15,9 @@ services:
         #   - "4444:4444"
   neo4j:
     image: neo4j
+    ports:
+      - 7474:7474
+      - 7687:7687
     volumes:
       - /var/lib/neo4j/conf:/conf
       - /var/lib/neo4j/data:/data
