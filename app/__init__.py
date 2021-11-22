@@ -1,4 +1,5 @@
 ''' Initialization of the application '''
+from json import JSONEncoder
 import logging
 import os
 import types
@@ -14,6 +15,18 @@ from flask_sqlalchemy import SQLAlchemy
 # from flask_navbar.elements import Link, Navbar, Subgroup, View
 
 from app.utils.services import get_celery, init_celery
+
+################### JSON serialization patch ######################
+# In order to have all objects use to_dict() function providing
+# dictionary for JSON serialization
+def _default(self, obj):
+    return getattr(obj.__class__, "to_dict", _default.default)(obj)
+
+_default.default = JSONEncoder.default  # Save unmodified default.
+JSONEncoder.default = _default # Replace it.
+###################################################################
+
+
 
 db = SQLAlchemy()
 
@@ -47,6 +60,7 @@ def create_app(config=None):
     if flask_app.config.get('DEBUG'):
         init_debug(flask_app)
    
+    logging.info("The application is started")
     return flask_app
 
 def register_components(flask_app):

@@ -23,8 +23,12 @@
 
     "SELENIUM_URL": "http://localhost:4444/wd/hub",
     "SELENIUM_DRIVER": "/usr/local/bin/chromedriver",
+    "NETWORK_MANAGER_URL": "http://localhost:5001",
     "MODULES": {
         "warehouse": {
+            "enabled": true
+        },
+        "pv_stats": {
             "enabled": true
         }
     }

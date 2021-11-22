@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, Column, String, Text, or_
 from sqlalchemy.orm import relationship
 
 from app import db
-from app.exceptions import NoShippingRateError
+from exceptions import NoShippingRateError
 
 from .shipping_rate import ShippingRate
 from app.models import Country

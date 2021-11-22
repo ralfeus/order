@@ -12,7 +12,7 @@ import re
 import lxml
 from werkzeug.datastructures import MultiDict
 
-from app.exceptions import FilterError, HTTPError
+from exceptions import FilterError, HTTPError
 
 
 # logging.basicConfig(level=logging.INFO)

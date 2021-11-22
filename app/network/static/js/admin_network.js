@@ -1,6 +1,6 @@
 $(document).ready(() => {
-    g_currencies_table = $('#network').DataTable({
-        dom: 'ltip',
+    $('#network').DataTable({
+        dom: 'lrtip',
         ajax: '/api/v1/admin/network',
         columns: [
             {data: 'id'},

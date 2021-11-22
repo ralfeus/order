@@ -1,23 +1,20 @@
 from enum import Enum
-from app.tools import try_perform
 from calendar import monthrange
 import cProfile
 from datetime import datetime
 import logging
 import os, os.path
 import re
-import sys
 import threading
 from time import sleep
 
 from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
-from neomodel import db, StructuredNode, RelationshipTo, config
-from neomodel.cardinality import One
-from neomodel.properties import BooleanProperty, DateProperty, IntegerProperty, StringProperty
+from neomodel import db, config
 
-from app.utils.atomy import atomy_login, get_document_from_url
-from app.exceptions import AtomyLoginError
+from utils.atomy import atomy_login, get_document_from_url
+from exceptions import AtomyLoginError
+from model import AtomyPerson
 
 class SessionManager:
     __instance = None
@@ -78,22 +75,7 @@ DATA_TEMPLATE = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&
 ############# Neo4j connection ###################
 config.DATABASE_URL = 'bolt://neo4j:1@localhost:7687'
 
-class AtomyPerson(StructuredNode):
-    atomy_id = StringProperty(unique_index=True, required=True)
-    name = StringProperty()
-    rank = StringProperty()
-    highest_rank = StringProperty()
-    center = StringProperty()
-    country = StringProperty()
-    signup_date = DateProperty()
-    pv = IntegerProperty()
-    network_pv = IntegerProperty()
-    '''Defines whether a tree for this node was already built or not
-    Needed when the node has no children and shouldn't be traversed'''
-    built_tree = BooleanProperty(default=False)
-    parent = RelationshipTo('AtomyPerson', 'PARENT')
-    right_child = RelationshipTo('AtomyPerson', 'RIGHT_CHILD')
-    left_child = RelationshipTo('AtomyPerson', 'LEFT_CHILD')
+
 
 ##################################################
 

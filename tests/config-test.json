@@ -25,6 +25,9 @@
     "MODULES": {
         "warehouse": {
             "enabled": true
+        },
+        "pv_stats": {
+            "enabled": true
         }
     }
 }

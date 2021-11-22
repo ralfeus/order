@@ -1,10 +1,11 @@
 {
     "python.testing.unittestArgs": [
         "-v",
-        "-s",
-        "./tests",
-        "-p",
-        "test_*.py"
+        // "-s",
+        // "./tests",
+        // "-p",
+        // "test_*.py",
+        // "-t", "."
     ],
     "python.testing.pytestEnabled": false,
     "python.testing.nosetestsEnabled": false,
@@ -20,5 +21,6 @@
     },
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
-    "remote.SSH.useLocalServer": false
+    "remote.SSH.useLocalServer": false,
+    "docker.imageBuildContextPath": "."
 }
