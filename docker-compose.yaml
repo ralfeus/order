@@ -23,7 +23,7 @@ services:
     environment:
       - NEO4J_dbms_default__advertised__address=neo4j
 
-  network-builder:
+  network-manager:
     depends_on:
       - neo4j
     image: ralfeus/network-manager
