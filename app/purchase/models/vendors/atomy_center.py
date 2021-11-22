@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from pytz import timezone
 
 from app import db
-from app.exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
+from exceptions import AtomyLoginError, HTTPError, PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder

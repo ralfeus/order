@@ -6,7 +6,7 @@ from flask_security import login_required, roles_required
 
 from app import db
 from app.tools import modify_object
-from app.exceptions import NoShippingRateError
+from exceptions import NoShippingRateError
 from app.models import Country
 from app.shipping import bp_api_admin, bp_api_user
 from app.shipping.models.shipping import Shipping

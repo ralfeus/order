@@ -2,7 +2,7 @@ import math
 
 from . import Shipping
 from app import db
-from app.exceptions import NoShippingRateError
+from exceptions import NoShippingRateError
 from app.models import Country
 
 dhl_zones = db.Table('dhl_zones',

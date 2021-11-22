@@ -105,6 +105,16 @@
               </ul>
             </li>
             {% endif %}
+            {% if config['MODULES']['pv_stats']['enabled'] %}
+            <li class="dropdown-submenu">
+              <a class="dropdown-item dropdown-toggle" id="navbardrop" role="button"
+                aria-haspopup="true" aria-expanded="false" data-toggle="dropdown" href="#">PV Stats</a>
+              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <!-- <li><a class="dropdown-item" href="/admin/pv_stats/">PV Stats</a></li> -->
+                <li><a class="dropdown-item" href="/admin/pv_stats/permissions">PV stats permissions</a></li>
+              </ul>
+            </li>
+            {% endif %}
           </ul>
         </li>
         {% endif %}
@@ -122,6 +132,11 @@
         <li class="nav-item">
           <a class="nav-link" href="/payments">Wallet</a>
         </li>
+        {% if config['MODULES']['pv_stats']['enabled'] %}
+        <li class="nav-item">
+          <a class="nav-link" href="/pv_stats">PV Stats</a>
+        </li>
+        {% endif %}
         <li class="nav-item">
           <a class="nav-link" href="/logout">Logout</a>
         </li>

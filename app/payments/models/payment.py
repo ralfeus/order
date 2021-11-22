@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.exceptions import PaymentNoReceivedAmountException
+from exceptions import PaymentNoReceivedAmountException
 from app.models.base import BaseModel
 
 payments_orders = db.Table('payments_orders',

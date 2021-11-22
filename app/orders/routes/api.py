@@ -9,9 +9,11 @@ from flask_security import current_user, login_required, roles_required
 from sqlalchemy import and_, not_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
-from app import db
-from app.exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
+from utils.atomy import atomy_login
+from exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
+
+from app import db
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
@@ -21,7 +23,6 @@ from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
-from app.utils.atomy import atomy_login
 from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
@@ -789,9 +790,9 @@ def validate_subcustomer():
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
-    except AtomyLoginError:
+    except AtomyLoginError as ex:
         current_app.logger.info("Couldn't validate subcustomer %s", payload)
-        return jsonify({'result': 'failure'})
+        return jsonify({'result': 'failure', 'message': str(ex)})
 
 def get_order_product(order_product_id):
     order_product = OrderProduct.query

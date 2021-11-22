@@ -15,7 +15,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from app.exceptions import OrderError, UnfinishedOrderError
+from exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.models.country import Country
 from app.currencies.models.currency import Currency

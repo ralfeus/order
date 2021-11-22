@@ -11,7 +11,7 @@ from flask import current_app
 from selenium.common.exceptions import NoAlertPresentException, \
     NoSuchElementException, UnexpectedAlertPresentException
 
-from app.exceptions import AtomyLoginError, HTTPError
+from exceptions import AtomyLoginError, HTTPError
 # from app.utils.browser import Browser
 
 logging.basicConfig(level=logging.DEBUG)

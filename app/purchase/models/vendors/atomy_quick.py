@@ -9,9 +9,9 @@ from pytz import timezone
 import re
 
 from app import db
-from app.exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
+from exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
-from app.utils.atomy import atomy_login
+from utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
 ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'

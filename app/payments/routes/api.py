@@ -22,7 +22,7 @@ from app.payments.validators.payment import PaymentValidator
 from app.models.file import File
 from app.users.models.user import User
 
-from app.exceptions import PaymentNoReceivedAmountException
+from exceptions import PaymentNoReceivedAmountException
 from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
 from app.tools import prepare_datatables_query, stream_and_close
 

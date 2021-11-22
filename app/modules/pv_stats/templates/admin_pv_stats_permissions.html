@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_pv_stats_permissions.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="pv_stats" class="table">
+        <thead>
+            <tr>
+                <td><input /></td>
+                <td><input /></td>
+                <td><select></select></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <th scope="col" style="width: 2em;">User ID</th>
+                <th scope="col" style="width: 2em;">Node ID</th>
+                <th scope="col" style="width: 8em;">Status</th>
+                <th scope="col" style="width: 8em;">When created</th>
+                <th scope="col" style="width: 8em;">When changed</th>
+            </tr>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+{% endblock %}

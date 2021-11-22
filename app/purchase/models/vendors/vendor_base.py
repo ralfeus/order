@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from time import sleep
 
-from app.exceptions import PurchaseOrderError
+from exceptions import PurchaseOrderError
 from app.orders.models import Subcustomer
 from app.purchase.models import PurchaseOrder
 
