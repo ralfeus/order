@@ -446,7 +446,7 @@ if __name__ == '__main__':
 
     if os.environ.get('TERM_PROGRAM'): 
         # Means we run in VSCode debugger
-        args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--continue', '--threads', '1', '--verbose'])
+        args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--continue', '--threads', '1'])
         # args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--update', '--verbose', '--threads', '1'])
         # args = arg_parser.parse_args(['--continue', '--all', '--verbose', '--threads', '1'])
     else: 

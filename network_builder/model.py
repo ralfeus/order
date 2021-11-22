@@ -1,6 +1,7 @@
 '''Models for network manager'''
 from datetime import date, datetime
-from neotime import DateTime
+import neotime
+import neo4j.time
 from neomodel import StructuredNode, RelationshipTo, db
 from neomodel.properties import BooleanProperty, DateProperty, IntegerProperty, \
     StringProperty, validator
@@ -13,12 +14,13 @@ class CustomDateProperty(DateProperty):
 
     @validator
     def inflate(self, value):
-        if isinstance(value, DateTime):
-            value = date(value.year, value.month, value.day)
+        if isinstance(value, (neotime.DateTime, neo4j.time.DateTime)):
+            return date(value.year, value.month, value.day)
         elif isinstance(value, str):
             if "T" in value:
                 value = value[:value.find('T')]
-        return datetime.strptime(str(value), "%Y-%m-%d").date()
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        raise f"Unknown format: {value}"
 
 class AtomyPerson(StructuredNode):
     '''Atomy person object as it's saved in Neo4j'''
@@ -44,7 +46,7 @@ class AtomyPerson(StructuredNode):
     @classmethod
     def inflate(cls, node):
         '''Augments base inflate() with parent and children'''
-        person = super().inflate(node[0])
+        person = super().inflate(node)
         relatives = person.cypher('''
             MATCH (n:AtomyPerson) WHERE id(n) = $self
             OPTIONAL MATCH (n)-[:PARENT]->(p) 

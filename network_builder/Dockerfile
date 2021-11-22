@@ -1,5 +1,5 @@
 FROM python
-RUN pip3 install flask neomodel
+RUN pip3 install flask neo4j-driver neobolt Shapely pytz six
 COPY ./utils /
 COPY ./network_builder /app
 
