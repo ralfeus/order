@@ -19,9 +19,20 @@ def get_nodes(node_id):
             return jsonify(result[0][0])
     else:
         params = request.get_json()
-        root_id = None
         paging = {'start': '', 'limit': 'LIMIT 100'}
         query_filter = ''
+        ############# Get tree root #####################
+        if params is not None and params.get('root_id') is not None:
+            root_id = params['root_id']
+        else:
+            query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
+            root_id = db.cypher_query(query)[0][0][0]
+        #################################################
+        total = db.cypher_query('''
+            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
+            RETURN COUNT(n)
+        ''', params={'root_id': root_id})[0][0]
+        filtered = total
         if params is not None:
             if params.get('filter') is not None:
                 query_filter = _get_filter(params['filter'])
@@ -35,20 +46,13 @@ def get_nodes(node_id):
                     paging['limit'] = 'LIMIT ' + str(params['paging']['page_size'])
                 except:
                     pass
-            root_id = params.get('root_id')
-        if root_id is None:
-            query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
-            root_id = db.cypher_query(query)[0][0][0]
-
-        total = db.cypher_query('''
-            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
-            RETURN COUNT(n)
-        ''', params={'root_id': root_id})[0][0]
-        filtered = db.cypher_query(f'''
-            MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
-            {query_filter}
-            RETURN COUNT(n)
-        ''', params={'root_id': root_id, **params['filter']})[0][0]
+            filtered = db.cypher_query(f'''
+                MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+                {query_filter}
+                RETURN COUNT(n)
+            ''', params={'root_id': root_id, **params['filter']})[0][0]
+        else:
+            params = {'filter': {}}
 
         query = f'''
             MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
@@ -62,7 +66,7 @@ def get_nodes(node_id):
         return jsonify({
             'records_total': total,
             'records_filtered': filtered,
-            'data': [AtomyPerson.inflate(item) for item in result]
+            'data': [AtomyPerson.inflate(item[0]) for item in result]
         })
 
 def _get_filter(filter_params):
