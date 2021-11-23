@@ -15,7 +15,7 @@ class CustomDateProperty(DateProperty):
     def inflate(self, value):
         if isinstance(value, neo4j.time.DateTime):
             return date(value.year, value.month, value.day)
-        elif isinstance(value, str):
+        if isinstance(value, str):
             if "T" in value:
                 value = value[:value.find('T')]
             return datetime.strptime(value, "%Y-%m-%d").date()
@@ -35,28 +35,55 @@ class AtomyPerson(StructuredNode):
     '''Defines whether a tree for this node was already built or not
     Needed when the node has no children and shouldn't be traversed'''
     built_tree = BooleanProperty(default=False)
-    parent_id = None
+    _relatives_are_set = False
+    _parent_id = None
     parent = RelationshipTo('AtomyPerson', 'PARENT')
-    right_id = None
+    _right_id = None
     right_child = RelationshipTo('AtomyPerson', 'RIGHT_CHILD')
-    left_id = None
+    _left_id = None
     left_child = RelationshipTo('AtomyPerson', 'LEFT_CHILD')
 
     @classmethod
-    def inflate(cls, node):
+    def inflate(cls, node, lazy=True):
         '''Augments base inflate() with parent and children'''
         person = super().inflate(node)
-        relatives = person.cypher('''
+        if not lazy:
+            person._set_relatives()
+        return person
+
+    def _set_relatives(self):
+        relatives = self.cypher('''
             MATCH (n:AtomyPerson) WHERE id(n) = $self
             OPTIONAL MATCH (n)-[:PARENT]->(p) 
             OPTIONAL MATCH (n)-[:LEFT_CHILD]->(l)
             OPTIONAL MATCH (n)-[:RIGHT_CHILD]->(r)
             RETURN p.atomy_id, l.atomy_id, r.atomy_id
         ''')[0][0]
-        person.parent_id = relatives[0]
-        person.left_id = relatives[1]
-        person.right_id = relatives[2]
-        return person
+        self.parent_id = relatives[0]
+        self.left_id = relatives[1]
+        self.right_id = relatives[2]
+        self._relatives_are_set = True
+    
+    @property
+    def parent_id(self):
+        '''A parent_id property. Gets value from DB is necessary'''
+        if self._parent_id is None and not self._relatives_are_set:
+            self._set_relatives()
+        return self._parent_id
+        
+    @property
+    def left_id(self):
+        '''A parent_id property. Gets value from DB is necessary'''
+        if self._left_id is None and not self._relatives_are_set:
+            self._set_relatives()
+        return self._left_id
+
+    @property
+    def right_id(self):
+        '''A parent_id property. Gets value from DB is necessary'''
+        if self._right_id is None and not self._relatives_are_set:
+            self._set_relatives()
+        return self._right_id
 
     def to_dict(self):
         '''Returns dict representation of the object'''

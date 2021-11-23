@@ -57,7 +57,7 @@ class ChildType(Enum):
 # Build selection range
 today = datetime.today()
 month_range = monthrange(today.year, today.month)
-start_date = today.strftime(f'%Y-%m-01')
+start_date = today.strftime('%Y-%m-01')
 end_date = today.strftime(f'%Y-%m-{month_range[1]:02d}')
 ######
 sel_name = lambda e: e.cssselect('td span')[1].attrib.get('title')
