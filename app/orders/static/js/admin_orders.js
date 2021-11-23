@@ -466,7 +466,7 @@ function set_status(target, new_status) {
                             }
                         })
                     .fail((xhr, status, error) => {
-                            modal("Set order status failure", xhr.responseText);
+                            alert(xhr.responseText);
                         })
                     .done((data, status, xhr) => {
                             g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
