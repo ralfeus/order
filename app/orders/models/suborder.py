@@ -67,6 +67,9 @@ class Suborder(db.Model, BaseModel):
 
     @property
     def total_krw(self):
+        return self.get_total_krw()
+
+    def get_total_krw(self):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) + \

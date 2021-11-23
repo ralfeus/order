@@ -48,9 +48,10 @@ def _atomy_login_curl(username, password):
 
     raise HTTPError(output)
 
-def atomy_login(username, password, browser=None, run_browser=True):
+def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:
         return _atomy_login_curl(username, password)
+    raise "Browser login is not implemented"
     # _logger = logger.getChild('atomy_login')
     # local_browser = None
     # if browser:

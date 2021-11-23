@@ -18,41 +18,41 @@ def get_nodes(node_id):
         if len(result) > 0:
             return jsonify(result[0][0])
     else:
-        params = request.get_json()
+        request_params = request.get_json()
         paging = {'start': '', 'limit': 'LIMIT 100'}
         query_filter = ''
         ############# Get tree root #####################
-        if params is not None and params.get('root_id') is not None:
-            root_id = params['root_id']
+        if request_params is not None and request_params.get('root_id') is not None:
+            root_id = request_params['root_id']
         else:
             query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
             root_id = db.cypher_query(query)[0][0][0]
+        query_params = {'root_id': root_id}
         #################################################
         total = db.cypher_query('''
             MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
             RETURN COUNT(n)
-        ''', params={'root_id': root_id})[0][0]
+        ''', params=query_params)[0][0]
         filtered = total
-        if params is not None:
-            if params.get('filter') is not None:
-                query_filter = _get_filter(params['filter'])
-            if params.get('start') is not None and params.get('limit') is not None:
-                paging['start'] = 'SKIP ' + str(params['start'])
-                paging['limit'] = 'LIMIT ' + str(params['limit'])
-            elif params.get('paging') is not None:
+        if request_params is not None:
+            if request_params.get('filter') is not None:
+                query_filter = _get_filter(request_params['filter'])
+                query_params.update(request_params['filter'])
+                filtered = db.cypher_query(f'''
+                    MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+                    {query_filter}
+                    RETURN COUNT(n)
+                ''', params=query_params)[0][0]
+            if request_params.get('start') is not None and request_params.get('limit') is not None:
+                paging['start'] = 'SKIP ' + str(request_params['start'])
+                paging['limit'] = 'LIMIT ' + str(request_params['limit'])
+            elif request_params.get('paging') is not None:
                 try:
-                    paging['start'] = 'SKIP ' + str((int(params['paging']['page']) - 1) *
-                                                    int(params['paging']['page_size']))
-                    paging['limit'] = 'LIMIT ' + str(params['paging']['page_size'])
+                    paging['start'] = 'SKIP ' + str((int(request_params['paging']['page']) - 1) *
+                                                    int(request_params['paging']['page_size']))
+                    paging['limit'] = 'LIMIT ' + str(request_params['paging']['page_size'])
                 except:
                     pass
-            filtered = db.cypher_query(f'''
-                MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
-                {query_filter}
-                RETURN COUNT(n)
-            ''', params={'root_id': root_id, **params['filter']})[0][0]
-        else:
-            params = {'filter': {}}
 
         query = f'''
             MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
@@ -60,8 +60,7 @@ def get_nodes(node_id):
             RETURN n {paging["start"]} {paging["limit"]}
         '''
         logger.debug(query)
-        result, _ = db.cypher_query(query,
-                                    params={'root_id': root_id, **params['filter']})
+        result, _ = db.cypher_query(query, params=query_params)
         logger.info("Returning %s records", filtered)
         return jsonify({
             'records_total': total,

@@ -1,7 +1,6 @@
 FROM python
 RUN apt update
 RUN apt install -y libgeos-dev
-RUN pip install --upgrade pip
 RUN pip install flask neomodel
 COPY ./utils /
 COPY ./network_builder /app
