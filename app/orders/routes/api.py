@@ -558,7 +558,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
-    logger = current_app.logger.getChild('admin_save_order')
+    logger = current_app.logger.getChild(f'admin_save_order:{order_id}')
     order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
@@ -571,8 +571,8 @@ def admin_save_order(order_id):
                                 for message in validator.errors]
             })
     payload = cleanse_payload(order, request.get_json())
-    logger.info('Modifying order %s by %s with data: %s',
-                order_id, current_user, payload)
+    logger.info('Modifying order by %s with data: %s',
+                current_user, payload)
     if payload.get('boxes'):
         update_order_boxes(order, payload['boxes'])
     if payload.get('total_weight'):
@@ -585,6 +585,7 @@ def admin_save_order(order_id):
         try:
             order.set_status(payload['status'], current_user)
         except UnfinishedOrderError as ex:
+            logger.info(str(ex))
             abort(Response(str(ex), status=409))
 
     db.session.commit()

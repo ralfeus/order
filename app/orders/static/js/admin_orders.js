@@ -458,19 +458,19 @@ function set_status(target, new_status) {
                         dataType: 'json',
                         contentType: 'application/json',
                         data: JSON.stringify({status: new_status}),
-                        complete: () => {
+                    })
+                    .always(() => {
                             orders_left--;
                             if (!orders_left) {
                                 $('.wait').hide();
                             }
-                        },
-                        success: (data, status, xhr) => {
+                        })
+                    .fail((xhr, status, error) => {
+                            alert(xhr.responseText);
+                        })
+                    .done((data, status, xhr) => {
                             g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
-                        },
-                        error: (xhr, status, error) => {
-                            modal("Set order status failure", xhr.responseText);
-                        }
-                    });     
+                        });
                 }
             }
         });
