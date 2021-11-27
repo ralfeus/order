@@ -1,3 +1,10 @@
 {
-    "NEO4J_URL": "bolt://neo4j:1@neo4j:7687"
+    "NEO4J_URL": "bolt://neo4j:1@neo4j:7687",
+    "ORDER_MASTER_NODES": [
+        {
+            "url": "http://sandlet:5000/api/v1/admin/order/subcustomer",
+            "token": "WyI1YWZmYWU4ODJkOTM0MDU3OGQ3NDNiZGI0M2UxYjIyNSJd.YZ3u0A.bgTzMRuyeyFJiaeKyJdYjlT4_Z8"
+        }
+    ],
+    "STATS_URL": "https://www.atomy.kr/v2/Home/MyAtomy/GetSponsorBenefitOccurList"
 }

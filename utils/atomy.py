@@ -1,7 +1,9 @@
 import itertools
+import json
 import logging
 import re
 import subprocess
+import threading
 from time import sleep
 from urllib.parse import urlencode
 
@@ -20,6 +22,56 @@ try:
     logger = current_app.logger
 except:
     pass
+
+class SessionManager:
+    __instance = None
+
+    @classmethod
+    def create_instance(cls, username, password):
+        cls.__instance = SessionManager(username, password)
+
+    @classmethod
+    def get_instance(cls):
+        return cls.__instance
+
+    def __init__(self, username, password):
+        self.__username = username
+        self.__password = password
+        self.__create_session()
+
+    def __create_session(self):
+        with threading.Lock():
+            self.__session = atomy_login(
+                username=self.__username, password=self.__password, run_browser=False)
+
+    def get_document(self, url, raw_data, headers={}):
+        logger = logging.getLogger('SessionManager.get_document()')
+        attempts_left = 3
+        while attempts_left:
+            try:
+                return get_document_from_url(url,
+                    headers=[{'Cookie': c} for c in self.__session] + \
+                            [{key: value} for key, value in headers.items()],
+                    raw_data=raw_data)
+            except AtomyLoginError:
+                logger.info("Session expired. Logging in")
+                self.__create_session()
+                attempts_left -= 1
+    
+    def get_json(self, url, raw_data, headers={}):
+        _logger = logging.getLogger('SessionManager.get_json()')
+        attempts_left = 3
+        while attempts_left:
+            try:
+                content = invoke_curl(url, raw_data, 
+                    headers=[{'Cookie': c} for c in self.__session] + \
+                            [{key: value} for key, value in headers.items()])
+                return json.loads(content)
+            except AtomyLoginError:
+                _logger.info("Session expired. Logging in")
+                self.__create_session()
+                attempts_left -= 1
+        raise "Couldn't get JSON document due to login issue"
 
 def _atomy_login_curl(username, password):
     '''    Logins to Atomy customer section    '''
@@ -123,6 +175,8 @@ def get_document_from_url(url, headers=None, raw_data=None):
             doc = lxml.html.fromstring(output.stdout)
             return doc
         if 'Could not resolve host' in output.stderr:
+            _logger.warning("Couldn't resolve host name for %s. Will try in 30 seconds", url)
+            sleep(30)
             return get_document_from_url(url, headers, raw_data)
         if re.search('HTTP.* 302', output.stderr) and \
             re.search('location: /v2/Home/Account/Login', output.stderr):
@@ -133,5 +187,30 @@ def get_document_from_url(url, headers=None, raw_data=None):
             return get_document_from_url(url, headers, raw_data)
 
         raise Exception("Couldn't get page", output.stderr)
+    except TypeError:
+        _logger.exception(run_params)
+
+def invoke_curl(url, raw_data, headers):
+    _logger = logger.getChild('get_document_from_url')
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
+    ]))
+    raw_data = ['--data-raw', raw_data] if raw_data else None
+    run_params = [
+        '/usr/bin/curl',
+        url,
+        '-v'
+        ] + headers_list + raw_data
+    try:
+        output = subprocess.run(run_params,
+            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
+            _logger.warning("Server side error occurred. Will try in 30 seconds", url)
+            sleep(30)
+            return get_document_from_url(url, headers, raw_data)
+        if re.search('HTTP.* 302', output.stderr) and \
+            re.search('location: /v2/Home/Account/Login', output.stderr):
+            raise AtomyLoginError()
+        return output.stdout
     except TypeError:
         _logger.exception(run_params)

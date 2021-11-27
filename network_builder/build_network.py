@@ -38,7 +38,6 @@ class SessionManager:
                 username=self.__username, password=self.__password, run_browser=False)
 
     def get_document(self, url, raw_data):
-        logger = logging.getLogger('SessionManager.get_document()')
         attempts_left = 3
         while attempts_left:
             try:
@@ -46,6 +45,7 @@ class SessionManager:
                     headers=[{'Cookie': c} for c in self.__session],
                     raw_data=raw_data)
             except AtomyLoginError:
+                logger = logging.getLogger('SessionManager.get_document()')
                 logger.info("Session expired. Logging in")
                 self.__create_session()
                 attempts_left -= 1
@@ -57,18 +57,28 @@ class ChildType(Enum):
 # Build selection range
 today = datetime.today()
 month_range = monthrange(today.year, today.month)
-start_date = today.strftime('%Y-%m-01')
-end_date = today.strftime(f'%Y-%m-{month_range[1]:02d}')
+start_date = today.strftime('%Y-%m-01' if today.day < 16 else '%Y-%m-16')
+end_date = today.strftime(f'%Y-%m-{15 if today.day < 16 else month_range[1]:02d}')
 ######
-sel_name = lambda e: e.cssselect('td span')[1].attrib.get('title')
-sel_rank = lambda e: e.cssselect('td span')[2].text
-sel_highest_rank = lambda e: e.cssselect('td span')[3].text
-sel_center = lambda e: e.cssselect('td span')[4].text
-sel_country = lambda e: e.cssselect('td span')[5].text
 sel_members = CSSSelector('div#dLine table')
-sel_signup_date = lambda e: e.cssselect('td span')[6].text
-sel_pv = lambda e: e.cssselect('td span')[7].text
-sel_network_pv = lambda e: e.cssselect('td span')[9].text
+# sel_name = lambda e: e.cssselect('td span')[1].attrib.get('title')
+sel_name = lambda e: e[0][0][1].attrib.get('title')
+# sel_rank = lambda e: e.cssselect('td span')[2].text
+sel_rank = lambda e: e[0][0][2].text if len(e[0][0]) > 2 else e[0][0][1][0].text
+# sel_highest_rank = lambda e: e.cssselect('td span')[3].text
+sel_highest_rank = lambda e: e[0][0][3].text if len(e[0][0]) > 2 else e[0][0][1][1].text
+# sel_center = lambda e: e.cssselect('td span')[4].text
+sel_center = lambda e: e[0][0][4].text if len(e[0][0]) > 2 else e[0][0][1][2].text
+# sel_country = lambda e: e.cssselect('td span')[5].text
+sel_country = lambda e: e[0][0][5].text if len(e[0][0]) > 2 else e[0][0][1][3].text
+# sel_signup_date = lambda e: e.cssselect('td span')[6].text
+sel_signup_date = lambda e: e[0][0][6].text if len(e[0][0]) > 2 else e[0][0][1][4].text
+# sel_pv = lambda e: e.cssselect('td span')[7].text
+sel_pv = lambda e: e[0][0][7].text if len(e[0][0]) > 2 else e[0][0][1][5].text
+# sel_total_pv = lambda e: e.cssselect('td span')[8].text
+sel_total_pv = lambda e: e[0][0][8].text if len(e[0][0]) > 2 else e[0][0][1][6].text
+# sel_network_pv = lambda e: e.cssselect('td span')[9].text
+sel_network_pv = lambda e: e[0][0][9].text if len(e[0][0]) > 2 else e[0][0][1][7].text
 TREE_URL = 'https://www.atomy.kr/v2/Home/MyAtomy/GroupTree2'
 DATA_TEMPLATE = "Slevel={}&VcustNo={}&VbuCustName=0&VgjisaCode=1&VgmemberAuth=0&VglevelCnt=0&Vglevel=1&VglevelMax=1&VgregDate=1&VgcustDate=0&VgstopDate=0&VgtotSale=1&VgcumSale=1&VgcurSale=1&VgbuName=1&SDate={}&EDate={}&glevel=1&glevelMax=1&gbu_name=1&gjisaCode=1&greg_date=1&gtot_sale=1&gcur_sale=1"
 
@@ -134,10 +144,30 @@ def build_network(user, password, root_id='S5832131',
             logger.info('%s nodes checking is in progress. Waiting for completion',
                 running_tasks)
             sleep(5)
+        except KeyboardInterrupt:
+            logger.info("Ctrl+C was pressed. Shutting down (running threads will be completed)...")
+            break
         except Exception as ex:
             logger.exception(node_id)
             raise ex
     logger.info("Done. Added %s new nodes", len(traversing_nodes_list) - initial_nodes_count)
+    logger.info("Updating network PV for each node")
+    result, _ = db.cypher_query('''
+        MATCH (n:AtomyPerson) WHERE ID(n) = 0
+        MATCH (n)<-[:PARENT*0..]-(n1)-[:LEFT_CHILD]->()
+        WITH n1
+        ORDER BY ID(n1) DESC
+        CALL {
+            WITH n1
+            MATCH (l)<-[:LEFT_CHILD]-(n1)
+            OPTIONAL MATCH (n1)-[:RIGHT_CHILD]->(r)
+            WITH n1, l.network_pv AS l_pv, CASE r WHEN NULL THEN 0 ELSE r.network_pv END AS r_pv
+            SET n1.network_pv = l_pv + r_pv + n1.total_pv
+            RETURN n1.atomy_id AS id, n1.total_pv AS t_pv, n1.network_pv AS n_pv, l_pv, r_pv
+        }
+        RETURN COUNT(*)
+    ''')
+    logger.info("Update result: %s", result)
 
 def _profile_thread(thread_name, target, *args):
     profiler = cProfile.Profile()
@@ -172,7 +202,7 @@ def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list):
             _get_children(
                 node_id, traversing_nodes_set, traversing_nodes_list, elements[0], elements[1:],
                 level_distance=_get_levels_distance(elements),
-                last_level_top=last_level_top
+                last_level_top=last_level_top, logger=logger
             )
             logger.debug('Done')
             # sleep(60)
@@ -188,7 +218,7 @@ def get_child_id(parent_id, child_type):
     return result[0][0] if len(result) > 0 else None
 
 def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: list, node_element,
-    elements, level_distance, last_level_top):
+    elements, level_distance, last_level_top, logger):
     # def get_node(node_id):
     #     result, _ = db.cypher_query('''
     #         MATCH (node:AtomyPerson {atomy_id: $atomy_id})
@@ -196,7 +226,6 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
     #     ''', params={'atomy_id': node_id})
     #     return AtomyPerson.inflate(result[0][0])
 
-    logger = logging.getLogger('_get_children()')
     node_element_style_items = node_element['style_items']
     node_element_top = int(node_element_style_items['top'][:-2])
     next_layer_top = node_element_top + level_distance
@@ -268,20 +297,26 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.pv = $pv,
-                node.network_pv = $network_pv
+                node.total_pv = $total_pv,
+                node.network_pv = $network_pv,
+                node.when_updated = $now
             ''', params={
                 'atomy_id': node_id,
                 'rank': sel_rank(node_element['element']),
                 'highest_rank': sel_highest_rank(node_element['element']),
                 'pv': int(re.search('\\d+', sel_pv(node_element['element'])).group()),
-                'network_pv': int(re.search('\\d+', sel_network_pv(node_element['element'])).group())
+                'total_pv': int(re.search('\\d+', sel_total_pv(node_element['element'])).group()),
+                'network_pv': int(re.search('\\d+', sel_network_pv(node_element['element'])).group()),
+                'now': datetime.now()
             })
         if left is not None:
             _get_children(left.atomy_id, traversing_nodes_set, traversing_nodes_list,
-                left_element, elements, level_distance=level_distance, last_level_top=last_level_top)
+                left_element, elements, level_distance=level_distance, last_level_top=last_level_top,
+                logger=logger)
         if right is not None:
             _get_children(right.atomy_id, traversing_nodes_set, traversing_nodes_list,
-                right_element, elements, level_distance=level_distance, last_level_top=last_level_top)
+                right_element, elements, level_distance=level_distance, last_level_top=last_level_top,
+                logger=logger)
         with lock:
             logger.debug("%s is done. Removing from the crawling set", node_id)
             traversing_nodes_set.discard(node_id)
@@ -330,7 +365,8 @@ def _init_network(root_node_id, cont=False, active=True):
 def _get_node(element, parent_id, is_left, logger):
     atomy_id = element.attrib['id'][1:]
     try:
-        signup_date = datetime.strptime(sel_signup_date(element), '%y-%m-%d')
+        signup_date_str = sel_signup_date(element)
+        signup_date = datetime(int(signup_date_str[:2]), int(signup_date_str[3:5]), int(signup_date_str[6:8]))
     except Exception as ex:
         logger.exception("_get_node(): In %s the error has happened", atomy_id)
         raise ex
@@ -345,12 +381,16 @@ def _get_node(element, parent_id, is_left, logger):
                 node.country = $country,
                 node.signup_date = $signup_date,
                 node.pv = $pv,
-                node.network_pv = $network_pv
+                node.total_pv = $total_pv,
+                node.network_pv = $network_pv,
+                node.when_updated = $now
         ON MATCH SET
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.pv = $pv,
-                node.network_pv = $network_pv
+                node.total_pv = $total_pv,
+                node.network_pv = $network_pv,
+                node.when_updated = $now
         MERGE (node)-[:PARENT]->(parent)
         MERGE (parent)-[:{"LEFT" if is_left else "RIGHT"}_CHILD]->(node)
         RETURN node
@@ -364,7 +404,9 @@ def _get_node(element, parent_id, is_left, logger):
         'country': sel_country(element),
         'signup_date': signup_date,
         'pv': int(re.search('\\d+', sel_pv(element)).group()),
-        'network_pv': int(re.search('\\d+', sel_network_pv(element)).group())
+        'total_pv': int(re.search('\\d+', sel_total_pv(element)).group()),
+        'network_pv': int(re.search('\\d+', sel_network_pv(element)).group()),
+        'now': datetime.now()
     })
     # If logging is needed, logger should be passed, not created here 
     # logger.debug('Adding node %s', atomy_id)
@@ -444,11 +486,10 @@ if __name__ == '__main__':
     arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
 
-    if os.environ.get('TERM_PROGRAM'): 
+    if os.environ.get('TERM_PROGRAM'):
         # Means we run in VSCode debugger
-        args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--continue', '--threads', '1'])
+        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk030529!', '--threads', '1', '--root', '24987907'])
         # args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--update', '--verbose', '--threads', '1'])
-        # args = arg_parser.parse_args(['--continue', '--all', '--verbose', '--threads', '1'])
     else: 
         # Production run
         args = arg_parser.parse_args()
@@ -457,5 +498,5 @@ if __name__ == '__main__':
 
 
     logging.info('Building tree with following arguments: %s', args)
-
     build_network(**args.__dict__)
+    logging.info("Job is done")

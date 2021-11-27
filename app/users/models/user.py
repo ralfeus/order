@@ -31,7 +31,7 @@ class User(db.Model, UserMixin):
     roles = db.relationship('Role', secondary=roles_users,
                             backref=db.backref('users', lazy='dynamic'))
     profile = Column(Text, default='{}')
-
+    fs_uniquifier = Column(String(255), unique=True, nullable=False)
     # User information
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
@@ -76,12 +76,12 @@ class User(db.Model, UserMixin):
     def __repr__(self):
         return f'<User {self.id}: {self.username}>'
 
-    @staticmethod
-    def get_user(user_query):
-        '''
-        Returns list of users based on a query
-        '''
-        return [user.to_dict() for user in user_query]
+    # @staticmethod
+    # def get_user(user_query):
+    #     '''
+    #     Returns list of users based on a query
+    #     '''
+    #     return [user.to_dict() for user in user_query]
             
     def to_dict(self):
         '''

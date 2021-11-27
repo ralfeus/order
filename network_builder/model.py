@@ -18,7 +18,7 @@ class CustomDateProperty(DateProperty):
         if isinstance(value, str):
             if "T" in value:
                 value = value[:value.find('T')]
-            return datetime.strptime(value, "%Y-%m-%d").date()
+            return date(int(value[:4]), int(value[5:7]), int(value[8:10]))
         raise f"Unknown format: {value}"
 
 class AtomyPerson(StructuredNode):
@@ -31,6 +31,7 @@ class AtomyPerson(StructuredNode):
     country = StringProperty()
     signup_date = CustomDateProperty()
     pv = IntegerProperty()
+    total_pv = IntegerProperty()
     network_pv = IntegerProperty()
     '''Defines whether a tree for this node was already built or not
     Needed when the node has no children and shouldn't be traversed'''
