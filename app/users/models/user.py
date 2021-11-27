@@ -4,6 +4,7 @@ User model
 import json
 from flask_security import UserMixin
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -25,7 +26,7 @@ class User(db.Model, UserMixin):
     username = Column(String(32), unique=True, nullable=False)
     email = Column(String(80))
     password_hash = Column(String(200))
-    enabled = Column(Boolean, nullable=False)
+    enabled = Column(Boolean, nullable=False, default=False)
     atomy_id = Column(String(10))
     phone = Column(String(32))
     roles = db.relationship('Role', secondary=roles_users,
@@ -38,6 +39,17 @@ class User(db.Model, UserMixin):
     # Business
     balance = Column(Integer, default=0)
 
+    def __init__(self, **kwargs):
+        attributes = [a[0] for a in type(self).__dict__.items()
+                           if isinstance(a[1], InstrumentedAttribute)]
+        for arg in kwargs:
+            if arg in attributes:
+                setattr(self, arg, kwargs[arg])
+        if self.fs_uniquifier is None:
+            self.fs_uniquifier = self.username
+        # Here properties are set (attributes start with '__')
+        if kwargs.get('password') is not None:
+            self.set_password(kwargs['password'])
     def get_id(self):
         return str(self.id)
 

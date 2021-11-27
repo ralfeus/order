@@ -29,8 +29,8 @@ def user_signup():
             filter_by(username=form.username.data).first()
         if existing_user is None:
             user = security.datastore.create_user(
-                username=form.username.data, 
-                password=form.password.data, 
+                username=form.username.data,
+                password=form.password.data,
                 email=form.email.data,
                 phone=form.phone.data,
                 atomy_id=form.atomy_id.data,
