@@ -36,6 +36,7 @@ class AtomyPerson(StructuredNode):
     '''Defines whether a tree for this node was already built or not
     Needed when the node has no children and shouldn't be traversed'''
     built_tree = BooleanProperty(default=False)
+    when_updated = CustomDateProperty()
     _relatives_are_set = False
     _parent_id = None
     parent = RelationshipTo('AtomyPerson', 'PARENT')
@@ -60,9 +61,9 @@ class AtomyPerson(StructuredNode):
             OPTIONAL MATCH (n)-[:RIGHT_CHILD]->(r)
             RETURN p.atomy_id, l.atomy_id, r.atomy_id
         ''')[0][0]
-        self.parent_id = relatives[0]
-        self.left_id = relatives[1]
-        self.right_id = relatives[2]
+        self._parent_id = relatives[0]
+        self._left_id = relatives[1]
+        self._right_id = relatives[2]
         self._relatives_are_set = True
     
     @property
