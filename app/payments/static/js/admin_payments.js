@@ -231,6 +231,7 @@ function init_payments_table() {
             {data: 'sender_name'},
             {
                 name: 'orders', data: 'orders', 
+                orderable: false,
                 render: data => {
                     return "<a href=\"/admin/orders?id=" + data + "\">" + data + "</a>";
                 }
@@ -241,7 +242,8 @@ function init_payments_table() {
                     return row.payment_method
                         ? row.payment_method.name
                         : '';
-                }
+                },
+                orderable: false
             },
             {data: 'amount_sent_original_string'},
             {name: 'amount_sent_krw', data: 'amount_sent_krw'},
