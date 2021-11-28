@@ -156,12 +156,15 @@ def build_network(user, password, root_id='S5832131',
         MATCH (n:AtomyPerson) WHERE ID(n) = 0
         MATCH (n)<-[:PARENT*0..]-(n1)-[:LEFT_CHILD]->()
         WITH n1
-        ORDER BY ID(n1) DESC
+        ORDER BY n1.atomy_id_normalized DESC
         CALL {
             WITH n1
             MATCH (l)<-[:LEFT_CHILD]-(n1)
             OPTIONAL MATCH (n1)-[:RIGHT_CHILD]->(r)
-            WITH n1, l.network_pv AS l_pv, CASE r WHEN NULL THEN 0 ELSE r.network_pv END AS r_pv
+            WITH 
+                n1, l.network_pv AS l_pv, 
+                CASE r WHEN NULL THEN 0 ELSE r.network_pv END AS r_pv,
+                CASE n1.total_pv WHEN NULL THEN 0 ELSE n1.total_pv END AS t_pv
             SET n1.network_pv = l_pv + r_pv + n1.total_pv
             RETURN n1.atomy_id AS id, n1.total_pv AS t_pv, n1.network_pv AS n_pv, l_pv, r_pv
         }
@@ -374,6 +377,7 @@ def _get_node(element, parent_id, is_left, logger):
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})
         MERGE (node:AtomyPerson {{atomy_id: $atomy_id}})
         ON CREATE SET
+                node.atomy_id_normalized = REPLACE($atomy_id, 'S', '0'),
                 node.name = $name,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
