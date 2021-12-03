@@ -34,7 +34,7 @@ def user_create_pv_stat_node():
     node = PVStatsPermissions(
         user_id=current_user.id,
         node_id=payload['node_id'],
-        allowed=False
+        allowed=current_user.has_role('admin')
     )
     db.session.add(node)
     db.session.commit()
