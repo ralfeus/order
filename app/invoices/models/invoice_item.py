@@ -23,13 +23,19 @@ class InvoiceItem(db.Model, BaseModel):
         return f"<InvoiceItem: {self.id} - Invoice: {self.invoice_id}>"
 
     def to_dict(self):
+        if self.product is None:
+            name = "--Non-existing product--"
+            weight = 0
+        else:
+            name = self.product.name_english \
+                if self.product.name_english else self.product.name
+            weight = self.product.weight
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
             'product_id': self.product_id,
-            'product': self.product.name_english \
-                if self.product.name_english else self.product.name,
-            'weight': self.product.weight,
+            'product': name,
+            'weight': weight,
             'price': float(self.price),
             'quantity': self.quantity,
             'subtotal': round(float(self.price * self.quantity), 2),

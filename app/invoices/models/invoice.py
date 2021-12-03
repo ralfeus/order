@@ -108,7 +108,8 @@ class Invoice(db.Model):
         weight = 0
         for invoice_item in self.get_invoice_items():
             total += invoice_item.price * invoice_item.quantity
-            weight += invoice_item.product.weight * invoice_item.quantity
+            weight += invoice_item.product.weight * invoice_item.quantity \
+                if invoice_item.product is not None else 0
             if invoice_items_dict.get(invoice_item.product_id):
                 invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
                 invoice_items_dict[invoice_item.product_id]['subtotal'] = \

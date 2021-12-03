@@ -12,7 +12,9 @@ const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
+var g_order = {};
 var g_products;
+var g_shipping_methods;
 var g_selected_shipping_method;
 var g_shipping_rates;
 var g_total_local_shipping = 0;
@@ -263,6 +265,7 @@ function update_shipping_methods(country, weight) {
                 .map(e => e[1].product_id ? e[1].product_id : e[1].id)
                 .filter((value, index, self) => self.indexOf(value) === index),
         success: (data, _status, xhr) => {
+            g_shipping_methods = data;
             var shipping_options, selected_shipping_method_name;
             if ($('#shipping').val()) {
                 g_selected_shipping_method = $('#shipping').val();
@@ -365,6 +368,17 @@ function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this).closest('tr')[0]); });
 }
 
+async function request_shipping_params(shipping_method) {
+    if (!shipping_method || 
+        shipping_method.params.length == 0) {
+        return;
+    }
+    modal("Shipping params", '', 'form', shipping_method.params)
+        .then(result => {
+            g_order['shipping_params'] = result;
+        });
+}
+
 function save_order_draft() {
     submit_order(null, draft=true);
 }
@@ -392,6 +406,9 @@ async function update_total_weight(products) {
 }
 
 function shipping_changed() {
+    if ($('#shipping').val() != g_selected_shipping_method) {
+        request_shipping_params(g_shipping_methods.filter(i => i.id == parseInt($('#shipping').val()))[0]);
+    }
     get_shipping_cost($('#shipping').val(), g_total_weight);
     if ($('#shipping')[0].selectedOptions[0].dataset.notification == 'null') {
         $('#shipping-method')
@@ -406,6 +423,7 @@ function shipping_changed() {
         $('#shipping-notification')[0].title = 
             $('#shipping')[0].selectedOptions[0].dataset.notification;
     }
+    g_selected_shipping_method = $('#shipping').val();
 }
 
 function submit_order(_sender, draft=false) {
@@ -436,7 +454,8 @@ function submit_order(_sender, draft=false) {
                     item_code: $('.item-code', item).val(),
                     quantity: $('.item-quantity', item).val()
                 }))
-            }))
+            })),
+            ...g_order
         }),
         complete: function() {
             $('.wait').hide();

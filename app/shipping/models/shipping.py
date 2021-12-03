@@ -3,8 +3,9 @@ Shipping method model
 '''
 from functools import reduce
 
-from sqlalchemy import Boolean, Column, String, Text, or_
+from sqlalchemy import Boolean, Column, Integer, String, Text, or_
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql.schema import ForeignKey
 
 from app import db
 from exceptions import NoShippingRateError
@@ -33,6 +34,7 @@ class Shipping(db.Model, BaseModel):
     discriminator = Column(String(50))
     notification = Column(Text)
     rates = relationship('ShippingRate', lazy='dynamic')
+    params = relationship('ShippingParam', lazy='dynamic')
 
     __mapper_args__ = {'polymorphic_on': discriminator}
 
@@ -83,7 +85,8 @@ class Shipping(db.Model, BaseModel):
             'id': self.id,
             'name': self.name,
             'enabled': self.enabled,
-            'notification': self.notification
+            'notification': self.notification,
+            'params': [param.to_dict() for param in self.params]
         }
 
     @staticmethod
@@ -114,3 +117,19 @@ class PostponeShipping(NoShipping):
     @property
     def name(self):
         return "Postpone shipping"
+
+class ShippingParam(db.Model, BaseModel):
+    '''Additional Shipping parameter'''
+    __tablename__ = 'shipping_params'
+
+    shipping_id = Column(Integer, ForeignKey('shipping.id'))
+    label = Column(String(128))
+    name = Column(String(128))
+    type = Column(String(32))
+
+    def to_dict(self):
+        return {
+            'label': self.label,
+            'name': self.name,
+            'type': self.type
+        }

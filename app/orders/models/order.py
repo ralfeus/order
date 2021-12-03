@@ -11,8 +11,10 @@ from openpyxl.styles import PatternFill
 
 from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
     String, func, or_
-from sqlalchemy.orm import relationship
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app import db
 from exceptions import OrderError, UnfinishedOrderError
@@ -104,6 +106,9 @@ class Order(db.Model, BaseModel):
     payment_method = relationship('PaymentMethod', foreign_keys=[payment_method_id])
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
+    params = association_proxy('params', 'value',
+        creator=lambda k, v: OrderParam(name=k, value=v)
+    )
 
     @property
     def order_products(self):
@@ -545,3 +550,17 @@ class Order(db.Model, BaseModel):
                 if self.total_weight > 0 else \
                     round(self.shipping_krw / self.total_krw *
                         op.price * op.quantity)
+
+
+class OrderParam(db.Model, BaseModel):
+    '''Additional Order parameter'''
+    __tablename__ = 'order_params'
+
+    order_id = Column(String(16), ForeignKey('orders.id'))
+    name = Column(String(128))
+    value = Column(String(256))
+    order = relationship('Order',
+        backref=backref('params',
+            collection_class=attribute_mapped_collection('name'),
+            cascade='all, delete-orphan')
+    )

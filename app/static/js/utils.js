@@ -13,7 +13,7 @@ function modals_on() {
     is_modals_on = true;
 }
 
-function modal(title, text, type='info') {
+function modal(title, text, type='info', params=[]) {
     if (!is_modals_on) {
         return false;
     }
@@ -26,6 +26,18 @@ function modal(title, text, type='info') {
             '<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>'
         );
         $('#btn-yes').on('click', () => {promise.resolve('yes')});
+    } else if (type == 'form') {
+        $('.modal-body').html(params.reduce(
+            (html, input) => html + "<label>" + input.label + '</label><input name="' + input.name + '" />', ''));
+        $('.modal-footer').html(
+            '<button type="button" id="btn-ok" class="btn btn-success" data-dismiss="modal">Ok</button>' +
+            '<button type="button" class="btn btn-cancel" data-dismiss="modal">Cancel</button>'
+        );
+        $('.modal-footer #btn-ok').on('click', () => {
+            var result = $('.modal-body input').toArray().reduce((acc, input) => 
+                ({[input.name]: input.value, ...acc}), {});
+            promise.resolve(result);
+        })
     } else {
         $('.modal-footer').html(
             '<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>'
