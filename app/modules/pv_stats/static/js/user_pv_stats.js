@@ -38,7 +38,7 @@ $(document).ready(() => {
         },
         columns: [
             {data: 'node_id'},
-            {data: 'name'},
+            {data: 'node_name'},
             {data: 'pv'},
             {data: 'network_pv'},
             {
