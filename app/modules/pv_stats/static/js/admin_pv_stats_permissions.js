@@ -60,7 +60,7 @@ function init_table() {
             {extend: 'deny', text: "Deny"}
         ],
         columns: [
-            {data: 'user_id'},
+            {data: 'user_name'},
             {data: 'node_id'},
             {data: 'allowed'},
             {data: 'when_created'},

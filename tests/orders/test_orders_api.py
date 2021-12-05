@@ -591,6 +591,13 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json['result'], 'success')
 
+    def test_parse_subcustomer(self):
+        from app.orders.routes.api import parse_subcustomer
+        result = parse_subcustomer('test,test,test')
+        self.assertEqual(result[0].password, 'test')
+        result = parse_subcustomer('test,test,test,')
+        self.assertEqual(result[0].password, 'test,')
+
     def test_get_orders_to_attach(self):
         postpone_shipping = PostponeShipping()
         self.try_add_entities([

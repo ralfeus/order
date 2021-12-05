@@ -267,7 +267,7 @@ def _add_suborder(order, suborder_data, errors):
 def parse_subcustomer(subcustomer_data):
     '''Returns a tuple of customer from raw data
     and indication whether customer is existing one or created'''
-    parts = subcustomer_data.split(',')
+    parts = subcustomer_data.split(',', 2)
     try:
         subcustomer = Subcustomer.query.filter(
             Subcustomer.username == parts[0].strip()).first()
