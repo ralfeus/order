@@ -368,14 +368,17 @@ function product_quantity_change(target) {
     target.on('change', function() { update_item_subtotal($(this).closest('tr')[0]); });
 }
 
-async function request_shipping_params(shipping_method) {
-    if (!shipping_method || 
-        shipping_method.params.length == 0) {
+async function edit_shipping_params() {
+    var shipping_method = g_shipping_methods.filter(i => i.id == parseInt($('#shipping').val()))[0]
+    if (!shipping_method) {
         return;
     }
     modal("Shipping params", '', 'form', shipping_method.params)
         .then(result => {
-            g_order['shipping_params'] = result;
+            g_order.shipping_params = result;
+            shipping_method.params.forEach(p => {
+                p.value = result[p.name];
+            })
         });
 }
 
@@ -406,23 +409,32 @@ async function update_total_weight(products) {
 }
 
 function shipping_changed() {
-    if ($('#shipping').val() != g_selected_shipping_method) {
-        request_shipping_params(g_shipping_methods.filter(i => i.id == parseInt($('#shipping').val()))[0]);
-    }
     get_shipping_cost($('#shipping').val(), g_total_weight);
+    var width = 12;
+    ///////////// Adding params editin button ///////////////////
+    var shipping_method = g_shipping_methods.filter(i => i.id == parseInt($('#shipping').val()))[0]
+    if (shipping_method.params.length > 0) {
+        width -= 1;
+        $('#shipping-params').show();
+        if ($('#shipping').val() != g_selected_shipping_method) {
+            g_order.shipping_params = {};
+            edit_shipping_params();
+        }
+    } else {
+        $('#shipping-params').hide();
+    }
+    /////////////// Adding notification icon ////////////////////
     if ($('#shipping')[0].selectedOptions[0].dataset.notification == 'null') {
-        $('#shipping-method')
-            .removeClass('col-11')
-            .addClass('col-12');
         $('#shipping-notification').hide();
     } else {
-        $('#shipping-method')
-            .removeClass('col-12')
-            .addClass('col-11');
+        width -= 1;
         $('#shipping-notification').show();
         $('#shipping-notification')[0].title = 
             $('#shipping')[0].selectedOptions[0].dataset.notification;
     }
+    $('#shipping-method')
+        .removeClass('col-10 col-11 col-12')
+        .addClass('col-' + width);
     g_selected_shipping_method = $('#shipping').val();
 }
 

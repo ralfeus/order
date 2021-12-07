@@ -106,8 +106,10 @@ class Order(db.Model, BaseModel):
     payment_method = relationship('PaymentMethod', foreign_keys=[payment_method_id])
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
-    params = association_proxy('params', 'value',
-        creator=lambda k, v: OrderParam(name=k, value=v)
+    params = association_proxy('order_params', 'value',
+        creator=lambda k, v: OrderParam(name=k, value=v,
+                                        when_created=datetime.now(),
+                                        when_changed=datetime.now())
     )
 
     @property
@@ -557,10 +559,10 @@ class OrderParam(db.Model, BaseModel):
     __tablename__ = 'order_params'
 
     order_id = Column(String(16), ForeignKey('orders.id'))
-    name = Column(String(128))
-    value = Column(String(256))
     order = relationship('Order',
-        backref=backref('params',
+        backref=backref('order_params',
             collection_class=attribute_mapped_collection('name'),
             cascade='all, delete-orphan')
     )
+    name = Column(String(128))
+    value = Column(String(256))

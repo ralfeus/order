@@ -28,7 +28,10 @@ function modal(title, text, type='info', params=[]) {
         $('#btn-yes').on('click', () => {promise.resolve('yes')});
     } else if (type == 'form') {
         $('.modal-body').html(params.reduce(
-            (html, input) => html + "<label>" + input.label + '</label><input name="' + input.name + '" />', ''));
+            (html, input) => html + 
+                "<label>" + input.label + '</label>' +
+                '<input name="' + input.name + '" value="' + (input.value ? input.value : "") + '"/>',
+                ''));
         $('.modal-footer').html(
             '<button type="button" id="btn-ok" class="btn btn-success" data-dismiss="modal">Ok</button>' +
             '<button type="button" class="btn btn-cancel" data-dismiss="modal">Cancel</button>'

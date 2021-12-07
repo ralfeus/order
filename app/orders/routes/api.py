@@ -169,6 +169,8 @@ def user_create_order():
         # order_products = []
         errors = []
         # ordertotal_weight = 0
+        if payload.get('shipping_params') is not None:
+            _set_shipping_params(order, payload['shipping_params'])
         add_suborders(order, payload['suborders'], errors)
         try:
             order.update_total()
@@ -203,6 +205,10 @@ def user_create_order():
                            {str(ex.args)}"""
         }
     return jsonify(result)
+
+def _set_shipping_params(order, shipping_params):
+    for k, v in shipping_params.items():
+        order.params['shipping.' + k] = v
 
 def add_suborders(order, suborders, errors):
     suborders_count = 0
@@ -255,7 +261,7 @@ def _add_suborder(order, suborder_data, errors):
         valuefunc=lambda op: int(op['quantity']),
         reducefunc=sum
     )
-    suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
+    suborder_products = [{'item_code': i[0], 'quantity': i[1]}
                             for i in suborder_products.items()]
     for item in suborder_products:
         try:

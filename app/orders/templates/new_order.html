@@ -32,9 +32,17 @@
                 <div class="col-12" id="shipping-method">
                     <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
                 </div>
+                <div class="col-1" id="shipping-params" 
+                    style="padding-left: 0px; padding-right: 0px; display: none;">
+                    <button type="button" class="btn" onclick="edit_shipping_params()">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
                 <div class="col-1" id="shipping-notification" 
                     style="padding-left: 0px; padding-right: 0px; display: none;">
-                    <i class='fas fa-exclamation' style="color: red;"></i>
+                    <button type="button" class="btn">
+                        <i class='fas fa-exclamation' style="color: red;"></i>
+                    </button>
                 </div>
             </div>
             <input class="form-control" id="phone" placeholder="+(country code) phone" />
