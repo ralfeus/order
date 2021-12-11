@@ -109,6 +109,7 @@ class TestInvoiceClient(BaseTestCase):
                 'when_changed': None
             }],
             'orders': [__name__ + '-1'],
+            'shippings': [],
             'phone': None,
             'total': 10.0,
             'weight': 10,
@@ -155,6 +156,7 @@ class TestInvoiceClient(BaseTestCase):
                 'when_changed': None
             }],
             'orders': [gen_id],
+            'shippings': [],
             'phone': None,
             'total': 5.0,
             'weight': 10,

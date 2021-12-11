@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.shipping.models import Shipping
 
 class Invoice(db.Model):
     '''
@@ -94,6 +95,11 @@ class Invoice(db.Model):
             return base_filter
         from app.orders.models.order import Order
         part_filter = f'%{filter_value}%'
+        if isinstance(column, str):
+            return \
+                base_filter.filter(cls.orders.any(Order.shipping.has(Shipping.name.like(part_filter)))) \
+                    if column == 'shippings' \
+                else base_filter
         return \
             base_filter.filter(column.any(Order.id.like(part_filter))) \
                 if column.key == 'orders' \
@@ -139,6 +145,8 @@ class Invoice(db.Model):
             'weight': weight,
             'total': round(float(total), 2),
             'orders': [order.id for order in self.orders],
+            'shippings': list({order.shipping.name for order in self.orders 
+                               if order.shipping is not None}),
             'export_id': self.export_id,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
                             if self.when_created else None,

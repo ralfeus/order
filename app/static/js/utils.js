@@ -14,10 +14,10 @@ function modals_on() {
 }
 
 function modal(title, text, type='info', params=[]) {
-    if (!is_modals_on) {
-        return false;
-    }
     var promise = $.Deferred();
+    if (!is_modals_on) {
+        return promise.resolve(false);
+    }
     $('.modal-title').text(title);
     $('.modal-body').html(text);
     if (type == 'confirmation') {

@@ -91,9 +91,7 @@ class OrderProduct(db.Model, BaseModel):
     def get_filter(cls, base_filter, column=None, filter_value=None):
         if column is None or filter_value is None:
             return base_filter
-        from app.orders.models.order import Order
-        from app.orders.models.subcustomer import Subcustomer
-        from app.orders.models.suborder import Suborder
+        from app.orders.models import Order, Subcustomer, Suborder
         from app.products.models.product import Product
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):

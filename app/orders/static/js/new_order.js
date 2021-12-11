@@ -1,4 +1,20 @@
 const g_dictionaries_loaded = $.Deferred();
+g_dictionaries_loaded.inc_counter = function(increment=1) {
+    if (!g_dictionaries_loaded.counter) {
+        g_dictionaries_loaded.counter = 0;
+    }
+    g_dictionaries_loaded.counter += increment;
+};
+g_dictionaries_loaded.dec_counter = function(increment=1) {
+    if (!g_dictionaries_loaded.counter) {
+        throw "Can't use decrement before conter is set";
+    }
+    g_dictionaries_loaded.counter -= increment;
+    if (!g_dictionaries_loaded.counter) {
+        g_dictionaries_loaded.resolve();
+    }
+};
+
 const box_weights = {
     30000: 2200,
     20000: 1900,
@@ -12,7 +28,7 @@ const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
-var g_order = {};
+var g_order = {params: {}};
 var g_products;
 var g_shipping_methods;
 var g_selected_shipping_method;
@@ -355,13 +371,13 @@ function get_product(line_input) {
 }
 
 function load_dictionaries() {
-    var dict_left = 3;
+    g_dictionaries_loaded.inc_counter(3);
     get_countries()
-        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
+        .then(g_dictionaries_loaded.dec_counter);
     init_currencies()
-        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });    
+        .then(g_dictionaries_loaded.dec_counter);    
     get_products()
-        .then(() => { if (!(--dict_left)) g_dictionaries_loaded.resolve(); });
+        .then(g_dictionaries_loaded.dec_counter);
 }
 
 function product_quantity_change(target) {
@@ -373,12 +389,17 @@ async function edit_shipping_params() {
     if (!shipping_method) {
         return;
     }
+    shipping_method.params.forEach(p => {
+        p.value = g_order.params.shipping[p.name];
+    });
     modal("Shipping params", '', 'form', shipping_method.params)
         .then(result => {
-            g_order.shipping_params = result;
-            shipping_method.params.forEach(p => {
-                p.value = result[p.name];
-            })
+            if (result) {
+                g_order.params.shipping = result;
+                shipping_method.params.forEach(p => {
+                    p.value = result[p.name];
+                });
+            }
         });
 }
 
@@ -417,7 +438,7 @@ function shipping_changed() {
         width -= 1;
         $('#shipping-params').show();
         if ($('#shipping').val() != g_selected_shipping_method) {
-            g_order.shipping_params = {};
+            g_order.params.shipping = {};
             edit_shipping_params();
         }
     } else {

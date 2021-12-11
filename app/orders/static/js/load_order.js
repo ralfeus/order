@@ -10,6 +10,7 @@ function startup() {
 
 function get_order(order_id) {
     $('.wait').show();
+    modals_off();
     $.ajax({
         url: '/api/v1/order/' + order_id + '?details=1',
         success: data => {
@@ -18,6 +19,7 @@ function get_order(order_id) {
                     populate_order(data)
                     .then(() => {
                         $('.wait').hide();
+                        modals_on();
                     });
                 });
         },
@@ -31,8 +33,8 @@ function get_order(order_id) {
 }
 
 async function populate_order(order_data) {
-    modals_off();
     cleanup();
+    g_order = order_data;
     $('#name').val(order_data.customer_name);
     $('#comment').val(order_data.comment);
     $('#address').val(order_data.address);
@@ -66,7 +68,7 @@ async function populate_order(order_data) {
     .then(() => { 
         $('#shipping').val(order_data.shipping.id);     
         shipping_changed();
-        modals_on();
+        g_dictionaries_loaded.dec_counter();
     });
 }
 

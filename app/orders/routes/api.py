@@ -169,8 +169,9 @@ def user_create_order():
         # order_products = []
         errors = []
         # ordertotal_weight = 0
-        if payload.get('shipping_params') is not None:
-            _set_shipping_params(order, payload['shipping_params'])
+        if payload.get('params') is not None and \
+           payload['params'].get('shipping') is not None:
+            _set_shipping_params(order, payload['params']['shipping'])
         add_suborders(order, payload['suborders'], errors)
         try:
             order.update_total()

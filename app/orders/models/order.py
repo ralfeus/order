@@ -309,6 +309,10 @@ class Order(db.Model, BaseModel):
 
     def to_dict(self, details=False):
         ''' Returns dictionary representation of the object ready to be JSONified '''
+        def list_to_dict(key_list, value):
+            if len(key_list) == 0:
+                return value
+            return {key_list[0]: list_to_dict(key_list[1:], value)}
         logger = logging.getLogger('Order.to_dict')
         from app.payments.models.payment import PaymentStatus
         from app.purchase.models.purchase_order import PurchaseOrder
@@ -372,6 +376,11 @@ class Order(db.Model, BaseModel):
                           if not so.is_for_internal()] \
                          if need_to_check_outsiders \
                          else [],
+            'params': reduce(
+                lambda acc, pair: {
+                    **list_to_dict(pair[0].split('.'), pair[1]),
+                    **acc},
+                self.params.items(), {}),
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
             'when_po_posted': when_po_posted.strftime('%Y-%m-%d %H:%M:%S') \
@@ -382,7 +391,7 @@ class Order(db.Model, BaseModel):
                 if self.when_changed else None
         }
         if details:
-            result = { **result,
+            result = {**result,
                 'suborders': [so.to_dict() for so in self.suborders],
                 'order_products': [op.to_dict() for op in self.order_products],
                 'attached_orders': [o.to_dict() for o in self.attached_orders],
