@@ -14,6 +14,8 @@ def _are_suborders_valid(_form, field):
         for suborder in field.raw_data:
             if suborder.get('subcustomer') is None or suborder['subcustomer'] == '':
                 raise ValidationError('suborder.subcustomer:Field is required')
+            if suborder.get('items') is None or len(suborder['items']) == 0:
+                raise ValidationError("suborder.order_product:Field is required")
             for op in suborder['items']:
                 if op.get('item_code') is not None:
                     try:
