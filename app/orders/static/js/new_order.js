@@ -435,14 +435,15 @@ function shipping_changed() {
     get_shipping_cost($('#shipping').val(), g_total_weight);
     var width = 12;
     ///////////// Adding params editin button ///////////////////
+    //TODO: Check with Mihwa whether should be optional or mandatory
     var shipping_method = g_shipping_methods.filter(i => i.id == parseInt($('#shipping').val()))[0]
     if (shipping_method.params.length > 0) {
         width -= 1;
         $('#shipping-params').show();
-        if ($('#shipping').val() != g_selected_shipping_method) {
-            g_order.params.shipping = {};
-            edit_shipping_params();
-        }
+        // if ($('#shipping').val() != g_selected_shipping_method) {
+        //     g_order.params.shipping = {};
+        //     edit_shipping_params();
+        // }
     } else {
         $('#shipping-params').hide();
     }
@@ -490,7 +491,7 @@ function submit_order(_sender, draft=false) {
                     quantity: $('.item-quantity', item).val()
                 }))
             })),
-            ...g_order
+            params: g_order.params
         }),
         complete: function() {
             $('.wait').hide();
