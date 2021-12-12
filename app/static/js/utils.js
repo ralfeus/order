@@ -30,8 +30,15 @@ function modal(title, text, type='info', params=[]) {
         $('.modal-body').html(params.reduce(
             (html, input) => html + 
                 "<label>" + input.label + '</label>' +
-                '<input name="' + input.name + '" value="' + (input.value ? input.value : "") + '"/>',
+                '<input ' +
+                    'name="' + input.name + '" ' +
+                    'value="' + (input.value ? input.value : "") + '"/>',
                 ''));
+        $('.modal-body input').on('keypress', e => {
+            if (e.originalEvent.key == 'Enter') {
+                $('.modal-footer #btn-ok').trigger('click')
+            }
+        });
         $('.modal-footer').html(
             '<button type="button" id="btn-ok" class="btn btn-success" data-dismiss="modal">Ok</button>' +
             '<button type="button" class="btn btn-cancel" data-dismiss="modal">Cancel</button>'

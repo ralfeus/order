@@ -389,9 +389,11 @@ async function edit_shipping_params() {
     if (!shipping_method) {
         return;
     }
-    shipping_method.params.forEach(p => {
-        p.value = g_order.params.shipping[p.name];
-    });
+    if (!shipping_method.params[0].value) {
+        shipping_method.params.forEach(p => {
+            p.value = g_order.params.shipping[p.name];
+        });
+    }
     modal("Shipping params", '', 'form', shipping_method.params)
         .then(result => {
             if (result) {
