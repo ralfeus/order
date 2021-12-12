@@ -60,6 +60,44 @@ class TestPurchaseOrdersApi(BaseTestCase):
             Company(id=gen_int_id, address_id=gen_int_id)
         ])
 
+    def test_validate_order_subcustomers(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_int_id = int(datetime.now().timestamp())
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user, status=OrderStatus.can_be_paid),
+            Order(id=gen_id + '2', user=self.user, status=OrderStatus.can_be_paid),
+            Subcustomer(id=gen_int_id, username='test', password='test'),
+            Subcustomer(id=gen_int_id + 1, username='test1', password='test1'),
+            Subcustomer(id=gen_int_id + 2, username='23426444', password='atomy#01'),
+            Suborder(id=gen_id, order_id=gen_id, subcustomer_id=gen_int_id),
+            Suborder(id=gen_id + '1', order_id=gen_id, subcustomer_id=gen_int_id + 1),
+            Suborder(id=gen_id+ '2', order_id=gen_id + '2', subcustomer_id=gen_int_id + 2),
+            OrderProduct(suborder_id=gen_id, product_id='0000'),
+            OrderProduct(suborder_id=gen_id + '1', product_id='0000'),
+            Address(id=gen_int_id, zip='00000'),
+            Company(id=gen_int_id, address_id=gen_int_id)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/purchase/order/validate',
+                json={
+                    'address_id': None,
+                    'company_id': None,
+                    'contact_phone': None,
+                    'order_id': gen_id,
+                    'vendor':  None
+        }))
+        self.assertEqual(res.json['status'], 'error')
+        self.assertIn('test,test1', res.json['message'])
+        res = self.client.post('/api/v1/admin/purchase/order/validate',
+            json={
+                'address_id': None,
+                'company_id': None,
+                'contact_phone': None,
+                'order_id': gen_id + '2',
+                'vendor':  None
+        })
+        self.assertEqual(res.get_json()['status'], 'success')
+
     # def test_create_po_alternative_address(self):
     #     gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
     #     gen_int_id = int(datetime.now().timestamp())

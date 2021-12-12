@@ -336,6 +336,7 @@ function on_order_change() {
             }
         })
     }
+    validate_po();
     return {};
 }
 
@@ -399,4 +400,17 @@ function update_status(rows) {
             }
         });        
     });
+}
+
+async function validate_po() {
+    var result = await (await fetch('/api/v1/admin/purchase/order/validate', {
+        method: 'post',
+        headers: {'Content-type': 'application/json'},
+        body: JSON.stringify(g_create_editor.get())
+    })).json();
+    if (result.status == 'success') {
+        g_create_editor.message('');
+    } else if (result.status == 'error') {
+        g_create_editor.message(`<span style="color: red;">${result.message}</div>`);
+    }
 }

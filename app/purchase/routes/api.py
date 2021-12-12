@@ -1,4 +1,3 @@
-from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from datetime import datetime
 import logging
 from operator import itemgetter
@@ -15,6 +14,9 @@ from app.tools import prepare_datatables_query, modify_object
 from app.models.address import Address
 from app.orders.models import Order, OrderStatus, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
+from app.purchase.validators.purchase_order import PurchaseOrderValidator
+from exceptions import AtomyLoginError
+from utils.atomy import atomy_login
 
 from ..models.vendor_manager import PurchaseOrderVendorManager
 
@@ -176,3 +178,27 @@ def get_statuses():
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))
+
+@bp_api_admin.route('/order/validate', methods=['POST'])
+@roles_required('admin')
+def validate_po_input():
+    payload = request.get_json()
+    if payload is None:
+        abort(400)
+    message = ''
+    if payload.get('order_id'):
+        order = Order.query.get(payload['order_id'])
+        if order is not None:
+            error_subcustomers = []
+            for suborder in order.suborders:
+                try:
+                    atomy_login(suborder.subcustomer.username,
+                                suborder.subcustomer.password, run_browser=False)
+                except AtomyLoginError:
+                    current_app.logger.info("Couldn't validate subcustomer %s", payload)
+                    error_subcustomers.append(suborder.subcustomer.username)
+            if len(error_subcustomers) > 0:
+                message = "Couldn't validate subcustomers: " + ','.join(error_subcustomers)
+    if message:
+        return jsonify({'status': 'error', 'message': message})
+    return jsonify({'status': 'success'})
