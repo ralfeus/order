@@ -1,9 +1,17 @@
 from datetime import datetime
 from celery.utils.log import get_task_logger
+import logging
 import requests
 from sqlalchemy.sql.elements import Null
 from app.models.file import File
 from app import celery, db
+
+# if config:
+#     log_level = config['LOG_LEVEL']
+# else:
+#     log_level = logging.INFO
+# logging.basicConfig(level=log_level)
+
 
 @celery.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -18,7 +26,7 @@ def import_products():
     from app.products.models import Product
     
     logger = get_task_logger('import_products')
-    logger.info(logger.getEffectiveLevel())
+    logger.info(celery.conf)
     logger.info("Starting products import")
     products = Product.query.all()
     same = new = modified = ignored = 0
