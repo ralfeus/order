@@ -18,6 +18,7 @@ def import_products():
     from app.products.models import Product
     
     logger = get_task_logger('import_products')
+    logger.info(logger.getEffectiveLevel())
     logger.info("Starting products import")
     products = Product.query.all()
     same = new = modified = ignored = 0
