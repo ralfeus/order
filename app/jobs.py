@@ -127,11 +127,12 @@ def add_together(a, b):
 
 
 def save_image(image_url):
+    from flask import current_app
     if image_url!='':
         image_name = image_url.split('/')[-1]
         r = requests.get(image_url)
         path_image = '/upload/products/' + image_name
-        with open('app/upload/products/'+ image_name, 'wb') as f:
+        with open(current_app.root_path + '/upload/products/'+ image_name, 'wb') as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
     else:
