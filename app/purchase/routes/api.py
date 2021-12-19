@@ -76,6 +76,10 @@ def create_purchase_order():
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
     order = Order.query.get(payload['order_id'])
+    if payload.get('recreate_po'):
+        PurchaseOrder.query.filter(
+            PurchaseOrder.id.like(order.id.replace('ORD', 'PO') + '-%')) \
+            .delete(synchronize_session=False)
     company = Company.query.get(payload['company_id'])
     address = Address.query.get(payload['address_id'])
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)

@@ -77,11 +77,12 @@ async function get_dictionaries() {
     };
 }
 
-function get_orders_to_purchase() {
+function get_orders_to_purchase(recreate=false) {
+    $('.wait').show();
     $.ajax({
-        url: '/api/v1/admin/order?status=can_be_paid&status=paid',
+        url: '/api/v1/admin/order?status=can_be_paid&status=paid' + (recreate ? '&status=po_created' : ''),
         success: data => {
-            // g_orders = data;
+            $('.wait').hide();
             g_create_editor.field('order_id').update(data.map(o => o.id));
         }
     })
@@ -107,6 +108,7 @@ function init_table() {
             data.purchase_restricted_products = data.purchase_restricted_products
                 ? data.purchase_restricted_products[0]
                 : false;
+            data.recreate_po = data.recreate_po ? data.recreate_po[0] : false;
             $.ajax({
                 url: url,
                 method: 'post',
@@ -125,6 +127,14 @@ function init_table() {
         table: '#purchase_orders',
         idSrc: 'id',
         fields: [
+            {
+                label: 'Recreate purchase order',
+                name: 'recreate_po',
+                type: 'checkbox', 
+                options: [{label:'', value:true}],
+                def: false,
+                unselectedValue: false
+            },
             {
                 label: 'Order', 
                 name: 'order_id',
@@ -154,6 +164,7 @@ function init_table() {
         ]
     });
     g_create_editor.on('open', on_editor_open);
+    g_create_editor.field('recreate_po').input().on('change', on_recreate_po_change);
     g_create_editor.field('order_id').input().on('change', on_order_change);
     g_create_editor.field('company_id').input().on('change', on_company_change);
 
@@ -338,6 +349,22 @@ function on_order_change() {
     }
     validate_po();
     return {};
+}
+
+async function on_recreate_po_change() {
+    if (g_create_editor.field('recreate_po').val()[0]) {
+        modal(
+            "Recreate purchase orders", 
+            "All purchase orders for the selected order will be deleted and new will be created. Are you sure?",
+            "confirmation")
+        .then(result => {
+            if (result == 'yes') {
+                get_orders_to_purchase(recreate=true);
+            }
+        });
+    } else {
+        get_orders_to_purchase(recreate=false);
+    }
 }
 
 function open_purchase_order(target) {
