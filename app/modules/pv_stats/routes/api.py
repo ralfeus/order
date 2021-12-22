@@ -44,7 +44,9 @@ def user_create_pv_stat_node():
 @login_required
 def user_delete_pv_stat_node(node_id):
     ''' Deletes a node from a PV Stats view '''
-    node = PVStatsPermissions.query.get((node_id, current_user.id))
+    node = PVStatsPermissions.query. \
+        filter_by(node_id=node_id, user_id=current_user.id). \
+        first()
     if not node:
         abort(Response(f'No node {node_id} was found', status=404))
     db.session.delete(node)
