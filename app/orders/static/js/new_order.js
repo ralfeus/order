@@ -28,7 +28,7 @@ const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
-var g_order = {params: {}};
+var g_order = {params: {shipping: {}}};
 var g_products;
 var g_shipping_methods;
 var g_selected_shipping_method;
