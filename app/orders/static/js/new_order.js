@@ -28,7 +28,7 @@ const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
-var g_order = {params: {}};
+var g_order = {params: {shipping: {}}};
 var g_products;
 var g_shipping_methods;
 var g_selected_shipping_method;
@@ -460,6 +460,10 @@ function shipping_changed() {
         .removeClass('col-10 col-11 col-12')
         .addClass('col-' + width);
     g_selected_shipping_method = $('#shipping').val();
+}
+
+function show_shipping_notification() {
+    modal("Shipping", $('#shipping')[0].selectedOptions[0].dataset.notification);
 }
 
 function submit_order(_sender, draft=false) {
