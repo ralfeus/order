@@ -462,6 +462,10 @@ function shipping_changed() {
     g_selected_shipping_method = $('#shipping').val();
 }
 
+function show_shipping_notification() {
+    modal("Shipping", $('#shipping')[0].selectedOptions[0].dataset.notification);
+}
+
 function submit_order(_sender, draft=false) {
     $('.wait').show();
     // if (!draft && typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
