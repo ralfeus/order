@@ -1,7 +1,9 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
+import json
 from more_itertools import map_reduce
 import re
+import requests
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -688,24 +690,35 @@ def user_get_order_product_status_history(order_product_id):
 @bp_api_admin.route('/subcustomer')
 @roles_required('admin')
 def admin_get_subcustomers():
-    subcustomers = Subcustomer.query
+    # subcustomers = Subcustomer.query
     if request.values.get('draw') is not None: # Args were provided by DataTables
-        filter_clause = f"%{request.values['search[value]']}%"
-        subcustomers, records_total, records_filtered = prepare_datatables_query(
-            subcustomers, request.values,
-            or_(
-                Subcustomer.name.like(filter_clause),
-                Subcustomer.username.like(filter_clause)
-            )
-        )
-        outcome = [entry.to_dict() for entry in subcustomers]
+        response = requests.get(
+            current_app.config['NETWORK_MANAGER_URL'] + "/api/v1/node",
+            headers={'Content-type': 'application/json'},
+            data=json.dumps({
+                "filter": {
+                    "_": request.values['search[value]'], 
+                    "password": "*"
+                }
+            }))
+        subcustomers = json.loads(response.content.decode('utf-8'))
+        return subcustomers, 200
+    #     filter_clause = f"%{request.values['search[value]']}%"
+    #     subcustomers, records_total, records_filtered = prepare_datatables_query(
+    #         subcustomers, request.values,
+    #         or_(
+    #             Subcustomer.name.like(filter_clause),
+    #             Subcustomer.username.like(filter_clause)
+    #         )
+    #     )
+    #     outcome = [entry.to_dict() for entry in subcustomers]
 
-        return jsonify({
-            'draw': request.values['draw'],
-            'recordsTotal': records_total,
-            'recordsFiltered': records_filtered,
-            'data': outcome
-        })
+    #     return jsonify({
+    #         'draw': request.values['draw'],
+    #         'recordsTotal': records_total,
+    #         'recordsFiltered': records_filtered,
+    #         'data': outcome
+    #     })
     if request.values.get('initialValue') is not None:
         sub = Subcustomer.query.get(request.values.get('value'))
         return jsonify(
