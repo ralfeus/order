@@ -316,6 +316,7 @@ def parse_subcustomer(subcustomer_data):
 @login_required
 def user_save_order(order_id):
     ''' Updates existing order '''
+    logger = logging.getLogger(f'user_save_order:{order_id}')
     order = Order.query.get(order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
@@ -327,6 +328,8 @@ def user_save_order(order_id):
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
     payload = request.get_json()
+    logger.info('Modifying order by %s with data: %s',
+                current_user, payload)
     if not ('draft' in payload.keys() and payload['draft']) and order.status == OrderStatus.draft:
         db.session.delete(order)
         return user_create_order()
