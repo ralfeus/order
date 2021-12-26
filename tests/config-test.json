@@ -22,6 +22,7 @@
 
     "SELENIUM_DRIVER": "/usr/local/bin/chromedriver",
     "SELENIUM_LOG_PATH": "chromedriver.test.log",
+    "NETWORK_MANAGER_URL": "http://localhost:5001",
     "MODULES": {
         "warehouse": {
             "enabled": true
