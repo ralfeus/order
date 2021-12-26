@@ -1,5 +1,5 @@
 '''Subcustomer model'''
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, or_
 from sqlalchemy.orm import relationship, validates
 
 from app import db
@@ -14,7 +14,7 @@ class Subcustomer(db.Model, BaseModel):
     username = Column(String(16))
     password = Column(String(32))
     in_network = Column(Boolean())
-    suborders = relationship("Suborder", lazy='dynamic')
+    # suborders = relationship("Suborder", lazy='dynamic')
 
     def __repr__(self):
         return "<Subcustomer: {} {}>".format(self.id, self.name)
@@ -33,15 +33,26 @@ class Subcustomer(db.Model, BaseModel):
             raise ValueError(f'The <{key}> length should be up to 32 characters')
         return value
 
+    @classmethod
+    def get_filter(cls, base_filter, column=None, filter_value=None):
+        part_filter = f'%{filter_value}%'
+        filter_values = filter_value.split(',')
+        if column is None:
+            return \
+                base_filter.filter(or_(
+                    Subcustomer.name.like(part_filter),
+                    Subcustomer.username.like(part_filter)
+                ))
+
     def is_internal(self):
         '''Defines whether subcustomer belongs to tenant's network'''
         if self.in_network is None:
             return Node.query.get(self.username) is not None
         return self.in_network
 
-    def get_purchase_orders(self):
-        '''Returns all purchase orders of the subcustomer'''
-        return map(lambda s: s.get_purchase_order(), self.suborders)
+    # def get_purchase_orders(self):
+    #     '''Returns all purchase orders of the subcustomer'''
+    #     return map(lambda s: s.get_purchase_order(), self.suborders)
 
     def to_dict(self):
         '''Returns dict representation of the object'''

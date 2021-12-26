@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from tests import BaseTestCase, db
 from app.users.models.role import Role
 from app.users.models.user import User
@@ -20,8 +21,24 @@ class TestSubcustomersApi(BaseTestCase):
             self.user, self.admin, admin_role,
             Product(id='0000', name='Test product', price=10, weight=10)        
         ])
+        
+    def test_get_subcustomer(self):
+        self.try_add_entities([
+            Subcustomer(username='s1')
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/order/subcustomer')
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.json[0]['id'])
+        res = self.client.get('/api/v1/admin/order/subcustomer?draw=1&search[value]=s1')
+        self.assertEqual(res.json['data'][0]['username'], 's1')
+        res = self.client.get('/api/v1/admin/order/subcustomer?q=s1&page=1')
+        self.assertEqual(res.json['results'][0]['username'], 's1')  
 
-    def test_create_subcustomer(self):
+    @patch('app.orders.routes.subcustomer_api._invoke_node_api')
+    def test_create_subcustomer(self, invoke_node_api_mock):
+        invoke_node_api_mock.return_value = None
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/order/subcustomer', json={
                 "name":"Subcustomer1",
@@ -39,7 +56,9 @@ class TestSubcustomersApi(BaseTestCase):
         res = self.client.post('/api/v1/admin/order/subcustomer', json={})
         self.assertEqual(res.status_code, 400)
 
-    def test_save_subcustomer(self):
+    @patch('app.orders.routes.subcustomer_api._invoke_node_api')
+    def test_save_subcustomer(self, invoke_node_api_mock):
+        invoke_node_api_mock.return_value = None
         subcustomer1 = Subcustomer(name='S1', username='s1', password='p1')
         subcustomer2 = Subcustomer(name='S2', username='s2', password='p1')
         self.try_add_entities([subcustomer1, subcustomer2])
@@ -76,3 +95,4 @@ class TestSubcustomersApi(BaseTestCase):
         self.assertEqual(res.status_code, 409)
         res = self.client.delete('/api/v1/admin/order/subcustomer/999')
         self.assertEqual(res.status_code, 404)
+

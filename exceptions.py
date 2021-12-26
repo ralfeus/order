@@ -12,7 +12,9 @@ class FilterError(Exception):
     pass
 
 class HTTPError(Exception):
-    pass
+    def __init__(self, status=None):
+        super().__init__()
+        self.status = status
 
 class NoPurchaseOrderError(Exception):
     pass

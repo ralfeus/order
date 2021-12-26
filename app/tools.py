@@ -48,7 +48,7 @@ def write_to_file(path, data):
         file.write(data)
         file.close()
 
-def prepare_datatables_query(query, args, filter_clause):
+def prepare_datatables_query(query, args, filter_clause=None):
     logger = logging.getLogger('prepare_datatables_query')
     def get_column(query, column_name):
         try:
@@ -60,7 +60,7 @@ def prepare_datatables_query(query, args, filter_clause):
     if not isinstance(args, MultiDict):
         raise AttributeError("Arguments aren't of MultiDict type")
     args = convert_datatables_args(args)
-    columns = args['columns']
+    columns = args.get('columns') or []
     records_total = query.count()
     query_filtered = query
     # Filtering .....
@@ -83,7 +83,7 @@ def prepare_datatables_query(query, args, filter_clause):
                     raise FilterError(f"Couldn't figure out how to filter the column '{column_name}' in the object {target_model}. Probably {target_model} has no get_filter() implemented or get_filter() doesn't filter by '{column_name}'")
     records_filtered = query_filtered.count()
     # Sorting
-    for sort_column_input in args['order']:
+    for sort_column_input in args.get('order') or []:
         sort_column_name = columns[int(sort_column_input['column'])]['data']
         #logger.debug(sort_column_name)
         if sort_column_name != '':
@@ -92,8 +92,9 @@ def prepare_datatables_query(query, args, filter_clause):
                 sort_column = sort_column.desc()
             query_filtered = query_filtered.order_by(sort_column)
     # Limiting to page
-    query_filtered = query_filtered.offset(args['start']). \
-                                           limit(args['length'])
+    if args.get('start') is not None and args.get('length') is not None:
+        query_filtered = query_filtered.offset(args['start']) \
+                                       .limit(args['length'])
 
     return (query_filtered, records_total, records_filtered)
 
