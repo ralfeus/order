@@ -50,6 +50,16 @@ $(document).ready(() => {
             {data: 'when_updated'}
         ],
         select: true,
-        processsing: true
+        processsing: true,
+        rowCallback: update_row
     });
 });
+
+async function update_row(row, data, displayNum, displayIndex, dataIndex) {
+    if (data.update_now && !data.is_being_updated) {
+        fetch(`/api/v1/pv_stats/${data.id}/get`).then(result => {
+            data.network_pv = result.network_pv;
+        });
+        $('td:eq(0)', row).html(`<img src="/static/images/wait.gif" />${$('td:eq(0)', row).html()}`);
+    }
+}

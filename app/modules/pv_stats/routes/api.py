@@ -9,9 +9,10 @@ from flask_security import current_user, login_required, roles_required
 from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
+from exceptions import HTTPError
 
 from .. import bp_api_admin, bp_api_user
-from ..models import PVStatsPermissions
+from ..models import PVStat
 
 
 def _filter_nodes(nodes, filter_params):
@@ -31,7 +32,7 @@ def user_create_pv_stat_node():
     payload = request.get_json()
     if payload.get('node_id') is None:
         abort(400)
-    node = PVStatsPermissions(
+    node = PVStat(
         user_id=current_user.id,
         node_id=payload['node_id'],
         allowed=current_user.has_role('admin')
@@ -44,7 +45,7 @@ def user_create_pv_stat_node():
 @login_required
 def user_delete_pv_stat_node(node_id):
     ''' Deletes a node from a PV Stats view '''
-    node = PVStatsPermissions.query. \
+    node = PVStat.query. \
         filter_by(node_id=node_id, user_id=current_user.id). \
         first()
     if not node:
@@ -63,24 +64,26 @@ def user_get_pv_stats():
             node.update(node_pv[0])
         return node
 
-    nodes_query = PVStatsPermissions.query.filter_by(user_id=current_user.id)
-    if request.values.get('draw') is None: 
+    nodes_query = PVStat.query.filter_by(user_id=current_user.id)
+    if request.values.get('draw') is None:
         nodes = [node.to_dict() for node in nodes_query]
     else: # DataTables is serverSide based
         nodes = _filter_nodes(nodes_query, request.values).json
 
     root_id = Setting.query.get('network.root_id').value
-    response = requests.get(
-        current_app.config['NETWORK_MANAGER_URL'] + '/api/v1/node',
-        data=json.dumps({
-            'root_id': root_id,
-            'filter': {
-                'id': [node['node_id'] for node in nodes if node['allowed']]
-            }
-        }),
-        headers={'Content-type': 'application/json'})
-    pv_data = json.loads(response.content.decode('utf-8'))
-    pv_data['data'] = [{'node_name': entry['name'], **entry} for entry in pv_data['data']]
+    pv_data = _invoke_node_api('/api/v1/node', data={
+        'root_id': root_id,
+        'filter': {
+            'id': [node['node_id'] for node in nodes if node['allowed']]
+        }
+    })
+    pv_data['data'] = [
+        {
+            'node_name': entry['name'],
+            'update_now': entry['password'] is not None,
+            **entry
+        } for entry in pv_data['data']
+    ]
 
     combined_data = [
         combine(node,
@@ -98,7 +101,7 @@ def user_get_pv_stats():
 @bp_api_admin.route('/permission')
 @roles_required('admin')
 def admin_get_nodes_permissions():
-    nodes = PVStatsPermissions.query
+    nodes = PVStat.query
     if request.values.get('draw') is not None:
         # DataTables requires server side processing
         return _filter_nodes(nodes, request.values)
@@ -107,10 +110,23 @@ def admin_get_nodes_permissions():
 @bp_api_admin.route('/permission/<id>', methods=['POST'])
 @roles_required('admin')
 def admin_save_node_permission(id):
-    node = PVStatsPermissions.query.get(id)
+    node = PVStat.query.get(id)
     if node is None:
         abort(404)
     payload = request.get_json()
     node.allowed = payload.get('allow')
     db.session.commit()
     return jsonify({'data': [node.to_dict()]})
+
+def _invoke_node_api(path, method='get', data={}):
+    response = requests.request(
+        method=method,
+        url=current_app.config['NETWORK_MANAGER_URL'] + path,
+        headers={'Content-type': 'application/json'},
+        data=json.dumps(data))
+    if response.status_code in (200, 201):
+        return json.loads(response.content.decode('utf-8'))
+    elif response.status_code == 404:
+        return None
+    else:
+        raise HTTPError(status=response.status_code)
