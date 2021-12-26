@@ -36,25 +36,20 @@
             "justMyCode": true
         },
         {
-            "name": "Python: Flask - network_builder",
-            "type": "python",
+            "name": "Docker: Network manager",
+            "type": "docker",
             "request": "launch",
-            "module": "flask",
-            "cwd": "${workspaceFolder}/network_builder",
-            "env": {
-                "FLASK_APP": "app:app",
-                "FLASK_ENV": "development",
-                "FLASK_DEBUG": "1"
+            "preLaunchTask": "docker-run: debug",
+            "python": {
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}/network_builder",
+                        "remoteRoot": "/app"
+                    }
+                ],
+                "projectType": "flask"
             },
-            "args": [
-                "run",
-                "--host",
-                "0.0.0.0",
-                "--port",
-                "5001"
-            ],
-            "jinja": true,
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }

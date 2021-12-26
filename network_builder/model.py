@@ -24,7 +24,6 @@ class CustomDateProperty(DateProperty):
 class AtomyPerson(StructuredNode):
     '''Atomy person object as it's saved in Neo4j'''
     atomy_id = StringProperty(unique_index=True, required=True)
-    password = StringProperty()
     name = StringProperty()
     rank = StringProperty()
     highest_rank = StringProperty()
