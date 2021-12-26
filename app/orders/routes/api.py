@@ -1,5 +1,6 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
+import logging
 from more_itertools import map_reduce
 import re
 
@@ -19,7 +20,6 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
-from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
@@ -565,7 +565,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
-    logger = current_app.logger.getChild(f'admin_save_order:{order_id}')
+    logger = logging.getLogger(f'admin_save_order:{order_id}')
     order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
