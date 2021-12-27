@@ -74,12 +74,19 @@
   </tbody>
 </table>
 {% for suborder in order.suborders %}
-<span class="h4" style="background-color: grey;">
-  {{ suborder.id }}: {{ suborder.subcustomer.name }}
-  <span class="h5">
-    {{ suborder.subcustomer.username }} {{ suborder.subcustomer.password }}
+<div class="row">
+  <span class="h4 col-8" style="background-color: grey;">
+    {{ suborder.id }}: {{ suborder.subcustomer.name }}
+    <span class="h5">
+      {{ suborder.subcustomer.username }} {{ suborder.subcustomer.password }}
+    </span>
   </span>
-</span>
+  {% if suborder.buyout_date %}
+  <span class="h6 col-4 align-middle" style="background-color: yellow; text-align: right;">
+    Purchase date: {{suborder.buyout_date.strftime('%Y-%m-%d')}}
+  </span>
+  {% endif %}
+</div>
 <table class="table">
   <thead>
     <th scope="col" style="width: 1em;">Product ID</th>
