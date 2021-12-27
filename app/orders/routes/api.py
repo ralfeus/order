@@ -1,5 +1,6 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
+import logging
 from more_itertools import map_reduce
 import re
 
@@ -18,7 +19,6 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderStatus, Suborder, Subcustomer
-from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
@@ -276,6 +276,7 @@ def _add_suborder(order, suborder_data, errors):
 @login_required
 def user_save_order(order_id):
     ''' Updates existing order '''
+    logger = logging.getLogger(f'user_save_order:{order_id}')
     order = Order.query.get(order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
@@ -287,6 +288,8 @@ def user_save_order(order_id):
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
     payload = request.get_json()
+    logger.info('Modifying order by %s with data: %s',
+                current_user, payload)
     if not ('draft' in payload.keys() and payload['draft']) and order.status == OrderStatus.draft:
         db.session.delete(order)
         return user_create_order()
@@ -525,7 +528,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
-    logger = current_app.logger.getChild(f'admin_save_order:{order_id}')
+    logger = logging.getLogger(f'admin_save_order:{order_id}')
     order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
