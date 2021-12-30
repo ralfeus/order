@@ -10,8 +10,7 @@ from flask_security import current_user, login_required, roles_required
 from sqlalchemy import and_, not_, or_
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
-from utils.atomy import atomy_login
-from exceptions import AtomyLoginError, EmptySuborderError, NoShippingRateError, \
+from exceptions import EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 
 from app import db
@@ -24,6 +23,8 @@ from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
+
+from ..utils import parse_subcustomer
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
@@ -270,47 +271,6 @@ def _add_suborder(order, suborder_data, errors):
         except:
             # current_app.logger.exception("Couldn't add product %s", item['item_code'])
             pass
-
-def parse_subcustomer(subcustomer_data):
-    '''Returns a tuple of customer from raw data
-    and indication whether customer is existing one or created'''
-    parts = subcustomer_data.split(',', 2)
-    try:
-        subcustomer = Subcustomer.query.filter(
-            Subcustomer.username == parts[0].strip()).first()
-        if subcustomer:
-            if len(parts) >= 2 and subcustomer.name != parts[1].strip():
-                subcustomer.name = parts[1].strip()
-            if len(parts) == 3 and subcustomer.password != parts[2].strip():
-                subcustomer.password = parts[2].strip()
-            return subcustomer, False
-    except DataError as ex:
-        message = ex.orig.args[1]
-        match = re.search('(INSERT INTO|UPDATE) (.+?) ', ex.statement)
-        if match:
-            table = match.groups()[1]
-            if table:
-                if table == 'subcustomers':
-                    message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
-            result = {
-                'status': 'error',
-                'message': f"""Couldn't parse the subcustomer due to input error. Check your form and try again.
-                            {message}"""
-            }
-    except IndexError:
-        pass # the password wasn't provided, so we don't update
-    try:
-        subcustomer = Subcustomer(
-            username=parts[0].strip(),
-            name=parts[1].strip(),
-            password=parts[2].strip(),
-            when_created=datetime.now())
-        # db.session.add(subcustomer)
-        return subcustomer, True
-    except ValueError as ex:
-        raise SubcustomerParseError(str(ex))
-    except IndexError:
-        raise SubcustomerParseError("The subcustomer string doesn't conform <ID, Name, Password> format")
 
 @bp_api_user.route('/<order_id>', methods=['POST'])
 @login_required
@@ -688,121 +648,6 @@ def user_get_order_product_status_history(order_product_id):
 
     return jsonify([entry.to_dict() for entry in order_product.status_history])
 
-@bp_api_admin.route('/subcustomer')
-@roles_required('admin')
-def admin_get_subcustomers():
-    subcustomers = Subcustomer.query
-    if request.values.get('draw') is not None: # Args were provided by DataTables
-        filter_clause = f"%{request.values['search[value]']}%"
-        subcustomers, records_total, records_filtered = prepare_datatables_query(
-            subcustomers, request.values,
-            or_(
-                Subcustomer.name.like(filter_clause),
-                Subcustomer.username.like(filter_clause)
-            )
-        )
-        outcome = [entry.to_dict() for entry in subcustomers]
-
-        return jsonify({
-            'draw': request.values['draw'],
-            'recordsTotal': records_total,
-            'recordsFiltered': records_filtered,
-            'data': outcome
-        })
-    if request.values.get('initialValue') is not None:
-        sub = Subcustomer.query.get(request.values.get('value'))
-        return jsonify(
-            {'id': sub.id, 'text': sub.name} \
-                if sub is not None else {})
-    if request.values.get('q') is not None:
-        subcustomers = subcustomers.filter(or_(
-            Subcustomer.name.like(f'%{request.values["q"]}%'),
-            Subcustomer.username.like(f'%{request.values["q"]}%')
-        ))
-    if request.values.get('page') is not None:
-        page = int(request.values['page'])
-        total_results = subcustomers.count()
-        subcustomers = subcustomers.offset((page - 1) * 100).limit(page * 100)
-        return jsonify({
-            'results': [entry.to_dict() for entry in subcustomers],
-            'pagination': {
-                'more': total_results > page * 100
-            }
-        })
-    return jsonify([entry.to_dict() for entry in subcustomers])
-
-@bp_api_admin.route('/subcustomer', methods=['POST'])
-@roles_required('admin')
-def admin_create_subcustomer():
-    payload = request.get_json()
-    if payload is None:
-        abort(Response("No customer data is provided", status=400))
-    try:
-        if Subcustomer.query.filter_by(username=payload['username']).first():
-            abort(Response("Subcustomer with such username already exists", status=409))
-        subcustomer = Subcustomer(
-            name=payload['name'],
-            username=payload['username'],
-            password=payload['password']
-        )
-        db.session.add(subcustomer)
-        db.session.commit()
-        return jsonify(subcustomer.to_dict())
-    except KeyError:
-        abort(Response("Not all subcustomer data is provided", status=400))
-    
-@bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['POST'])
-@roles_required('admin')
-def admin_save_subcustomer(subcustomer_id):
-    payload = request.get_json()
-    if payload is None:
-        abort(Response("No customer data is provided", status=400))
-    subcustomer = Subcustomer.query.get(subcustomer_id)
-    if subcustomer is None:
-        abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
-
-    if payload.get('username') and \
-        Subcustomer.query.filter_by(username=payload['username']).count() > 0:
-        abort(Response(
-            f"Subcustomer with username <{payload['username']}> already exists",
-            status=409))
-    modify_object(subcustomer, payload, ['name', 'username', 'password', 'in_network'])
-    db.session.commit()
-    return jsonify(subcustomer.to_dict())
-
-@bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['DELETE'])
-@roles_required('admin')
-def admin_delete_subcustomer(subcustomer_id):
-    subcustomer = Subcustomer.query.get(subcustomer_id)
-    if subcustomer is None:
-        abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
-    owned_suborders = Suborder.query.filter_by(subcustomer=subcustomer)
-    if owned_suborders.count() > 0:
-        suborder_ids = ','.join([s.id for s in owned_suborders])
-        abort(Response(
-            f"Can't delete subcustomer that has suborders: {suborder_ids}", status=409))
-    db.session.delete(subcustomer)
-    db.session.commit()
-    return jsonify({'status': 'success'})
-
-
-@bp_api_user.route('/subcustomer/validate', methods=['POST'])
-@login_required
-def validate_subcustomer():
-    payload = request.get_json()
-    if not payload or not payload.get('subcustomer'):
-        abort(Response('No subcustomer data was provided', status=400))
-    
-    current_app.logger.debug(f"Validating subcustomer {payload}")
-    try:
-        subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
-        atomy_login(subcustomer.username, subcustomer.password, run_browser=False)
-        return jsonify({'result': 'success'})
-    except SubcustomerParseError as ex:
-        return jsonify({'result': 'failure', 'message': str(ex)})
-    except AtomyLoginError as ex:
-        current_app.logger.info("Couldn't validate subcustomer %s", payload)
-        return jsonify({'result': 'failure', 'message': str(ex)})
 
 def get_order_product(order_product_id):
     order_product = OrderProduct.query

@@ -22,5 +22,6 @@
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
     "remote.SSH.useLocalServer": false,
-    "docker.imageBuildContextPath": "."
+    "docker.imageBuildContextPath": ".",
+    "workbench.list.keyboardNavigation": "filter"
 }

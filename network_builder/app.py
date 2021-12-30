@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 '''Network manager Flask application'''
 
-from json import JSONEncoder
+import flask.json
 import logging
 
 from flask import Flask
@@ -10,14 +10,17 @@ from neomodel import config
 ################### JSON serialization patch ######################
 # In order to have all objects use to_dict() function providing
 # dictionary for JSON serialization
-def _default(self, obj):
-    return getattr(obj.__class__, "to_dict", _default.default)(obj)
+class JSONEncoder(flask.json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return obj.to_dict()
+        except:
+            return super().default(obj)
 
-_default.default = JSONEncoder.default  # Save unmodified default.
-JSONEncoder.default = _default # Replace it.
 ###################################################################
 
 app = Flask(__name__)
+app.json_encoder = JSONEncoder
 app.config.from_json('config.json')
 app.config['JSON_AS_ASCII'] = False
 config.DATABASE_URL = app.config['NEO4J_URL']

@@ -1,2 +1,2 @@
 '''Exports PV Stats models'''
-from .pv_stats_permissions import PVStatsPermissions
+from .pv_stat import PVStat

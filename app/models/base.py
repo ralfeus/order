@@ -26,7 +26,7 @@ class BaseModel:
                 setattr(self, arg, kwargs[arg])
 
     @classmethod
-    def get_filter(cls, base_filter, column = None, filter_value = None):
+    def get_filter(cls, base_filter, column=None, filter_value=None):
         '''Abstract method for returning a filter for a model'''
         raise NotImplementedError(f'get_filter() is not implemented for {cls}')
 
