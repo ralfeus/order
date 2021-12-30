@@ -82,7 +82,7 @@ def user_get_pv_stats():
     pv_data['data'] = [
         {
             'node_name': entry['name'],
-            'update_now': entry['password'] is not None,
+            'update_now': entry.get('password') is not None,
             **entry
         } for entry in pv_data['data']
     ]

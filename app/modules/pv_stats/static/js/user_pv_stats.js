@@ -68,6 +68,8 @@ async function update_rows(settings, data) {
             fetch(`/api/v1/pv_stats/${row.id}`).then(result => {
                 result.json().then(response => {
                     row.network_pv = response.network_pv;
+		    row.left_pv = response.left_pv;
+		    row.right_pv = response.right_pv;
                     row.is_being_updated = false;
                     row_api.data(row).draw();
                 });
