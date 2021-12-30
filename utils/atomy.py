@@ -44,7 +44,7 @@ class SessionManager:
             self.__session = atomy_login(
                 username=self.__username, password=self.__password, run_browser=False)
 
-    def get_document(self, url, raw_data, headers={}):
+    def get_document(self, url, raw_data=None, headers={}):
         logger = logging.getLogger('SessionManager.get_document()')
         attempts_left = 3
         while attempts_left:
@@ -58,14 +58,15 @@ class SessionManager:
                 self.__create_session()
                 attempts_left -= 1
     
-    def get_json(self, url, raw_data, headers={}):
+    def get_json(self, url, raw_data=None, headers={}, method='get'):
         _logger = logging.getLogger('SessionManager.get_json()')
         attempts_left = 3
         while attempts_left:
             try:
-                content = invoke_curl(url, raw_data, 
-                    headers=[{'Cookie': c} for c in self.__session] + \
-                            [{key: value} for key, value in headers.items()])
+                content = invoke_curl(url, method=method, raw_data=raw_data,
+                    headers=[{'Cookie': c} for c in self.__session] +
+                            [{key: value} for key, value in headers.items()] +
+                            [{"Content-type": "application/json"}])
                 return json.loads(content)
             except AtomyLoginError:
                 _logger.info("Session expired. Logging in")
@@ -161,7 +162,7 @@ def get_document_from_url(url, headers=None, raw_data=None):
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
-    raw_data = ['--data-raw', raw_data] if raw_data else None
+    raw_data = ['--data-raw', raw_data] if raw_data else []
     run_params = [
         '/usr/bin/curl',
         url,
@@ -190,15 +191,16 @@ def get_document_from_url(url, headers=None, raw_data=None):
     except TypeError:
         _logger.exception(run_params)
 
-def invoke_curl(url, raw_data, headers):
+def invoke_curl(url, raw_data, headers, method='get'):
     _logger = logger.getChild('get_document_from_url')
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
-    raw_data = ['--data-raw', raw_data] if raw_data else None
+    raw_data = ['--data-raw', raw_data] if raw_data else []
     run_params = [
         '/usr/bin/curl',
         url,
+        '-X', method,
         '-v'
         ] + headers_list + raw_data
     try:

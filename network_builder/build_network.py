@@ -165,7 +165,7 @@ def build_network(user, password, root_id='S5832131',
                 n1, l.network_pv AS l_pv, 
                 CASE r WHEN NULL THEN 0 ELSE r.network_pv END AS r_pv,
                 CASE n1.total_pv WHEN NULL THEN 0 ELSE n1.total_pv END AS t_pv
-            SET n1.network_pv = l_pv + r_pv + n1.total_pv
+            SET n1.network_pv = l_pv + r_pv + t_pv
             RETURN n1.atomy_id AS id, n1.total_pv AS t_pv, n1.network_pv AS n_pv, l_pv, r_pv
         }
         RETURN COUNT(*)

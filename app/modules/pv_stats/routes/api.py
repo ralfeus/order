@@ -1,5 +1,6 @@
 '''API routes for warehouse module'''
-from itertools import zip_longest
+from calendar import monthrange
+from datetime import datetime
 import json
 import requests
 
@@ -9,7 +10,8 @@ from flask_security import current_user, login_required, roles_required
 from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
-from exceptions import HTTPError
+from exceptions import AtomyLoginError, HTTPError
+from utils.atomy import SessionManager
 
 from .. import bp_api_admin, bp_api_user
 from ..models import PVStat
@@ -60,9 +62,9 @@ def user_get_pv_stats():
     ''' Returns all or selected PV stats in JSON '''
     def combine(node, node_pv):
         '''Update PV stats from network_manager result and return'''
-        if len(node_pv) > 0:
-            node.update(node_pv[0])
-        return node
+        # if len(node_pv) > 0:
+        #     node.update(node_pv[0])
+        return {**node, **node_pv[0]} if len(node_pv) > 0 else node
 
     nodes_query = PVStat.query.filter_by(user_id=current_user.id)
     if request.values.get('draw') is None:
@@ -97,6 +99,53 @@ def user_get_pv_stats():
         'recordsFiltered': nodes['recordsFiltered'],
         'data': combined_data
     })
+
+@bp_api_user.route('/<node_id>')
+@login_required
+def user_get_node_stats(node_id):
+    nodes_query = PVStat.query.filter_by(user_id=current_user.id, node_id=node_id)
+    if nodes_query.count() == 0:
+        abort(403)
+    node = _invoke_node_api(f'/api/v1/node/{node_id}')
+    if node is None:
+        abort(404)
+    if node.get('password') is None:
+        abort(Response("The node has no password", status=409))
+    try:
+        session = SessionManager(username=node_id, password=node['password'])
+    except AtomyLoginError:
+        abort(Response("Node's password is wrong", status=409))
+    node.update(nodes_query.first().to_dict())
+
+    # Build selection range
+    today = datetime.today()
+    month_range = monthrange(today.year, today.month)
+    start_date = today.strftime('%Y-%m-01' if today.day < 16 else '%Y-%m-16')
+    end_date = today.strftime(f'%Y-%m-{15 if today.day < 16 else month_range[1]:02d}')
+    stats = session.get_json(
+        "https://www.atomy.kr/v2/Home/MyAtomy/GetSponsorBenefitOccurList",
+        method='POST',
+        raw_data=json.dumps({
+            "CurrentPageNo": 1,
+            "StartDt": start_date,
+            "EndDt": end_date,
+            "PageSize": 30
+    }))
+    left_pv = 0
+    right_pv = 0
+    for item in stats['jsonData']:
+        left_pv += item['Lamt']
+        right_pv += item['Ramt']
+    node.update({
+        'left_pv': left_pv,
+        'right_pv': right_pv,
+        'network_pv': node['total_pv'] + left_pv + right_pv,
+        'is_being_updated': False,
+        'update_now': False
+    })
+
+    return jsonify(node)
+
 
 @bp_api_admin.route('/permission')
 @roles_required('admin')

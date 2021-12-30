@@ -20,7 +20,7 @@ $(document).ready(() => {
             {label: 'Node ID', name: 'node_id'}
         ]
     });          
-    $('#pv_stats').DataTable({
+    g_pv_stats_table = $('#pv_stats').DataTable({
         dom: 'rBtip',
         ajax: {
             url: '/api/v1/pv_stats',
@@ -30,6 +30,7 @@ $(document).ready(() => {
             {extend: 'create', editor: editor, text: "New"},
             {extend: 'remove', editor: editor, text: "Remove"}
         ],
+        rowId: 'node_id',
         rowGroup: {
             dataSrc: 'allowed',
             startRender: (rows, group) => {
@@ -37,29 +38,41 @@ $(document).ready(() => {
             }
         },
         columns: [
+            {
+                data: 'is_being_updated',
+                render: data => data ? '<img src="/static/images/loaderB16.gif" />' : ''
+            },
             {data: 'node_id'},
             {data: 'node_name'},
-            {data: 'pv'},
             {data: 'network_pv'},
+            {data: 'left_pv'},
+            {data: 'right_pv'},
             {
                 data: 'allowed',
-                render: data => {
-                    return data ? "Allowed" : "Pending";
-                }
+                render: data => data ? "Allowed" : "Pending"
             },
             {data: 'when_updated'}
         ],
         select: true,
         processsing: true,
-        rowCallback: update_row
+        initComplete: update_rows,
+        order: [[1, 'asc']]
     });
 });
 
-async function update_row(row, data, displayNum, displayIndex, dataIndex) {
-    if (data.update_now && !data.is_being_updated) {
-        fetch(`/api/v1/pv_stats/${data.id}/get`).then(result => {
-            data.network_pv = result.network_pv;
-        });
-        $('td:eq(0)', row).html(`<img src="/static/images/wait.gif" />${$('td:eq(0)', row).html()}`);
-    }
+async function update_rows(settings, data) {
+    var api = new $.fn.dataTable.Api( settings );
+    data.data.forEach(row => {
+        var row_api = api.row(`#${row.node_id}`);
+        if (row.update_now && !row.is_being_updated) {
+            fetch(`/api/v1/pv_stats/${row.id}`).then(result => {
+                result.json().then(response => {
+                    row.network_pv = response.network_pv;
+                    row.is_being_updated = false;
+                    row_api.data(row).draw();
+                });
+            });
+            $('td:eq(0)', row_api.node()).html('<img src="/static/images/loaderB16.gif" />');
+        }
+    });
 }
