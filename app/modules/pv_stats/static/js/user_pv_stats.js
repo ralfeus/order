@@ -53,6 +53,10 @@ $(document).ready(() => {
             },
             {data: 'when_updated'}
         ],
+        columnDefs: [{
+            targets: [3, 4, 5],
+            render: $.fn.dataTable.render.number(' ', '.')
+        }],
         select: true,
         processsing: true,
         initComplete: update_rows,
