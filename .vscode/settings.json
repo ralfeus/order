@@ -23,5 +23,6 @@
     "python.linting.enabled": true,
     "remote.SSH.useLocalServer": false,
     "docker.imageBuildContextPath": ".",
-    "workbench.list.keyboardNavigation": "filter"
+    "workbench.list.keyboardNavigation": "filter",
+    "python.pythonPath": "bin/python"
 }
