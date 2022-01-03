@@ -51,11 +51,12 @@ $(document).ready( function () {
             {data: 'id'},
             {data: 'customer', className: 'editable'},
             {name: 'orders', data: row => row.orders.join()},
+            {name: 'shippings', data: row => row.shippings.join()},
             {data: 'total'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],
-        order: [[5, 'desc']],
+        order: [[6, 'desc']],
         select: true,
         serverSide: true,
         processing: true,

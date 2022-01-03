@@ -142,7 +142,8 @@ class Invoice(db.Model):
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') 
                             if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') 
-                            if self.when_changed else None
+                            if self.when_changed else None,
+            'shippings': list({order.shipping.name for order in self.orders if order.shipping is not None})
         }
         if details:
             result = { **result,
