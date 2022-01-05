@@ -355,7 +355,7 @@ def _update_order(order, payload):
         order.phone = payload['phone']
     if payload.get('comment') and order.comment != payload['comment']:
         order.comment = payload['comment']
-    if payload.get('attached_orders'):
+    if payload.get('attached_orders') is not None:
         order.attach_orders(payload['attached_orders'])
 
 def _update_suborder(order, order_products, suborder_data, errors):

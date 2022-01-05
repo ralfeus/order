@@ -1,3 +1,4 @@
+import logging
 import math
 
 from . import Shipping
@@ -39,6 +40,7 @@ class DHL(Shipping):
                 .scalar() is not None
 
     def get_shipping_cost(self, destination, weight):
+        logger = logging.getLogger("DHL::get_shipping_cost()")
         weight = int(weight) / 1000
         rate = db.session.execute(dhl_countries
             .join(dhl_zones)
@@ -53,4 +55,6 @@ class DHL(Shipping):
         if weight > 30:
             return rate * math.ceil(weight)
 
+        logger.debug("Shipping rate for %skg parcel to %s is %s",
+                     weight, destination, rate)
         return rate
