@@ -78,6 +78,9 @@ class TestSubcustomersApi(BaseTestCase):
                 "password":"p1",
         })
         self.assertEqual(res.status_code, 409)
+        res = self.client.post(f'/api/v1/admin/order/subcustomer/{subcustomer1.id}', json={
+            'password': 'p1'
+        })
 
     def test_delete_subcustomer(self):
         subcustomer1 = Subcustomer(name='S1', username='s1', password='p1')
