@@ -195,7 +195,7 @@ class Order(db.Model, BaseModel):
         return "<Order: {}>".format(self.id)
 
     def attach_orders(self, orders):
-        if orders:
+        if isinstance(orders, list) and len(orders) > 0:
             if isinstance(orders[0], Order):
                 self.attached_orders = orders
             else:
@@ -412,6 +412,12 @@ class Order(db.Model, BaseModel):
             logger.debug("\tSubtotal (KRW): %s", suborder.total_krw)
             logger.debug("\tTotal weight: %s", suborder.total_weight)
 
+        order_weight = reduce(lambda acc, sub: acc + sub.total_weight,
+                              self.suborders, 0)
+        logger.debug("Total order weight: %s", order_weight)
+        attached_orders_weight = reduce(lambda acc, ao: acc + ao.total_weight,
+                                        self.attached_orders, 0)
+        logger.debug("Attached orders weight: %s", attached_orders_weight)
         if self.shipping is None:
             if self.shipping_method_id is not None:
                 self.shipping = Shipping.query.get(self.shipping_method_id)
@@ -421,21 +427,20 @@ class Order(db.Model, BaseModel):
                     self.shipping = NoShipping()
         logger.debug("Shipping: %s", self.shipping)
         if not self.total_weight_set_manually:
-            self.total_weight = reduce(lambda acc, sub: acc + sub.total_weight,
-                                    self.suborders, 0) + \
-                                reduce(lambda acc, ao: acc + ao.total_weight,
-                                    self.attached_orders, 0)
+            self.total_weight = order_weight + attached_orders_weight
             self.shipping_box_weight = reduce(lambda acc, b: acc + b.weight,
                                             self.boxes, 0) \
                 if self.boxes.count() > 0 \
                 else self.shipping.get_box_weight(self.total_weight) \
                     if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
                     else 0
-            logger.debug("Total weight: %s", self.total_weight)
+            logger.debug("Total weight (calculated): %s", self.total_weight)
+            logger.debug("Box weight: %s", self.shipping_box_weight)
+            logger.debug("Total weight (calculated) with box: %s",
+                         self.total_weight + self.shipping_box_weight)
         else:
             self.shipping_box_weight = 0
             logger.debug("Total weight (set manually): %s", self.total_weight)
-        logger.debug("Box weight: %s", self.shipping_box_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)
         self.subtotal_krw = reduce(
