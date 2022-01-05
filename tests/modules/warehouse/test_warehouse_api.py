@@ -110,15 +110,21 @@ class TestWarehouseApi(BaseTestCase):
                 warehouse_id=w.id, product_id='0000').first().quantity,
             2)
 
-    def delete_warehouse_product(self):   
+    def test_delete_warehouse_product(self):   
         w = Warehouse(name='W1')
         self.try_add_entities([
-            w, Product(id='0000', name='P1')
+            w, Product(id='0001', name='P1'),
+            w, Product(id='0002', name='P2'),
+            w, Product(id='0003', name='P3')
         ])
         self.try_add_entities([
-            WarehouseProduct(warehouse_id=w.id, product_id='0000', quantity=1)
+            WarehouseProduct(warehouse_id=w.id, product_id='0001', quantity=1),
+            WarehouseProduct(warehouse_id=w.id, product_id='0002', quantity=1),
+            WarehouseProduct(warehouse_id=w.id, product_id='0003', quantity=1)
         ])
         self.try_admin_operation(lambda:
-            self.client.delete(f'/api/v1/admin/warehouse/{w.id}/product/0000')
+            self.client.delete(f'/api/v1/admin/warehouse/{w.id}/product/0001')
         )
+        self.assertEqual(len(w.products), 2)
+        self.client.delete(f'/api/v1/admin/warehouse/{w.id}/product/0002,0003')
         self.assertEqual(len(w.products), 0)
