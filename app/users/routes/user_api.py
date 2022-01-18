@@ -9,7 +9,7 @@ from flask_security import roles_required
 from app import db
 from app.tools import modify_object
 from app.users import bp_api_admin
-from app.users.models.user import User
+from app.users.models.user import Role, User
 from app.users.validators.user import UserValidator, UserEditValidator
 
 @bp_api_admin.route('', methods=['POST'])
@@ -99,6 +99,9 @@ def save_user(user_id):
             }), 400
     user = User.query.get(user_id)
     payload = request.get_json()
+    if 'roles' in payload.keys():
+        user.roles = Role.query.filter(Role.id.in_(payload['roles'])).all()
+
     modify_object(user, payload, ['username', 'email', 'phone', 'atomy_id', 'enabled'])
     if 'password' in payload.keys() and payload['password'] != '':
         user.set_password(payload['password'])

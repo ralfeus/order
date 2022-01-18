@@ -51,13 +51,22 @@ def save_company(company_id):
         payload['address_id'] = payload['address']['id']
     if payload.get('tax_address') is not None:
         payload['tax_address_id'] = payload['tax_address']['id']
+    default_company = Company.query.filter_by(default=True).first()
+    if payload.get('default', False):
+        if default_company is not None:
+            default_company.default = False
+        company.default = True
     modify_object(company, payload,
         ['name', 'contact_person', 'tax_id_1', 'tax_id_2', 'tax_id_3', 'phone',
          'address_id', 'bank_id', 'tax_simplified', 'tax_phone', 'tax_address_id',
          'business_type', 'business_category', 'email'])
 
     db.session.commit()
-    return jsonify({'data': [company.to_dict()]})
+    if default_company is not None:
+        result = [company.to_dict(), default_company.to_dict()]
+    else:
+        result = [company.to_dict()]
+    return jsonify({'data': result})
 
 @bp_api_admin.route('/company/<company_id>', methods=['DELETE'])
 @roles_required('admin')

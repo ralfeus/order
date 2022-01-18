@@ -480,9 +480,6 @@ function show_shipping_notification() {
 
 function submit_order(_sender, draft=false) {
     $('.wait').show();
-    // if (!draft && typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
-    //     g_order_id = undefined;
-    // }
     $.ajax({
         url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
         method: 'post',
@@ -498,6 +495,7 @@ function submit_order(_sender, draft=false) {
             comment: $('#comment').val(),
             draft: draft,
             attached_orders: $('#attached_orders').val(),
+            create_po: $('#create-po').val(),
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
