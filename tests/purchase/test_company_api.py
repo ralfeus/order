@@ -58,7 +58,8 @@ class TestCompanyClient(BaseTestCase):
             'email': None,
             'tax_address': None,
             'tax_phone': None,
-            'tax_simplified': True
+            'tax_simplified': True,
+            'default': False
         })
     def test_save_company(self):
         gen_id = int(datetime.now().timestamp())

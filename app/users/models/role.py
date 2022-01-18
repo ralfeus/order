@@ -15,3 +15,9 @@ class Role(db.Model, BaseModel, RoleMixin):
 
     # Identification
     name = Column(String(32), unique=True, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name
+        }

@@ -20,7 +20,19 @@
         <tbody />
     </table>
 </div>
-<div class="wait position-fixed" style="display: none;">
-    <img src="/static/images/wait.gif" />
+<div id="user-form" class="edit-form">
+    <fieldset class="general">
+        <legend>General data</legend>
+        <editor-field name="username" ></editor-field>
+        <editor-field name="password" ></editor-field>
+        <editor-field name="confirm" ></editor-field>
+        <editor-field name="email" ></editor-field>
+        <editor-field name="phone" ></editor-field>
+        <editor-field name="atomy_id" ></editor-field>
+    </fieldset>
+    <fieldset class="roles">
+        <legend>Assigned roles</legend>
+        <editor-field name="roles[].id"></editor-field>
+    </fieldset>
 </div>
 {% endblock %}

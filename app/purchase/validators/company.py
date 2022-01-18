@@ -2,7 +2,7 @@
 import re
 from flask_inputs import Inputs
 from wtforms import ValidationError
-from wtforms.validators import Optional
+from wtforms.validators import AnyOf, Optional
 
 def _is_integer(_form, field):
     if not re.match(r'\d+', field.data):
@@ -24,6 +24,7 @@ class CompanyValidator(Inputs):
     '''Validator for order input'''
     json = {
         'id': [Optional(), _is_integer],
+        'default': [Optional(), AnyOf([True, False], 'default: Must be bool')],
         'phone': [Optional(), _is_valid_phone],
         'tax_id': [_no_empty_field, _is_valid_tax_id],
         'tax_phone': [Optional(), _is_valid_phone]

@@ -25,6 +25,7 @@ class Company(db.Model, BaseModel):
     business_category = Column(String(64))
     email = Column(String(64))
     bank_id = Column(String(2))
+    default = Column(Boolean, default=False)
 
     def __repr__(self):
         return f"<Company {self.id}: {self.name}>"
@@ -45,6 +46,7 @@ class Company(db.Model, BaseModel):
             'address': self.address.to_dict(),
             'bank_id' : self.bank_id,
             'contact_person' : self.contact_person,
+            'default': self.default,
             'tax_simplified': self.tax_simplified,
             'tax_address': self.tax_address.to_dict() if self.tax_address else None,
             'tax_phone': self.tax_phone,

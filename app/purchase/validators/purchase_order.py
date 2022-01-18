@@ -1,5 +1,4 @@
 '''Validator for purchase order input'''
-from app.orders.models.order import OrderBox
 import re
 from flask_inputs import Inputs
 from wtforms import ValidationError

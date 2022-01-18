@@ -1,3 +1,5 @@
+(function() { // Isolating variables scope
+
 var g_filter_sources = {
     'available': [{id: 1, text: 'true'}, {id: 0, text: 'false'}],
     'purchase': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
@@ -252,3 +254,5 @@ function init_table() {
         }
     } );
 }
+
+});

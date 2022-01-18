@@ -4,13 +4,16 @@ Tests of sale order functionality API
 from app.shipping.models.shipping import NoShipping
 from datetime import datetime
 
+from unittest.mock import patch
 from tests import BaseTestCase, db
 from app.models import Country
+from app.addresses.models import Address
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
 from app.shipping.models import PostponeShipping, Shipping, ShippingRate
+from app.purchase.models import Company, PurchaseOrder
 from app.users.models.role import Role
 from app.users.models.user import User
 
@@ -22,7 +25,7 @@ class TestOrdersApi(BaseTestCase):
         admin_role = Role(name='admin')
         self.user = User(username='user1_test_orders_api', email='root_test_orders_api@name.com',
             password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
-            enabled=True)
+            enabled=True, roles=[Role(name='allow_create_po')])
         self.admin = User(username='root_test_orders_api', email='root_test_orders_api@name.com',
             password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
             enabled=True, roles=[admin_role])
@@ -892,3 +895,39 @@ class TestOrdersApi(BaseTestCase):
         created_order_id = res.json['order_id']
         order = Order.query.get(created_order_id)
         self.assertEqual(order.id, f'ORD-draft-{self.user.id}-11')
+
+    def test_create_order_with_po(self):
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10),
+            Address(id=1),
+            Company(default=True, address_id=1, phone='111')
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                "create_po": True,
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0001", "quantity":"1"},
+                        ]
+                    },
+                    {
+                        'subcustomer': 'A001, Subcustomer1, P@ssw0rd',
+                        "items": [
+                            {'item_code': '0001', 'quantity': 1}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.status_code, 200)
+        order_id = res.json['order_id']
+        purchase_orders = PurchaseOrder.query.filter(PurchaseOrder.id.like(f'PO-{order_id[4:]}%'))
+        self.assertEqual(purchase_orders.count(), 2)

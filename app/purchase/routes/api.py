@@ -12,9 +12,10 @@ from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query, modify_object
 
 from app.models.address import Address
-from app.orders.models import Order, OrderStatus, Subcustomer
+from app.orders.models import Order, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
+from app.purchase.po_manager import create_purchase_orders
 from exceptions import AtomyLoginError
 from utils.atomy import atomy_login
 
@@ -56,13 +57,12 @@ def get_purchase_orders(po_id):
 
 @bp_api_admin.route('/order', methods=['POST'])
 @roles_required('admin')
-def create_purchase_order():
+def admin_create_purchase_orders():
     '''
     Creates purchase order.
     Accepts order details in payload
     Returns JSON
     '''
-    logger = logging.getLogger('create_purchase_order')
     with PurchaseOrderValidator(request) as validator:
         if not validator.validate():
             return jsonify({
@@ -76,40 +76,17 @@ def create_purchase_order():
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
     order = Order.query.get(payload['order_id'])
-    if payload.get('recreate_po'):
-        PurchaseOrder.query.filter(
-            PurchaseOrder.id.like(order.id.replace('ORD', 'PO') + '-%')) \
-            .delete(synchronize_session=False)
     company = Company.query.get(payload['company_id'])
     address = Address.query.get(payload['address_id'])
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
 
-    purchase_orders = []
-    for suborder in order.suborders:
-        purchase_order = PurchaseOrder(
-            suborder=suborder,
-            customer=suborder.subcustomer,
-            contact_phone=payload['contact_phone'],
-            payment_phone=company.phone,
-            status=PurchaseOrderStatus.pending,
-            zip=address.zip,
-            address_1=address.address_1,
-            address_2=address.address_2,
-            address=address,
-            company=company,
-            vendor=vendor.id,
-            purchase_restricted_products=payload.get('purchase_restricted_products', False),
-            when_created=datetime.now()
-        )
-        purchase_orders.append(purchase_order)
-        db.session.add(purchase_order)
-        db.session.flush()
-    logger.info('Creating purchase order by %s with data: %s',
-                current_user, payload)
-    order.set_status(OrderStatus.po_created, current_app)
-    db.session.commit()
+    purchase_orders = create_purchase_orders(
+        order, company, address, vendor,
+        contact_phone=payload['contact_phone'],
+        purchase_restricted_products=payload.get('purchase_restricted_products', False)
+    )
     
     from ..jobs import post_purchase_orders
     task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
