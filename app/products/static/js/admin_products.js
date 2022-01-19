@@ -255,4 +255,4 @@ function init_table() {
     } );
 }
 
-});
+})();
