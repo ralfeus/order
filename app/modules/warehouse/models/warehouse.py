@@ -63,7 +63,9 @@ class WarehouseProduct(db.Model):
             'warehouse': self.warehouse.to_dict(),
             'product_id': self.product_id,
             'product': {
-                'name': self.product.name
+                'name': self.product.name,
+                'name_english': self.product.name_english,
+                'name_russian': self.product.name_russian,
             },
             'quantity': self.quantity
         }
