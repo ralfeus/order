@@ -60,7 +60,11 @@ function init_warehouse_products_table() {
             {
                 data: 'product.name',
                 render: (data, _d1, object) => 
-                    "<a href=\"/admin/products?id=" + object.product_id + "\">" + data + "</a>"
+                    "<a href=\"/admin/products?id=" + object.product_id + "\">" + 
+                        data + "<br />" +
+                        object.product.name_english + "<br />" +
+                        object.product.name_russian + 
+                    "</a>"
             },
             {data: 'quantity'}
         ],
