@@ -150,6 +150,7 @@ function init_order_products_table() {
         select: true,
         serverSide: true,
         processing: true,
+        colReorder: true,
         createdRow: (row, data) => {
             if (data.color) {
                 var style = typeof($(row).attr('style')) === 'undefined'
@@ -160,6 +161,7 @@ function init_order_products_table() {
         initComplete: function() { init_search(this, g_filter_sources) }
     });
 
+    // table.on('column-reorder', () => { init_search($('#order_products').dataTable(), g_filter_sources) });
     $('#order_products tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = table.row( tr );
