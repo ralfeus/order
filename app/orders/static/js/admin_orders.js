@@ -366,7 +366,14 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-shipment" \
                         onclick="edit_shipment(this);">Shipment</button>'
             },            
-            {name: 'id', data: 'id'},
+            {
+                name: 'id', 
+                data: 'id',
+                render: (data, type, row, meta) => {
+                    return "<a href=\"/admin/orders/products?order_id=" + data + "\">" + 
+                            data + "</a>";
+                }
+            },
             {data: 'user'},
             {data: 'customer_name'},
             {data: 'subtotal_krw'},

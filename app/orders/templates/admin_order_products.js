@@ -126,7 +126,7 @@ function init_order_products_table() {
                 "defaultContent": ''
             },
             {data: 'id'},
-            {data: 'order_id'},
+            {data: 'order_id', name: 'order_id'},
             {data: 'customer'},
             {data: 'subcustomer', className: 'editable'},
             {data: 'buyout_date'},
@@ -158,8 +158,12 @@ function init_order_products_table() {
                 $(row).attr('style', style + 'color:' + data.color + ';');
             }
         },
-        initComplete: function() { init_search(this, g_filter_sources) }
-    });
+        initComplete: function() { 
+            var table = this;
+            init_search(table, g_filter_sources) 
+            .then(() => init_table_filter(table));
+        }
+});
 
     // table.on('column-reorder', () => { init_search($('#order_products').dataTable(), g_filter_sources) });
     $('#order_products tbody').on('click', 'td.details-control', function () {

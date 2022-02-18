@@ -57,15 +57,15 @@ def on_order_product_saving(order_product, payload, **_extra):
         if order_product_warehouse is not None:
             db.session.delete(order_product_warehouse)
 
-def on_sale_order_packed(sender, **_extra):
-    '''Handles packed sale order (removes products from a local warehouse)'''
-    logger = logging.getLogger(f'modules.warehouse.signal_handlers.on_sale_order_packed()')
+def on_sale_order_shipped(sender, **_extra):
+    '''Handles shipped sale order (removes products from a local warehouse)'''
+    logger = logging.getLogger(f'modules.warehouse.signal_handlers.on_sale_order_shipped()')
     logger.debug(f"Got signal from: {sender.id}")
     from .models.order_product_warehouse import OrderProductWarehouse
     for op in sender.order_products:
         op_warehouse = OrderProductWarehouse.query.get(op.id)
         if op_warehouse is not None:
-            logger.debug(f"Product {op.product.id} is to be taken from warehouse {op_warehouse.warehouse}")
+            logger.debug("Product %s is to be taken from warehouse %s", op.product.id, op_warehouse.warehouse)
             op_warehouse.warehouse.sub_product(op.product, op.quantity)
         else:
             logger.debug(f"Product {op.product.id} is NOT to be taken from any warehouse")
