@@ -3,7 +3,7 @@ Signal handlers for module Warehouse.
 The module functionality is mainly invoked via signals from the core
 or other modules. Those signal handlers are here
 '''
-
+import logging
 from .exceptions import WarehouseError
 
 def on_admin_order_products_rendering(_sender, **_extra):
@@ -59,11 +59,16 @@ def on_order_product_saving(order_product, payload, **_extra):
 
 def on_sale_order_packed(sender, **_extra):
     '''Handles packed sale order (removes products from a local warehouse)'''
+    logger = logging.getLogger(f'modules.warehouse.signal_handlers.on_sale_order_packed()')
+    logger.debug(f"Got signal from: {sender.id}")
     from .models.order_product_warehouse import OrderProductWarehouse
     for op in sender.order_products:
         op_warehouse = OrderProductWarehouse.query.get(op.id)
         if op_warehouse is not None:
+            logger.debug(f"Product {op.product.id} is to be taken from warehouse {op_warehouse.warehouse}")
             op_warehouse.warehouse.sub_product(op.product, op.quantity)
+        else:
+            logger.debug(f"Product {op.product.id} is NOT to be taken from any warehouse")
 
 def on_purchase_order_delivered(sender, **_extra):
     '''Handles delivered purchase order (add products to a local warehouse)'''

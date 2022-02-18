@@ -133,7 +133,7 @@ class Order(db.Model, BaseModel):
 
     def set_status(self, value, actor):
         ''' Sets status of the order '''
-        logger = logging.getLogger('orders.models.Order::set_status')
+        logger = logging.getLogger(f'orders.models.Order::set_status():{self.id}')
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
