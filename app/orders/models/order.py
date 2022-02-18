@@ -133,6 +133,7 @@ class Order(db.Model, BaseModel):
 
     def set_status(self, value, actor):
         ''' Sets status of the order '''
+        logger = logging.getLogger('orders.models.Order::set_status')
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
@@ -141,6 +142,7 @@ class Order(db.Model, BaseModel):
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
         if value == OrderStatus.packed:
+            logger.debug('Sending "packed" signal')
             from ..signals import sale_order_packed
             sale_order_packed.send(self)
         if value == OrderStatus.shipped:
