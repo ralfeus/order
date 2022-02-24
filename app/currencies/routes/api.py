@@ -3,7 +3,7 @@ from app.currencies.models.currency_history_entry import CurrencyHistoryEntry
 from datetime import datetime
 
 from flask import Response, abort, jsonify, request
-from flask_security import login_required, roles_required
+from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.currencies import bp_api_admin, bp_api_user
@@ -18,9 +18,12 @@ def get_currencies(currency_id):
     '''
     Returns all or selected currencies in JSON:
     '''
-    currencies = Currency.query.all() \
-        if currency_id is None \
-        else Currency.query.filter_by(code=currency_id)
+    if current_user.has_role('admin'):
+        currencies = Currency.query
+    else:
+        currencies = Currency.query.filter_by(enabled=True)
+    if currency_id is not None:
+        currencies = currencies.filter_by(code=currency_id)
 
     return jsonify({'data': [entry.to_dict() for entry in currencies]})
 

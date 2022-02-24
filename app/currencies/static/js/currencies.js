@@ -22,13 +22,10 @@ $(document).ready(() => {
         table: '#currencies',
         idSrc: 'code',
         fields: [
-            {
-                label: 'Currency code', 
-                name: 'code', 
-                
-            },
+            {label: 'Currency code', name: 'code'},
             {label: 'Name', name: 'name'},
-            {label: 'Rate', name: 'rate', def: 1}
+            {label: 'Rate', name: 'rate', def: 1},
+            {label: 'Enabled', name: 'enabled', type: 'checkbox'}
         ]
     });
     $('#currencies').on( 'click', 'td.editable', function (e) {
@@ -47,7 +44,8 @@ $(document).ready(() => {
         columns: [
             {data: 'code', className: 'editable'},
             {data: 'name', className: 'editable'},
-            {data: 'rate', className: 'editable'}
+            {data: 'rate', className: 'editable'},
+            {data: 'enabled', className: 'editable'}
         ],
         select: true
     });

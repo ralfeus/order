@@ -495,7 +495,7 @@ function submit_order(_sender, draft=false) {
             comment: $('#comment').val(),
             draft: draft,
             attached_orders: $('#attached_orders').val(),
-            create_po: $('#create-po').val(),
+            create_po: $('#create-po')[0].checked,
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
@@ -529,6 +529,9 @@ function submit_order(_sender, draft=false) {
                 } else {
                     modal('Failure', "Unknown error has occurred. Contact administrator");
                 }
+            }
+            if (data.redirect) {
+                document.location = data.redirect;
             }
         },
         error: xhr => {

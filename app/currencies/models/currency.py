@@ -1,7 +1,7 @@
 ''' Currency '''
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, Numeric, String
+from sqlalchemy import Boolean, Column, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -13,6 +13,7 @@ class Currency(db.Model):
 
     code = Column(String(3), primary_key=True)
     name = Column(String(64))
+    enabled = Column(Boolean)
     rate = Column(Numeric(scale=10))
     history = relationship("CurrencyHistoryEntry", lazy="dynamic")
     prefix = Column(String(1))
@@ -42,5 +43,6 @@ class Currency(db.Model):
         return {
             'code': self.code,
             'name': self.name,
+            'enabled': self.enabled,
             'rate': float(self.rate)
         }
