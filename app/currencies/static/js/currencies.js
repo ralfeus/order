@@ -1,16 +1,20 @@
 var g_currencies_table;
 
 $(document).ready(() => {
+    function normalize_and_stringify(input) {
+        input.enabled = input.enabled[0] === true;
+        return JSON.stringify(input);
+    }
     var editor = new $.fn.dataTable.Editor({
         ajax: {
             create: {
                 url: '/api/v1/admin/currency',
-                data: data => JSON.stringify(Object.entries(data.data)[0][1]),
+                data: data => normalize_and_stringify(Object.entries(data.data)[0][1]),
                 contentType: 'application/json'
             },
             edit: {
                 url: '/api/v1/admin/currency/_id_',
-                data: data => JSON.stringify(Object.entries(data.data)[0][1]),
+                data: data => normalize_and_stringify(Object.entries(data.data)[0][1]),
                 contentType: 'application/json'
             },
             remove: {
@@ -25,7 +29,14 @@ $(document).ready(() => {
             {label: 'Currency code', name: 'code'},
             {label: 'Name', name: 'name'},
             {label: 'Rate', name: 'rate', def: 1},
-            {label: 'Enabled', name: 'enabled', type: 'checkbox'}
+            {
+                label: 'Enabled', 
+                name: 'enabled', 
+                type: 'checkbox',                 
+                options:   [
+                    { label: '', value: true }
+                ]
+            }
         ]
     });
     $('#currencies').on( 'click', 'td.editable', function (e) {

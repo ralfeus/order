@@ -10,18 +10,27 @@ from app.currencies import bp_api_admin, bp_api_user
 from app.currencies.models import Currency
 
 @bp_api_admin.route('', defaults={'currency_id': None})
-@bp_api_user.route('', defaults={'currency_id': None})
 @bp_api_admin.route('/<currency_id>')
-@bp_api_user.route('/<currency_id>')
-@login_required
+@roles_required('admin')
 def get_currencies(currency_id):
     '''
     Returns all or selected currencies in JSON:
     '''
     if current_user.has_role('admin'):
         currencies = Currency.query
-    else:
-        currencies = Currency.query.filter_by(enabled=True)
+    if currency_id is not None:
+        currencies = currencies.filter_by(code=currency_id)
+
+    return jsonify({'data': [entry.to_dict() for entry in currencies]})
+
+@bp_api_user.route('', defaults={'currency_id': None})
+@bp_api_user.route('/<currency_id>')
+@login_required
+def user_get_currencies(currency_id):
+    '''
+    Returns all or selected currencies in JSON:
+    '''
+    currencies = Currency.query.filter_by(enabled=True)
     if currency_id is not None:
         currencies = currencies.filter_by(code=currency_id)
 
@@ -50,7 +59,7 @@ def save_currency(currency_id):
         currency = Currency.query.get(currency_id)
         if not currency:
             abort(Response(f'No currency <{currency_id}> was found', status=400))
-    modify_object(currency, payload, ['code', 'name', 'rate'])
+    modify_object(currency, payload, ['code', 'name', 'rate', 'enabled'])
     if 'rate' in payload.keys():
         today_rate = currency.history.filter_by(when_created=datetime.now().date()).first()
         if today_rate is None:
