@@ -77,3 +77,6 @@ def on_purchase_order_delivered(sender, **_extra):
     if local_warehouse is not None:
         for pp in sender.products:
             local_warehouse.add_product(pp.product, pp.quantity)
+
+def on_create_purchase_order_rendering(sender, **_extra):
+    pass

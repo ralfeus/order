@@ -202,13 +202,23 @@ def user_create_order():
     try:
         db.session.commit()
         logger.debug("Order %s is saved", order.id)
-        if payload.get('create_po') and current_user.has_role('allow_create_po'):
-            _create_po(order, errors)
-        result = {
+        from ..signals import sale_order_created
+        sale_order_created.send(order, payload=payload)
+        result = {}
+        if payload.get('create_po'):
+            if current_user.has_role('admin'):
+                order.status = OrderStatus.can_be_paid
+                result = {
+                    'redirect': f"/admin/purchase/orders?action=create&order_id={order.id}"
+                }
+                db.session.commit()
+            elif current_user.has_role('allow_create_po'):
+                _create_po(order, errors)
+        result.update({
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
             'message': errors
-        }
+        })
             
     except DataError as ex:
         db.session.rollback()
