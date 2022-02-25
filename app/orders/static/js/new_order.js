@@ -495,7 +495,7 @@ function submit_order(_sender, draft=false) {
             comment: $('#comment').val(),
             draft: draft,
             attached_orders: $('#attached_orders').val(),
-            create_po: $('#create-po')[0].checked,
+            create_po: $('#create-po')[0] && $('#create-po')[0].checked,
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
