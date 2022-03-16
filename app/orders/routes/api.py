@@ -26,6 +26,26 @@ from app.tools import cleanse_payload, prepare_datatables_query, modify_object, 
 
 from ..utils import parse_subcustomer
 
+def _create_po(order: Order, errors: list) -> None:
+    from app.purchase.models import Company
+    from app.purchase.po_manager import create_purchase_orders
+    from app.purchase.models.vendors.atomy_quick import AtomyQuick
+    try:
+        order.set_status(OrderStatus.can_be_paid, current_user)
+        db.session.flush()
+        company: Company = Company.query.filter_by(default=True).first()
+        create_purchase_orders(
+            order=order,
+            company=company,
+            address=company.address,
+            vendor=AtomyQuick(),
+            contact_phone=company.phone
+        )
+        order.set_status(OrderStatus.po_created, current_user)
+        db.session.commit()
+    except Exception as ex:
+        errors.append(f"Couldn't create purchase orders: {str(ex)}")
+
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
 def delete_order(order_id):
@@ -182,11 +202,14 @@ def user_create_order():
     try:
         db.session.commit()
         logger.debug("Order %s is saved", order.id)
+        if payload.get('create_po') and current_user.has_role('allow_create_po'):
+            _create_po(order, errors)
         result = {
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
             'message': errors
         }
+            
     except DataError as ex:
         db.session.rollback()
         message = ex.orig.args[1]
@@ -355,7 +378,7 @@ def _update_order(order, payload):
         order.phone = payload['phone']
     if payload.get('comment') and order.comment != payload['comment']:
         order.comment = payload['comment']
-    if payload.get('attached_orders'):
+    if payload.get('attached_orders') is not None:
         order.attach_orders(payload['attached_orders'])
 
 def _update_suborder(order, order_products, suborder_data, errors):

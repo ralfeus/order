@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from app.models.address import Address
 from datetime import datetime
 
@@ -43,9 +44,11 @@ class TestPurchaseOrdersApi(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/purchase/vendor')
         )
-        self.assertEqual(len(res.json), 2)
+        self.assertEqual(len(res.json), 1)
 
-    def test_create_purchase_order(self):
+    @patch('app.purchase.jobs.post_purchase_orders')
+    def test_create_purchase_order(self, po_mock):
+        po_mock.return_value = None
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         gen_int_id = int(datetime.now().timestamp())
         self.try_add_entities([
@@ -54,11 +57,22 @@ class TestPurchaseOrdersApi(BaseTestCase):
             Subcustomer(id=gen_int_id + 1),
             Suborder(id=gen_id, order_id=gen_id, subcustomer_id=gen_int_id),
             Suborder(id=gen_id + '1', order_id=gen_id, subcustomer_id=gen_int_id + 1),
-            OrderProduct(suborder_id=gen_id, product_id='0000'),
-            OrderProduct(suborder_id=gen_id + '1', product_id='0000'),
+            OrderProduct(suborder_id=gen_id, product_id='0000', quantity=1),
+            OrderProduct(suborder_id=gen_id + '1', product_id='0000', quantity=1),
             Address(id=gen_int_id, zip='00000'),
             Company(id=gen_int_id, address_id=gen_int_id)
         ])
+        res = self.try_admin_operation(lambda: 
+            self.client.post('/api/v1/admin/purchase/order', json={
+                'order_id': gen_id,
+                'company_id': gen_int_id,
+                'address_id': gen_int_id,
+                'vendor': 'AtomyQuick',
+                'contact_phone': '000-0000-0000'
+            })
+        )
+        self.assertEqual(res.status_code, 202)
+        self.assertEqual(PurchaseOrder.query.count(), 2)
 
     def test_validate_order_subcustomers(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

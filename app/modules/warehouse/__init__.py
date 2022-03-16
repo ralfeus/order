@@ -4,8 +4,8 @@ import os, os.path
 from flask import Blueprint, Flask
 
 from .signal_handlers import on_admin_order_products_rendering, \
-    on_order_product_model_preparing, on_order_product_saving, on_sale_order_packed, \
-    on_purchase_order_delivered
+    on_order_product_model_preparing, on_order_product_saving, \
+    on_purchase_order_delivered, on_sale_order_shipped
 
 bp_api_admin = Blueprint('warehouse_api_admin', __name__,
                          url_prefix='/api/v1/admin/warehouse')
@@ -41,10 +41,10 @@ def _register_routes(app):
 
 
 def _register_signals():
-    from app.orders.signals import sale_order_packed, \
+    from app.orders.signals import sale_order_shipped, \
         admin_order_products_rendering, order_product_model_preparing, \
         order_product_saving
-    sale_order_packed.connect(on_sale_order_packed)
+    sale_order_shipped.connect(on_sale_order_shipped)
     admin_order_products_rendering.connect(on_admin_order_products_rendering)
     order_product_model_preparing.connect(on_order_product_model_preparing)
     from app.purchase.signals import purchase_order_delivered

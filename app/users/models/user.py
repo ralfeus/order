@@ -106,6 +106,7 @@ class User(db.Model, UserMixin):
             'phone': self.phone,
             'atomy_id': self.atomy_id,
             'enabled': self.enabled,
+            'roles': [role.to_dict() for role in self.roles],
             'balance': self.balance,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,

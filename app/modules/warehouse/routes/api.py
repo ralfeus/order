@@ -125,18 +125,19 @@ def admin_save_warehouse_product(warehouse_id, product_id):
     db.session.commit()
     return jsonify({'data': [product.to_dict()]})
     
-@bp_api_admin.route('/<warehouse_id>/product/<product_id>', methods=['DELETE'])
+@bp_api_admin.route('/<warehouse_id>/product/<product_ids>', methods=['DELETE'])
 @roles_required('admin')
-def admin_delete_warehouse_product(warehouse_id, product_id):
+def admin_delete_warehouse_product(warehouse_id, product_ids):
     ''' Deletes a warehouses '''
     warehouse = Warehouse.query.get(warehouse_id)
     if warehouse is None:
         abort(Response(f'No warehouse {warehouse_id} was found', status=404))
-    product = WarehouseProduct.query.filter_by(
-        warehouse_id=warehouse_id, product_id=product_id).first()
-    if product is None:
-        abort(Response(f'No product {product_id} in warehouse {warehouse_id} was found',
-            status=404))
-    db.session.delete(product)
+    for product_id in product_ids.split(','):
+        product = WarehouseProduct.query.filter_by(
+            warehouse_id=warehouse_id, product_id=product_id).first()
+        if product is None:
+            abort(Response(f'No product {product_id} in warehouse {warehouse_id} was found',
+                status=404))
+        db.session.delete(product)
     db.session.commit()
     return jsonify({})

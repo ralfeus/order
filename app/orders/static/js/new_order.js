@@ -73,17 +73,19 @@ $(document).ready(function() {
         .on('change', () => {
             $('.common-purchase-date').val('');
         });
-    $('#attached_orders').select2({
-        ajax: {
-            url: '/api/v1/order?to_attach',
-            processResults: data => {
-                var r = {
-                    results: data.map(i => { return {id: i.id, text: i.id };})
-                };
-                return r;
+    $('#attached_orders')
+        .select2({
+            ajax: {
+                url: '/api/v1/order?to_attach',
+                processResults: data => {
+                    var r = {
+                        results: data.map(i => { return {id: i.id, text: i.id };})
+                    };
+                    return r; 
+                }
             }
-        }
-    });
+        })
+        .on('change', () => { update_total_weight(Object.entries(g_cart)) });
 
     load_dictionaries();
     g_dictionaries_loaded
@@ -225,6 +227,15 @@ async function init_currencies() {
     for (var currency in currencies) {
         currencyRates[currencies[currency].code] = currencies[currency].rate;
     }
+}
+
+async function get_attached_orders_weight() {
+    var attached_orders = $('#attached_orders').val();
+    var weight = 0;
+    for (ao in attached_orders) {   
+        weight += (await (await fetch(`/api/v1/order/${attached_orders[ao]}`)).json()).total_weight;
+    }
+    return weight;
 }
 
 function get_products() {
@@ -415,6 +426,7 @@ async function update_total_weight(products) {
         total_weight = products.reduce(
             (acc, product) => acc + product[1].weight * product[1].quantity, 0);
     }
+    total_weight += await get_attached_orders_weight();
     var box_weight = total_weight == 0 ? 0 : Object.entries(box_weights)
         .sort((a, b) => b[0] - a[0])
         .reduce((acc, box) => total_weight < box[0] ? box[1] : acc, 0);
@@ -468,9 +480,6 @@ function show_shipping_notification() {
 
 function submit_order(_sender, draft=false) {
     $('.wait').show();
-    // if (!draft && typeof g_order_id !== 'undefined' && /ORD-draft/.test(g_order_id)) {
-    //     g_order_id = undefined;
-    // }
     $.ajax({
         url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
         method: 'post',
@@ -486,6 +495,7 @@ function submit_order(_sender, draft=false) {
             comment: $('#comment').val(),
             draft: draft,
             attached_orders: $('#attached_orders').val(),
+            create_po: $('#create-po')[0] && $('#create-po')[0].checked,
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
@@ -519,6 +529,9 @@ function submit_order(_sender, draft=false) {
                 } else {
                     modal('Failure', "Unknown error has occurred. Contact administrator");
                 }
+            }
+            if (data.redirect) {
+                document.location = data.redirect;
             }
         },
         error: xhr => {

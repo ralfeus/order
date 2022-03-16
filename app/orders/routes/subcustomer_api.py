@@ -95,7 +95,7 @@ def admin_save_subcustomer(subcustomer_id):
             f"Subcustomer with username <{payload['username']}> already exists",
             status=409))
     modify_object(subcustomer, payload, ['name', 'username', 'password', 'in_network'])
-    _invoke_node_api("/api/v1/node/" + payload['username'],
+    _invoke_node_api("/api/v1/node/" + subcustomer.username,
                      method="patch", data=payload)
 
     db.session.commit()

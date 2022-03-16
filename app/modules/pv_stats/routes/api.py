@@ -134,8 +134,8 @@ def user_get_node_stats(node_id):
     left_pv = 0
     right_pv = 0
     for item in stats['jsonData']:
-        left_pv += item['Lamt']
-        right_pv += item['Ramt']
+        left_pv += item['CurLamt']
+        right_pv += item['CurRamt']
     node.update({
         'left_pv': left_pv,
         'right_pv': right_pv,

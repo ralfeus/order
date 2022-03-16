@@ -38,26 +38,24 @@ function init_table() {
         editor.field('business_type').show();
         editor.field('business_category').show();
     }
+
+    function normalize_and_stringify(input) {
+        input.default = input.default[0];
+        input.tax_simplified = input.tax_simplified[0];
+        return JSON.stringify(input);
+    }
         
     var editor = new $.fn.dataTable.Editor({
         ajax: {
             create: {
                 url: '/api/v1/admin/purchase/company',
                 contentType: 'application/json',
-                data: data => {
-                    var target = Object.entries(data.data)[0][1];
-                    target.tax_simplified = target.tax_simplified[0];
-                    return JSON.stringify(target);                        
-                }
+                data: data => normalize_and_stringify(Object.entries(data.data)[0][1])
             },
             edit: {
                 url: '/api/v1/admin/purchase/company/_id_',
                 contentType: 'application/json',
-                data: data => {
-                    var target = Object.entries(data.data)[0][1];
-                    target.tax_simplified = target.tax_simplified[0];
-                    return JSON.stringify(target);                        
-                }
+                data: data => normalize_and_stringify(Object.entries(data.data)[0][1])
             }
         },
         table: '#companies',
@@ -82,6 +80,14 @@ function init_table() {
                 options: g_banks
             },
             {label: 'Contact_person', name: 'contact_person'},
+            {
+                label: 'Default',
+                name: 'default',
+                type: 'checkbox',
+                options: [{label:'', value: true}],
+                def: false,
+                unselectedValue: false
+            },
             {label: 'Taxation type', name: 'tax_type', type: 'title'},
             {
                 label: 'Simplified taxation', 

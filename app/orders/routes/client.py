@@ -50,7 +50,9 @@ def user_order_products():
 @login_required
 def user_new_order():
     '''New order form'''
-    return render_template('new_order.html', load_excel=request.args.get('upload') is not None)
+    return render_template('new_order.html',
+        load_excel=request.args.get('upload') is not None,
+        can_create_po=current_user.has_role('allow_create_po'))
 
 @bp_client_user.route('/<order_id>')
 @login_required

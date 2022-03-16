@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from tests import BaseTestCase, db
 
 from app.orders.models import Order
@@ -35,6 +37,14 @@ class TestAdminApi(BaseTestCase):
         self.assertEqual(res.status_code, 409)
 
     def test_save_user(self):
+        id = int(datetime.now().timestamp())
+        self.try_add_entities([
+            User(id=id, username=f'user{id}', email=f'user{id}@email.com', password_hash='')
+        ])
         res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/user/0', json={}))
+            lambda: self.client.post(f'/api/v1/admin/user/{id}', json={
+                'roles': [10]
+            }))
         self.assertEqual(res.status_code, 200)
+        user = User.query.get(id)
+        self.assertTrue(user.has_role(Role.query.get(10)))

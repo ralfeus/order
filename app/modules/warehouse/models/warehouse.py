@@ -21,6 +21,12 @@ class Warehouse(db.Model, BaseModel):
     def get_local(cls):
         return cls.query.filter_by(is_local=True).first()
 
+    def __repr__(self) -> str:
+        return f"{self.id}: {self.name}"
+
+    def __str__(self) -> str:
+        return f"{self.id}: {self.name}"
+
     def add_product(self, product, quantity):
         if self.products.get(product) is None:
             self.products[product] = 0
@@ -63,7 +69,9 @@ class WarehouseProduct(db.Model):
             'warehouse': self.warehouse.to_dict(),
             'product_id': self.product_id,
             'product': {
-                'name': self.product.name
+                'name': self.product.name,
+                'name_english': self.product.name_english,
+                'name_russian': self.product.name_russian,
             },
             'quantity': self.quantity
         }

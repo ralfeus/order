@@ -47,9 +47,17 @@
             </div>
             <input class="form-control" id="phone" placeholder="+(country code) phone" />
         </div>
-        <div class="col-3" style="font-size: 94%;">
-            <select class="form-control" id="attached_orders" 
-                data-placeholder="Attach postponed orders" multiple></select>
+        <div class="col-3">
+            <!-- <div style="font-size: 94%;"> -->
+                <select class="form-control" id="attached_orders" style="font-size: 94%;"
+                    data-placeholder="Attach postponed orders" multiple></select>
+            <!-- </div> -->
+            {% if can_create_po %}
+            <div id="create-po-control" class="custom-control custom-switch">
+                <input id="create-po" class="custom-control-input" type="checkbox" />
+                <label class="custom-control-label" for="create-po">Create Purchase Order</label>
+            </div>
+            {% endif %}
         </div>
         <div class="col-3 cart">
             <table class="table-sm table-bordered table-light table-striped table-condensed" style="width:100%;">
