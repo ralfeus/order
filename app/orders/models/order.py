@@ -244,17 +244,20 @@ class Order(db.Model, BaseModel):
                     cls.tracking_id.like(part_filter)
                 ))
         if isinstance(column, str):
-            return \
-                base_filter.filter(
+            if column == 'when_po_posted':
+                return base_filter.filter(
                     PurchaseOrder.query.filter(
                         PurchaseOrder.suborder_id == Suborder.id,
                         func.date(PurchaseOrder.when_posted) == filter_value,
-                        Suborder.order_id == Order.id).exists()) \
-                    if column == 'when_po_posted' else \
-                base_filter.filter(
-                    Order.invoice.has(Invoice.export_id.like(part_filter))) \
-                    if column == 'invoice_export_id' \
-                else base_filter
+                        Suborder.order_id == Order.id).exists())
+            elif column == 'invoice_export_id':
+                if filter_value == 'NULL':
+                    return base_filter.filter(Order.invoice == None)
+                else:
+                    return base_filter.filter(
+                        Order.invoice.has(Invoice.export_id.like(part_filter)))
+            else:
+                return base_filter
         return \
             base_filter.filter(cls.country_id.in_(filter_values)) \
                 if column.key == 'country' else \
