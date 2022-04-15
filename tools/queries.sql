@@ -12,9 +12,9 @@ with recursive cte (destination, weight, rate, shipping_method_id) as (
 delete from shipping_rates where shipping_method_id = 9;
 insert into shipping_rates (destination, weight, rate, shipping_method_id) 
 with recursive cte (destination, weight, rate, shipping_method_id) as (
-    select 'ru', 5000, 90000, 9
+    select 'ru', 5000, 112500, 9
     union
-    select 'ru', weight + 100, rate + 1800, 9 from cte where weight < 300000
+    select 'ru', weight + 500, rate + 11300, 9 from cte where weight < 300000
 ) select * from cte;
 
 -- Update Cargo Noni
