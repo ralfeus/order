@@ -180,7 +180,9 @@ function init_table() {
                 def: 'AtomyQuick',
                 options: g_vendors
             },
-
+            {% for field in extension.fields %}
+                {{ field }} ,
+            {% endfor %}
         ]
     });
     g_create_editor.on('open', on_editor_open);
@@ -310,7 +312,10 @@ function init_table() {
                 className: 'editable'
             },
             {data: 'when_created'},
-            {data: 'when_changed'}
+            {data: 'when_changed'},
+            {% for column in extension.columns %}
+                {{ column }} ,
+            {% endfor %}        
         ],
         order: [[11, 'desc']],
         select: true,

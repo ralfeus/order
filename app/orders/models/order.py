@@ -34,6 +34,7 @@ class OrderStatus(enum.Enum):
     shipped = 5
     cancelled = 6
     ready_to_ship = 7
+    at_warehouse = 8
 
 class OrderBox(db.Model, BaseModel):
     ''' Specific box used in order '''
@@ -157,8 +158,9 @@ class Order(db.Model, BaseModel):
                 ao.set_status(value, actor)
             self.__pay(actor)
         self.status = value
-        from ..signals import sale_order_shipped
-        sale_order_shipped.send(self)
+        if self.status == OrderStatus.shipped:
+            from app.orders.signals import sale_order_shipped
+            sale_order_shipped.send(self)
 
     @staticmethod
     def get_new_id():

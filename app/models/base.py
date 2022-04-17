@@ -25,6 +25,9 @@ class BaseModel:
             if arg in attributes:
                 setattr(self, arg, kwargs[arg])
 
+    def __repr__(self):
+        return f"<{type(self).__name__}: {self.id}>"
+
     @classmethod
     def get_filter(cls, base_filter, column=None, filter_value=None):
         '''Abstract method for returning a filter for a model'''

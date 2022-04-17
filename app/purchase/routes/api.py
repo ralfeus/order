@@ -19,7 +19,7 @@ from app.purchase.po_manager import create_purchase_orders
 from exceptions import AtomyLoginError
 from utils.atomy import atomy_login
 
-from ..models.vendor_manager import PurchaseOrderVendorManager
+from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 
 @bp_api_admin.route('/order', defaults={'po_id': None})
 @bp_api_admin.route('/order/<po_id>')
@@ -81,14 +81,14 @@ def admin_create_purchase_orders():
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
+    del payload['vendor']
+    payload['purchase_restricted_products'] = payload.get('purchase_restricted_products', False)
 
     purchase_orders = create_purchase_orders(
-        order, company, address, vendor,
-        contact_phone=payload['contact_phone'],
-        purchase_restricted_products=payload.get('purchase_restricted_products', False)
+        order, company, address, vendor, **payload
     )
     
-    from ..jobs import post_purchase_orders
+    from app.purchase.jobs import post_purchase_orders
     task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
     # post_purchase_orders()
     current_app.logger.info("Post purchase orders task ID is %s", task.id)
@@ -99,11 +99,11 @@ def admin_create_purchase_orders():
 @roles_required('admin')
 def update_purchase_order(po_id):
     logger = logging.getLogger('update_purchase_order')
-    po = PurchaseOrder.query.get(po_id)
+    po: PurchaseOrder = PurchaseOrder.query.get(po_id)
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
 
-    from ..jobs import post_purchase_orders, update_purchase_orders_status
+    from app.purchase.jobs import post_purchase_orders, update_purchase_orders_status
     payload = request.get_json()
     try:
         if request.values.get('action') == 'repost':
@@ -130,8 +130,10 @@ def update_purchase_order(po_id):
                     'error': f"The purchase order &lt;{po.id}&gt; isn't in editable state"
                 })
             editable_attributes = ['customer_id', 'payment_account', 'purchase_date',
-                'status', 'vendor', 'vendor_po_id']
+                'vendor', 'vendor_po_id']
             po = modify_object(po, payload, editable_attributes)
+            if payload.get('status') is not None:
+                po.set_status(payload['status'])
             result = jsonify({'data': [po.to_dict()]})
     except: # Exception as ex:
         logger.exception("Couldn't update PO %s", po_id)

@@ -6,7 +6,8 @@ from flask import Blueprint, Flask
 from .signal_handlers import on_admin_order_products_rendering, \
     on_order_product_model_preparing, on_order_product_saving, \
     on_purchase_order_delivered, on_sale_order_shipped, \
-    on_create_purchase_order_rendering
+    on_create_purchase_order_rendering, on_purchase_order_model_preparing, \
+    on_purchase_order_saving
 
 bp_api_admin = Blueprint('warehouse_api_admin', __name__,
                          url_prefix='/api/v1/admin/warehouse')
@@ -49,6 +50,10 @@ def _register_signals():
     admin_order_products_rendering.connect(on_admin_order_products_rendering)
     order_product_model_preparing.connect(on_order_product_model_preparing)
     order_product_saving.connect(on_order_product_saving)
-    from app.purchase.signals import purchase_order_delivered, create_purchase_order_rendering
+    from app.purchase.signals import purchase_order_delivered, \
+        create_purchase_order_rendering, purchase_order_model_preparing, \
+        purchase_order_saving
     purchase_order_delivered.connect(on_purchase_order_delivered)
     create_purchase_order_rendering.connect(on_create_purchase_order_rendering)
+    purchase_order_model_preparing.connect(on_purchase_order_model_preparing)
+    purchase_order_saving.connect(on_purchase_order_saving)

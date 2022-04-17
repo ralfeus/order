@@ -11,10 +11,12 @@ from app.orders.models.order import OrderStatus
 from app.purchase.models import Company
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.vendor_manager import PurchaseOrderVendorBase
+from app.purchase.signals import purchase_order_saving
 
 def create_purchase_orders(order: Order, company: Company, address: Address,
                           vendor: PurchaseOrderVendorBase, contact_phone: str,
-                          recreate_po=False, purchase_restricted_products=False
+                          recreate_po=False, purchase_restricted_products=False,
+                          **kwargs
                          ) -> "list[PurchaseOrder]":
     logger = logging.getLogger('app.purchase.po_manager.create_purchase_order()')
     if recreate_po:
@@ -38,8 +40,9 @@ def create_purchase_orders(order: Order, company: Company, address: Address,
             purchase_restricted_products=purchase_restricted_products,
             when_created=datetime.now()
         )
-        purchase_orders.append(purchase_order)
+        purchase_order_saving.send(purchase_order, **kwargs)
         db.session.add(purchase_order)
+        purchase_orders.append(purchase_order)
         db.session.flush()
     logger.info('Creating purchase order by %s with data: %s',
                 current_user, locals())

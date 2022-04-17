@@ -54,10 +54,10 @@ def post_purchase_orders(po_id=None):
                     posted_ops_count = len([op for op in po.order_products
                                                if op.status == OrderProductStatus.purchased])
                     if posted_ops_count == len(po.order_products):
-                        po.status = PurchaseOrderStatus.posted
+                        po.set_status(PurchaseOrderStatus.posted)
                         po.when_changed = po.when_posted = datetime.now()
                     elif posted_ops_count > 0:
-                        po.status = PurchaseOrderStatus.partially_posted
+                        po.set_status(PurchaseOrderStatus.partially_posted)
                         po.when_changed = po.when_posted = datetime.now()
                         failed_order_products = [po for po in po.order_products
                                                     if po.status != OrderProductStatus.purchased]
@@ -66,21 +66,21 @@ def post_purchase_orders(po_id=None):
                                 lambda fop: f"{fop.product_id}: {fop.product.name}",
                                 failed_order_products))
                     else:
-                        po.status = PurchaseOrderStatus.failed
+                        po.set_status(PurchaseOrderStatus.failed)
                         po.when_changed = datetime.now()
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
                     logger.info("Posted a purchase order %s", po.id)
                 except (PurchaseOrderError, AtomyLoginError) as ex:
                     logger.warning("Failed to post the purchase order %s.", po.id)
                     logger.warning(ex)
-                    po.status = PurchaseOrderStatus.failed
+                    po.set_status(PurchaseOrderStatus.failed)
                     po.status_details = str(ex)
                     po.when_changed = datetime.now()
                 db.session.commit()
         logger.info('Done posting purchase orders')
     except Exception as ex:
         for po in pending_purchase_orders:
-            po.status = PurchaseOrderStatus.failed
+            po.set_status(PurchaseOrderStatus.failed)
         db.session.commit()
         raise ex
 

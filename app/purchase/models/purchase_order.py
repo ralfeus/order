@@ -1,4 +1,5 @@
 ''' Represents purchase order '''
+from functools import reduce
 from app.models.address import Address
 from datetime import datetime, date
 import enum
@@ -100,7 +101,7 @@ class PurchaseOrder(db.Model, BaseModel):
     def get_filter(cls, base_filter, column=None, filter_value=None):
         if column is None or filter_value is None:
             return base_filter
-        from app.orders.models.subcustomer import Subcustomer
+        # from app.orders.models.subcustomer import Subcustomer
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):
             return \
@@ -134,13 +135,25 @@ class PurchaseOrder(db.Model, BaseModel):
                                PurchaseOrderStatus.payment_past_due, PurchaseOrderStatus.cancelled]
                         
     def reset_status(self):
-        self.status = PurchaseOrderStatus.pending
+        self.set_status(PurchaseOrderStatus.pending)
         self.status_details = None
         self.payment_account = None
         self.vendor_po_id = None
 
+    def set_status(self, status):
+        if isinstance(status, str):
+            status = PurchaseOrderStatus[status.lower()]
+        elif isinstance(status, int):
+            status = PurchaseOrderStatus(status)
+            
+        self.status = status
+        if status == PurchaseOrderStatus.delivered:
+            from app.purchase.signals import purchase_order_delivered
+            purchase_order_delivered.send(self)
+
     def to_dict(self):
         from app.settings.models.setting import Setting
+        from app.purchase.signals import purchase_order_model_preparing
         purchase_date = self.purchase_date
         allow_purchase_restricted_products = (
             Setting.query.get('purchase.allow_purchase_restricted_products') is not None and 
@@ -148,6 +161,8 @@ class PurchaseOrder(db.Model, BaseModel):
         )
         purchase_restricted_products = self.purchase_restricted_products \
             if allow_purchase_restricted_products else None
+        res = purchase_order_model_preparing.send(self)
+        ext_model = reduce(lambda acc, i: {**acc, **i}, [i[1] for i in res], {})
         return {
             'id': self.id,
             'order_id': self.suborder.order_id,
@@ -169,5 +184,6 @@ class PurchaseOrder(db.Model, BaseModel):
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_changed else None,
             'when_posted': self.when_posted.strftime('%Y-%m-%d %H:%M:%S') \
-                if self.when_posted else None
+                if self.when_posted else None,
+            **ext_model
         }
