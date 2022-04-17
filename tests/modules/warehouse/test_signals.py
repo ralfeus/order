@@ -8,6 +8,7 @@ from app.models import Country
 from app.currencies.models import Currency
 from app.users.models import Role
 from app.users.models import User
+from app.orders.models import Order, OrderStatus, OrderProduct, OrderProductStatus, Suborder
 from app.products.models import Product
 from app.modules.warehouse.models import OrderProductWarehouse, Warehouse, \
     WarehouseProduct
@@ -30,7 +31,6 @@ class TestWarehouseApi(BaseTestCase):
         ])
 
     def test_get_order_product_from_warehouse(self):
-        from app.orders.models import Order, OrderStatus, OrderProduct, Suborder
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         gen_int_id = int(datetime.now().timestamp())
         self.try_add_entities(([
@@ -43,7 +43,7 @@ class TestWarehouseApi(BaseTestCase):
         suborder = Suborder(order=order)
         self.try_add_entities([
             order, suborder,
-            OrderProduct(id=gen_int_id, suborder=suborder, product_id='0001', quantity=5),
+            OrderProduct(id=gen_int_id, suborder=suborder, product_id='0001', quantity=5, status=OrderProductStatus.purchased),
             Warehouse(id=gen_int_id, name='Test WH'),
             WarehouseProduct(warehouse_id=gen_int_id, product_id='0001', quantity=10),
             OrderProductWarehouse(order_product_id=gen_int_id, warehouse_id=gen_int_id),
@@ -54,7 +54,7 @@ class TestWarehouseApi(BaseTestCase):
 
         res = self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/{gen_id}', json={
-                "status":"packed",
+                "status": "shipped",
         }))
         self.assertEqual(res.status_code, 200)
         warehouse_product = WarehouseProduct.query.get((gen_int_id, '0001'))

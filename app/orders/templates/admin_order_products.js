@@ -139,7 +139,8 @@ function init_order_products_table() {
             {data: 'when_created'},
             {% for column in extension.columns %}
                 {{ column }} ,
-            {% endfor %}        ],
+            {% endfor %}        
+        ],
         order: [[12, 'desc']],
         keys: {
             columns: '.editable',

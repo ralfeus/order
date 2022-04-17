@@ -349,7 +349,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         for o in vendor_purchase_orders:
             logger.debug(str(o))
             if o['id'] == purchase_order.vendor_po_id:
-                purchase_order.status = o['status']
+                purchase_order.set_status(o['status'])
                 return purchase_order
 
         raise NoPurchaseOrderError(
@@ -373,7 +373,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             filtered_po = [po for po in purchase_orders 
                               if po and po.vendor_po_id == o['id']]
             try:
-                filtered_po[0].status = o['status']
+                filtered_po[0].set_status(o['status'])
             except IndexError:
                 logger.warning(
                     'No corresponding purchase order for Atomy PO <%s> was found', 

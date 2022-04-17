@@ -1,3 +1,5 @@
+// (function() {
+
 var g_addresses;
 var g_companies;
 var g_customers;
@@ -30,7 +32,14 @@ $.fn.dataTable.ext.buttons.status_update = {
 };
 
 $(document).ready( function () {
-    get_dictionaries().then(init_table);
+    get_dictionaries().then(init_table).then(() => {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('action') == 'create') {
+            create_po({
+                order_id: params.get('order_id')
+            });
+        }
+    });
 });
 
 function cancel_purchase_order(target) {
@@ -38,6 +47,11 @@ function cancel_purchase_order(target) {
         .edit($(target).parents('tr')[0], false)
         .val('status', 'cancelled')
         .submit();
+}
+
+function create_po(params) {
+    g_create_editor.field('order_id').def(params.order_id);
+    g_create_editor.create();
 }
 
 function get_companies() {
@@ -78,14 +92,20 @@ async function get_dictionaries() {
 }
 
 function get_orders_to_purchase(recreate=false) {
+    console.debug('get_orders_to_purchase()')
+    var promise = $.Deferred();
     $('.wait').show();
     $.ajax({
         url: '/api/v1/admin/order?status=can_be_paid&status=paid' + (recreate ? '&status=po_created' : ''),
         success: data => {
             $('.wait').hide();
             g_create_editor.field('order_id').update(data.map(o => o.id));
-        }
-    })
+            console.debug('get_orders_to_purchase():exit')
+            promise.resolve();
+        },
+        error: () => { promise.resolve(); }
+    });
+    return promise;
 }
 
 async function get_vendors() {
@@ -160,7 +180,9 @@ function init_table() {
                 def: 'AtomyQuick',
                 options: g_vendors
             },
-
+            {% for field in extension.fields %}
+                {{ field }} ,
+            {% endfor %}
         ]
     });
     g_create_editor.on('open', on_editor_open);
@@ -290,7 +312,10 @@ function init_table() {
                 className: 'editable'
             },
             {data: 'when_created'},
-            {data: 'when_changed'}
+            {data: 'when_changed'},
+            {% for column in extension.columns %}
+                {{ column }} ,
+            {% endfor %}        
         ],
         order: [[11, 'desc']],
         select: true,
@@ -315,8 +340,9 @@ function init_table() {
     });
 }
 
-function on_editor_open() {
-    get_orders_to_purchase();
+async function on_editor_open() {
+    console.debug('on_editor_open()')
+    await get_orders_to_purchase();
     get_companies();
     if (g_purchase_orders_table.column('purchase_restricted:name').visible()) {
         g_create_editor.add({
@@ -328,6 +354,11 @@ function on_editor_open() {
             unselectedValue: false
         });
     }
+    var default_order = g_create_editor.field('order_id').def();
+    if (default_order) {
+        g_create_editor.val('order_id', default_order);
+    }
+    console.debug('on_editor_open():exit')
 }
 
 function on_company_change() {
@@ -352,19 +383,23 @@ function on_order_change() {
 }
 
 async function on_recreate_po_change() {
+    var promise = $.Deferred();
     if (g_create_editor.field('recreate_po').val()[0]) {
         modal(
             "Recreate purchase orders", 
             "All purchase orders for the selected order will be deleted and new will be created. Are you sure?",
             "confirmation")
-        .then(result => {
+        .then(async function (result) {
             if (result == 'yes') {
-                get_orders_to_purchase(recreate=true);
+                await get_orders_to_purchase(recreate=true);
+                promise.resolve();
             }
         });
     } else {
-        get_orders_to_purchase(recreate=false);
+        await get_orders_to_purchase(recreate=false);
+        promise.resolve();
     }
+    return promise;
 }
 
 function open_purchase_order(target) {
@@ -441,3 +476,5 @@ async function validate_po() {
         g_create_editor.message(`<span style="color: red;">${result.message}</div>`);
     }
 }
+
+// })()
