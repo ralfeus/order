@@ -7,7 +7,7 @@ from wtforms.validators import DataRequired
 
 from app.models.country import Country
 from app.shipping.models.shipping import Shipping, NoShipping, PostponeShipping
-from app.shipping.models.dhl import DHL
+from app.shipping.methods.dhl.models import DHL
 
 def _are_suborders_valid(_form, field):
     if field.data:

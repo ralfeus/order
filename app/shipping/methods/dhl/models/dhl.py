@@ -1,7 +1,7 @@
 import logging
 import math
 
-from . import Shipping
+from app.shipping.models import Shipping
 from app import db
 from exceptions import NoShippingRateError
 from app.models import Country
@@ -23,10 +23,10 @@ dhl_rates = db.Table('dhl_rates',
 
 class DHL(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'dhl'}
-    
-    def __init__(self):
-        self.name = 'DHL'
 
+    name = 'DHL'
+    type = 'DHL'
+    
     def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
         if not self._are_all_products_shippable(products):
             return False

@@ -50,10 +50,42 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/shipping'))
         self.assertEqual(res.json, [
-            {'id': 4, 'name': 'DHL', 'enabled': True, 'notification': None, 'params': []},
-            {'id': 1, 'name': 'Shipping1', 'enabled': True, 'notification': None, 'params': []},
-            {'id': 2, 'name': 'Shipping2', 'enabled': True, 'notification': None, 'params': []},
-            {'id': 3, 'name': 'Shipping3', 'enabled': True, 'notification': None, 'params': []}
+            {
+                'id': 4,
+                'name': 'DHL',
+                'type': 'DHL',
+                'enabled': True,
+                'notification': None,
+                'edit_url': None,
+                'params': []
+            },
+            {
+                'id': 1,
+                'name': 'Shipping1',
+                'type': '',
+                'enabled': True,
+                'notification': None,
+                'edit_url': None,
+                'params': []
+            },
+            {
+                'id': 2,
+                'name': 'Shipping2',
+                'type': '',
+                'enabled': True,
+                'notification': None,
+                'edit_url': None,
+                'params': []
+            },
+            {
+                'id': 3,
+                'name': 'Shipping3',
+                'type': '',
+                'enabled': True,
+                'notification': None,
+                'edit_url': None,
+                'params': []
+            }
         ])
         res = self.client.get('/api/v1/shipping/c1')
         self.assertEqual(len(res.json), 2)

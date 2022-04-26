@@ -30,6 +30,7 @@ class Shipping(db.Model, BaseModel):
     __tablename__ = 'shipping'
 
     name = Column(String(16))
+    type = ''
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
     notification = Column(Text)
@@ -58,11 +59,14 @@ class Shipping(db.Model, BaseModel):
             return False
         if not country:
             return True
-        rates = self.rates.filter_by(destination=country.id)
-        if weight:
-            rates = rates.filter(ShippingRate.weight >= weight)
-        return rates.count() > 0
+        try:
+            self.get_shipping_cost(country, weight)
+            return True
+        except NoShippingRateError:
+            return False
 
+    def get_edit_url(self):
+        return None
 
     def get_shipping_cost(self, destination, weight):
         '''
@@ -71,6 +75,9 @@ class Shipping(db.Model, BaseModel):
         :param destination: destination (mostly country)
         :param weight: shipment weight in grams
         '''
+        weight = int(weight) if weight is not None else 0
+        if isinstance(destination, Country):
+            destination = destination.id
         rate = self.rates \
             .filter_by(destination=destination) \
             .filter(ShippingRate.weight >= weight) \
@@ -84,9 +91,11 @@ class Shipping(db.Model, BaseModel):
         return {
             'id': self.id,
             'name': self.name,
+            'type': self.type,
             'enabled': self.enabled,
             'notification': self.notification,
-            'params': [param.to_dict() for param in self.params]
+            'params': [param.to_dict() for param in self.params],
+            'edit_url': self.get_edit_url()
         }
 
     @staticmethod
@@ -130,6 +139,5 @@ class ShippingParam(db.Model, BaseModel):
     def to_dict(self):
         return {
             'label': self.label,
-            'name': self.name,
-            'type': self.type
+            'name': self.name
         }
