@@ -331,9 +331,8 @@ function update_shipping_methods(country, weight) {
                 }
             });
         },
-        error: (xhr) => {
-            $('.modal-body').text(xhr.responseText);
-            $('.modal').modal();
+        error: xhr => {
+            modal("Update shipping methods failure", xhr.responseText);
             promise.resolve();
         }
     });

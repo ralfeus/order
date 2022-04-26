@@ -66,7 +66,7 @@ def get_shipping_rate(country, shipping_method_id: int, weight):
     rates = {}
     for shipping_method in shipping_methods:
         try:
-            rates[shipping_method.id] = shipping_method.get_shipping_cost(country, weight)
+            rates[shipping_method.id] = shipping_method.get_shipping_cost(country, int(weight))
         except NoShippingRateError:
             pass
     if len(rates) > 0:
@@ -107,8 +107,9 @@ def admin_save_shipping_method(shipping_method_id):
         shipping_method = Shipping.query.get(shipping_method_id)
         if not shipping_method:
             abort(Response(f'No shipping_method <{shipping_method_id}> was found', status=400))
+    payload['discriminator'] = payload.get('type')
 
-    modify_object(shipping_method, payload, ['name', 'enabled', 'notification'])
+    modify_object(shipping_method, payload, ['name', 'enabled', 'notification', 'discriminator'])
 
     db.session.commit()
     return jsonify({'data': [shipping_method.to_dict()]})
