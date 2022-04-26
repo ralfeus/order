@@ -1,5 +1,14 @@
 var g_rates_table;
 
+function normalize_and_stringify(input) {
+    target = Object.entries(data.data)[0][1];
+    target.minimum_weight = parseInt(target.minimum_weight);
+    target.maximum_weight = parseInt(target.maximum_weight);
+    target.weight_step = parseInt(target.weight_step);
+    target.cost_per_kg = parseInt(target.cost_per_kg);
+    return JSON.stringify(target)
+}
+
 $(document).ready(() => {
     var editor;
     editor = new $.fn.dataTable.Editor({
@@ -7,12 +16,12 @@ $(document).ready(() => {
             create: {
                 url: `/api/v1/admin/shipping/weight_based/${$('#shipping_id').val()}/rate`,
                 contentType: 'application/json',
-                data: data => JSON.stringify(Object.entries(data.data)[0][1])
+                data: data => normalize_and_stringify(data.data)
             },
             edit: {
                 url: `/api/v1/admin/shipping/weight_based/${$('#shipping_id').val()}/rate`,
                 contentType: 'application/json',
-                data: data => JSON.stringify(Object.entries(data.data)[0][1])
+                data: data => normalize_and_stringify(data.data)
             },
             remove: {
                 url: `/api/v1/admin/shipping/weight_based/${$('#shipping_id').val()}/rate/_id_`,

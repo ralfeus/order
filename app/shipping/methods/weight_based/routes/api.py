@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import jsonify, request
 from flask_security import roles_required
 from sqlalchemy import or_
@@ -68,14 +69,6 @@ def admin_save_rate(shipping_id, destination):
     shipping = WeightBased.query.get(shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
-    if destination is None or destination == 'null':
-        rate = WeightBasedRate(shipping_id=shipping_id)
-        db.session.add(rate)
-    else:
-        destination = destination.split('-')[1]
-        rate = shipping.rates.filter_by(destination=destination).first()
-        if rate is None:
-            return {'error': f'No shipping rate for destination {destination} found'}, 404
     with WeightBasedRateValidator(request) as validator:
         if not validator.validate():
             return jsonify({
@@ -84,6 +77,14 @@ def admin_save_rate(shipping_id, destination):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
+    if destination is None or destination == 'null':
+        rate = WeightBasedRate(shipping_id=shipping_id, when_created=datetime.now())
+        db.session.add(rate)
+    else:
+        destination = destination.split('-')[1]
+        rate = shipping.rates.filter_by(destination=destination).first()
+        if rate is None:
+            return {'error': f'No shipping rate for destination {destination} found'}, 404
     if payload.get('minimum_weight') is None:
         payload['minimum_weight'] = rate.minimum_weight
     if payload.get('maximum_weight') is None:

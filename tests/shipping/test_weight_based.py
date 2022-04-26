@@ -21,6 +21,7 @@ class TestShippingWeightBased(BaseTestCase):
         self.try_add_entities([
             self.user, self.admin, admin_role,
             Country(id='ua', name='Ukraine'),
+            Country(id='c1', name='C1'),
             WeightBased(id=1, name='S', enabled=True),
             WeightBasedRate(shipping_id=1, destination='ua', minimum_weight=1000,
                 maximum_weight=30000, weight_step=100, cost_per_kg=1000)
@@ -44,3 +45,16 @@ class TestShippingWeightBased(BaseTestCase):
         res = self.client.get('/api/v1/shipping/rate/ua/1/1450')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json['shipping_cost'], 1500)
+
+    def test_create_rate_api(self):
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/shipping/weight_based/1/rate', json={
+                'destination': 'c1',
+                'minimum_weight': 1,
+                'maximum_weight': 10,
+                'weight_step': 1,
+                'cost_per_kg': 1
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(WeightBasedRate.query.count(), 2)
