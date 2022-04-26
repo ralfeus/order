@@ -1,11 +1,7 @@
 var g_rates_table;
 
 function normalize_and_stringify(input) {
-    target = Object.entries(data.data)[0][1];
-    target.minimum_weight = parseInt(target.minimum_weight);
-    target.maximum_weight = parseInt(target.maximum_weight);
-    target.weight_step = parseInt(target.weight_step);
-    target.cost_per_kg = parseInt(target.cost_per_kg);
+    target = Object.entries(input)[0][1];
     return JSON.stringify(target)
 }
 
