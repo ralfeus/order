@@ -15,7 +15,7 @@ $(document).ready(() => {
                 data: data => normalize_and_stringify(data.data)
             },
             edit: {
-                url: `/api/v1/admin/shipping/weight_based/${$('#shipping_id').val()}/rate`,
+                url: `/api/v1/admin/shipping/weight_based/${$('#shipping_id').val()}/rate/_id_`,
                 contentType: 'application/json',
                 data: data => normalize_and_stringify(data.data)
             },
