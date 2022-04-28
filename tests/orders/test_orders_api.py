@@ -12,8 +12,9 @@ from app.currencies.models import Currency
 from app.orders.models import Order, OrderProduct, OrderProductStatus, \
     OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
 from app.products.models import Product
-from app.shipping.models import PostponeShipping, Shipping, ShippingRate
 from app.purchase.models import Company, PurchaseOrder
+from app.settings.models import Setting
+from app.shipping.models import PostponeShipping, Shipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
 
@@ -582,6 +583,10 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 404)
 
     def test_validate_subcustomer(self):
+        setting = Setting(key='order.new.check_subcustomers', value=1, default_value=1)
+        self.try_add_entities([
+            setting
+        ])
         res = self.try_user_operation(
             lambda: self.client.post('/api/v1/order/subcustomer/validate', json={
                 'subcustomer': 'test, test, test'
@@ -590,6 +595,14 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.json['result'], 'failure')
         res = self.client.post('/api/v1/order/subcustomer/validate', json={
                 'subcustomer': '23426444, Mike, atomy#01'
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['result'], 'success')
+        
+        # Test subcustomer isn't to be checked
+        setting.value = False
+        res = self.client.post('/api/v1/order/subcustomer/validate', json={
+            'subcustomer': 'test, test, test'
         })
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json['result'], 'success')
