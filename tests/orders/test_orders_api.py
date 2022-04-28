@@ -71,6 +71,19 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.total_krw, 2620)
         self.assertEqual(order.shipping.name, 'Shipping1')
 
+    def test_create_weightless_order(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        self.try_add_entities([Product(id=gen_id, name='0', price=10, weight=0)])
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
+        suborder = Suborder(order=order)
+        self.try_add_entities([
+            Order(user=self.user),
+            order, suborder,
+            OrderProduct(suborder=suborder, product_id=gen_id, quantity=1),
+        ])
+        suborder.get_total()
+        
+
     def test_create_order_over_10_products(self):
         self.try_add_entities([
             Product(id='0001', name='Product 1', price=10, weight=10),
