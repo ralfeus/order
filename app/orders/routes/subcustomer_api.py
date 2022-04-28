@@ -13,6 +13,7 @@ from exceptions import AtomyLoginError, HTTPError, SubcustomerParseError
 from app import db
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models import Suborder, Subcustomer
+from app.settings.models import Setting
 from app.tools import prepare_datatables_query, modify_object
 
 from ..utils import parse_subcustomer
@@ -120,6 +121,8 @@ def admin_delete_subcustomer(subcustomer_id):
 @bp_api_user.route('/subcustomer/validate', methods=['POST'])
 @login_required
 def validate_subcustomer():
+    if not Setting.get('order.new.check_subcustomers'):
+        return {'result': 'success', 'message': 'No subcustomer check is performed'}, 200
     payload = request.get_json()
     if not payload or not payload.get('subcustomer'):
         abort(Response('No subcustomer data was provided', status=400))

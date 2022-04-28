@@ -16,7 +16,8 @@ settings = [
     {'key': 'payment.paypal.client_id', 'value': None, 'description': 'PayPal API client ID'},
     {'key': 'payment.paypal.client_secret', 'value': None, 'description': 'PayPal API client secret'},
     {'key': 'payment.paypal.payee_address', 'value': None, 'description': 'PayPal payee e-mail address'},
-    {'key': 'module.warehouse.enabled', 'value': False, 'description': 'Define whether Warehouse module is enabled'}
+    {'key': 'module.warehouse.enabled', 'value': False, 'description': 'Define whether Warehouse module is enabled'},
+    {'key': 'order.new.check_subcustomers', 'value': True, 'description': 'Define whether to check subcustomer credentials during sale order creation'}
 ]
 
 for setting in settings:

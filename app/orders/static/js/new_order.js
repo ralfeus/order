@@ -734,6 +734,9 @@ async function update_grand_subtotal() {
 }
 
 function validate_subcustomer(sender) {
+    if (!$('#check_subcustomer').val()) {
+        return;
+    }
     $.ajax({
         url: '/api/v1/order/subcustomer/validate',
         method: 'post',

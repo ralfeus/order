@@ -8,6 +8,7 @@ from flask_security import current_user, login_required, roles_required
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderStatus
+from app.settings.models import Setting
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
@@ -55,6 +56,7 @@ def user_new_order():
     return render_template('new_order.html',
         load_excel=request.args.get('upload') is not None,
         can_create_po=current_user.has_role('allow_create_po'),
+        check_subcustomers=Setting.get('order.new.check_subcustomers'),
         extensions="\n".join([e[1] for e in extensions]))
 
 @bp_client_user.route('/<order_id>')

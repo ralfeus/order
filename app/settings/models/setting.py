@@ -22,6 +22,10 @@ class Setting(db.Model, BaseModel):
             return setting.value
         return None
 
+    @classmethod
+    def __getitem__(cls, setting_name):
+        return cls.get(setting_name)
+
     def to_dict(self):
         return {
             'id': self.id,
