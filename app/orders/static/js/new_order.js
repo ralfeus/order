@@ -734,7 +734,7 @@ async function update_grand_subtotal() {
 }
 
 function validate_subcustomer(sender) {
-    if (!$('#check_subcustomer').val()) {
+    if (!parseInt($('#check_subcustomers').val())) {
         return;
     }
     $.ajax({
