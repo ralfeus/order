@@ -121,7 +121,9 @@ def admin_get_order(order_id):
         return render_template('order_print_view.html', order=order,
             currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')
     
-    return render_template('new_order.html', order_id=order_id)
+    return render_template('new_order.html',
+        check_subcustomers=Setting.get('order.new.check_subcustomers'),
+        order_id=order_id)
 
 
 @bp_client_admin.route('/subcustomers')

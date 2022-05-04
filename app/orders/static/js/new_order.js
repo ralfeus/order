@@ -50,7 +50,7 @@ $(document).ready(function() {
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
-    $('#add_user').on('click', add_subcustomer);
+    $('#add_user').on('click', add_subcustomer_node);
     $('#submit').on('click', submit_order);
     $('#save_draft').on('click', save_order_draft);
     $('.common-purchase-date')
@@ -109,7 +109,15 @@ function add_product_row(idString) {
     window.scrollTo(0,document.body.scrollHeight);
 }
 
-function add_subcustomer() {
+function add_subcustomer(subcustomer) {
+    var subcustomer_node = add_subcustomer_node();
+    $('.subcustomer-identity', subcustomer_node)
+        .val(subcustomer)
+        .trigger('change');
+    return subcustomer_node;
+}
+
+function add_subcustomer_node() {
     var html = subcustomerTemplate
         .replace(/userItems([A-Za-z]*)0/g, 'userItems$1' + users)
         .replace(/identity0/g, "identity" + users)
@@ -136,7 +144,7 @@ function clear_form() {
     g_total_weight = 0;
 
     $('.subcustomer-card').remove();
-    add_subcustomer();
+    add_subcustomer_node();
     $('#attached_orders').val('');
     //$('div#accordion').append(subcustomerTemplate);
     //product_code_autocomplete($('.item-code'));

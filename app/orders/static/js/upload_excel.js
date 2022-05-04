@@ -112,12 +112,6 @@ function add_product(current_node, item, product_id, quantity) {
         });
 }
 
-function add_user(subcustomer) {
-    var subcustomer_node = add_subcustomer();
-    $('.subcustomer-identity', subcustomer_node).val(subcustomer);
-    return subcustomer_node;
-}
-
 function cleanup() {
     clear_form();
     delete_subcustomer($('.btn-delete'));
@@ -132,7 +126,7 @@ function load_products(ws) {
         if (!ws['A' + i]) continue;
         // The line is beginning of new subcustomer
         if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
-            current_node = add_user(ws['B' + i].v);
+            current_node = add_subcustomer(ws['B' + i].v);
             $('.subcustomer-seq-num', current_node).val(ws['A' + i].v);
             item = 0;
         // The line is product line
