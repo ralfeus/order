@@ -412,10 +412,10 @@ def _get_node(element, parent_id, is_left, logger):
         'network_pv': int(re.search('\\d+', sel_network_pv(element)).group()),
         'now': datetime.now()
     })
-    # If logging is needed, logger should be passed, not created here 
-    # logger.debug('Adding node %s', atomy_id)
-
-    return AtomyPerson.inflate(result[0][0])
+    node = AtomyPerson.inflate(result[0][0])
+    logger.debug('Saved node %s: {rank: %s, pv: %s, total_pv: %s, network_pv: %s}',
+                    atomy_id, node.rank, node.pv, node.total_pv, node.network_pv)
+    return node
 
 def _is_left(parent_element, child_element):
     v_lines = _get_vertical_lines(parent_element, child_element)
