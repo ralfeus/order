@@ -1,5 +1,5 @@
 ''' Initialization of the application '''
-from json import JSONEncoder
+from json import JSONEncoder, load
 import logging
 import os
 import types
@@ -43,7 +43,9 @@ def create_app(config=None):
     flask_app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_json(config or os.environ.get('OM_CONFIG_FILE') or 'config.json')
+    flask_app.config.from_file(
+        config or os.environ.get('OM_CONFIG_FILE') or 'config.json',
+        load=load)
     init_logging(flask_app)
 
     Bootstrap(flask_app)

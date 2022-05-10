@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 '''Network manager Flask application'''
 
+import json
 import flask.json
 import logging
 
@@ -21,7 +22,7 @@ class JSONEncoder(flask.json.JSONEncoder):
 
 app = Flask(__name__)
 app.json_encoder = JSONEncoder
-app.config.from_json('config.json')
+app.config.from_file('config.json', load=json.load)
 app.config['JSON_AS_ASCII'] = False
 config.DATABASE_URL = app.config['NEO4J_URL']
 config.ENCRYPTED_CONNECTION = False
