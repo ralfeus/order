@@ -102,6 +102,7 @@ function fetch_row(row_api, interval_handler) {
                     clearInterval(interval_handler)
                 });
             } else if (result.status != 202) { // permanent error
+                    row_api.data(row).draw();
                     clearInterval(interval_handler)
             }
         })
