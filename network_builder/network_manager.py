@@ -1,5 +1,7 @@
 '''Network manager'''
 import logging
+from multiprocessing import Process, active_children
+
 from flask import Response, abort, jsonify, request
 from neomodel import db
 
@@ -116,6 +118,39 @@ def save_node(node_id):
     node.name = payload['name']
     node.save()
     return jsonify(node.to_dict())
+
+@app.route('/api/v1/node/<node_id>/update', methods=['post'])
+def fetch_node_from_atomy(node_id):
+    process = Process(target=_run_node_update, args=(node_id,))
+    process.start()
+    db.cypher_query(f'''
+        MERGE (p:UpdateProcess {{node_id: '{node_id}'}})
+        ON CREATE SET p.pid = {process.pid}
+        ON MATCH SET p.pid = {process.pid}
+    ''')
+    return {'status': 'success'}, 200
+
+def _run_node_update(node_id):
+    from build_network import build_network
+    build_network(user='S5832131', password='mkk03020529!!', threads=50, root_id=node_id)
+
+@app.route('/api/v1/node/<node_id>/update')
+def get_node_fetch_status(node_id):
+    process, _ = db.cypher_query(f'''
+        MATCH (p:UpdateProcess {{node_id: '{node_id}'}})
+        RETURN p
+    ''')
+    if len(process) > 0:
+        pid = process[0][0]['pid']
+        processes = active_children()
+        if len([process for process in processes if process.pid == pid]) > 0:
+            return {'status': 'running'}, 200
+        db.cypher_query(f'''
+            MATCH (p:UpdateProcess {{node_id: '{node_id}'}})
+            DELETE p
+        ''')
+        return {'status': 'finished'}, 200
+    return {'status': 'not running'}, 200
 
 def _get_filter(filter_params):
     query_filter = []
