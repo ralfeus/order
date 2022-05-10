@@ -67,6 +67,11 @@ def user_get_pv_stats():
         return {**node, **node_pv[0]} if len(node_pv) > 0 else node
 
     nodes_query = PVStat.query.filter_by(user_id=current_user.id)
+    # Refresh the updating status
+    for node in nodes_query.filter_by(is_being_updated=True):
+        update_status = _invoke_node_api(f'/api/v1/node/{node.node_id}/update')
+        node.is_being_updated = update_status['status'] == 'running'
+    db.session.commit()
     if request.values.get('draw') is None:
         nodes = [node.to_dict() for node in nodes_query]
     else: # DataTables is serverSide based
@@ -78,7 +83,7 @@ def user_get_pv_stats():
         'filter': {
             'id': [node['node_id'] for node in nodes if node['allowed']]
         }
-    })
+    })  
     pv_data['data'] = [
         {
             'node_name': entry['name'],
@@ -110,7 +115,23 @@ def user_get_node_stats(node_id):
     if node is None:
         abort(404)
     if node.get('password') is None:
-        abort(Response("The node has no password", status=409))
+        node_obj = nodes_query.first()
+        if node_obj.is_being_updated:
+            update_status = _invoke_node_api(f'/api/v1/node/{node_id}/update')
+            if update_status['status'] == 'running':
+                return {'status': 'update is in progress'}, 202
+            node_obj.is_being_updated = False
+            db.session.commit()
+            node = {
+                **node_obj.to_dict(),
+                **_invoke_node_api(f'/api/v1/node/{node_id}')
+            }
+            return node, 200
+        _invoke_node_api(f'/api/v1/node/{node_id}/update', method='post')
+        node_obj.is_being_updated = True
+        db.session.commit()
+        return {'status': 'update is in progress'}, 202
+            
     try:
         session = SessionManager(username=node_id, password=node['password'])
     except AtomyLoginError:
@@ -145,7 +166,6 @@ def user_get_node_stats(node_id):
     })
 
     return jsonify(node)
-
 
 @bp_api_admin.route('/permission')
 @roles_required('admin')
