@@ -21,7 +21,7 @@ for module in modules:
             __name__ + '.' + module_name, 
             module)
         # print(ma)  
-        classes = { c for c in ma.__dict__.items() 
+        classes = { c for c in ma.__dict__.items()
             if isinstance(c[1], type) and issubclass(c[1], PurchaseOrderVendorBase) }
         for class_pair in classes:
             setattr(self, class_pair[0], class_pair[1])
