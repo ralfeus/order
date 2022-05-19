@@ -1,57 +1,53 @@
 import logging
 import math
+from operator import attrgetter
 
-from app.shipping.models import Shipping
 from app import db
+from app.models import BaseModel, Country
+from app.shipping.models import Shipping
 from exceptions import NoShippingRateError
-from app.models import Country
 
-dhl_zones = db.Table('dhl_zones',
-    db.Column('id', db.Integer(), primary_key=True)
-)
+from .dhl_country import DHLCountry
+from .dhl_rate import DHLRate
+from .dhl_zone import DHLZone
 
-dhl_countries = db.Table('dhl_countries',
-    db.Column('zone', db.Integer(), db.ForeignKey(dhl_zones.c.id)),
-    db.Column('country_id', db.String(2), db.ForeignKey('countries.id'))
-)
-
-dhl_rates = db.Table('dhl_rates',
-    db.Column('zone', db.Integer(), db.ForeignKey(dhl_zones.c.id)),
-    db.Column('weight', db.Float()),
-    db.Column('rate', db.Float())
-)
+# dhl_zones = db.Table('dhl_zones',
+#     db.Column('id', db.Integer(), primary_key=True)
+# )
 
 class DHL(Shipping):
+    '''DHL shipping'''
     __mapper_args__ = {'polymorphic_identity': 'dhl'}
 
     name = 'DHL'
     type = 'DHL'
-    
-    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+
+    def can_ship(self, country: Country, weight: int, products: list = None) -> bool:
         if not self._are_all_products_shippable(products):
             return False
         if weight and weight > 99999:
             return False
         if country is None:
             return True
-        return \
-            db.session.execute(dhl_countries
-                .select(dhl_countries.c.country_id == country.id))\
-                .scalar() is not None
+        return DHLCountry.query.filter_by(country_id=country.id).first() is not None
+
+    def get_edit_url(self):
+        from .. import bp_client_admin
+        return f"{bp_client_admin.url_prefix}/"
 
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("DHL::get_shipping_cost()")
         weight = int(weight) / 1000
-        rate = db.session.execute(dhl_countries
-            .join(dhl_zones)
-            .join(dhl_rates)
-            .select(dhl_rates.c.rate).with_only_columns([dhl_rates.c.rate])
-            .where(dhl_countries.c.country_id == destination)
-            .where(dhl_rates.c.weight > weight)
-            .order_by(dhl_rates.c.weight)
-        ).scalar()
-        if rate is None:
+        country = DHLCountry.query.get(destination)
+        if country is None:
+            raise NoShippingRateError
+        rate = sorted(
+            filter(lambda r: r.weight > weight, country.rates),
+                   key=attrgetter('weight')
+        )
+        if len(rate) == 0:
             raise NoShippingRateError()
+        rate = rate[0].rate
         if weight > 30:
             return rate * math.ceil(weight)
 

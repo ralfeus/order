@@ -56,7 +56,7 @@ class TestClientApi(BaseTestCase):
                 'type': 'DHL',
                 'enabled': True,
                 'notification': None,
-                'edit_url': None,
+                'edit_url': '/admin/shipping/dhl/',
                 'params': []
             },
             {
