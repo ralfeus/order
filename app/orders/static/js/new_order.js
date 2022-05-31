@@ -51,6 +51,7 @@ $(document).ready(function() {
 
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer_node);
+    $('#import_order').on('click', () => {$('#excel').trigger('click')});
     $('#submit').on('click', submit_order);
     $('#save_draft').on('click', save_order_draft);
     $('.common-purchase-date')

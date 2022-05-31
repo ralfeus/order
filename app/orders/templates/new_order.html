@@ -110,7 +110,6 @@
         <div class="card card-header">
             <div class="row input-group">
                 <div class="col-9">            
-                    <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
                     <input class="btn btn-secondary" type="button" value="Clear form" onclick="clear_form()" />
                     <input class="btn btn-secondary" type="button" id="save_draft" value="Save draft" />
                 </div>    
@@ -205,10 +204,9 @@
     </div>
     <!-- </form> -->
 
-    <div class="fixed-bottom excel" style="display: none;">
-        <div class="custom-file">
-            <label class="custom-file-label " for="excel">Import from Excel</label>
-            <input type="file" id="excel" class="custom-file-input" />
-        </div>
-    </div>
+    <span class="fixed-bottom">
+        <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
+        <input class="btn btn-primary" type="button" id="import_order" value="Import order" />
+        <input type="file" id="excel" style="opacity: 0;"/>
+    </span>
 {% endblock %}
