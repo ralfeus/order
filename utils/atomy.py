@@ -98,6 +98,9 @@ def _atomy_login_curl(username, password):
     elif re.search("var isLoginFail = \\'True\\';", output.stdout):
         message = re.search(r"isLoginFail ==.*\n.*?alert\('(.*?)'", output.stdout, re.MULTILINE).groups()[0]
         raise AtomyLoginError(username=username, message=message)
+    elif re.search("HTTP.*503", output.stderr):
+        message = "Vendor's server is temporary unavailable. Please try again later"
+        raise AtomyLoginError(username=username, message=message)
 
     raise HTTPError(output)
 
