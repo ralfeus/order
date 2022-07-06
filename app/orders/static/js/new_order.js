@@ -443,6 +443,7 @@ async function update_total_weight(products) {
         $('.box-weight').show();
         $('#box-weight').text(box_weight);
     } else {
+        g_box_weight = 0;
         $('.box-weight').hide();
     }
     $('.total-weight').html(total_weight + box_weight);
