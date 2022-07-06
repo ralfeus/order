@@ -34,6 +34,7 @@ class TestOrdersApi(BaseTestCase):
             self.user, self.admin, admin_role,
             Currency(code='USD', rate=0.5),
             Currency(code='RUR', rate=0.5),
+            Currency(code='CZK', rate=1),
             Country(id='c1', name='country1'),
             Product(id='0000', name='Test product', price=10, weight=10),
             Shipping(id=1, name='Shipping1'),

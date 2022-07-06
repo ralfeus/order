@@ -286,18 +286,21 @@ class Order(db.Model, BaseModel):
         return \
             self.shipping_usd if currency and currency.code == 'USD' \
             else self.shipping_rur if currency and currency.code == 'RUR' \
+            else round(self.subtotal_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.shipping_krw
 
     def get_subtotal(self, currency: Currency=None):
         return \
             self.subtotal_usd if currency and currency.code == 'USD' \
             else self.subtotal_rur if currency and currency.code == 'RUR' \
+            else round(self.subtotal_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.subtotal_krw
 
     def get_total(self, currency: Currency=None):
         return \
             self.total_usd if currency and currency.code == 'USD' \
             else self.total_rur if currency and currency.code == 'RUR' \
+            else round(self.total_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.total_krw
 
     def get_total_points(self):

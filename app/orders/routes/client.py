@@ -83,7 +83,7 @@ def user_get_order(order_id):
             db.session.commit()
     if currency is None:
         currency = Currency.query.get('KRW')
-    currencies = [{'code': c.code, 'default': c.code == profile.get('currency')} 
+    currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
                   for c in Currency.query]
     rate = currency.get_rate(order.when_created)
     logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
