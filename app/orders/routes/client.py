@@ -84,7 +84,7 @@ def user_get_order(order_id):
     if currency is None:
         currency = Currency.query.get('KRW')
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
-                  for c in Currency.query]
+                  for c in Currency.query if c.enabled]
     rate = currency.get_rate(order.when_created)
     logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
     return render_template('order_view.html', order=order,
