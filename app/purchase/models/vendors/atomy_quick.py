@@ -63,7 +63,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__init_quick_order(purchase_order)
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
-            self.__set_purchase_order_id(purchase_order.id[11:]) # Receiver name
+            self.__set_purchase_order_id('0' + purchase_order.id[11:]) # Receiver name
             self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address)
