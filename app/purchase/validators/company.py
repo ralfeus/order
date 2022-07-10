@@ -13,7 +13,7 @@ def _is_valid_phone(_form, field):
         raise ValidationError(f'{field.id}:Must be in format 000-0000-0000')
 
 def _is_valid_tax_id(_form, field):
-    if not re.match(r'\d{3}-\d{2}-\d{5}', field.data):
+    if field.data != '--' and not re.match(r'\d{3}-\d{2}-\d{5}', field.data):
         raise ValidationError('tax_id:Must be in format 000-00-0000')
 
 def _no_empty_field(_form, field):
@@ -26,7 +26,7 @@ class CompanyValidator(Inputs):
         'id': [Optional(), _is_integer],
         'default': [Optional(), AnyOf([True, False], 'default: Must be bool')],
         'phone': [Optional(), _is_valid_phone],
-        'tax_id': [_no_empty_field, _is_valid_tax_id],
+        'tax_id': [Optional(), _is_valid_tax_id],
         'tax_phone': [Optional(), _is_valid_phone]
     }
 
