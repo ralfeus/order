@@ -56,6 +56,10 @@ function init_table() {
                 url: '/api/v1/admin/purchase/company/_id_',
                 contentType: 'application/json',
                 data: data => normalize_and_stringify(Object.entries(data.data)[0][1])
+            },
+            remove: {
+                url: '/api/v1/admin/purchase/company/_id_',
+                method: 'delete'
             }
         },
         table: '#companies',
