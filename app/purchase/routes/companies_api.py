@@ -46,7 +46,7 @@ def save_company(company_id):
         if not company:
             abort(Response(f'No company <{company_id}> was found', status=400))
 
-    if payload.get('tax_id') is None:
+    if payload.get('tax_id') is None or payload['tax_id'] == '':
         payload['tax_id_1'] = payload['tax_id_2'] = payload['tax_id_3'] = ''
     else:
         payload['tax_id_1'], payload['tax_id_2'], payload['tax_id_3'] = payload['tax_id'].split('-')

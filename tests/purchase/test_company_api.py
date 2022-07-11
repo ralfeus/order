@@ -61,6 +61,16 @@ class TestCompanyClient(BaseTestCase):
             'tax_simplified': True,
             'default': False
         })
+
+    def test_create_company(self):
+        self.try_add_entities([
+            Address(id=123, name='Address 1')])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/purchase/company',
+            json={'name': 'Company_1', 'tax_id': '', 'address_id': 123})
+        )
+        self.assertEqual(res.status_code, 200)
+
     def test_save_company(self):
         gen_id = int(datetime.now().timestamp())
         self.try_add_entities([
