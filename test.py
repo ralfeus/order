@@ -7,16 +7,15 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    # po = PurchaseOrder.query.get('PO-2021-04-0002-001')
-    # po.status = PurchaseOrderStatus.pending
-    # po.vendor = 'AtomyQuick'
-    # po.company_id = 4
-    # po.customer.username = '23426444'
-    # po.customer.password = 'atomy#01'
-    # po.purchase_restricted_products = True
-    # db.session.flush()
-    # update_purchase_orders_status('PO-2021-03-0001-001')
-    # browser = Browser(config=current_app.config)
+    po = PurchaseOrder.query.get('PO-2022-05-0002-001')
+    po.status = PurchaseOrderStatus.pending
+    po.vendor = 'AtomyQuick'
+    po.company_id = 4
+    po.customer.username = '23426444'
+    po.customer.password = 'atomy#01'
+#    po.purchase_restricted_products = True
+    db.session.flush()
+#    update_purchase_orders_status('PO-2021-03-0001-001')
 #     vendor = PurchaseOrderVendorManager.get_vendor(
 #         po.vendor,5
 #         browser=browser, config=current_app.config)
