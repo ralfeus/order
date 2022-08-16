@@ -74,6 +74,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             po_params = self.__submit_order()
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
+            purchase_order.total_krw = po_params[2]
             db.session.flush()
             self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
             return purchase_order
@@ -111,12 +112,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __send_order_post_request(self):
         self._logger.debug(self.__po_params)
         try:
-            post_order_doc = get_document_from_url(
+            post_order_doc = self._try_action(lambda: get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
                 encoding='utf-8',
                 headers=[{'Cookie': c} for c in self.__session_cookies],
                 raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
-            )
+            ))
             return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
         except KeyError: # Couldn't get order ID
             self._logger.warning(self.__po_params)
@@ -131,7 +132,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
-        order_details_doc = get_document_from_url(
+        order_details_doc = self._try_action(lambda: get_document_from_url(
             url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderView',
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies ] + [
@@ -139,7 +140,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             ],
             raw_data='{"SaleNum":"%s","CustNo":"%s"}' % \
                 (order_id, self.__purchase_order.customer.username)
-        )
+        ))
         return json.loads(order_details_doc.text)
 
     def __add_products(self, order_products):
@@ -335,8 +336,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.info("Submitting the order")
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
-        self._logger.info((order_id, vendor_po['jsonData'][0]['IpgumAccountNo']))
-        return order_id, vendor_po['jsonData'][0]['IpgumAccountNo']
+        self._logger.info((order_id, vendor_po['jsonData']))
+        return order_id, vendor_po['jsonData'][0]['IpgumAccountNo'], vendor_po['jsonData'][0]['TotAmt']
         
     def update_purchase_order_status(self, purchase_order):
         logger = self._logger.getChild('update_purchase_order_status')

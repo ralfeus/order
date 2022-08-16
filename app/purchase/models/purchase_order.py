@@ -51,6 +51,7 @@ class PurchaseOrder(db.Model, BaseModel):
     purchase_restricted_products = Column(Boolean, default=False)
     status_details = Column(Text)
     when_posted = Column(DateTime)
+    total_krw = Column(Integer)
 
 
     def __init__(self, suborder: Suborder, **kwargs):
@@ -60,6 +61,7 @@ class PurchaseOrder(db.Model, BaseModel):
         else:
             self.id = 'PO-{}-{}'.format(suborder.order_id[4:], suborder.id)
         self.suborder = suborder
+        self.total_krw = suborder.total_krw
         # Here properties are set (attributes start with '__')
 
     @property
@@ -171,7 +173,7 @@ class PurchaseOrder(db.Model, BaseModel):
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
             'company': self.company.name,
-            'total_krw': self.suborder.total_krw,
+            'total_krw': self.total_krw,
             'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
