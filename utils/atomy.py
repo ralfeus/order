@@ -10,8 +10,8 @@ from urllib.parse import urlencode
 import lxml.html
 from flask import current_app
 
-from selenium.common.exceptions import NoAlertPresentException, \
-    NoSuchElementException, UnexpectedAlertPresentException
+# from selenium.common.exceptions import NoAlertPresentException, \
+#     NoSuchElementException, UnexpectedAlertPresentException
 
 from exceptions import AtomyLoginError, HTTPError
 # from app.utils.browser import Browser

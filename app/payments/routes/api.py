@@ -8,7 +8,6 @@ import re
 import shutil
 from tempfile import NamedTemporaryFile
 
-
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
@@ -352,7 +351,7 @@ def user_upload_payment_evidence(payment_id):
 @login_required
 def get_payment_methods():
     payment_methods = PaymentMethod.query
-    return jsonify(list(map(lambda pm: pm.to_dict(), payment_methods)))
+    return jsonify([pm.to_dict() for pm in payment_methods])
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['POST'])
 @bp_api_admin.route('/method', methods=['POST'], defaults={'payment_method_id': None})

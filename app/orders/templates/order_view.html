@@ -46,7 +46,7 @@
     </tr>
     <tr>
       <td>{{ order.shipping.name }}</td>
-      <td>{{ order.total_weight }}</td>
+      <td>{{ order.total_weight + order.shipping_box_weight }}</td>
       <td>
         {{ order.address }}<br />
         {{ order.zip }}<br />

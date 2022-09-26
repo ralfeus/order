@@ -91,6 +91,8 @@ class Suborder(db.Model, BaseModel):
             self.get_order_products(), 0) * rate
 
     def get_shipping(self, currency=None):
+        '''Returns shipping cost for a suborder, which is a proportional to its weight in total order.
+        Provided in currency requested'''
         if self.order.total_weight == 0:
             return 0
         return self.get_weight() / self.order.total_weight \

@@ -32,6 +32,7 @@ class PaymentMethod(db.Model, BaseModel):
         return None
 
     def to_dict(self):
+        '''Returns object's representation as a map'''
         return {
             'id': self.id,
             'name': self.name,

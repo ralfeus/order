@@ -68,3 +68,5 @@ pylintrc
 app/config-test.json
 
 profile-*
+include/*
+tags
