@@ -23,7 +23,7 @@ const box_weights = {
     5000: 500,
     2000: 250
 };
-const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
+const FREE_LOCAL_SHIPPING_THRESHOLD = 50000;
 const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;

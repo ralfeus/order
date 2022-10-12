@@ -35,3 +35,12 @@ with recursive cte (destination, weight, rate, shipping_method_id) as (
     union
     select 'ru', weight + 100, rate + 2200, 3 from cte where weight < 300000
 ) select * from cte;
+
+-- Fix customer_balance at transactions
+UPDATE 
+    transactions AS t JOIN 
+    (
+        SELECT id, SUM(amount) OVER (PARTITION BY customer_id ORDER BY id) AS balance 
+        FROM transactions
+    ) AS tot ON t.id = tot.id 
+SET t.customer_balance = tot.balance;

@@ -194,7 +194,7 @@ class Order(db.Model, BaseModel):
             self.status = kwargs['status']
 
     def __repr__(self):
-        return "<Order: {}>".format(self.id)
+        return f"<Order: {self.id}>"
 
     def attach_orders(self, orders):
         if isinstance(orders, list) and len(orders) > 0:
@@ -291,6 +291,7 @@ class Order(db.Model, BaseModel):
             else self.shipping_krw
 
     def get_subtotal(self, currency: Currency=None):
+        '''Returns subtotal of the order - sum of cost of all order products'''
         return \
             self.subtotal_usd if currency and currency.code == 'USD' \
             else self.subtotal_rur if currency and currency.code == 'RUR' \
@@ -299,6 +300,7 @@ class Order(db.Model, BaseModel):
             else self.subtotal_krw
 
     def get_total(self, currency: Currency=None):
+        '''Returns total of the order - subtotal plus shipping costs'''
         return \
             self.total_usd if currency and currency.code == 'USD' \
             else self.total_rur if currency and currency.code == 'RUR' \
