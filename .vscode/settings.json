@@ -19,10 +19,12 @@
         "**/lib64/**": true,
         "**/share/**": true
     },
-    "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.mypyEnabled": true,
     "remote.SSH.useLocalServer": false,
     "docker.imageBuildContextPath": ".",
-    "workbench.list.keyboardNavigation": "filter",
-    "python.pythonPath": "bin/python"
+    "workbench.list.defaultFindMode": "filter",
+    "python.pythonPath": "bin/python",
+    "python.analysis.typeCheckingMode": "off",
 }

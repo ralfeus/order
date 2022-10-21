@@ -38,6 +38,7 @@ class TestInvoiceClient(BaseTestCase):
             'user1_test_invoice_api', '1', 'root_test_invoice_api', '1')
     
     def test_create_invoice(self):
+        '''Test creation of invoice'''
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         id_prefix = datetime.now().strftime('INV-%Y-%m-')
         self.try_add_entities([
@@ -61,6 +62,7 @@ class TestInvoiceClient(BaseTestCase):
         self.assertEqual(invoice.invoice_items_count, 2)
 
     def test_save_invoice(self):
+        '''Tests update of invoice'''
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([
             Invoice(id=gen_id, customer='Customer 1')
@@ -74,6 +76,7 @@ class TestInvoiceClient(BaseTestCase):
         self.assertEqual(invoice.customer, 'Customer 2')
 
     def test_get_invoices(self):
+        '''Test getting invoices'''
         self.try_add_entities([
             Product(id='0001', name='Product 1', name_english='P1', weight=10),
             Invoice(id='INV-2020-00-00',
@@ -88,8 +91,8 @@ class TestInvoiceClient(BaseTestCase):
         self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/invoice'))
         res = self.client.get('/api/v1/admin/invoice/INV-2020-00-00')
-        self.assertEqual(len(res.json), 1)
-        self.assertEqual(res.json[0], {
+        self.assertEqual(len(res.json), 1)  # type: ignore
+        self.assertEqual(res.json[0], { # type: ignore
             'address': None,
             'country': 'country1',
             'customer': 'Customer 1',

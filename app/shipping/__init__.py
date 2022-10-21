@@ -1,6 +1,7 @@
 from importlib import import_module
 import logging
-import os, os.path
+import os
+import os.path
 from flask import Blueprint
 
 bp_api_user = Blueprint('shipping_api_user', __name__, url_prefix='/api/v1/shipping')
@@ -12,7 +13,7 @@ bp_client_admin = Blueprint('shipping_client_admin', __name__, url_prefix='/admi
 
 def register_blueprints(flask_app):
     logger = logging.getLogger('app.shipping.register_blueprints()')
-    from . import routes
+    from . import routes #ignore: unused-import
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_api_user)
     flask_app.register_blueprint(bp_client_admin)
@@ -29,8 +30,9 @@ def register_blueprints(flask_app):
             module = import_module(__name__ + '.methods.' + module_name)
             try:
                 module.register_blueprints(flask_app)
-            except:
-                pass
+            except Exception as ex:
+                logger.warning("Couldn't import %s", module_name)
+                logger.warning(ex)
         except KeyError:
             pass
 

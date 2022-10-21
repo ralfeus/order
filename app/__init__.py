@@ -4,8 +4,8 @@ import logging
 import os
 import types
 
+from blinker import Namespace
 from flask import Flask
-from flask.signals import Namespace
 from flask_bootstrap import Bootstrap
 from flask_migrate import Migrate
 from flask_security import Security
@@ -19,11 +19,11 @@ from app.utils.services import get_celery, init_celery
 ################### JSON serialization patch ######################
 # In order to have all objects use to_dict() function providing
 # dictionary for JSON serialization
-def _default(self, obj):
-    return getattr(obj.__class__, "to_dict", _default.default)(obj)
+def _default(_self, obj):
+    return getattr(obj.__class__, "to_dict", _default.default)(obj) #pyright: ignore
 
 _default.default = JSONEncoder.default  # Save unmodified default.
-JSONEncoder.default = _default # Replace it.
+JSONEncoder.default = _default  #pyright: ignore # Replace it.
 ###################################################################
 
 
@@ -44,7 +44,7 @@ def create_app(config=None):
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
     flask_app.config.from_file(
-        config or os.environ.get('OM_CONFIG_FILE') or 'config.json',
+        config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json',
         load=load)
     init_logging(flask_app)
 
@@ -98,7 +98,7 @@ def register_components(flask_app):
     load_modules(flask_app)
 
 def import_models(flask_app):
-    import app.currencies.models
+    import app.currencies.models #pyright: ignore
     import app.addresses.models
     import app.orders.models
     import app.invoices.models

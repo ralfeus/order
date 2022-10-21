@@ -70,3 +70,4 @@ app/config-test.json
 profile-*
 include/*
 tags
+.DS_Store

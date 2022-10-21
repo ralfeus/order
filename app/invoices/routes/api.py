@@ -6,7 +6,8 @@ from tempfile import NamedTemporaryFile
 from more_itertools import map_reduce
 import openpyxl
 
-from flask import Response, abort, current_app, jsonify, request
+from flask import abort, current_app, jsonify, request
+from flask.wrappers import Response
 from flask_security import roles_required
 
 from sqlalchemy import or_
@@ -30,7 +31,7 @@ def create_invoice(usd_rate):
         abort(Response("No orders with provided IDs were found ", status=400))
     invoice = Invoice()
     # invoice_items = []
-    invoice.when_created = datetime.now()
+    invoice.when_created = datetime.now() # type: ignore
     cumulative_order_products = map_reduce(
         [order_product for order in orders
                        for order_product in order.order_products],
@@ -78,7 +79,7 @@ def get_invoices(invoice_id):
             invoices, records_total, records_filtered = prepare_datatables_query(
                 invoices, request.values,
                 or_(                
-                    Invoice.id.like(f"%{request.values['search[value]']}%"),
+                    Invoice.id.like(f"%{request.values['search[value]']}%"),  # type: ignore
                     Invoice.orders.any(Order.id.like(f"%{request.values['search[value]']}%")),
                     Invoice.customer.like(f"%{request.values['search[value]']}%"))
             )
@@ -115,9 +116,9 @@ def get_invoice_order_products(invoice):
     }, cumulative_order_products.items()))
     return result
 
-def create_invoice_excel(reference_invoice):
+def create_invoice_excel(reference_invoice: Invoice):
     package_path = os.path.dirname(__file__) + '/..'
-    invoice_wb = openpyxl.open(f'{package_path}/templates/invoice_template.xlsx')
+    invoice_wb = openpyxl.open(f'{package_path}/templates/invoice_template.xlsx') #pyright: ignore
     invoice_dict = reference_invoice.to_dict(details=True)
     order_products = get_invoice_order_products(reference_invoice)
     total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
@@ -155,11 +156,15 @@ def create_invoice_excel(reference_invoice):
     pl.cell(25, 4, reference_invoice.orders[0].phone)
 
     # Set invoice footer
+    suffix = "ES" if len(reference_invoice.orders) > 1 else ""
+    boxes = f"{len(reference_invoice.orders)} BOX{suffix}"
     ws.cell(305, 5, total)
+    ws.cell(309, 2, boxes)
     ws.cell(311, 4, f"{round(total, 2)} USD")
     ws.cell(312, 2, f"{invoice_dict['weight']}g")
 
     # Set packing list footer
+    pl.cell(309, 2, boxes)
     pl.cell(311, 4, f"{reduce(lambda qty, op: qty + op['quantity'], order_products, 0)}psc")
     pl.cell(312, 2, f"{invoice_dict['weight']}g")
 

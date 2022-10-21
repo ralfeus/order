@@ -25,12 +25,12 @@
                 "FLASK_ENV": "development",
                 "FLASK_DEBUG": "1",
                 "OM_APP_NAME": "order_master",
-                "OM_CONFIG_FILE": "config.json"
+                "OM_CONFIG_FILE": "config-default.json"
             },
             "args": [
                 "run",
-                "--host",
-                "0.0.0.0"
+                // "--host",
+                // "0.0.0.0"
             ],
             "jinja": true,
             "justMyCode": true

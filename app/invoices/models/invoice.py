@@ -11,7 +11,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from app import db
 from app.shipping.models import Shipping
 
-class Invoice(db.Model):
+class Invoice(db.Model):  # type: ignore
     '''
     Invoice model
     '''
