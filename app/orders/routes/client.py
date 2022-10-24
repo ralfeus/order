@@ -1,7 +1,7 @@
 ''' Client routes for order related activities '''
 import itertools
 import json
-from flask import Response, abort, escape, request, render_template, send_file
+from flask import Response, abort, current_app, escape, request, render_template, send_file
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
 
@@ -57,6 +57,8 @@ def user_new_order():
         load_excel=request.args.get('upload') is not None,
         can_create_po=current_user.has_role('allow_create_po'),
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
+        free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
+        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
         extensions="\n".join([e[1] for e in extensions]))
 
 @bp_client_user.route('/<order_id>')
@@ -123,7 +125,9 @@ def admin_get_order(order_id):
     
     return render_template('new_order.html',
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
-        order_id=order_id)
+        order_id=order_id,
+        free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
+        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'])
 
 
 @bp_client_admin.route('/subcustomers')

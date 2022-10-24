@@ -2,6 +2,11 @@
 
 {% block scripts %}
 {{ super() }}
+<link rel="stylesheet" href="static/css/new-order.css" />
+<script>
+    const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
+    const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
+</script>
 <script src="static/js/new_order.js"></script>
 <script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
 <script src="static/js/upload_excel.js"></script>
@@ -124,7 +129,8 @@
             Box weight:
             <span id="box-weight" class="mx-1"></span>
         </div>
-    </div>        
+    </div>     
+    <!-- Subcustomer card -->   
     <div id="accordion" class="container-fluid">
         <div class="card subcustomer-card">
             <div class="input-group card-header" id="userItemsHeader0">
@@ -140,14 +146,14 @@
                 <table class="table-sm table-bordered table-hover col-12">
                     <thead>
                         <tr>
-                            <th scope="col"></th>
-                            <th scope="col" style="width: 10em;">Item code</th>
-                            <th scope="col" style="width: 25em;">Item name</th>
+                            <th scope="col" style="width: 1rem;"></th>
+                            <th scope="col" style="width: 7rem;">Item code</th>
+                            <th scope="col" style="width: 25rem">Item name</th>
                             <th scope="col" style="width: 5em;">Quantity</th>
                             <th scope="col">Price</th>
-                            <th scope="col" style="width: 10em;">Items cost (KRW)</th>
+                            <th scope="col" style="width: 10em;">Items cost</th>
                             <th scope="col" style="width: 0em;">Weight</th>
-                            <th scope="col">Shipping cost (KRW)</th>
+                            <th scope="col" style="width: 6rem;">Shipping cost</th>
                             <th scope="col">Total (KRW)</th>
                             <th scope="col">Total (RUR)</th>
                             <th scope="col">Total (USD)</th>

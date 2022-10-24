@@ -9,6 +9,9 @@
   table {
     font-size: 1rem;
   }
+  td.compact {
+    padding: 1px;
+  }
 </style>
 {% endblock %}
 
@@ -29,7 +32,25 @@
     </tr>
     <tr>
       <td>{{ order.shipping.name }}</td>
-      <td>{{ order.total_weight }}</td>
+      <td>        
+        <table>
+          <tr>
+            <td class="compact">Products:</td>
+            <td class="compact" style="text-align: right;">
+              {{ order.total_weight / 1000}}kg</td>
+          </tr>
+          <tr>
+            <td class="compact">Packaging:</td>
+            <td class="compact" style="text-align: right;">
+              {{ order.shipping_box_weight / 1000}}kg</td>
+          </tr>
+          <tr style="font-weight: bold;">
+            <td class="compact">Total:</td>
+            <td class="compact" style="text-align: right;">
+              {{ (order.total_weight + order.shipping_box_weight) / 1000 }}kg</td>
+          </tr>
+        </table>
+      </td>
       <td>
         {{ order.address }}<br />
         {{ order.zip }}<br />

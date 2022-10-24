@@ -23,8 +23,8 @@ const box_weights = {
     5000: 500,
     2000: 250
 };
-const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
-const LOCAL_SHIPPING_COST = 2500;
+// const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
+// const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
@@ -44,6 +44,8 @@ var subtotal_krw = 0;
 
 var subcustomerTemplate;
 var itemTemplate;
+
+const fmtKRW = new Intl.NumberFormat('KR-kr', {style: 'currency', currency: 'KRW'});
 
 $(document).ready(function() {
     itemTemplate = $('#userItems0_0')[0].outerHTML;
@@ -199,7 +201,7 @@ async function update_product(product_row, product) {
     $('.item-name', product_row).html(
         "<a href='#' onclick=show_product('" + product.id + "')><font color=\"" + color + "\">"+(product.name_english == null ? product.name : product.name_english + " | " + product.name_russian)+"</a>" +
         "</font>");
-    $('.item-price', product_row).html(product.price);
+    $('.item-price', product_row).html(fmtKRW.format(product.price));
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
     await update_item_subtotal(product_row);
@@ -210,7 +212,7 @@ function show_product(product_id) {
     var product = g_products.filter(p => p.value == product_id)[0];
     modal(product.label,
     '<img src=' + product.image + ' width="250"; height=250; align="left";>' +    
-    'price: '+product.price+'\n'+
+    'price: ' + fmtKRW.format(product.price) + '\n'+
     'points: '+product.points+'\n'+
     'available: '+(product.available ? 'available' : 'unavailable')
     );
@@ -578,8 +580,8 @@ async function update_all_totals() {
  * Updates grand totals of the cart
  */
 function update_grand_totals() {
-    $('#totalGrandTotalKRW').html(round_up(
-        parseFloat($('#totalItemsCostKRW').html()) + parseFloat($('#totalShippingCostKRW').html()), 2));
+    $('#totalGrandTotalKRW').html(fmtKRW.format(round_up(
+        parseFloat($('#totalItemsCostKRW').html()) + parseFloat($('#totalShippingCostKRW').html()), 2)));
     $('#totalGrandTotalRUR').html(round_up(
         parseFloat($('#totalItemsCostRUR').html()) + parseFloat($('#totalShippingCostRUR').html()), 2));
     $('#totalGrandTotalUSD').html(round_up(
@@ -592,7 +594,7 @@ async function update_item_subtotal(item) {
         g_cart[item.id].quantity = /^\d+$/.test($('.item-quantity', item).val())
             ? parseInt($('.item-quantity', item).val()) : 0;
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
-        $('td.cost-krw', item).html(g_cart[item.id].costKRW);
+        $('td.cost-krw', item).html(fmtKRW.format(g_cart[item.id].costKRW));
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
         $('td.total-points', item).html(g_cart[item.id].points * g_cart[item.id].quantity);
     } else {
@@ -609,7 +611,7 @@ function update_item_total() {
         var item_id = $(this).parent().attr('id');
         if (g_cart[item_id]) {
             g_cart[item_id].totalKRW = g_cart[item_id].costKRW + g_cart[item_id].shippingCostKRW;
-            $(this).html(g_cart[item_id].totalKRW);
+            $(this).html(fmtKRW.format(g_cart[item_id].totalKRW));
         } else {
             $(this).html('');
         }
@@ -654,7 +656,7 @@ function distribute_shipping_cost(cost) {
     }
     $('.shipping-cost-krw').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(g_cart[$(this).parent().attr('id')].shippingCostKRW);
+            $(this).html(fmtKRW.format(g_cart[$(this).parent().attr('id')].shippingCostKRW));
         } else {
             $(this).html('');
         }
@@ -676,7 +678,7 @@ async function update_subcustomer_local_shipping(node) {
     var local_shipping = 0;
     if (total_local_package_amount < FREE_LOCAL_SHIPPING_THRESHOLD) {
         $('.local-shipping', $(subcustomer_total)).html(
-            "(Local shipping: " + LOCAL_SHIPPING_COST + ')');
+            "(Local: " + fmtKRW.format(LOCAL_SHIPPING_COST) + ')');
         local_shipping = LOCAL_SHIPPING_COST;
     } else {
         $('.local-shipping', $(subcustomer_total)).html("");
@@ -706,15 +708,15 @@ function update_subcustomer_totals() {
         var local_shipping = local_shipping_text
             ? parseInt(local_shipping_text[0])
             : 0;
-        $('#subtotalCostKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product.costKRW, 0));
+        $('#subtotalCostKRW', $(this)).html(fmtKRW.format(
+            userProducts.reduce((acc, product) => acc + product.costKRW, 0)));
         $('#subtotalWeight', $(this)).html(
             userProducts.reduce((acc, product) => 
                 acc + product.weight * product.quantity, 0));
-        $('#subtotalShippingCostKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product.shippingCostKRW, local_shipping));
-        $('#subtotalTotalKRW', $(this)).html(
-            userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping));
+        $('#subtotalShippingCostKRW', $(this)).html(fmtKRW.format(
+            userProducts.reduce((acc, product) => acc + product.shippingCostKRW, local_shipping)));
+        $('#subtotalTotalKRW', $(this)).html(fmtKRW.format(
+            userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping)));
         $('#subtotalTotalRUR', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 
                 acc + product.totalKRW, local_shipping) * currencyRates.RUR, 2));
