@@ -3,4 +3,5 @@ install:
 
 upgrade:
 	git pull
+	tools/purge_cache.fish
 	sudo systemctl restart order.*

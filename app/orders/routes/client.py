@@ -74,7 +74,11 @@ def user_get_order(order_id):
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     if order.status == OrderStatus.draft:
-        return render_template('new_order.html', order_id=order.id)
+        return render_template('new_order.html',
+            order_id=order.id,        
+            free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
+            local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST']
+        )
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
         currency = Currency.query.get(request.values['currency'])
