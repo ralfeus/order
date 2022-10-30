@@ -10,6 +10,7 @@ import os
 import os.path
 import re
 import lxml
+from time import sleep
 from werkzeug.datastructures import MultiDict
 
 from exceptions import FilterError, HTTPError
