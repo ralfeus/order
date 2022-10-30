@@ -187,12 +187,29 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8'):
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
-def try_perform(action, attempts=3):
+# def try_perform(action, attempts=3):
+#     last_exception = None
+#     while attempts:
+#         try:
+#             return action()
+#         except Exception as ex:
+#             attempts -= 1
+#             last_exception = ex
+#     raise last_exception
+
+def try_perform(action, attempts=3, logger=logging.root):
     last_exception = None
-    while attempts:
+    for _attempt in range(attempts):
+        logger.debug("Running action %s. Attempt %s of %s", action, _attempt + 1, attempts)
         try:
             return action()
         except Exception as ex:
-            attempts -= 1
-            last_exception = ex
-    raise last_exception
+            logger.debug("During action %s an error has occurred: %s", action, ex)
+            if not last_exception:
+                last_exception = ex
+            if ex.final:
+                break
+            else:
+                sleep(1)
+    if last_exception:
+        raise last_exception

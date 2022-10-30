@@ -26,7 +26,7 @@ class PurchaseOrderStatus(enum.Enum):
     failed = 8
     cancelled = 9
 
-class PurchaseOrder(db.Model, BaseModel):
+class PurchaseOrder(db.Model, BaseModel): #type: ignore
     ''' Represents purchase order '''
     __tablename__ = 'purchase_orders'
 

@@ -1,7 +1,7 @@
 ''' Fills and submits purchase order at Atomy
 using quick order'''
 from functools import reduce
-from app.tools import get_document_from_url
+from app.tools import get_document_from_url, try_perform
 from datetime import datetime, timedelta
 import json
 import logging
@@ -20,7 +20,7 @@ ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불�
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __purchase_order = None
-    __po_params = {}
+    __po_params: dict[str, object] = {}
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
@@ -34,7 +34,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 log_level = logging.INFO
         logging.basicConfig(level=log_level)
         logger = logging.getLogger('AtomyQuick')
-        logger.setLevel(log_level)
+        logger.setLevel(log_level) # type: ignore
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config = config
@@ -192,14 +192,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return ordered_products
 
     def __is_valid_product(self, product_id):
-        result = get_document_from_url(
+        result = try_perform(lambda: get_document_from_url(
             url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies] + [
                 {'Content-Type': 'application/json'}
             ],
             raw_data='{"CartList":[{"MaterialCode":"%s"}]}' % product_id
-        )
+        ), logger=self._logger)
         result = json.loads(result.text)
         if result['rsCd'] == '200':
             if result['responseText'] == '':
@@ -213,22 +213,22 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return False
 
     def __get_product(self, product_id):
-        if self.__is_valid_product(product_id):
-            try:
-                result = self._try_action(lambda: get_document_from_url(
+        try:
+            if self.__is_valid_product(product_id):
+                result = try_perform(lambda: get_document_from_url(
                     url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
                     encoding='utf-8',
                     headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                         {'Content-Type': 'application/json'}
                     ],
                     raw_data='{"MaterialCode":"%s"}' % product_id
-                ))
+                ), logger=self._logger)
                 result = json.loads(result.text)
                 return result['jsonData'] if result['jsonData'] is not None else None
-            except HTTPError:
-                self._logger.warning("Product %s: Couldn't get response from Atomy server in several attempts. Giving up", product_id)
+            else:
                 return None
-        else:
+        except HTTPError:
+            self._logger.warning("Product %s: Couldn't get response from Atomy server in several attempts. Giving up", product_id)
             return None
 
     def __is_purchase_date_valid(self, purchase_date):
