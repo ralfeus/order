@@ -106,7 +106,7 @@ def _atomy_login_curl(username, password):
 
 def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:
-        return _atomy_login_curl(username, password)
+        return try_perform(lambda: _atomy_login_curl(username, password))
     raise "Browser login is not implemented"
     # _logger = logger.getChild('atomy_login')
     # local_browser = None
@@ -219,3 +219,20 @@ def invoke_curl(url, raw_data, headers, method='get'):
         return output.stdout
     except TypeError:
         _logger.exception(run_params)
+
+def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
+    last_exception = None
+    for _attempt in range(attempts):
+        logger.debug("Running action %s. Attempt %s of %s", action, _attempt + 1, attempts)
+        try:
+            return action()
+        except Exception as ex:
+            logger.warning("During action %s an error has occurred: %s", action, ex)
+            if not last_exception:
+                last_exception = ex
+            if ex.final:
+                break
+            else:
+                sleep(1)
+    if last_exception:
+        raise last_exception
