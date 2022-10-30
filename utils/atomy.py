@@ -81,6 +81,7 @@ def _atomy_login_curl(username, password):
     output = subprocess.run([
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
+        '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
         '--data-raw',
         urlencode({
             'src': '',
@@ -227,7 +228,7 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
         try:
             return action()
         except Exception as ex:
-            logger.warning("During action %s an error has occurred: %s", action, ex)
+            logger.warning("During action %s an error has occurred: %s", action, str(ex))
             if not last_exception:
                 last_exception = ex
             else:

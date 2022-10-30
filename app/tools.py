@@ -170,16 +170,17 @@ def stream_and_close(file_handle):
     yield from file_handle
     file_handle.close()
 
-def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8'):
+def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8', resolve=None):
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
     raw_data = ['--data-raw', raw_data] if raw_data else []
+    resolve_list = ['--resolve', resolve] if resolve is not None else []
     output = subprocess.run([
         '/usr/bin/curl',
         url,
         '-v'
-        ] + headers_list + raw_data,
+        ] + headers_list + resolve_list + raw_data,
         encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
     if re.search('HTTP.*? 200', output.stderr) and len(output.stdout) > 0:
