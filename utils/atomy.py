@@ -230,8 +230,6 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
             logger.warning("During action %s an error has occurred: %s", action, ex)
             if not last_exception:
                 last_exception = ex
-            if ex.final:
-                break
             else:
                 sleep(1)
     if last_exception:

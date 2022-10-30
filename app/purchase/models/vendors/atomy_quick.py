@@ -20,7 +20,7 @@ ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불�
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __purchase_order = None
-    __po_params = {}
+    __po_params = dict[str, object]()
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
