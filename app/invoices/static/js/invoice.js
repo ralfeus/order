@@ -136,6 +136,10 @@ function get_excel() {
     window.open('/api/v1/admin/invoice/' + g_invoice_id + '/excel');
 }
 
+function get_pdf() {
+    window.open('/api/v1/admin/invoice/' + g_invoice_id + '/pdf');
+}
+
 async function get_usd() {
     g_usd_rate = (await (await fetch('/api/v1/currency/USD')).json()).data[0].rate;
 }

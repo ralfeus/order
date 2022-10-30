@@ -9,6 +9,8 @@ import openpyxl
 from flask import abort, current_app, jsonify, request
 from flask.wrappers import Response
 from flask_security import roles_required
+from flask import render_template, make_response
+import pdfkit
 
 from sqlalchemy import or_
 
@@ -192,6 +194,28 @@ def create_invoice_excel(reference_invoice: Invoice):
     invoice_wb.save(file.name)
     file.seek(0)
     return file
+
+
+@bp_api_admin.route('/<invoice_id>/pdf')
+@roles_required('admin')
+def get_invoice_pdf(invoice_id):
+    from app.currencies.models import Currency
+    invoice = Invoice.query.get(invoice_id)
+    if not invoice:
+        abort(Response(f"The invoice {invoice_id} was not found", status=404))
+    usd_rate = Currency.query.get('USD').rate
+    config = pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
+    order_products = get_invoice_order_products(invoice)
+    total = reduce(lambda acc, op: acc + op['subtotal'], order_products, 0)
+    invoice_dict = invoice.to_dict(details=True)
+    payee = invoice.orders[0].get_payee()
+    html = render_template('invoice_template.html', invoice=invoice, invoice_dict=invoice_dict, total=total, payee=payee, order_products=order_products, usd_rate=usd_rate)
+    options = {'enable-local-file-access': ""}
+    pdf = pdfkit.from_string(html, False, options=options, configuration=config)
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename="{invoice_id}.pdf"'
+    return response
 
 @bp_api_admin.route('/<invoice_id>', methods=['POST'])
 @roles_required('admin')
