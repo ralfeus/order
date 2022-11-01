@@ -9,7 +9,7 @@ class AtomyTest(BaseTestCase):
         with self.assertRaises(AtomyLoginError):
             atomy_login('11111111', '1', run_browser=False)
 
-    def test_multiple_login(self):
-        for attempt in range(100):
-            print(f"Attempt {attempt} of 99")
-            atomy_login('23426444', 'atomy#01', run_browser=False)
+    # def test_multiple_login(self):
+    #     for attempt in range(20):
+    #         print(f"Attempt {attempt} of 99")
+    #         atomy_login('23426444', 'atomy#01', run_browser=False)

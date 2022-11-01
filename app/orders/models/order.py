@@ -358,8 +358,9 @@ class Order(db.Model, BaseModel): # type: ignore
             .select_entity_from(posted_pos.subquery()).scalar() \
             if posted_pos.count() == self.suborders.count() \
             else None
+
         # Issuing a signal to get module specific part of the order
-        res = sale_order_model_preparing.send(self)
+        res = sale_order_model_preparing.send(self, details=details)
         ext_model = reduce(lambda acc, i: {**acc, **i}, [i[1] for i in res], {})
 
         result = {
@@ -406,7 +407,8 @@ class Order(db.Model, BaseModel): # type: ignore
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \
-                if self.when_changed else None
+                if self.when_changed else None,
+            **ext_model
         }
         if details:
             result = {**result,
@@ -416,7 +418,7 @@ class Order(db.Model, BaseModel): # type: ignore
                 'purchase_orders': [po.to_dict() for po in self.purchase_orders]
             }
         if (partial is not None):
-            result = {k: result[k] for k in partial}
+            result = {k: result.get(k) for k in partial}
         return result
 
     def update_total(self):
