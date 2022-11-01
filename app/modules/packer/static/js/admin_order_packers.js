@@ -58,7 +58,11 @@ function init_order_packers_table() {
         }
     });
     $('#order_packers').on('click', 'td.editable', function (e) {
-        editor.inline(this, { buttons: 'Save', submit: "allIfChanged", drawType: 'none' });
+        editor.inline(this, { 
+            buttons: 'Save', 
+            submit: "allIfChanged", 
+            drawType: 'none'
+        }).one('postSubmit', () => get_dictionaries().then(() => editor.field('packer').update(g_packers)));
     });
 }
 

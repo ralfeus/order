@@ -40,27 +40,28 @@ def admin_get_packers():
 def admin_save_order_packer(order_id):
     """Modify the order packer"""
     logger = current_app.logger.getChild("admin_save_order_packer")
-    with db.session.no_autoflush:
-        order_packer = OrderPacker.query.get(order_id)
-        if not order_packer:
-            order = Order.query.get(order_id)
-            if order is None:
-                abort(Response(f"No order {order_id} was found", status=404))
+    order_packer = OrderPacker.query.get(order_id)
+    if order_packer is None:
+        order = Order.query.get(order_id)
+        if order is None:
+            abort(Response(f"No order {order_id} was found", status=404))
+    payload = request.get_json()
+    logger.info(
+        "Modifying order packer %s by %s with data: %s",
+        order_id, current_user, payload,
+    )
+    if (payload['packer'] == ''):
+        db.session.delete(order_packer)
+        order_packer.packer = None
+    else:
+        if Packer.query.get(payload["packer"]) is None:
+            logger.info("No packer %s is there yet. Adding new", payload["packer"])
+            db.session.add(Packer(name=payload["packer"], when_created=datetime.now()))
+            db.session.flush()
+        if order_packer is None:
             order_packer = OrderPacker(order_id=order_id)
             db.session.add(order_packer)
-        payload = request.get_json()
-        logger.info(
-            "Modifying order packer %s by %s with data: %s",
-            order_id, current_user, payload,
-        )
-        if (payload['packer'] == ''):
-            db.session.delete(order_packer)
-            order_packer.packer = None
-        else:
-            modify_object(order_packer, payload, ["packer"])
-            if Packer.query.get(payload["packer"]) is None:
-                logger.info("No packer %s is there yet. Adding new", payload["packer"])
-                db.session.add(Packer(name=payload["packer"], when_created=datetime.now()))
+        modify_object(order_packer, payload, ["packer"])
     db.session.commit()
     return jsonify({"data": [order_packer.to_dict()]})
 
