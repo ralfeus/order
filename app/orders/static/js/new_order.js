@@ -23,8 +23,6 @@ const box_weights = {
     5000: 500,
     2000: 250
 };
-// const FREE_LOCAL_SHIPPING_THRESHOLD = 30000;
-// const LOCAL_SHIPPING_COST = 2500;
 
 var g_box_weight = 0;
 var g_cart = {};
@@ -166,6 +164,7 @@ function delete_subcustomer(target) {
             }
         }
         $(target).parent().parent().remove();
+        update_total_local_shipping();
         update_all_totals();
 }
 
@@ -684,13 +683,17 @@ async function update_subcustomer_local_shipping(node) {
         $('.local-shipping', $(subcustomer_total)).html("");
         local_shipping = 0;
     }
+    update_total_local_shipping();
+    await update_grand_subtotal();
+    // await update_all_totals();
+}
+
+function update_total_local_shipping() {
     var local_shipping_fees = $('.local-shipping').text()
-        .match(RegExp(LOCAL_SHIPPING_COST, 'g'))
+        .replace(/\D/g, '').match(RegExp(LOCAL_SHIPPING_COST, 'g'));
     g_total_local_shipping = local_shipping_fees 
         ? local_shipping_fees.reduce((acc, cost) => acc + parseInt(cost), 0)
         : 0;
-    await update_grand_subtotal();
-    // await update_all_totals();
 }
 
 /**
