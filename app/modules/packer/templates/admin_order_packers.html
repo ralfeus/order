@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_order_packers.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid">
+    <table id="order_packers" class="table">
+        <thead>
+            <tr>
+                <th scope="col" style="width: 2em;">Order&nbsp;ID</th>
+                <th scope="col" style="width: max-content;">Packer name</th>
+                <th scope="col" style="width: 8em;">When created</th>
+                <th scope="col" style="width: 8em;">When changed</th>
+            </tr>
+        </thead>
+        <tbody />
+    </table>
+</div>
+
+{% endblock %}

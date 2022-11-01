@@ -25,7 +25,7 @@ class OrderProductStatus(enum.Enum):
     # complete = 6
     # cancelled = 7
 
-class OrderProductStatusEntry(db.Model):
+class OrderProductStatusEntry(db.Model): # type: ignore
     __tablename__ = 'order_product_status_history'
     # __table_args__ = { 'extend_existing': True }
 
@@ -47,7 +47,7 @@ class OrderProductStatusEntry(db.Model):
         }
 
 
-class OrderProduct(db.Model, BaseModel):
+class OrderProduct(db.Model, BaseModel): # type: ignore
     '''
     Represents an ordered item of the order. Doesn't exist apart from order
     '''

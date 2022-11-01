@@ -23,6 +23,7 @@ from app.models.country import Country
 from app.currencies.models.currency import Currency
 from app.users.models.user import User
 from app.settings.models.setting import Setting
+from app.orders.signals import sale_order_model_preparing
 
 class OrderStatus(enum.Enum):
     ''' Sale orders statuses '''
@@ -36,7 +37,7 @@ class OrderStatus(enum.Enum):
     ready_to_ship = 7
     at_warehouse = 8
 
-class OrderBox(db.Model, BaseModel):
+class OrderBox(db.Model, BaseModel): # type: ignore
     ''' Specific box used in order '''
     __tablename__ = 'order_boxes'
 
@@ -56,7 +57,7 @@ class OrderBox(db.Model, BaseModel):
             'quantity': self.quantity
         }
 
-class Order(db.Model, BaseModel):
+class Order(db.Model, BaseModel): # type: ignore
     ''' Sale order '''
     __tablename__ = 'orders'
     __id_pattern = 'ORD-{year}-{month:02d}-'
@@ -320,7 +321,7 @@ class Order(db.Model, BaseModel):
         return len({'subtotal_krw', 'total_weight', 'shipping_krw', 'country', 'suborders'} &
                    set(payload.keys())) > 0
 
-    def to_dict(self, details=False):
+    def to_dict(self, details=False, partial=None):
         ''' Returns dictionary representation of the object ready to be JSONified '''
         def list_to_dict(key_list, value):
             if len(key_list) == 0:
@@ -357,6 +358,10 @@ class Order(db.Model, BaseModel):
             .select_entity_from(posted_pos.subquery()).scalar() \
             if posted_pos.count() == self.suborders.count() \
             else None
+        # Issuing a signal to get module specific part of the order
+        res = sale_order_model_preparing.send(self)
+        ext_model = reduce(lambda acc, i: {**acc, **i}, [i[1] for i in res], {})
+
         result = {
             'id': self.id,
             'user': self.user.username if self.user else None,
@@ -410,6 +415,8 @@ class Order(db.Model, BaseModel):
                 'attached_orders': [o.to_dict() for o in self.attached_orders],
                 'purchase_orders': [po.to_dict() for po in self.purchase_orders]
             }
+        if (partial is not None):
+            result = {k: result[k] for k in partial}
         return result
 
     def update_total(self):
@@ -581,7 +588,7 @@ class Order(db.Model, BaseModel):
                         op.price * op.quantity)
 
 
-class OrderParam(db.Model, BaseModel):
+class OrderParam(db.Model, BaseModel): # type: ignore
     '''Additional Order parameter'''
     __tablename__ = 'order_params'
 

@@ -26,6 +26,9 @@
         },
         "pv_stats": {
             "enabled": true
+        },
+        "packer": {
+            "enabled": true
         }
     }
 }

@@ -118,8 +118,10 @@
               </ul>
             </li>
             {% endif %}
+            {% if config['MODULES']['packer']['enabled'] %}
+            <li><a class="dropdown-item" href="/admin/order/packers">Packers</a></li>
+            {% endif %}
           </ul>
-        </li>
         {% endif %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="navbardrop" data-toggle="dropdown">
