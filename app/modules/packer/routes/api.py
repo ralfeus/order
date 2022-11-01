@@ -59,7 +59,7 @@ def admin_save_order_packer(order_id):
             db.session.add(Packer(name=payload["packer"], when_created=datetime.now()))
             db.session.flush()
         if order_packer is None:
-            order_packer = OrderPacker(order_id=order_id)
+            order_packer = OrderPacker(order_id=order_id, when_created=datetime.now())
             db.session.add(order_packer)
         modify_object(order_packer, payload, ["packer"])
     db.session.commit()
