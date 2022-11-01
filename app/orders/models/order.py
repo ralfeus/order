@@ -495,7 +495,7 @@ class Order(db.Model, BaseModel):
         ws.cell(5, 2, str(self.address) + '\n' + str(self.zip))
         ws.cell(6, 2, self.phone)
         # Set currency rates
-        ws.cell(8, 5, float(1 / Currency.query.get('RUR').rate))
+        # ws.cell(8, 5, float(1 / Currency.query.get('RUR').rate))
         ws.cell(9, 5, float(1 / Currency.query.get('USD').rate))
 
         ws.cell(6, 6, self.subtotal_krw)
