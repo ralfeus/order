@@ -336,10 +336,10 @@ class Order(db.Model, BaseModel): # type: ignore
             logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
-        if not self.total_rur:
-            logger.debug("%s total RUR is undefined. Updating...", self.id)
-            self.total_rur = self.total_krw * Currency.query.get('RUR').rate
-            is_order_updated = True
+        # if not self.total_rur:
+        #     logger.debug("%s total RUR is undefined. Updating...", self.id)
+        #     self.total_rur = self.total_krw * Currency.query.get('RUR').rate
+        #     is_order_updated = True
         if not self.total_usd:
             logger.debug("%s total USD is undefined. Updating...", self.id)
             self.total_usd = self.total_krw * Currency.query.get('USD').rate
