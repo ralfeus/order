@@ -81,7 +81,7 @@ def _atomy_login_curl(username, password):
     output = subprocess.run([
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
-        '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
+        # '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
         '--data-raw',
         urlencode({
             'src': '',

@@ -114,7 +114,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             post_order_doc = self._try_action(lambda: get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
-                resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 encoding='utf-8',
                 headers=[{'Cookie': c} for c in self.__session_cookies],
                 raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
@@ -135,7 +135,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_order_details(self, order_id):
         order_details_doc = self._try_action(lambda: get_document_from_url(
             url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderView',
-            resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+            # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                 {'Content-Type': 'application/json'}
@@ -196,7 +196,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __is_valid_product(self, product_id):
         result = try_perform(lambda: get_document_from_url(
             url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
-            resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+            # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
             encoding='utf-8',
             headers=[{'Cookie': c} for c in self.__session_cookies] + [
                 {'Content-Type': 'application/json'}
@@ -220,7 +220,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if self.__is_valid_product(product_id):
                 result = try_perform(lambda: get_document_from_url(
                     url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
-                    resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+                    # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                     encoding='utf-8',
                     headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                         {'Content-Type': 'application/json'}
@@ -400,7 +400,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             response = get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderList',
-                resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 encoding='utf-8',
                 headers=[{'Cookie': c} for c in self.__session_cookies ] + [
                     {'Content-Type': 'application/json'}
