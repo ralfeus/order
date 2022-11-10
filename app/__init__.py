@@ -22,8 +22,8 @@ from app.utils.services import get_celery, init_celery
 def _default(_self, obj):
     return getattr(obj.__class__, "to_dict", _default.default)(obj) #pyright: ignore
 
-_default.default = JSONEncoder.default  # Save unmodified default.
-JSONEncoder.default = _default  #pyright: ignore # Replace it.
+_default.default = JSONEncoder.default  #type: ignore # Save unmodified default.
+JSONEncoder.default = _default  #type: ignore # Replace it.
 ###################################################################
 
 
