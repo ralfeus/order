@@ -1,8 +1,8 @@
 var g_orders_table;
 
-$.fn.dataTable.ext.buttons.xls = {
+$.fn.dataTable.ext.buttons.copy = {
     action: function(e, dt, node, config) {
-        get_excel(dt.rows({selected: true}));
+        open_order_copy_from(dt.rows({selected: true}));
     }
 };
 
@@ -47,6 +47,12 @@ function get_excel(rows) {
     $('.wait').hide()
 }
 
+function open_order_copy_from(rows) {
+    if (rows.count() == 1) {
+        window.location = '/orders/new?from_order=' + rows.data()[0].id;
+    } 
+}
+
 function init_orders_table() {
     g_orders_table = $('#orders').DataTable({
         dom: 'lrBtip',
@@ -56,7 +62,7 @@ function init_orders_table() {
             dataSrc: 'data'
         },
         buttons: [
-            // { extend: 'xls', text: 'Download' }
+            { extend: 'copy', text: 'Copy' }
         ],
         columns: [
             {
