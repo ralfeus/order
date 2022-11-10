@@ -8,6 +8,7 @@ var g_shipping_methods;
 
 $.fn.dataTable.ext.buttons.invoice = {
     extend: 'selected',
+    text: 'Create invoice',
     action: function(e, dt, node, config) {
         create_invoice(dt.rows({selected: true}));
     }
@@ -25,6 +26,14 @@ $.fn.dataTable.ext.buttons.excel = {
     text: 'Export to Excel',
     action: function(e, dt, node, config) {
         open_order_invoice(dt.rows({selected: true}));
+    }
+};
+
+$.fn.dataTable.ext.buttons.copy = {
+    extend: 'selected',
+    text: 'Copy',
+    action: function(e, dt, node, config) {
+        open_order_copy_from(dt.rows({selected: true}));
     }
 };
 
@@ -290,13 +299,13 @@ function init_orders_table() {
         buttons: [
             {
                 extend: 'print',
-                text: 'Print order',
+                text: 'Print',
                 customize: window => {
                     window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
                 }
             },
-            {extend: 'invoice', text: 'Create invoice'},
-            {extend: 'excel'},
+            'invoice',
+            'excel',
             { 
                 extend: 'collection', 
                 text: 'Set status',
@@ -307,6 +316,7 @@ function init_orders_table() {
                     }
                 })]
             },
+            'copy',
             'pageLength'
         ],
         ajax: {
@@ -484,4 +494,10 @@ function set_status(target, new_status) {
     } else {
         alert('Nothing selected');
     }
+}
+
+function open_order_copy_from(rows) {
+    if (rows.count() == 1) {
+        window.location = '/orders/new?from_order=' + rows.data()[0].id;
+    } 
 }
