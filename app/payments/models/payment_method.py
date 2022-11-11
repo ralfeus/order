@@ -1,12 +1,13 @@
 import re
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app import db
 from app.models.base import BaseModel
 
-class PaymentMethod(db.Model, BaseModel):
+
+class PaymentMethod(db.Model, BaseModel): #type: ignore
     __tablename__ = 'payment_methods'
     discriminator = Column(String(50))
     __mapper_args__ = {'polymorphic_on': discriminator}
@@ -15,6 +16,7 @@ class PaymentMethod(db.Model, BaseModel):
     payee_id = Column(Integer, ForeignKey('companies.id'))
     payee = relationship('Company', foreign_keys=[payee_id])
     instructions = Column(Text)
+    enabled = Column(Boolean)
 
     def __repr__(self):
         return f"<PaymentMethod: {self.id} - {self.name}>"
@@ -38,5 +40,6 @@ class PaymentMethod(db.Model, BaseModel):
             'name': self.name,
             'payee_id': self.payee_id,
             'payee': self.payee.name if self.payee else None,
-            'instructions': self.instructions
+            'instructions': self.instructions,
+            'enabled': self.enabled
         }
