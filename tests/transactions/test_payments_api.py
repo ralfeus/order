@@ -120,7 +120,7 @@ class TestPaymentApi(BaseTestCase):
 
     def test_get_payment_methods(self):
         self.try_add_entities([
-            PaymentMethod(name='Payment method 1')
+            PaymentMethod(name='Payment method 1', enabled=True)
         ])
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/payment/method'))
