@@ -491,7 +491,9 @@ function show_shipping_notification() {
 function submit_order(_sender, draft=false) {
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/order' + (typeof g_order_id !== 'undefined' ? '/' + g_order_id : ''),
+        url: '/api/v1/order' + 
+             (((typeof g_order_id !== 'undefined') && ($('#make_copy').val() != 'True')) 
+                ? '/' + g_order_id : ''),
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',

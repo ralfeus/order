@@ -46,11 +46,9 @@ def admin_get_payments(payment_id):
         return filter_payments(payments, request.values)
     if payments.count() == 0:
         abort(Response("No payments were found", status=404))
-    else:
-        return jsonify([entry.to_dict(details=request.values.get('details'))
-                        for entry in payments])
 
-    return jsonify([entry.to_dict() for entry in payments])
+    return jsonify([entry.to_dict(details=request.values.get('details'))
+                    for entry in payments])
 
 def filter_payments(payments, filter_params):
     payments, records_total, records_filtered = prepare_datatables_query(
@@ -349,7 +347,13 @@ def user_upload_payment_evidence(payment_id):
 
 @bp_api_user.route('/method')
 @login_required
-def get_payment_methods():
+def user_get_payment_methods():
+    payment_methods = PaymentMethod.query.filter_by(enabled=True)
+    return jsonify([pm.to_dict() for pm in payment_methods])
+
+@bp_api_admin.route('/method')
+@login_required
+def admin_get_payment_methods():
     payment_methods = PaymentMethod.query
     return jsonify([pm.to_dict() for pm in payment_methods])
 
@@ -367,7 +371,7 @@ def save_payment_method(payment_method_id):
     payload = request.get_json()
     if not payload:
         abort(Response("No payment method details are provided", status=400))
-    modify_object(payment_method, payload, ['name', 'payee_id', 'instructions'])
+    modify_object(payment_method, payload, ['name', 'payee_id', 'instructions', 'enabled'])
     db.session.commit()
     return jsonify({'data': [payment_method.to_dict()]})
 

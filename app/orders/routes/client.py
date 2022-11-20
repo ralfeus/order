@@ -59,7 +59,9 @@ def user_new_order():
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
         free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
-        extensions="\n".join([e[1] for e in extensions]))
+        extensions="\n".join([e[1] for e in extensions]),
+        order_id=request.args.get('from_order'),
+        make_copy=request.args.get('from_order') is not None)
 
 @bp_client_user.route('/<order_id>')
 @login_required
