@@ -10,7 +10,7 @@ from app.purchase.models import PurchaseOrder
 ATTEMPTS_TOTAL = 3
 
 class PurchaseOrderVendorBase(metaclass=ABCMeta):
-    _logger: logging.Logger = None
+    _logger: logging.Logger = None #type: ignore
 
     @classmethod
     def __subclasshook__(cls, subclass):

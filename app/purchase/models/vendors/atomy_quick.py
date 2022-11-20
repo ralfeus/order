@@ -1,6 +1,7 @@
 ''' Fills and submits purchase order at Atomy
 using quick order'''
 from functools import reduce
+from app.purchase.models.purchase_order import PurchaseOrder
 from app.tools import get_document_from_url, try_perform
 from datetime import datetime, timedelta
 import json
@@ -11,8 +12,10 @@ import re
 from app import db
 from exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
+from app.purchase.models import PurchaseOrderStatus
 from utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
+
 
 ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'
 ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
@@ -20,7 +23,7 @@ ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불�
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __purchase_order = None
-    __po_params = {}
+    __po_params: dict[str, str] = {}
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
@@ -365,7 +368,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             o['id'])
         
 
-    def update_purchase_orders_status(self, subcustomer, purchase_orders):
+    def update_purchase_orders_status(self, subcustomer, purchase_orders: list[PurchaseOrder]):
         logger = self._logger.getChild('update_purchase_orders_status')
         logger.info('Updating %s POs status', len(purchase_orders))
         self._logger.debug('Attempting to log in as %s...', subcustomer.name)
@@ -378,8 +381,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug('Got %s POs', len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             logger.debug(str(o))
+            if o['status'] == PurchaseOrderStatus.posted:
+                logger.debug("Skipping PO %s", o['id'])
+                continue
             filtered_po = [po for po in purchase_orders 
-                              if po and po.vendor_po_id == o['id']]
+                            if po and po.vendor_po_id == o['id']]
             try:
                 filtered_po[0].set_status(o['status'])
             except IndexError:
@@ -407,7 +413,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 ],
                 raw_data=json.dumps(search_params)
             )
-            from app.purchase.models import PurchaseOrderStatus
             po_statuses = {
                 '주문접수': PurchaseOrderStatus.posted,
                 '배송중': PurchaseOrderStatus.shipped,
