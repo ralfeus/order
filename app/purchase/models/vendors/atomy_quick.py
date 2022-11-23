@@ -57,10 +57,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__purchase_order = purchase_order
         self._logger.info("Logging in...")
         try:
-            self.__session_cookies = self._try_action(lambda: atomy_login(
+            self.__session_cookies = try_perform(lambda: atomy_login(
                 purchase_order.customer.username,
                 purchase_order.customer.password,
-                run_browser=False))
+                run_browser=False), logger=self._logger)
             # return self.__send_order_post_request()
             self.__init_quick_order(purchase_order)
             ordered_products = self.__add_products(purchase_order.order_products)
@@ -115,13 +115,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __send_order_post_request(self):
         self._logger.debug(self.__po_params)
         try:
-            post_order_doc = self._try_action(lambda: get_document_from_url(
+            post_order_doc = try_perform(lambda: get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 encoding='utf-8',
                 headers=[{'Cookie': c} for c in self.__session_cookies],
                 raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
-            ))
+            ), logger=self._logger)
             return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
         except KeyError: # Couldn't get order ID
             self._logger.warning(self.__po_params)
@@ -136,7 +136,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
-        order_details_doc = self._try_action(lambda: get_document_from_url(
+        order_details_doc = try_perform(lambda: get_document_from_url(
             url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderView',
             # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
             encoding='utf-8',
@@ -145,7 +145,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             ],
             raw_data='{"SaleNum":"%s","CustNo":"%s"}' % \
                 (order_id, self.__purchase_order.customer.username)
-        ))
+        ), logger=self._logger)
         return json.loads(order_details_doc.text)
 
     def __add_products(self, order_products):
@@ -404,7 +404,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "OrderStatus":""
         }
         try:
-            response = get_document_from_url(
+            response = try_perform(lambda: get_document_from_url(
                 url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderList',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 encoding='utf-8',
@@ -412,7 +412,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     {'Content-Type': 'application/json'}
                 ],
                 raw_data=json.dumps(search_params)
-            )
+            ), logger=logger)
             po_statuses = {
                 '주문접수': PurchaseOrderStatus.posted,
                 '배송중': PurchaseOrderStatus.shipped,
