@@ -368,7 +368,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             o['id'])
         
 
-    def update_purchase_orders_status(self, subcustomer, purchase_orders: list[PurchaseOrder]):
+    def update_purchase_orders_status(self, subcustomer, purchase_orders):
         logger = self._logger.getChild('update_purchase_orders_status')
         logger.info('Updating %s POs status', len(purchase_orders))
         self._logger.debug('Attempting to log in as %s...', subcustomer.name)
