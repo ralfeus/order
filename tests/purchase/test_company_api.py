@@ -59,7 +59,8 @@ class TestCompanyClient(BaseTestCase):
             'tax_address': None,
             'tax_phone': None,
             'tax_simplified': True,
-            'default': False
+            'default': False,
+            'enabled': True
         })
 
     def test_create_company(self):

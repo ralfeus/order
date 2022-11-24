@@ -56,7 +56,7 @@ function create_po(params) {
 
 function get_companies() {
     $.ajax({
-        url: '/api/v1/admin/purchase/company',
+        url: '/api/v1/admin/purchase/company_list',
         success: data => {
             g_companies = data;
             g_create_editor.field('company_id').update(data.map(c => ({

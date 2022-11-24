@@ -6,7 +6,7 @@ from app import db
 from app.models.address import Address
 from app.models.base import BaseModel
 
-class Company(db.Model, BaseModel):
+class Company(db.Model, BaseModel): #type: ignore
     __tablename__ = 'companies'
 
     name = Column(String(32))
@@ -26,6 +26,7 @@ class Company(db.Model, BaseModel):
     email = Column(String(64))
     bank_id = Column(String(2))
     default = Column(Boolean, default=False)
+    enabled = Column(Boolean, default=True)
 
     def __repr__(self):
         return f"<Company {self.id}: {self.name}>"
@@ -52,5 +53,6 @@ class Company(db.Model, BaseModel):
             'tax_phone': self.tax_phone,
             'email': self.email,
             'business_type': self.business_type,
-            'business_category': self.business_category
+            'business_category': self.business_category,
+            'enabled': self.enabled
         }

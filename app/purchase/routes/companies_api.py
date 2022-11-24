@@ -62,7 +62,7 @@ def save_company(company_id):
     modify_object(company, payload,
         ['name', 'contact_person', 'tax_id_1', 'tax_id_2', 'tax_id_3', 'phone',
          'address_id', 'bank_id', 'tax_simplified', 'tax_phone', 'tax_address_id',
-         'business_type', 'business_category', 'email'])
+         'business_type', 'business_category', 'email', 'enabled'])
 
     db.session.commit()
     if default_company is not None:
@@ -83,6 +83,4 @@ def delete_company(company_id):
 
     db.session.delete(company)
     db.session.commit()
-    return jsonify({
-        'status': 'success'
-    })
+    return jsonify({'status': 'success'})

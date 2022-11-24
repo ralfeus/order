@@ -143,24 +143,24 @@ def update_purchase_order(po_id):
     # task = post_purchase_orders() # For debug purposes only
 
 
-@bp_api_admin.route('/company')
+@bp_api_admin.route('/company_list')
 @roles_required('admin')
 def get_companies():
-    companies = Company.query
+    companies = Company.query.filter_by(enabled=True)
     return jsonify(sorted(
-        list(map(lambda entry: entry.to_dict(), companies)),
+        [entry.to_dict() for entry in companies],
         key=itemgetter('name')))
 
 @bp_api_admin.route('/status')
 @roles_required('admin')
 def get_statuses():
-    return jsonify(list(map(lambda i: i.name, PurchaseOrderStatus)))
+    return jsonify([i.name for i in PurchaseOrderStatus])
 
 @bp_api_admin.route('/vendor')
 @roles_required('admin')
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
-    return jsonify(list(map(lambda v: v.to_dict(), vendor_mgmt.get_vendors(config=current_app.config))))
+    return jsonify([v.to_dict() for v in vendor_mgmt.get_vendors(config=current_app.config)])
 
 @bp_api_admin.route('/order/validate', methods=['POST'])
 @roles_required('admin')

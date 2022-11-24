@@ -41,6 +41,7 @@ function init_table() {
 
     function normalize_and_stringify(input) {
         input.default = input.default[0];
+        input.enabled = input.enabled[0];
         input.tax_simplified = input.tax_simplified[0];
         return JSON.stringify(input);
     }
@@ -90,6 +91,14 @@ function init_table() {
                 type: 'checkbox',
                 options: [{label:'', value: true}],
                 def: false,
+                unselectedValue: false
+            },
+            {
+                label: 'Enabled',
+                name: 'enabled',
+                type: 'checkbox',
+                options: [{label:'', value: true}],
+                def: true,
                 unselectedValue: false
             },
             {label: 'Taxation type', name: 'tax_type', type: 'title'},
@@ -142,6 +151,7 @@ function init_table() {
         columns: [
             {data: 'id'},
             {data: 'name'},
+            {data: 'enabled'},
             {data: 'tax_id'},
             {data: 'phone'},
             {data: 'address.name'},
