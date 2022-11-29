@@ -108,7 +108,7 @@
   {% for order_product in suborder.order_products %}
     <tr>
       <td>{{ order_product.product.id }}</td>
-      <td>{{ order_product.product.name_russian if order_product.product.name_russian else order_product.product.name }}</td>
+      <td>{{ order_product.product.name_english if order_product.product.name_english else order_product.product.name }}</td>
       <td>{{ order_product.quantity }}</td>
       <td>{{ order_product.product.weight }}</td>
       <td>{{ currency.format(order_product.price) }}</td>
