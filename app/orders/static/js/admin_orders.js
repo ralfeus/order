@@ -300,6 +300,7 @@ function init_orders_table() {
             {
                 extend: 'print',
                 text: 'Print',
+                autoPrint: false,
                 customize: window => {
                     window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
                 }
