@@ -35,6 +35,9 @@ function get_order(order_id) {
 async function populate_order(order_data) {
     cleanup();
     g_order = order_data;
+    if (typeof g_order.params.shipping === 'undefined') {
+        g_order.params.shipping = {};
+    }
     $('#name').val(order_data.customer_name);
     $('#comment').val(order_data.comment);
     $('#address').val(order_data.address);

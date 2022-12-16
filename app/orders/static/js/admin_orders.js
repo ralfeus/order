@@ -6,37 +6,6 @@ var g_payment_methods;
 var g_shipping_methods;
 // var g_boxes;
 
-$.fn.dataTable.ext.buttons.invoice = {
-    extend: 'selected',
-    text: 'Create invoice',
-    action: function(e, dt, node, config) {
-        create_invoice(dt.rows({selected: true}));
-    }
-};
-
-$.fn.dataTable.ext.buttons.status = {
-    extend: 'selected',
-    action: function(e, dt, node, config) {
-        set_status(dt.rows({selected: true}), this.text());
-    }
-};
-
-$.fn.dataTable.ext.buttons.excel = {
-    extend: 'selected',
-    text: 'Export to Excel',
-    action: function(e, dt, node, config) {
-        open_order_invoice(dt.rows({selected: true}));
-    }
-};
-
-$.fn.dataTable.ext.buttons.copy = {
-    extend: 'selected',
-    text: 'Copy',
-    action: function(e, dt, node, config) {
-        open_order_copy_from(dt.rows({selected: true}));
-    }
-};
-
 $(document).ready( function () {
     get_dictionaries()
         .then(init_orders_table);
@@ -305,19 +274,45 @@ function init_orders_table() {
                     window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
                 }
             },
-            'invoice',
-            'excel',
+            {
+                extend: 'selected',
+                text: 'Create invoice',
+                action: function(e, dt, node, config) {
+                    create_invoice(dt.rows({selected: true}));
+                }
+            },
+            {
+                extend: 'selected',
+                text: 'Export to Excel',
+                action: function(e, dt, node, config) {
+                    open_order_invoice(dt.rows({selected: true}));
+                }
+            },
+            {
+                extend: 'selected',
+                text: 'Customs label',
+                action: function(e, dt, node, config) {
+                    open_order_customs_label(dt.rows({selected: true}));
+                }            
+            },
             { 
                 extend: 'collection', 
                 text: 'Set status',
-                buttons: [ g_order_statuses.map(s => {
-                    return {
-                        extend: 'status',
-                        text: s
+                buttons: [ g_order_statuses.map(s => ({
+                    extend: 'selected',
+                    text: s,
+                    action: function(e, dt, node, config) {
+                        set_status(dt.rows({selected: true}), this.text());
                     }
-                })]
+                }))]
             },
-            'copy',
+            {
+                extend: 'selected',
+                text: 'Copy',
+                action: function(e, dt, node, config) {
+                    open_order_copy_from(dt.rows({selected: true}));
+                }
+            },
             'pageLength'
         ],
         ajax: {
@@ -444,11 +439,17 @@ function open_order(target) {
     window.location = g_orders_table.row($(target).parents('tr')).data().id;
 }
 
+function open_order_customs_label(target) {
+    for (var i = 0; i < target.count(); i++) {
+        window.open(target.data()[i].id + '/customs_label');
+    }
+}
+
 function open_order_invoice(target) {
     var error = '';
     for (var i = 0; i < target.count(); i++) {
         if (target.data()[i].status == 'shipped') {
-            window.open('/api/v1/order/' + target.data()[i].id + '/excel');
+            window.open('/orders/' + target.data()[i].id + '/excel');
         } else {
             error += "Can't export order " + 
                 target.data()[i].id + 

@@ -5,7 +5,7 @@ from decimal import Decimal
 import logging
 from functools import reduce
 import os.path
-from tempfile import NamedTemporaryFile
+from tempfile import _TemporaryFileWrapper, NamedTemporaryFile
 import openpyxl
 from openpyxl.styles import PatternFill
 
@@ -17,6 +17,8 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app import db
+from app.orders.models.order_product import OrderProduct
+from app.shipping.models.shipping import Shipping
 from exceptions import OrderError, UnfinishedOrderError
 from app.models.base import BaseModel
 from app.models.country import Country
@@ -25,17 +27,19 @@ from app.users.models.user import User
 from app.settings.models.setting import Setting
 from app.orders.signals import sale_order_model_preparing
 
-class OrderStatus(enum.Enum):
-    ''' Sale orders statuses '''
-    draft = 0
-    pending = 1
-    can_be_paid = 2
-    po_created = 3
-    packed = 4
-    shipped = 5
-    cancelled = 6
-    ready_to_ship = 7
-    at_warehouse = 8
+from .order_status import OrderStatus
+
+# class OrderStatus(enum.Enum):
+#     ''' Sale orders statuses '''
+#     draft = 0
+#     pending = 1
+#     can_be_paid = 2
+#     po_created = 3
+#     packed = 4
+#     shipped = 5
+#     cancelled = 6
+#     ready_to_ship = 7
+#     at_warehouse = 8
 
 class OrderBox(db.Model, BaseModel): # type: ignore
     ''' Specific box used in order '''
@@ -71,7 +75,7 @@ class Order(db.Model, BaseModel): # type: ignore
     customer_name = Column(String(64))
     address = Column(String(256))
     country_id = Column(String(2), ForeignKey('countries.id'))
-    country = relationship(Country, foreign_keys=[country_id])
+    country: Country = relationship(Country, foreign_keys=[country_id])
     zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(128))
@@ -80,7 +84,7 @@ class Order(db.Model, BaseModel): # type: ignore
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    shipping = relationship('Shipping', foreign_keys=[shipping_method_id])
+    shipping: Shipping = relationship('Shipping', foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
     subtotal_rur = Column(Numeric(10, 2), default=0)
     subtotal_usd = Column(Numeric(10, 2), default=0)
@@ -115,7 +119,7 @@ class Order(db.Model, BaseModel): # type: ignore
     )
 
     @property
-    def order_products(self):
+    def order_products(self) -> list[OrderProduct]:
         ''' Returns aggregated list of order products for all suborders '''
         if self.suborders.count() > 0:
             return [order_product for suborder in self.suborders
@@ -327,6 +331,20 @@ class Order(db.Model, BaseModel): # type: ignore
             if len(key_list) == 0:
                 return value
             return {key_list[0]: list_to_dict(key_list[1:], value)}
+        def merge(a, b, path=None):
+            "merges b into a"
+            if path is None: path = []
+            for key in b:
+                if key in a:
+                    if isinstance(a[key], dict) and isinstance(b[key], dict):
+                        merge(a[key], b[key], path + [str(key)])
+                    elif a[key] == b[key]:
+                        pass # same leaf value
+                    else:
+                        raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+                else:
+                    a[key] = b[key]
+            return a
         logger = logging.getLogger('Order.to_dict')
         from app.payments.models.payment import PaymentStatus
         from app.purchase.models.purchase_order import PurchaseOrder
@@ -396,9 +414,8 @@ class Order(db.Model, BaseModel): # type: ignore
                          if need_to_check_outsiders \
                          else [],
             'params': reduce(
-                lambda acc, pair: {
-                    **list_to_dict(pair[0].split('.'), pair[1]),
-                    **acc},
+                lambda acc, pair: 
+                    merge(acc, list_to_dict(pair[0].split('.'), pair[1])),
                 self.params.items(), {}),
             'purchase_date': self.purchase_date.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.purchase_date else None,
@@ -484,7 +501,8 @@ class Order(db.Model, BaseModel): # type: ignore
         self.total_usd = self.subtotal_usd + self.shipping_usd
 
 
-    def get_order_excel(self):
+    def get_order_excel(self) -> _TemporaryFileWrapper:
+        '''Generates an invoice in excel format. Returns a temporary file object'''
         logger = logging.getLogger('Order.get_order_excel')
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
@@ -577,6 +595,10 @@ class Order(db.Model, BaseModel): # type: ignore
         order_wb.save(file.name)
         file.seek(0)
         return file
+
+    def get_customs_label(self) -> tuple[_TemporaryFileWrapper, str]:
+        '''Generates a customs label. Returns a temporary file object'''
+        return self.shipping.get_customs_label(self)
 
     def _get_shipping_per_product(self, op):
         from app.shipping.models.shipping import PostponeShipping
