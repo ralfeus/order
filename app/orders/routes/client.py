@@ -9,6 +9,12 @@ from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
 from app.orders.models import Order, OrderStatus
 from app.settings.models import Setting
+from app.tools import stream_and_close
+from exceptions import OrderError
+
+file_types = {
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+}
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
@@ -122,12 +128,15 @@ def admin_get_orders():
 @bp_client_admin.route('/<order_id>')
 @roles_required('admin')
 def admin_get_order(order_id):
-    order = Order.query.get(order_id)
+    order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order,
             currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')
+
+    if request.values.get('view') == 'customs_label':
+        return render_template(order.shipping.customs_label_template_name, order=order)
     
     return render_template('new_order.html',
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
@@ -135,6 +144,47 @@ def admin_get_order(order_id):
         free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'])
 
+
+@bp_client_user.route('/<order_id>/excel')
+@login_required
+def user_get_order_excel(order_id):
+    '''
+    Generates an Excel file for an order
+    '''
+    order: Order = Order.query.get(order_id)
+    if not order:
+        abort(Response(f"The order <{order_id}> was not found", status=404))
+    try:
+        file = order.get_order_excel()
+        return current_app.response_class(stream_and_close(file), headers={
+            'Content-Disposition': f'attachment; filename="{order_id}.xlsx"',
+            'Content-Type': file_types['xlsx']
+        })
+    except OrderError as ex:
+        abort(Response(
+            f"Couldn't generate an order Excel due to following error: {';'.join(ex.args)}"))
+
+@bp_client_admin.route('/<order_id>/customs_label')
+@roles_required('admin')
+def admin_get_customs_label(order_id):
+    '''
+    Generates a label for a destination customs for an order
+    '''
+    order = Order.query.get(order_id)
+    if not order:
+        abort(Response(f"The order <{order_id}> was not found", status=404))
+    try:
+        file, ext = order.get_customs_label()
+        if file is None:
+            raise OrderError("There is no customs label template for this order")
+        file.seek(0)
+        return current_app.response_class(stream_and_close(file), headers={
+            'Content-Disposition': f'attachment; filename="{order_id}_customs_label.{ext}"',
+            'Content-Type': file_types[ext]
+        })
+    except OrderError as ex:
+        abort(Response(
+            f"Couldn't generate customs label due to following error: {';'.join(ex.args)}"))
 
 @bp_client_admin.route('/subcustomers')
 @roles_required('admin')

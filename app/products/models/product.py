@@ -14,7 +14,7 @@ _products_shipping = db.Table('products_shipping',
     Column('shipping_method_id', Integer, ForeignKey('shipping.id'))
 )
 
-class Product(db.Model, BaseModel):
+class Product(db.Model, BaseModel): #type: ignore
     '''
     Represents a product
     '''

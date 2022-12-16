@@ -773,20 +773,6 @@ class TestOrdersApi(BaseTestCase):
         })
         self.assertEqual(res.status_code, 409)
 
-    def test_get_order_excel(self):
-        order = Order(
-            user=self.user, status=OrderStatus.shipped, when_created=datetime.now(),
-            country_id='c1')
-        suborder = Suborder(order=order, subcustomer=Subcustomer(username='user1'))
-        self.try_add_entities([
-            order, suborder,
-            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
-        ])
-        res = self.try_user_operation(
-            lambda: self.client.get(f'/api/v1/order/{order.id}/excel')
-        )
-        self.assertEqual(res.status_code, 200)
-
     def test_finish_order_with_unfinished_products(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         self.try_add_entities([

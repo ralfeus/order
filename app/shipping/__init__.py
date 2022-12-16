@@ -35,5 +35,8 @@ def register_blueprints(flask_app):
                 logger.warning(ex)
         except KeyError:
             pass
+        except ModuleNotFoundError:
+            # There can be folders that aren't modules. Just ignore them
+            pass
 
 

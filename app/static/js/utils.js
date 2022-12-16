@@ -29,10 +29,12 @@ function modal(title, text, type='info', params=[]) {
     } else if (type == 'form') {
         $('.modal-body').html(params.reduce(
             (html, input) => html + 
-                "<label>" + input.label + '</label>' +
-                '<input ' +
-                    'name="' + input.name + '" ' +
-                    'value="' + (input.value ? input.value : "") + '"/>',
+                '<div class="form-group">' +
+                    "<label>" + input.label + '</label>' +
+                    '<input class="form-control"' +
+                        'name="' + input.name + '" ' +
+                        'value="' + (input.value ? input.value : "") + '"/>' +
+                '</div>',
                 ''));
         $('.modal-body input').on('keypress', e => {
             if (e.originalEvent.key == 'Enter') {

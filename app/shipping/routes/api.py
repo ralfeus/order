@@ -30,7 +30,7 @@ def get_shipping_methods(country_id, weight):
         if country:
             country_name = country.name
 
-    shipping_methods = Shipping.query.filter_by(enabled=True)
+    shipping_methods: list[Shipping] = Shipping.query.filter_by(enabled=True)
     result = []
     product_ids = []
     product_ids = request.values.get('products').split(',') \

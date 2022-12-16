@@ -352,6 +352,9 @@ def user_save_order(order_id):
                         suborder.id)
                     db.session.delete(suborder)
         db.session.flush()
+        if payload.get('params') is not None and \
+           payload['params'].get('shipping') is not None:
+            _set_shipping_params(order, payload['params']['shipping'])
         try:
             order.update_total()
         except NoShippingRateError:
@@ -689,25 +692,6 @@ def get_order_product(order_product_id):
             Suborder.order.has(Order.user == current_user)))
     order_product = order_product.filter_by(id=order_product_id).first()
     return order_product
-
-@bp_api_user.route('/<order_id>/excel')
-@login_required
-def user_get_order_excel(order_id):
-    '''
-    Generates an Excel file for an order
-    '''
-    order = Order.query.get(order_id)
-    if not order:
-        abort(Response(f"The order <{order_id}> was not found", status=404))
-    try:
-        file = order.get_order_excel()
-        return current_app.response_class(stream_and_close(file), headers={
-            'Content-Disposition': f'attachment; filename="{order_id}.xlsx"',
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        })
-    except OrderError as ex:
-        abort(Response(
-            f"Couldn't generate an order Excel due to following error: {';'.join(ex.args)}"))
 
 @bp_api_admin.route('/<order_id>/box')
 @roles_required('admin')

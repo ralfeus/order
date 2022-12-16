@@ -2,6 +2,7 @@
 Shipping method model
 '''
 from functools import reduce
+from tempfile import _TemporaryFileWrapper
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, or_
 from sqlalchemy.orm import relationship
@@ -23,7 +24,7 @@ box_weights = {
     2000: 250
 }
 
-class Shipping(db.Model, BaseModel):
+class Shipping(db.Model, BaseModel): #type: ignore
     '''
     Shipping method model
     '''
@@ -68,6 +69,9 @@ class Shipping(db.Model, BaseModel):
     def get_edit_url(self):
         return None
 
+    def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
+        return None, None #type: ignore
+
     def get_shipping_cost(self, destination, weight):
         '''
         Returns shipping cost to provided destination for provided weight
@@ -95,7 +99,7 @@ class Shipping(db.Model, BaseModel):
             'enabled': self.enabled,
             'notification': self.notification,
             'params': [param.to_dict() for param in self.params],
-            'edit_url': self.get_edit_url()
+            'edit_url': self.get_edit_url(),
         }
 
     @staticmethod
@@ -127,7 +131,7 @@ class PostponeShipping(NoShipping):
     def name(self):
         return "Postpone shipping"
 
-class ShippingParam(db.Model, BaseModel):
+class ShippingParam(db.Model, BaseModel): #type: ignore
     '''Additional Shipping parameter'''
     __tablename__ = 'shipping_params'
 

@@ -12,9 +12,11 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
-from app.orders.models.order import OrderStatus
 from app.orders.signals import order_product_model_preparing
+from app.products.models.product import Product
 from app.shipping.models import PostponeShipping
+
+from .order_status import OrderStatus
 
 class OrderProductStatus(enum.Enum):
     pending = 1
@@ -59,7 +61,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
         nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     product_id = Column(String(16), ForeignKey('products.id'))
-    product = relationship('Product')
+    product: Product = relationship('Product')
     price = Column(Integer)
     quantity = Column(Integer)
     private_comment = Column(String(256))
