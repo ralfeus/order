@@ -20,7 +20,23 @@
 
 {% block content %}
 {{ super() }}
-<div class="h3">{{ order.id }}</div>
+<div class="h3 row">
+  <div class="col-11">{{ order.id }}</div>
+  <div class="col-1 btn-group btn-group-toggle" data-toggle="buttons">
+    <label class="btn btn-secondary {{ 'active' if language == 'en' else '' }}">    
+      <input type="radio" name="language" {{ 'checked' if language == 'en' else ''}}
+        onclick="window.location = '{{ request.base_url }}?view=print&language=en';">
+        EN
+      </input>
+    </label>
+    <label class="btn btn-secondary {{ 'active' if language == 'ru' else '' }}">    
+      <input type="radio" name="language" {{ 'checked' if language == 'ru' else ''}}
+        onclick="window.location = '{{ request.base_url }}?view=print&language=ru';">
+        RU
+      </input>
+    </label>
+  </div>  
+</div>
 <div class="h4">{{ order.customer_name }}</div>
 <table class="table">
   <tbody>
@@ -108,7 +124,19 @@
   {% for order_product in suborder.order_products %}
     <tr>
       <td>{{ order_product.product.id }}</td>
-      <td>{{ order_product.product.name_english if order_product.product.name_english else order_product.product.name }}</td>
+      <td>
+        {% if language == 'en' %}
+          {{ order_product.product.name_english 
+            if order_product.product.name_english 
+            else order_product.product.name }}
+        {% elif language == 'ru' %}
+          {{ order_product.product.name_russian 
+            if order_product.product.name_russian 
+            else order_product.product.name }}
+        {% else %}
+          {{ order_product.product.name }}
+        {% endif %}
+      </td>
       <td>{{ order_product.quantity }}</td>
       <td>{{ order_product.product.weight }}</td>
       <td>{{ currency.format(order_product.price) }}</td>

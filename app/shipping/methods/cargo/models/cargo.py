@@ -1,20 +1,24 @@
+from __future__ import annotations
 from datetime import datetime
 import logging
 import os.path
 from tempfile import _TemporaryFileWrapper, NamedTemporaryFile
+from typing import TYPE_CHECKING
 
 import openpyxl
 
 from app.shipping.models.shipping import Shipping
 from exceptions import OrderError
 
+if TYPE_CHECKING:
+    from app.orders.models import Order
 
 class Cargo(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'cargo'}
 
-    def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
+    def get_customs_label(self, order: Order) -> tuple[_TemporaryFileWrapper, str]:
         '''Generates an invoice in excel format. Returns a temporary file object'''
-        logger = logging.getLogger('Order.get_order_excel')
+        logger = logging.getLogger('Cargo.get_customs_label')
         if len(order.order_products) == 0:
             raise OrderError("The order has no products")
         # suborder_fill = PatternFill(
@@ -26,10 +30,10 @@ class Cargo(Shipping):
         except AttributeError:
             return self.__get_customs_label_generic(order)
 
-    def __get_customs_label_generic(self, order):
-        pass
+    def __get_customs_label_generic(self, order: Order):
+        return None, None
 
-    def __get_customs_label_for_uz(self, order):
+    def __get_customs_label_for_uz(self, order: Order):
         package_path = os.path.dirname(__file__) + '/..'
         wb = openpyxl.open(f'{package_path}/templates/customs_label_uz.xlsx')
         ws = wb.worksheets[0]

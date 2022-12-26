@@ -133,7 +133,8 @@ def admin_get_order(order_id):
         abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
         return render_template('order_print_view.html', order=order,
-            currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print')
+            currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print',
+            language=request.values.get('language') or 'en')
 
     if request.values.get('view') == 'customs_label':
         return render_template(order.shipping.customs_label_template_name, order=order)
