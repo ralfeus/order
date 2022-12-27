@@ -15,7 +15,7 @@ from app.models.base import BaseModel
 from app.orders.models import Order, OrderProduct, OrderProductStatus
 from app.products.models import Product
 
-class Suborder(db.Model, BaseModel):
+class Suborder(db.Model, BaseModel): #type: ignore
     ''' Suborder '''
     __tablename__ = 'suborders'
     __id_pattern = 'SOS-{order_num}-'
@@ -69,11 +69,11 @@ class Suborder(db.Model, BaseModel):
     def total_krw(self):
         return self.get_total_krw()
 
-    def get_total_krw(self):
+    def get_total_krw(self, local_shipping=True):
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) + \
-            (self.local_shipping if self.local_shipping else 0)
+            (self.local_shipping if local_shipping and self.local_shipping else 0)
 
     def delete(self):
         for op in self.order_products:

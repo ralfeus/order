@@ -293,7 +293,11 @@ function init_table() {
                         "</span>";
                 }
             },
-            {data: 'total_krw', orderable: false},
+            {
+                data: 'total_krw', 
+                orderable: false,
+                render: (data, type, row, meta) => fmtKRW.format(data)
+            },
             {data: 'purchase_date', className: 'editable', orderable: false},
             {name: 'purchase_restricted', data: 'purchase_restricted_products'},
             {name: 'company', data: 'company', orderable: false},

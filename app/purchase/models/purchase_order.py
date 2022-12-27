@@ -33,7 +33,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(12))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
-    suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
+    suborder: Suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
     customer = relationship(Subcustomer, foreign_keys=[customer_id])
     contact_phone = Column(String(13))
@@ -173,7 +173,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
             'company': self.company.name,
-            'total_krw': self.suborder.total_krw,
+            'total_krw': self.suborder.get_total_krw(local_shipping=False),
             'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,

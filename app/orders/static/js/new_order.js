@@ -43,7 +43,7 @@ var subtotal_krw = 0;
 var subcustomerTemplate;
 var itemTemplate;
 
-const fmtKRW = new Intl.NumberFormat('KR-kr', {style: 'currency', currency: 'KRW'});
+//const fmtKRW = new Intl.NumberFormat('KR-kr', {style: 'currency', currency: 'KRW'});
 
 $(document).ready(function() {
     itemTemplate = $('#userItems0_0')[0].outerHTML;

@@ -26,7 +26,7 @@ from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 @roles_required('admin')
 def get_purchase_orders(po_id):
     ''' Returns all or selected purchase orders in JSON '''
-    purchase_orders = PurchaseOrder.query
+    purchase_orders: list[PurchaseOrder] = PurchaseOrder.query
     if po_id is not None:
         purchase_orders = purchase_orders.filter_by(id=po_id)
         if purchase_orders.count() == 1:
@@ -48,7 +48,7 @@ def get_purchase_orders(po_id):
             'draw': request.values['draw'],
             'recordsTotal': records_total,
             'recordsFiltered': records_filtered,
-            'data': list(map(lambda entry: entry.to_dict(), purchase_orders))
+            'data': [entry.to_dict() for entry in purchase_orders]
         })
     if purchase_orders.count() == 0:
         abort(Response("No purchase orders were found", status=404))
