@@ -49,7 +49,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __po_params: dict[str, dict] = {
         'CREATE_DEFAULT_DELIVERY_INFOS': {},
         'UPDATE_ORDER_USER': {},
-        'APPLY_DELIVERY_INFOS': {},
+        'APPLY_DELIVERY_INFOS': {'payload': {'deliveryInfos': [{}]}},
         'APPLY_PAYMENT_TRANSACTION': {'payload':{'paymentTransactions':[{}]}}
     }
 
@@ -179,7 +179,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if validate['result'] != '200':
                 raise PurchaseOrderError(
                     self.__purchase_order, self, 
-                    "The order is invalid: %s", validate['resultMessage'])
+                    "The order is invalid: %s" % validate['resultMessage'])
 
             result = try_perform(lambda: get_json(
                 url=f'{URL_BASE}/order/placeOrder?_siteId=kr&_deviceType=pc&locale=en-KR',
@@ -237,7 +237,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if len(ordered_products) == 0:
             raise PurchaseOrderError(self.__purchase_order, self,
                 "No available products are in the PO")
-        logger.debug(self.__po_params)
         return ordered_products
 
     def __add_to_cart(self, product, op):
@@ -389,23 +388,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
         atomy_address = addresses[0] if len(addresses) > 0 \
             else self.__create_address(address, phone)
         merge(
-            self.__po_params['APPLY_DELIVERY_INFOS'], 
+            self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0], 
             {
-                'payload': {
-                    "deliveryInfos": [
-                        {
-                            "sequence": 0,
-                            "address": atomy_address,
-                            "deliveryMode": "DELIVERY_KR",
-                            "entries": [ 
-                                {
-                                    "entryNumber": i,
-                                    "cartEntry": ordered_products[i][1],
-                                    "quantity": ordered_products[i][0].quantity
-                                } for i in range(len(ordered_products))]
-                        }
-                    ]
-                }
+                "sequence": 0,
+                "address": atomy_address,
+                "deliveryMode": "DELIVERY_KR",
+                "entries": [
+                    {
+                        "entryNumber": i,
+                        "cartEntry": ordered_products[i][1],
+                        "quantity": ordered_products[i][0].quantity
+                    } for i in range(len(ordered_products))]
             }
         )
 
