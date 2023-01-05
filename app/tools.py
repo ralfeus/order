@@ -3,12 +3,14 @@ import enum
 from datetime import datetime
 from glob import glob
 import itertools
+import json
 import logging
 import subprocess
 from functools import reduce
 import os
 import os.path
 import re
+from typing import Any
 import lxml
 from time import sleep
 from werkzeug.datastructures import MultiDict
@@ -170,13 +172,43 @@ def stream_and_close(file_handle):
     yield from file_handle
     file_handle.close()
 
-def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8', resolve=None):
+
+def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
+                method='GET') -> tuple[str, str]:
+    '''Calls curl and returns its stdout and stderr'''
+    _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
-    raw_data = ['--data-raw', raw_data] if raw_data else []
+    raw_data_param = ['--data-raw', raw_data] if raw_data else []
+    if raw_data:
+        method = 'POST'
+    run_params = [ #type: ignore
+        '/usr/bin/curl',
+        url,
+        '-X', method,
+        '-v'
+        ] + headers_list + raw_data_param
+    try:
+        output = subprocess.run(run_params,
+            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
+            _logger.warning("Server side error occurred. Will try in 30 seconds", url)
+            sleep(30)
+            return invoke_curl(url, raw_data, headers, method)
+        return output.stdout, output.stderr
+    except TypeError:
+        _logger.exception(run_params)
+        return '', ''
+
+def get_document_from_url(url: str, headers: dict[str, str]=None, raw_data: str=None,
+        encoding: str='utf-8', resolve: str=None):
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items() #type: ignore
+    ]))
+    raw_data: list[str] = ['--data-raw', raw_data] if raw_data else [] #type: ignore
     resolve_list = ['--resolve', resolve] if resolve is not None else []
-    output = subprocess.run([
+    output = subprocess.run([ #type: ignore
         '/usr/bin/curl',
         url,
         '-v'
@@ -189,15 +221,10 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='utf-8', re
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
-# def try_perform(action, attempts=3):
-#     last_exception = None
-#     while attempts:
-#         try:
-#             return action()
-#         except Exception as ex:
-#             attempts -= 1
-#             last_exception = ex
-#     raise last_exception
+def get_json(url, raw_data=None, headers=[], method='GET') -> dict[str, Any]:
+    content, _ = invoke_curl(url, method=method, raw_data=raw_data,
+        headers=headers)
+    return json.loads(content)
 
 def try_perform(action, attempts=3, logger=logging.root):
     last_exception = None
@@ -213,3 +240,20 @@ def try_perform(action, attempts=3, logger=logging.root):
                 sleep(1)
     if last_exception:
         raise last_exception
+
+def merge(a: dict, b: dict, path=None, force=False) -> dict:
+    "merges b into a"
+    if path is None: path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge(a[key], b[key], path + [str(key)], force=force)
+            elif a[key] == b[key]:
+                pass # same leaf value
+            elif force:
+                a[key] = b[key]
+            else:
+                raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+        else:
+            a[key] = b[key]
+    return a

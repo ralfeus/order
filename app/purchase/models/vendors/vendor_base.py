@@ -33,8 +33,8 @@ class PurchaseOrderVendorBase(metaclass=ABCMeta):
 
     def _set_order_products_status(self, ordered_products, status):
         for op in ordered_products:
-            op.status = status
-            op.when_changed = datetime.now()
+            op[0].status = status
+            op[0].when_changed = datetime.now()
 
     def _try_action(self, action):
         last_exception = None
