@@ -80,7 +80,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             self._logger.info("Skip <%s>: purchase date is %s",
                 purchase_order.id, purchase_order.purchase_date)
-            return purchase_order
+            return purchase_order, {}
         self.__purchase_order = purchase_order
         self._logger.info("Logging in...")
         try:
