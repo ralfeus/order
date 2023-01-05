@@ -90,10 +90,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_purchase_order_id('0' + purchase_order.id[11:]) # Receiver name
+            self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(purchase_order.address,
                 purchase_order.payment_phone, ordered_products)
             self.__set_local_shipment(purchase_order, ordered_products)
-            self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_payment_method()
             self.__set_payment_destination(purchase_order.bank_id)
             self.__set_payment_mobile(purchase_order.payment_phone)
@@ -151,6 +151,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         else:
             raise AtomyLoginError(purchase_order.customer.username)
 
+    def __get_session_headers(self):
+        return [{'Cookie': c} for c in self.__session_cookies ]
 
     def __getToken(self):
         _, stderr = invoke_curl(
@@ -275,7 +277,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             result = try_perform(lambda: get_json(
                 url=f'{URL_BASE}/atms/search?_siteId=kr&_deviceType=pc&locale=en-KR',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                headers=[{'Cookie': c} for c in self.__session_cookies ],
+                headers=self.__get_session_headers(),
                 raw_data=f'searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20'
             ), logger=self._logger)
             return result['items'][0] if result['totalCount'] is not None else None
@@ -318,12 +320,22 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.debug("Setting combined shipment params")
             self.__update_cart({
                 'command': 'UPDATE_ASSORTED_PACKING', 
-                'payload': {"id": "1938534054", "assortedPacking": True}})
+                'payload': {"id": self.__get_delivery_info(), "assortedPacking": True}})
             #TODO: do we need it?
             # self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
             #     '/' + purchase_order.address.zip
         else:
             logger.debug('No combined shipment is needed')
+
+    def __get_delivery_info(self):
+        res = get_json(
+            url=f"{URL_BASE}/cart/getBuynowCart" +
+            f'?cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' +
+            '&options=%5B%22DELIVERY_INFOS%22%5D&channel=WEB&_siteId=kr&_deviceType=pc' +
+            '&locale=en-KR',
+            headers=self.__get_session_headers()
+        )
+        return res['item']['deliveryInfos'][0]['id']
 
     def __set_purchase_order_id(self, purchase_order_id):
         self._logger.getChild('__set_purchase_order_id').debug("Setting purchase order ID")
@@ -338,8 +350,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
         merge(
             self.__po_params['UPDATE_ORDER_USER'],
             {'payload': {"userCellphone": phone.replace('-', '')}})
-        self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0]['address']["cellphone"] = \
-            phone.replace('-', '')
+        merge(
+            self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0],
+            {'address': {"cellphone": phone.replace('-', '')}})
             
     def __set_payment_mobile(self, phone='010-6275-2045'):
         logger = self._logger.getChild('__set_payment_mobile')
@@ -387,20 +400,27 @@ class AtomyQuick(PurchaseOrderVendorBase):
         addresses = [a for a in self.__get_addresses() if a['name'] == address.name]
         atomy_address = addresses[0] if len(addresses) > 0 \
             else self.__create_address(address, phone)
-        merge(
-            self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0], 
-            {
-                "sequence": 0,
-                "address": atomy_address,
-                "deliveryMode": "DELIVERY_KR",
-                "entries": [
-                    {
-                        "entryNumber": i,
-                        "cartEntry": ordered_products[i][1],
-                        "quantity": ordered_products[i][0].quantity
-                    } for i in range(len(ordered_products))]
+        self.__update_cart({
+            'command': 'APPLY_DELIVERY_INFOS',
+            'payload': {
+                'deliveryInfos': [
+                    merge(
+                        {
+                            "sequence": 0,
+                            "address": atomy_address,
+                            "deliveryMode": "DELIVERY_KR",
+                            "entries": [
+                                {
+                                    "entryNumber": i,
+                                    "cartEntry": ordered_products[i][1],
+                                    "quantity": ordered_products[i][0].quantity
+                                } for i in range(len(ordered_products))],
+                        },
+                        self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0]
+                    )
+                ]
             }
-        )
+        })
 
     def __set_payment_method(self):
         logger = self._logger.getChild('__set_payment_method')
