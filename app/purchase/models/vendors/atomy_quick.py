@@ -47,7 +47,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __purchase_order = None
     __po_params: dict[str, dict] = {
-        'CREATE_DEFAULT_DELIVERY_INFOS': {},
         'UPDATE_ORDER_USER': {},
         'APPLY_DELIVERY_INFOS': {'payload': {'deliveryInfos': [{}]}},
         'APPLY_PAYMENT_TRANSACTION': {'payload':{'paymentTransactions':[{}]}}
@@ -87,6 +86,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             self.__login(purchase_order)
             self.__init_quick_order(purchase_order)
+            self.__update_cart({'command': 'CREATE_DEFAULT_DELIVERY_INFOS'})
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_purchase_order_id('0' + purchase_order.id[11:]) # Receiver name
@@ -318,9 +318,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         local_shipment = free_shipping_eligible_amount < self.__config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']
         if local_shipment:
             logger.debug("Setting combined shipment params")
-            self.__update_cart({
+            if self.__update_cart({
                 'command': 'UPDATE_ASSORTED_PACKING', 
-                'payload': {"id": self.__get_delivery_info(), "assortedPacking": True}})
+                'payload': {"id": self.__get_delivery_info(), "assortedPacking": True}}):
+                logger.debug("Successfully set combined shipping")
+            else:
+                logger.warning("Couldn't set combined shipping")
             #TODO: do we need it?
             # self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
             #     '/' + purchase_order.address.zip
@@ -400,27 +403,27 @@ class AtomyQuick(PurchaseOrderVendorBase):
         addresses = [a for a in self.__get_addresses() if a['name'] == address.name]
         atomy_address = addresses[0] if len(addresses) > 0 \
             else self.__create_address(address, phone)
-        self.__update_cart({
+        merge(
+            self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0],
+            {
+                "sequence": 0,
+                "address": atomy_address,
+                "deliveryMode": "DELIVERY_KR",
+                "entries": [
+                    {
+                        "entryNumber": i,
+                        "cartEntry": ordered_products[i][1],
+                        "quantity": ordered_products[i][0].quantity
+                    } for i in range(len(ordered_products))],
+            }, force=True
+        )
+        if self.__update_cart({
             'command': 'APPLY_DELIVERY_INFOS',
-            'payload': {
-                'deliveryInfos': [
-                    merge(
-                        {
-                            "sequence": 0,
-                            "address": atomy_address,
-                            "deliveryMode": "DELIVERY_KR",
-                            "entries": [
-                                {
-                                    "entryNumber": i,
-                                    "cartEntry": ordered_products[i][1],
-                                    "quantity": ordered_products[i][0].quantity
-                                } for i in range(len(ordered_products))],
-                        },
-                        self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0]
-                    )
-                ]
-            }
-        })
+            **self.__po_params['APPLY_DELIVERY_INFOS']
+            }):
+            logger.debug("Successfully set address")
+        else:
+            raise PurchaseOrderError(self.__purchase_order, self, "Couldn't set address")
 
     def __set_payment_method(self):
         logger = self._logger.getChild('__set_payment_method')
@@ -556,17 +559,26 @@ class AtomyQuick(PurchaseOrderVendorBase):
         
 
     def __submit_order(self):
+        def update_cart_part(command):
+            if not self.__update_cart({
+                'command': command,
+                **self.__po_params[command]
+                }):
+                raise PurchaseOrderError(self.__purchase_order, self, 
+                    f"Couldn't update cart part: {command}")
         logger = self._logger.getChild('__submit_order')
         logger.info("Submitting the order")
         logger.debug("Setting order params")
         logger.debug(self.__po_params)
-        for command, params in self.__po_params.items():
-            if not self.__update_cart({
-                'command': command,
-                **params
-                }):
-                logger.warning("Couldn't update cart part: %s", command)
-                raise PurchaseOrderError(self.__purchase_order, self)
+        update_cart_part('UPDATE_ORDER_USER')
+        update_cart_part('APPLY_PAYMENT_TRANSACTION')
+        res = get_json(
+            url=f'{URL_BASE}/cart/getBuynowCart?' +
+                f'cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' +
+                '&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22DELIVERY_INFOS%22%5D' +
+                '&channel=WEB&_siteId=kr&_deviceType=pc&locale=en-KR',
+            headers=self.__get_session_headers()
+        )
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
         # logger.info((order_id, vendor_po))

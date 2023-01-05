@@ -9,7 +9,7 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    po_id = "PO-2022-10-0091-002"
+    po_id = "PO-2022-10-0101-001"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
     po.vendor = 'AtomyQuick'
