@@ -5,6 +5,9 @@ class AtomyLoginError(Exception):
         self.message = message
         self.args = (username, message)
 
+    def __str__(self):
+        return f"Couldn't log in as {self.username}: {self.message}"
+
 class EmptySuborderError(Exception):
     pass
 
