@@ -10,10 +10,10 @@ class Subcustomer(db.Model, BaseModel):
     ''' Subcustomer '''
     __tablename__ = 'subcustomers'
 
-    name = Column(String(128))
-    username = Column(String(16))
-    password = Column(String(32))
-    in_network = Column(Boolean())
+    name:str = Column(String(128))
+    username: str = Column(String(16))
+    password: str = Column(String(32))
+    in_network: bool = Column(Boolean())
     # suborders = relationship("Suborder", lazy='dynamic')
 
     def __repr__(self):

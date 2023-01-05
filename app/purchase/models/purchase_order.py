@@ -31,11 +31,11 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     __tablename__ = 'purchase_orders'
 
     id = Column(String(23), primary_key=True, nullable=False)
-    vendor_po_id = Column(String(12))
+    vendor_po_id = Column(String(18))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
     suborder: Suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
-    customer = relationship(Subcustomer, foreign_keys=[customer_id])
+    customer: Subcustomer = relationship(Subcustomer, foreign_keys=[customer_id])
     contact_phone = Column(String(13))
     payment_phone = Column(String(13))
     payment_account = Column(String(32))

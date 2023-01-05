@@ -13,7 +13,7 @@ with create_app().app_context():
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
     po.vendor = 'AtomyQuick'
-    po.company_id = 4
+    po.company_id = 1
     po.customer.username = '23426444'
     po.customer.password = 'atomy#01'
     po.purchase_date = datetime.now()

@@ -1,8 +1,12 @@
 ''' Fills and submits purchase order at Atomy
 using quick order'''
 from functools import reduce
+from typing import Any
+from urllib.parse import urlencode
+from app.models.address import Address
+from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
-from app.tools import get_document_from_url, try_perform
+from app.tools import get_document_from_url, get_json, invoke_curl, merge, try_perform
 from datetime import datetime, timedelta
 import json
 import logging
@@ -11,19 +15,43 @@ import re
 
 from app import db
 from exceptions import AtomyLoginError, HTTPError, NoPurchaseOrderError, ProductNotAvailableError, PurchaseOrderError
-from app.orders.models.order_product import OrderProductStatus
+from app.orders.models.order_product import OrderProduct, OrderProductStatus
 from app.purchase.models import PurchaseOrderStatus
 from utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
-
+URL_BASE = 'https://shop-api.atomy.com/svc'
 ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'
 ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
+
+BANKS = {
+    '32': 'BUSANBANK',
+    '31': 'DAEGUBANK',
+    '34': 'GWANGJUBANK',
+    '81': 'HANA',
+    '03': 'IBK',
+    '37': 'JEONBUKBANK',
+    '89': 'KBANK',
+    '04': 'KOOKMIN',
+    '06': 'KOOKMIN',
+    '39': 'KYONGNAMBANK',
+    '11': 'NONGHYEOP',
+    '71': 'POST',
+    '45': 'SAEMAUL',
+    '88': 'SHINHAN',
+    '07': 'SUHYEOP',
+    '20': 'WOORI'
+ }
 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __purchase_order = None
-    __po_params: dict[str, object] = {}
+    __po_params: dict[str, dict] = {
+        'CREATE_DEFAULT_DELIVERY_INFOS': {},
+        'UPDATE_ORDER_USER': {},
+        'APPLY_DELIVERY_INFOS': {},
+        'APPLY_PAYMENT_TRANSACTION': {'payload':{'paymentTransactions':[{}]}}
+    }
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
@@ -41,7 +69,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config = config
-        self.__session_cookies = None
+        self.__session_cookies: list[str] = []
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -57,24 +85,22 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__purchase_order = purchase_order
         self._logger.info("Logging in...")
         try:
-            self.__session_cookies = try_perform(lambda: atomy_login(
-                purchase_order.customer.username,
-                purchase_order.customer.password,
-                run_browser=False), logger=self._logger)
-            # return self.__send_order_post_request()
+            self.__login(purchase_order)
             self.__init_quick_order(purchase_order)
             ordered_products = self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_purchase_order_id('0' + purchase_order.id[11:]) # Receiver name
+            self.__set_receiver_address(purchase_order.address,
+                purchase_order.payment_phone, ordered_products)
             self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_receiver_mobile(purchase_order.contact_phone)
-            self.__set_receiver_address(purchase_order.address)
             self.__set_payment_method()
-            self.__set_payment_mobile(purchase_order.payment_phone)
             self.__set_payment_destination(purchase_order.bank_id)
-            self.__set_tax_info(purchase_order.company)
+            self.__set_payment_mobile(purchase_order.payment_phone)
+            self.__set_tax_info(purchase_order)
             # self.__set_mobile_consent()
             po_params = self.__submit_order()
+            self._logger.info("Created order %s", po_params[0])
             purchase_order.vendor_po_id = po_params[0]
             purchase_order.payment_account = po_params[1]
             purchase_order.total_krw = po_params[2]
@@ -97,62 +123,90 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.exception("Failed to post an order %s", purchase_order.id)
             raise ex
 
-    def __init_quick_order(self, purchase_order):
-        # doc = get_document_from_url(
-        #     url='https://www.atomy.kr/v2/Home/Payment/QuickOrder',
-        #     encoding='utf-8',
-        #     headers=[{'Cookie': c} for c in self.__session_cookies ]
-        # )
-        self.__po_params = { #**self.__po_params, TODO: Why?
-            'DeliCheck': 3,
-            'IpgumName': purchase_order.customer.name,
-            'OrderUrl': '%2Fv2%2FHome%2FPayment%2FQuickOrder%3F_%3D1616863579709',
-            'PaymentType': 2,
-            'PricePrint': 1,
-            'TagGubun': 2
-        }
+    def __update_cart(self, params: dict[str, Any]) -> bool:
+        logger = self._logger.getChild('__update_cart')
+        result = get_json(
+            url=f'{URL_BASE}/cart/updateCart?_siteId=kr',
+            headers=[{'Cookie': c} for c in self.__session_cookies],
+            raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB' + \
+                f'&cart={self.__cart}&' + 
+                '&'.join(
+                    ["%s=%s" % (n, json.dumps(v) if isinstance(v, dict) else v) 
+                     for n,v in params.items()])
+        )
+        return result.get('result') == '200'
 
-    def __send_order_post_request(self):
-        self._logger.debug(self.__po_params)
+    def __login(self, purchase_order):
+        jwt = self.__getToken()
+        stdout, stderr = invoke_curl(
+            url=f'{URL_BASE}/signIn?_siteId=kr',
+            headers=[{'Cookie': jwt}],
+            raw_data=f'id={purchase_order.customer.username}&password={purchase_order.customer.password}'
+        )
+        result = json.loads(stdout)
+        if result['result'] == '200':
+            self._logger.info(f"Logged in successfully as {purchase_order.customer.username}")
+            jwt = re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
+            self.__session_cookies = [jwt]
+        else:
+            raise AtomyLoginError(purchase_order.customer.username)
+
+
+    def __getToken(self):
+        _, stderr = invoke_curl(
+            url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
+        )
+        return re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
+
+    def __init_quick_order(self, purchase_order):
+        result = get_json(
+            url=f'{URL_BASE}/cart/createCart?_siteId=kr&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies],
+            raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB'
+        )
+        self.__cart = result['items'][0]['cartId']
+        self.__cart_items = []
+
+    def __send_order_post_request(self) -> str:
+        '''Posts order. Returns posted order ID'''
+        logger = self._logger.getChild('__send_order_post_request')
         try:
-            post_order_doc = try_perform(lambda: get_document_from_url(
-                url='https://www.atomy.kr/v2/Home/Payment/PayReq_CrossPlatform2',
-                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                encoding='utf-8',
+            validate = get_json(
+                url=f'{URL_BASE}/order/validateCheckout?_siteId=kr&_deviceType=pc&locale=en-KR',
                 headers=[{'Cookie': c} for c in self.__session_cookies],
-                raw_data='&'.join(["%s=%s" % p for p in self.__po_params.items()])
-            ), logger=self._logger)
-            return post_order_doc.cssselect('#LGD_OID')[0].attrib['value']
-        except KeyError: # Couldn't get order ID
-            self._logger.warning(self.__po_params)
-            script = post_order_doc.cssselect('head script')[1].text
-            message_match = re.search("var responseMsg = '(.*)';", script)
-            if message_match is not None:
-                message = message_match.groups()[0]
-                raise PurchaseOrderError(self.__purchase_order, self, message)
+                raw_data='cartId=%s' % self.__cart
+            )
+            if validate['result'] != '200':
+                raise PurchaseOrderError(
+                    self.__purchase_order, self, 
+                    "The order is invalid: %s", validate['resultMessage'])
+
+            result = try_perform(lambda: get_json(
+                url=f'{URL_BASE}/order/placeOrder?_siteId=kr&_deviceType=pc&locale=en-KR',
+                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+                headers=[{'Cookie': c} for c in self.__session_cookies],
+                raw_data=urlencode({'cartId': self.__cart, 'customerId': ""})
+            ), logger=logger)
+            if result['result'] != '200':
+                raise PurchaseOrderError(
+                    self.__purchase_order, self, message=result['resultMessage'])
+            return result['item']['id']
         except HTTPError as ex:
-            self._logger.warning(self.__po_params)
-            self._logger.warning(ex)
+            logger.warning(self.__po_params)
+            logger.warning(ex)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_order_details(self, order_id):
-        order_details_doc = try_perform(lambda: get_document_from_url(
-            url='https://www.atomy.kr/v2/Home/MyAtomyMall/GetMyOrderView',
-            # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-            encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies ] + [
-                {'Content-Type': 'application/json'}
-            ],
-            raw_data='{"SaleNum":"%s","CustNo":"%s"}' % \
-                (order_id, self.__purchase_order.customer.username)
-        ), logger=self._logger)
-        return json.loads(order_details_doc.text)
+        result = try_perform(lambda: get_json(
+            url=f'{URL_BASE}/order/getOrderResult?id={order_id}&_siteId=kr&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies ]
+        ), logger=self._logger.getChild('__get_order_details'))
+        return result['item']
 
-    def __add_products(self, order_products):
+    def __add_products(self, order_products: list[OrderProduct]) -> list[tuple[OrderProduct, str]]:
         logger = self._logger.getChild('__add_products')
         logger.info("Adding products")
-        ordered_products = []
-        tot_amt = tot_pv = tot_qty = 0
+        ordered_products: list[tuple[OrderProduct, str]] = []
         for op in order_products:
             if not op.product.purchase:
                 logger.warning("The product %s is exempted from purchase", op.product_id)
@@ -162,22 +216,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                product_id = '0' * (6 - len(op.product_id)) + op.product_id
+                product_id = op.product_id.zfill(6)
                 product = self.__get_product(product_id)
-                if product and int(product['OutGubun']) == 0:
-                    index = len(ordered_products)
-                    op.product.separate_shipping = product['DeliGubun'] == 1
-                    self.__po_params[f'CartList[{index}].Qty'] = op.quantity
-                    self.__po_params[f'CartList[{index}].CustPrice'] = op.price
-                    self.__po_params[f'CartList[{index}].TotAmt'] = op.price * op.quantity
-                    self.__po_params[f'CartList[{index}].MaterialCode'] = product_id
-                    self.__po_params[f'CartList[{index}].PvPrice'] = op.product.points
-                    self.__po_params[f'CartList[{index}].PvAmt'] = op.product.points * op.quantity
-                    tot_amt += product['SalePrice'] * op.quantity
-                    tot_pv += product['PvPrice'] * op.quantity
-                    tot_qty += op.quantity
-                    ordered_products.append(op)
-                    logger.debug("Added product %s", op.product_id)
+                if product:
+                    op.product.separate_shipping = 'supplier' in product['flags']
+                    added_product = self.__add_to_cart(product, op)
+                    if added_product is not None:
+                        ordered_products.append((op, added_product))
+                        logger.debug("Added product %s", op.product_id)
+                    else:
+                        raise ProductNotAvailableError(product_id)
                 else:
                     raise ProductNotAvailableError(product_id)
             except ProductNotAvailableError:
@@ -186,15 +234,22 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 raise ex
             except Exception:
                 logger.exception("Couldn't add product %s", op.product_id)
-        # self.__browser.save_screenshot(realpath('02-products.png'))
         if len(ordered_products) == 0:
             raise PurchaseOrderError(self.__purchase_order, self,
                 "No available products are in the PO")
-        self.__po_params['TotAmt'] = self.__po_params['IpgumAmt'] = tot_amt
-        self.__po_params['TotPv'] = tot_pv
-        self.__po_params['TotQty'] = tot_qty
         logger.debug(self.__po_params)
         return ordered_products
+
+    def __add_to_cart(self, product, op):
+        res = try_perform(lambda: get_json(
+            url=f'{URL_BASE}/cart/addToCart?_siteId=kr',
+            headers=[{'Cookie': c} for c in self.__session_cookies],
+            raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB&cart=%s&products=[{"product":"%s","quantity":%s}]' % 
+                (self.__cart, product['id'], op.quantity)
+        ))
+        if res['items'][0]['success']:
+            return res['items'][0]['entryId']
+        return None
 
     def __is_valid_product(self, product_id):
         result = try_perform(lambda: get_document_from_url(
@@ -220,22 +275,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_product(self, product_id):
         try:
-            if self.__is_valid_product(product_id):
-                result = try_perform(lambda: get_document_from_url(
-                    url="https://www.atomy.kr/v2/Home/Payment/GetMCode",
-                    # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                    encoding='utf-8',
-                    headers=[{'Cookie': c} for c in self.__session_cookies ] + [
-                        {'Content-Type': 'application/json'}
-                    ],
-                    raw_data='{"MaterialCode":"%s"}' % product_id
-                ), logger=self._logger)
-                result = json.loads(result.text)
-                return result['jsonData'] if result['jsonData'] is not None else None
-            else:
-                return None
+            result = try_perform(lambda: get_json(
+                url=f'{URL_BASE}/atms/search?_siteId=kr&_deviceType=pc&locale=en-KR',
+                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
+                headers=[{'Cookie': c} for c in self.__session_cookies ],
+                raw_data=f'searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20'
+            ), logger=self._logger)
+            return result['items'][0] if result['totalCount'] is not None else None
         except HTTPError:
-            self._logger.warning("Product %s: Couldn't get response from Atomy server in several attempts. Giving up", product_id)
+            self._logger.warning(
+                "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
+                product_id)
             return None
 
     def __is_purchase_date_valid(self, purchase_date):
@@ -247,104 +297,273 @@ class AtomyQuick(PurchaseOrderVendorBase):
             (purchase_date >= min_date and purchase_date <= max_date)
                 
     def __set_purchase_date(self, purchase_date):
+        logger = self._logger.getChild('__set_purchase_date')
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             sale_date = purchase_date
         else:
             sale_date = datetime.now()
         if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
             sale_date += timedelta(days=1)
-        self.__po_params['CloseDate'] = (sale_date + timedelta(days=3)).strftime('%Y-%m-%d')
-        self.__po_params['SaleDate'] = sale_date.strftime('%Y-%m-%d')
+        merge(
+            self.__po_params['UPDATE_ORDER_USER'],
+            {'payload': {"salesDate": sale_date.strftime('%Y-%m-%d')}})
 
-    def __set_local_shipment(self, purchase_order, ordered_products):
+    def __set_local_shipment(self, purchase_order,
+        ordered_products: list[tuple[OrderProduct, str]]):
         logger = self._logger.getChild('__set_local_shipment')
         logger.debug('Set local shipment')
-        self.__po_params['TagSum'] = 0
         free_shipping_eligible_amount = reduce(
-            lambda acc, op: acc + (op.price * op.quantity)
-                if not op.product.separate_shipping else 0,
+            lambda acc, op: acc + (op[0].price * op[0].quantity)
+                if not op[0].product.separate_shipping else 0,
             ordered_products, 0)
         local_shipment = free_shipping_eligible_amount < self.__config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']
         if local_shipment:
             logger.debug("Setting combined shipment params")
-            self.__po_params['PackingGubun'] = 1
-            self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
-                '/' + purchase_order.address.zip
+            self.__update_cart({
+                'command': 'UPDATE_ASSORTED_PACKING', 
+                'payload': {"id": "1938534054", "assortedPacking": True}})
+            #TODO: do we need it?
+            # self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
+            #     '/' + purchase_order.address.zip
         else:
             logger.debug('No combined shipment is needed')
-            self.__po_params['PackingGubun'] = 0
 
     def __set_purchase_order_id(self, purchase_order_id):
         self._logger.debug("Setting purchase order ID")
         adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
-        self.__po_params['RevName'] = adapted_po_id
-        self.__po_params['SendName'] = adapted_po_id
+        merge(
+            self.__po_params['UPDATE_ORDER_USER'], 
+            {'payload': {'userName': adapted_po_id}})
 
-    def __set_receiver_mobile(self, phone='010-6275-2045'):
-        self._logger.debug("Setting receiver phone number")
-        self.__po_params['OrderHp'] = phone
-        self.__po_params['RevHp'] = phone
-
+    def __set_receiver_mobile(self, phone='     '):
+        logger = self._logger.getChild('__set_receiver_mobile')
+        logger.debug("Setting receiver phone number")
+        merge(
+            self.__po_params['UPDATE_ORDER_USER'],
+            {'payload': {"userCellphone": phone.replace('-', '')}})
+        self.__po_params['APPLY_DELIVERY_INFOS']['payload']['deliveryInfos'][0]['address']["cellphone"] = \
+            phone.replace('-', '')
+            
     def __set_payment_mobile(self, phone='010-6275-2045'):
-        self._logger.debug("Setting phone number for payment notification")
+        logger = self._logger.getChild('__set_payment_mobile')
+        logger.debug("Setting phone number for payment notification")
         if phone != '':
-            self.__po_params['VirHp'] = phone
+            self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']["paymentTransactions"][0]["phoneNumber"] = phone.replace('-', '')
+            self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']["paymentTransactions"][0]["taxInvoice"] = {'number': phone.replace('-', '')}
         else:
             self._logger.info('Payment phone isn\'t provided')
 
-    def __set_receiver_address(self, address):
-        self._logger.debug("Setting shipment address")
-        self.__po_params['Addr1'] = address.address_1
-        self.__po_params['Addr2'] = address.address_2
-        self.__po_params['Revzip'] = address.zip
-        self.__po_params['Request'] = address.delivery_comment
+    def __get_addresses(self) -> list[dict[str, str]]:
+        result = get_json(
+            url=f'{URL_BASE}/address/getDeliveryAddressList?_siteId=kr&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies]
+        )
+        return result.get('items') or []
+
+    def __create_address(self, address: Address, phone):
+        result = get_json(
+            url=f'{URL_BASE}/address/createAddress?_siteId=kr&_deviceType=pc&locale=en-GB',
+            headers=[{'Cookie': c} for c in self.__session_cookies],
+            method='POST',
+            raw_data="address=" + json.dumps({
+                "zipCode":address.zip,
+                "address": address.address_1,
+                "state": "",
+                "city": "",
+                "type": "SHIPPING",
+                "name": address.name,
+                "cellphone": phone.replace('-', ''),
+                "telephone": "",
+                "detailAddress": address.address_2,
+                "fullAddress": address.address_1 + ' ' + address.address_2,
+                "message": "",
+                "defaultAddress": True,
+                "favorites": False
+            })
+        )
+        return result['item']
+
+    def __set_receiver_address(self, address: Address, phone,
+        ordered_products: list[tuple[OrderProduct, str]]):
+        logger = self._logger.getChild('__set_receiver_address')
+        logger.debug("Setting shipment address")
+        addresses = [a for a in self.__get_addresses() if a['name'] == address.name]
+        atomy_address = addresses[0] if len(addresses) > 0 \
+            else self.__create_address(address, phone)
+        merge(
+            self.__po_params['APPLY_DELIVERY_INFOS'], 
+            {
+                'payload': {
+                    "deliveryInfos": [
+                        {
+                            "sequence": 0,
+                            "address": atomy_address,
+                            "deliveryMode": "DELIVERY_KR",
+                            "entries": [ 
+                                {
+                                    "entryNumber": i,
+                                    "cartEntry": ordered_products[i][1],
+                                    "quantity": ordered_products[i][0].quantity
+                                } for i in range(len(ordered_products))]
+                        }
+                    ]
+                }
+            }
+        )
 
     def __set_payment_method(self):
-        self._logger.debug("Setting payment method")
-        self.__po_params['CardGubun'] = 0
-        self.__po_params['BankGubun'] = 1
-        self.__po_params['SettleGubun'] = 2
-
-    def __set_payment_destination(self, bank_id='06'):
-        self._logger.debug("Setting payment receiver")
-        self.__po_params['Bank'] = bank_id
-
-    def __set_tax_info(self, company):
-        self._logger.debug("Setting counteragent tax information")
-        if company.tax_id != ('', '', ''): # Company is taxable
-            if company.tax_simplified:
-                self.__po_params['TaxCheck'] = 1
-                self.__po_params['TaxLGubun'] = 2
-                self.__po_params['TaxMGubun'] = 3
-                self.__po_params['TaxLNum'] = "%s-%s-%s" % company.tax_id
-            else:
-                self.__po_params['TaxCheck'] = 2
-                self.__po_params['TaxLGubun'] = 0
-                self.__po_params['TaxMGubun'] = 0
-                # self.__po_params['TaxLNum'] = "%s-%s-%s" % company.tax_id
-                self.__po_params['BusinessName'] = company.name
-                self.__po_params['BusinessNo'] = "%s%s%s" % company.tax_id
-                self.__po_params['ContactP'] = company.contact_person
-                self.__po_params['Emailid'] = company.email.split('@')[0]
-                self.__po_params['Emailserver'] = company.email.split('@')[1]
-                self.__po_params['IndCategory'] = company.business_category
-                self.__po_params['IndType'] = company.business_type
-                self.__po_params['TAddr1'] = company.tax_address.address_1
-                self.__po_params['TAddr2'] = company.tax_address.address_2
-                self.__po_params['TZip'] = company.tax_address.zip
-                self.__po_params['TaxCustName'] = company.contact_person
-                self.__po_params['THp'] = company.tax_phone
+        logger = self._logger.getChild('__set_payment_method')
+        logger.debug("Setting payment method")
+        if self.__update_cart({
+            'command': 'UPDATE_PAYMENT_TYPE',
+            'payload': {"id":"ACCOUNT_TRANSFER"}}):
+            logger.debug("Payment method was successfully set")
         else:
-            self.__po_params['TaxCheck'] = 0
-            self.__po_params['TaxLGubun'] = 0
-            self.__po_params['TaxMGubun'] = 0
+            raise PurchaseOrderError(self.__purchase_order, self,
+                "Couldn't set payment method")
+
+    def __set_payment_destination(self, bank_id):
+        logger = self._logger.getChild('__set_payment_destination')
+        logger.debug("Setting payment receiver")
+        payment_config, amount, deadline = self.__get_payment_params()
+        merge(
+            self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']["paymentTransactions"][0],
+            {
+                "plannedAmount": amount,
+                "depositDeadline": deadline,
+                "status": "AUTHORIZATION",
+                "info": {
+                    "bank": BANKS[bank_id],
+                    "config": payment_config['id']
+                }
+            }
+        )
+
+    def __get_payment_params(self) -> tuple[dict[str, Any], str, str]:
+        result = get_json(
+            url=f'{URL_BASE}/cart/getBuynowCart' + 
+                f'?cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' + 
+                '&options=%5B%22PAYMENT_TYPE%22%5D&channel=WEB&_siteId=kr' + 
+                '&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies]
+        )
+        deadline = self.__get_payment_deadline(
+            result['item']['paymentType']['configs'][0]['id'])
+        return (
+            result['item']['paymentType']['configs'][0], 
+            result['item']['totalPrice'], deadline)
+
+    def __get_payment_deadline(self, payment_config_id):
+        result = get_json(
+            url=f'{URL_BASE}/payment/getDepositDeadline' +
+                f'?paymentTypeConfig={payment_config_id}&_siteId=kr' +
+                '&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies]
+        )
+        d = result['item']['deadline']
+        return d[:4] + d[5:7] + d[8:10] + d[11:13] + d[14:16] + d[17:19]
+
+    def __set_tax_info(self, purchase_order: PurchaseOrder):
+        self._logger.debug("Setting counteragent tax information")
+        if purchase_order.company.tax_id != ('', '', ''): # Company is taxable
+            if purchase_order.company.tax_simplified:
+                merge(
+                    self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']['paymentTransactions'][0],
+                    {
+                        "taxInvoice": {
+                            "type": "CASH",
+                            "proofType": "PROOF",
+                            "numberType": "BRN",
+                            "number": "%s%s%s" % purchase_order.company.tax_id
+                        }
+                    },
+                    force=True)            
+            else:
+                atomy_company_id, is_new = self.__get_atomy_company(
+                    purchase_order.customer.username,
+                    purchase_order.company.tax_id) \
+                    or self.__create_atomy_company(purchase_order.company)
+                merge(
+                self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']['paymentTransactions'][0],
+                {
+                    "taxInvoice": {
+                        "type": "TAX",
+                        "proofType": "PROOF",
+                        "numberType": "BRN",
+                        "number": "%s%s%s" % purchase_order.company.tax_id,
+                        "businessLicense": atomy_company_id,
+                        "newBusinessNumber": is_new,
+                        "isNonCustomer": True
+                    }
+                }
+                )                     
+        else:
+            merge(
+                self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']['paymentTransactions'][0],
+                {
+                    "taxInvoice":{
+                        "type": 'NONE',
+                        "proofType": "DEDUCTION",
+                        "numberType": "CPN",
+                    }
+                }
+            )
+
+    def __get_atomy_company(self, username, tax_id) -> tuple[str, bool]:
+        result = get_json(
+            url=f'{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&_siteId=kr&_deviceType=pc&locale=en-KR',
+            headers=[{'Cookie': c} for c in self.__session_cookies]
+        )
+        company = [company for company in result.get('items') #type: ignore
+            if company['businessNumber'] == '%s%s%s' % tax_id]
+        return company[0]['id'], False if len(company) > 0 else None #type: ignore
+
+    def __create_atomy_company(self, company: Company):
+        logger = self._logger.getChild('__create_atomy_company')
+        logger.info("Creating new company object")
+        result = get_json(
+            url='',
+            headers=[{'Cookie': c} for c in self.__session_cookies],
+            raw_data=urlencode({
+                'companyName': company.name,
+                'businessNumber': "%s%s%s" % company.tax_id,
+                'ceoName': company.contact_person,
+                'address': company.address.address_1,
+                'addressDetail': company.tax_address.address_2,
+                'zip': company.tax_address.zip,
+                'industry': company.business_category,
+                'category': company.business_type,
+                'mobileNumber': company.tax_phone,
+                'contactName': company.contact_person,
+                'email': company.email,
+                'isNew': 'true',
+                'saveAsCustomer': 'false',
+                'isNonCustomer': 'true'
+            })
+        )
+        return result['item']['id'], True
+        
 
     def __submit_order(self):
-        self._logger.info("Submitting the order")
+        logger = self._logger.getChild('__submit_order')
+        logger.info("Submitting the order")
+        logger.debug("Setting order params")
+        logger.debug(self.__po_params)
+        for command, params in self.__po_params.items():
+            if not self.__update_cart({
+                'command': command,
+                **params
+                }):
+                logger.warning("Couldn't update cart part: %s", command)
+                raise PurchaseOrderError(self.__purchase_order, self)
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
-        self._logger.info((order_id, vendor_po['jsonData']))
-        return order_id, vendor_po['jsonData'][0]['IpgumAccountNo'], vendor_po['jsonData'][0]['TotAmt']
+        # logger.info((order_id, vendor_po))
+        return (
+            order_id, 
+            vendor_po['paymentTransactions'][0]['info']['accountNumber'], 
+            vendor_po['totalPrice']
+        )
         
     def update_purchase_order_status(self, purchase_order):
         logger = self._logger.getChild('update_purchase_order_status')

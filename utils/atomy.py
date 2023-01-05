@@ -66,7 +66,7 @@ class SessionManager:
                 content = invoke_curl(url, method=method, raw_data=raw_data,
                     headers=[{'Cookie': c} for c in self.__session] +
                             [{key: value} for key, value in headers.items()] +
-                            [{"Content-type": "application/json"}])
+                            [{"Content-type": "application/json"}]).output
                 return json.loads(content)
             except AtomyLoginError:
                 _logger.info("Session expired. Logging in")
@@ -196,7 +196,7 @@ def get_document_from_url(url, headers=None, raw_data=None):
         _logger.exception(run_params)
 
 def invoke_curl(url, raw_data, headers, method='get'):
-    _logger = logger.getChild('get_document_from_url')
+    _logger = logger.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
@@ -213,11 +213,11 @@ def invoke_curl(url, raw_data, headers, method='get'):
         if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
             _logger.warning("Server side error occurred. Will try in 30 seconds", url)
             sleep(30)
-            return get_document_from_url(url, headers, raw_data)
+            return invoke_curl(url, raw_data, headers, method)
         if re.search('HTTP.* 302', output.stderr) and \
             re.search('location: /v2/Home/Account/Login', output.stderr):
             raise AtomyLoginError()
-        return output.stdout
+        return output
     except TypeError:
         _logger.exception(run_params)
 
