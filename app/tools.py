@@ -253,7 +253,8 @@ def merge(a: dict, b: dict, path=None, force=False) -> dict:
             elif force:
                 a[key] = b[key]
             else:
-                raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+                raise Exception('Conflict at %s.  Values: (%s, %s)' % 
+                    ('.'.join(path + [str(key)]), a[key], b[key]))
         else:
             a[key] = b[key]
     return a

@@ -327,7 +327,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.debug('No combined shipment is needed')
 
     def __set_purchase_order_id(self, purchase_order_id):
-        self._logger.debug("Setting purchase order ID")
+        self._logger.getChild('__set_purchase_order_id').debug("Setting purchase order ID")
         adapted_po_id = purchase_order_id.replace('-', 'ㅡ')
         merge(
             self.__po_params['UPDATE_ORDER_USER'], 
