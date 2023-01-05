@@ -24,7 +24,7 @@
 # neobolt==1.7.17
 # neomodel==4.0.7
 openpyxl==3.0.4
-# pandas
+pandas
 # paypal-checkout-serversdk==1.0.1
 # paypalhttp==1.0.0
 # pdfkit==0.6.1
