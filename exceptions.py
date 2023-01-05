@@ -42,13 +42,14 @@ class PurchaseOrderError(Exception):
         return f"Couldn't post {self.po_id} at {self.vendor}: {self.message}"
 
 class ProductNotAvailableError(PurchaseOrderError):
-    def __init__(self, product_id, final=False):
+    def __init__(self, product_id, message='', final=False):
         super().__init__()
         self.product_id = product_id
+        self.message = message
         self.final = final
 
     def __str__(self):
-        return f"Product {self.product_id} is not available"
+        return f"Product {self.product_id} is not available: {self.message}"
 
 class ProductNotFoundError(Exception):
     def __init__(self, product_id):

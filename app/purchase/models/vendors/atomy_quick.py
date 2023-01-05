@@ -221,15 +221,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 if product:
                     op.product.separate_shipping = 'supplier' in product['flags']
                     added_product = self.__add_to_cart(product, op)
-                    if added_product is not None:
-                        ordered_products.append((op, added_product))
+                    if added_product['success']:
+                        ordered_products.append((op, added_product['entryId']))
                         logger.debug("Added product %s", op.product_id)
                     else:
-                        raise ProductNotAvailableError(product_id)
+                        raise ProductNotAvailableError(product_id, added_product['statusCode'])
                 else:
                     raise ProductNotAvailableError(product_id)
-            except ProductNotAvailableError:
-                logger.warning("Product %s is not available", op.product_id)
+            except ProductNotAvailableError as ex:
+                logger.warning("Product %s is not available: %s", ex.product_id, ex.message)
             except PurchaseOrderError as ex:
                 raise ex
             except Exception:
@@ -247,9 +247,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB&cart=%s&products=[{"product":"%s","quantity":%s}]' % 
                 (self.__cart, product['id'], op.quantity)
         ))
-        if res['items'][0]['success']:
-            return res['items'][0]['entryId']
-        return None
+        return res['items'][0]
 
     def __is_valid_product(self, product_id):
         result = try_perform(lambda: get_document_from_url(
