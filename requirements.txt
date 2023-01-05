@@ -23,7 +23,7 @@
 # neo4j-driver==4.3.6
 # neobolt==1.7.17
 # neomodel==4.0.7
-openpyxl==3.0.4
+openpyxl
 pandas
 # paypal-checkout-serversdk==1.0.1
 # paypalhttp==1.0.0
