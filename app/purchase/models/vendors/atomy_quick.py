@@ -87,7 +87,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__login(purchase_order)
             self.__init_quick_order(purchase_order)
             self.__update_cart({'command': 'CREATE_DEFAULT_DELIVERY_INFOS'})
-            ordered_products = self.__add_products(purchase_order.order_products)
+            ordered_products, unavailable_products = \
+                self.__add_products(purchase_order.order_products)
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_purchase_order_id('0' + purchase_order.id[11:]) # Receiver name
             self.__set_receiver_mobile(purchase_order.contact_phone)
@@ -106,7 +107,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             purchase_order.total_krw = po_params[2]
             db.session.flush()
             self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
-            return purchase_order
+            return purchase_order, unavailable_products
         except AtomyLoginError as ex:
             self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
             raise ex
@@ -205,10 +206,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         ), logger=self._logger.getChild('__get_order_details'))
         return result['item']
 
-    def __add_products(self, order_products: list[OrderProduct]) -> list[tuple[OrderProduct, str]]:
+    def __add_products(self, order_products: list[OrderProduct]
+        ) -> tuple[list[tuple[OrderProduct, str]], dict[str, str]]:
         logger = self._logger.getChild('__add_products')
         logger.info("Adding products")
         ordered_products: list[tuple[OrderProduct, str]] = []
+        unavailable_products = {}
         for op in order_products:
             if not op.product.purchase:
                 logger.warning("The product %s is exempted from purchase", op.product_id)
@@ -232,14 +235,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     raise ProductNotAvailableError(product_id)
             except ProductNotAvailableError as ex:
                 logger.warning("Product %s is not available: %s", ex.product_id, ex.message)
+                unavailable_products[ex.product_id] = ex.message
             except PurchaseOrderError as ex:
                 raise ex
             except Exception:
                 logger.exception("Couldn't add product %s", op.product_id)
         if len(ordered_products) == 0:
             raise PurchaseOrderError(self.__purchase_order, self,
-                "No available products are in the PO")
-        return ordered_products
+                f"No available products are in the PO. Unavailable products:\n{unavailable_products}")
+        return ordered_products, unavailable_products
 
     def __add_to_cart(self, product, op):
         res = try_perform(lambda: get_json(

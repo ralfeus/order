@@ -50,7 +50,7 @@ def post_purchase_orders(po_id=None):
                     continue
                 logger.info("Posting a purchase order %s", po.id)
                 try:
-                    vendor.post_purchase_order(po)
+                    _, failed_products = vendor.post_purchase_order(po)
                     posted_ops_count = len([op for op in po.order_products
                                                if op.status == OrderProductStatus.purchased])
                     if posted_ops_count == len(po.order_products):
@@ -59,12 +59,12 @@ def post_purchase_orders(po_id=None):
                     elif posted_ops_count > 0:
                         po.set_status(PurchaseOrderStatus.partially_posted)
                         po.when_changed = po.when_posted = datetime.now()
-                        failed_order_products = [po for po in po.order_products
-                                                    if po.status != OrderProductStatus.purchased]
+                        failed_products = failed_products or \
+                            [{'id': po.product_id, 'reason': ''} for po in po.order_products
+                                if po.status != OrderProductStatus.purchased]
                         po.status_details = "Not posted products:\n" + \
-                            '\n'.join(map(
-                                lambda fop: f"{fop.product_id}: {fop.product.name}",
-                                failed_order_products))
+                            '\n'.join([f"{id}: {reason}"
+                                for id, reason in failed_products.items()])
                     else:
                         po.set_status(PurchaseOrderStatus.failed)
                         po.when_changed = datetime.now()

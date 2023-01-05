@@ -24,7 +24,8 @@ class PurchaseOrderVendorBase(metaclass=ABCMeta):
         return f"Object {self.id}"
 
     @abstractmethod
-    def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
+    def post_purchase_order(self, purchase_order: PurchaseOrder
+        ) -> tuple[PurchaseOrder, dict[str, str]]:
         pass
 
     @abstractmethod
