@@ -50,13 +50,6 @@ ORDER_STATUSES = {
 
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
-    __purchase_order = None
-    __po_params: dict[str, dict] = {
-        'UPDATE_ORDER_USER': {},
-        'APPLY_DELIVERY_INFOS': {'payload': {'deliveryInfos': [{}]}},
-        'APPLY_PAYMENT_TRANSACTION': {'payload':{'paymentTransactions':[{}]}}
-    }
-
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
         super().__init__()
         log_level = None
@@ -74,6 +67,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config = config
         self.__session_cookies: list[str] = []
+        self.__purchase_order = None
+        self.__po_params: dict[str, dict] = {
+            'UPDATE_ORDER_USER': {},
+            'APPLY_DELIVERY_INFOS': {'payload': {'deliveryInfos': [{}]}},
+            'APPLY_PAYMENT_TRANSACTION': {'payload':{'paymentTransactions':[{}]}}
+    }
 
     def __str__(self):
         return "Atomy - Quick order"
