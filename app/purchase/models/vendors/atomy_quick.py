@@ -263,28 +263,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         return res['items'][0]
 
-    def __is_valid_product(self, product_id):
-        result = try_perform(lambda: get_document_from_url(
-            url="https://www.atomy.kr/v2/Home/Payment/CheckValidOrder",
-            # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-            encoding='utf-8',
-            headers=[{'Cookie': c} for c in self.__session_cookies] + [
-                {'Content-Type': 'application/json'}
-            ],
-            raw_data='{"CartList":[{"MaterialCode":"%s"}]}' % product_id
-        ), logger=self._logger)
-        result = json.loads(result.text)
-        if result['rsCd'] == '200':
-            if result['responseText'] == '':
-                return True
-            if result['responseText'] == ERROR_FOREIGN_ACCOUNT and (
-                self.__purchase_order.purchase_restricted_products):
-                return True
-            self._logger.warning("Product %s error: %s", product_id, result['responseText'])
-            return False
-        self._logger.warning("Product %s unknown error", product_id)
-        return False
-
     def __get_product(self, product_id):
         try:
             result = get_json(
@@ -298,19 +276,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 option = self.__get_product_option(product, product_id) \
                     if product['optionType']['value'] == 'mix' else None
                 return product, option
-        except HTTPError:
-            self._logger.warning(
-                "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
-                product_id)
-        return None, None
-
-    def __get_product_simple(self, product_id):
-        try:
-            result = get_json(
-                url=f'{URL_BASE}/product/read?productId={product_id}&{URL_SUFFIX}',
-                headers=self.__get_session_headers(),
-            )
-            return result.get('item'), None
         except HTTPError:
             self._logger.warning(
                 "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
