@@ -285,13 +285,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_product(self, product_id):
         try:
-            result = try_perform(lambda: get_json(
+            result = get_json(
                 url=f'{URL_BASE}/atms/search?_siteId=kr&_deviceType=pc&locale=en-KR',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 headers=self.__get_session_headers(),
                 raw_data=f'searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20'
-            ), logger=self._logger)
-            if result['totalCount'] is not None:
+            )
+            if result['totalCount'] > 0:
                 product = result['items'][0]
                 option = self.__get_product_option(product, product_id) \
                     if product['optionType']['value'] == 'mix' else None
@@ -300,7 +300,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.warning(
                 "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
                 product_id)
-            return None
+        return None, None
 
     def __get_product_option(self, product, option_id):
         result = get_json(
