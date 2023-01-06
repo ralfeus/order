@@ -227,10 +227,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 continue
             try:
                 product_id = op.product_id.zfill(6)
-                product = self.__get_product(product_id)
+                product, option = self.__get_product(product_id)
                 if product:
                     op.product.separate_shipping = 'supplier' in product['flags']
-                    added_product = self.__add_to_cart(product, op)
+                    added_product = self.__add_to_cart(product, option, op)
                     if added_product['success']:
                         ordered_products.append((op, added_product['entryId']))
                         logger.info("Added product %s", op.product_id)
@@ -250,13 +250,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 f"No available products are in the PO. Unavailable products:\n{unavailable_products}")
         return ordered_products, unavailable_products
 
-    def __add_to_cart(self, product, op):
-        res = try_perform(lambda: get_json(
+    def __add_to_cart(self, product, option, op):
+        product_option = f',"optionProduct":"{option}"' if option is not None else ""
+        res = get_json(
             url=f'{URL_BASE}/cart/addToCart?_siteId=kr',
             headers=[{'Cookie': c} for c in self.__session_cookies],
-            raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB&cart=%s&products=[{"product":"%s","quantity":%s}]' % 
-                (self.__cart, product['id'], op.quantity)
-        ))
+            raw_data=('cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB' +
+                '&cart=%s&products=[{"product":"%s","quantity":%s%s}]') % 
+                (self.__cart, product['id'], op.quantity, product_option)
+        )
         return res['items'][0]
 
     def __is_valid_product(self, product_id):
@@ -289,12 +291,26 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 headers=self.__get_session_headers(),
                 raw_data=f'searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20'
             ), logger=self._logger)
-            return result['items'][0] if result['totalCount'] is not None else None
+            if result['totalCount'] is not None:
+                product = result['items'][0]
+                option = self.__get_product_option(product, product_id) \
+                    if product['optionType']['value'] == 'mix' else None
+                return product, option
         except HTTPError:
             self._logger.warning(
                 "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
                 product_id)
             return None
+
+    def __get_product_option(self, product, option_id):
+        result = get_json(
+            url=f"{URL_BASE}/product/options?productId={product['id']}&_siteId=kr" +
+            "&_deviceType=pc&locale=en-KR",
+            headers=self.__get_session_headers()
+        )
+        return [
+            o for o in result['item']['option']['productOptions'] 
+            if o['materialCode'] == option_id][0]['optionProduct']['value']
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone('Asia/Seoul')
