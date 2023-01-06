@@ -21,6 +21,7 @@ from utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
 URL_BASE = 'https://shop-api.atomy.com/svc'
+URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
 ERROR_FOREIGN_ACCOUNT = '해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다.'
 ERROR_OUT_OF_STOCK = '해당 상품코드의 상품은 품절로 주문이 불가능합니다'
 
@@ -89,7 +90,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.info("Logging in...")
         try:
             self.__login(purchase_order)
-            self.__init_quick_order(purchase_order)
+            self.__init_quick_order()
             self.__update_cart({'command': 'CREATE_DEFAULT_DELIVERY_INFOS'})
             ordered_products, unavailable_products = \
                 self.__add_products(purchase_order.order_products)
@@ -166,21 +167,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         return re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
 
-    def __init_quick_order(self, purchase_order):
+    def __init_quick_order(self):
         result = get_json(
-            url=f'{URL_BASE}/cart/createCart?_siteId=kr&_deviceType=pc&locale=en-KR',
+            url=f'{URL_BASE}/cart/createCart?{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies],
             raw_data='cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB'
         )
         self.__cart = result['items'][0]['cartId']
-        self.__cart_items = []
 
     def __send_order_post_request(self) -> str:
         '''Posts order. Returns posted order ID'''
         logger = self._logger.getChild('__send_order_post_request')
         try:
             validate = get_json(
-                url=f'{URL_BASE}/order/validateCheckout?_siteId=kr&_deviceType=pc&locale=en-KR',
+                url=f'{URL_BASE}/order/validateCheckout?{URL_SUFFIX}',
                 headers=[{'Cookie': c} for c in self.__session_cookies],
                 raw_data='cartId=%s' % self.__cart
             )
@@ -190,7 +190,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "The order is invalid: %s" % validate['resultMessage'])
 
             result = try_perform(lambda: get_json(
-                url=f'{URL_BASE}/order/placeOrder?_siteId=kr&_deviceType=pc&locale=en-KR',
+                url=f'{URL_BASE}/order/placeOrder?{URL_SUFFIX}',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 headers=[{'Cookie': c} for c in self.__session_cookies],
                 raw_data=urlencode({'cartId': self.__cart, 'customerId': ""})
@@ -206,7 +206,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_order_details(self, order_id):
         result = try_perform(lambda: get_json(
-            url=f'{URL_BASE}/order/getOrderResult?id={order_id}&_siteId=kr&_deviceType=pc&locale=en-KR',
+            url=f'{URL_BASE}/order/getOrderResult?id={order_id}&{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies ]
         ), logger=self._logger.getChild('__get_order_details'))
         return result['item']
@@ -286,7 +286,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_product(self, product_id):
         try:
             result = get_json(
-                url=f'{URL_BASE}/atms/search?_siteId=kr&_deviceType=pc&locale=en-KR',
+                url=f'{URL_BASE}/atms/search?{URL_SUFFIX}',
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 headers=self.__get_session_headers(),
                 raw_data=f'searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20'
@@ -296,6 +296,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 option = self.__get_product_option(product, product_id) \
                     if product['optionType']['value'] == 'mix' else None
                 return product, option
+        except HTTPError:
+            self._logger.warning(
+                "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
+                product_id)
+        return None, None
+
+    def __get_product_simple(self, product_id):
+        try:
+            result = get_json(
+                url=f'{URL_BASE}/product/read?productId={product_id}&{URL_SUFFIX}',
+                headers=self.__get_session_headers(),
+            )
+            return result.get('item'), None
         except HTTPError:
             self._logger.warning(
                 "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
@@ -396,7 +409,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_addresses(self) -> list[dict[str, str]]:
         result = get_json(
-            url=f'{URL_BASE}/address/getDeliveryAddressList?_siteId=kr&_deviceType=pc&locale=en-KR',
+            url=f'{URL_BASE}/address/getDeliveryAddressList?{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies]
         )
         return result.get('items') or []
@@ -553,7 +566,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_atomy_company(self, username, tax_id) -> tuple[str, bool]:
         result = get_json(
-            url=f'{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&_siteId=kr&_deviceType=pc&locale=en-KR',
+            url=f'{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies]
         )
         company = [company for company in result.get('items') #type: ignore
@@ -604,7 +617,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             url=f'{URL_BASE}/cart/getBuynowCart?' +
                 f'cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' +
                 '&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22DELIVERY_INFOS%22%5D' +
-                '&channel=WEB&_siteId=kr&_deviceType=pc&locale=en-KR',
+                f'&channel=WEB&{URL_SUFFIX}',
             headers=self.__get_session_headers()
         )
         order_id = self.__send_order_post_request()
@@ -663,7 +676,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         res = get_json(
             url=f'{URL_BASE}/order/getOrderList?' + 
                 'period=MONTH&orderStatus=&salesApplication=&page=1&pageSize=100'+
-                '&fromDate=&toDate=&_siteId=kr&_deviceType=pc&locale=en-KR',
+                '&fromDate=&toDate=&{URL_SUFFIX}',
             headers=self.__get_session_headers(),
         )
         
