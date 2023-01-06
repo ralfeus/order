@@ -676,7 +676,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         res = get_json(
             url=f'{URL_BASE}/order/getOrderList?' + 
                 'period=MONTH&orderStatus=&salesApplication=&page=1&pageSize=100'+
-                '&fromDate=&toDate=&{URL_SUFFIX}',
+                f'&fromDate=&toDate=&{URL_SUFFIX}',
             headers=self.__get_session_headers(),
         )
         
