@@ -80,7 +80,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger = self.__original_logger.getChild(purchase_order.id)
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
-            if purchase_order.purchase_date < datetime.now():
+            if purchase_order.purchase_date < datetime.now().date():
                 raise PurchaseOrderError(purchase_order, self, 
                     "Can't create a purchase order. The purchase date is in the past")
             self._logger.info("Skip <%s>: purchase date is %s",
