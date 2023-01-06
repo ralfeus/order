@@ -11,15 +11,17 @@ from app.purchase.jobs import *
 with create_app().app_context():
     po_id = "PO-2022-10-0101-001"
     po = PurchaseOrder.query.get(po_id)
-    # update_purchase_orders_status(po_id)
     po.status = PurchaseOrderStatus.pending
     po.vendor = 'AtomyQuick'
     po.company_id = 1
-    po.customer.username = '23426444'
-    po.customer.password = 'atomy#01'
+    # po.customer.username = '23426444'
+    # po.customer.password = 'atomy#01'
+    po.customer.username = 'S5832131'
+    po.customer.password = 'mkk03020529!!'
     po.purchase_date = datetime.now()
     db.session.flush()
-    post_purchase_orders(po_id=po_id)
+    update_purchase_orders_status(po_id)
+    # post_purchase_orders(po_id=po_id)
     # db.session.rollback()
     # print(po.to_dict())
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
