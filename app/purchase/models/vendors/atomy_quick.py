@@ -52,7 +52,7 @@ ORDER_STATUSES = {
 class AtomyQuick(PurchaseOrderVendorBase):
     ''' Manages purchase order at Atomy via quick order '''
     __session_cookies: list[str] = []
-    __purchase_order: PurchaseOrder = None
+    __purchase_order: PurchaseOrder = None #type: ignore
     __po_params: dict[str, dict] = {}
 
     def __init__(self, browser=None, logger: logging.Logger=None, config=None):
@@ -75,11 +75,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __str__(self):
         return "Atomy - Quick order"
 
-    def post_purchase_order(self, purchase_order):
+    def post_purchase_order(self, purchase_order) -> tuple[PurchaseOrder, dict[str, str]]:
         ''' Posts a purchase order to Atomy based on provided data '''
         self._logger = self.__original_logger.getChild(purchase_order.id)
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
+            if purchase_order.purchase_date < datetime.now():
+                raise PurchaseOrderError(purchase_order, self, 
+                    "Can't create a purchase order. The purchase date is in the past")
             self._logger.info("Skip <%s>: purchase date is %s",
                 purchase_order.id, purchase_order.purchase_date)
             return purchase_order, {}
