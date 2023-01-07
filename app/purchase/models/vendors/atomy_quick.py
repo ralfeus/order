@@ -510,8 +510,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             else:
                 atomy_company_id, is_new = self.__get_atomy_company(
                     purchase_order.customer.username,
-                    purchase_order.company.tax_id) \
-                    or self.__create_atomy_company(purchase_order.company)
+                    purchase_order.company.tax_id)
+                if atomy_company_id is None:
+                    atomy_company_id, is_new = self.__create_atomy_company(purchase_order.company)
                 merge(
                 self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']['paymentTransactions'][0],
                 {
@@ -524,8 +525,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         "newBusinessNumber": is_new,
                         "isNonCustomer": True
                     }
-                }
-                )                     
+                }, force=True)                     
         else:
             merge(
                 self.__po_params['APPLY_PAYMENT_TRANSACTION']['payload']['paymentTransactions'][0],
@@ -538,20 +538,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 }
             )
 
-    def __get_atomy_company(self, username, tax_id) -> tuple[str, bool]:
+    def __get_atomy_company(self, username, tax_id) -> tuple[Any, bool]:
         result = get_json(
             url=f'{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies]
         )
         company = [company for company in result.get('items') #type: ignore
             if company['businessNumber'] == '%s%s%s' % tax_id]
-        return company[0]['id'], False if len(company) > 0 else None #type: ignore
+        return (company[0]['id'], False) if len(company) > 0 else (None, False)
 
     def __create_atomy_company(self, company: Company):
         logger = self._logger.getChild('__create_atomy_company')
         logger.info("Creating new company object")
         result = get_json(
-            url='',
+            url=f'{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}',
             headers=[{'Cookie': c} for c in self.__session_cookies],
             raw_data=urlencode({
                 'companyName': company.name,
@@ -559,7 +559,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 'ceoName': company.contact_person,
                 'address': company.address.address_1,
                 'addressDetail': company.tax_address.address_2,
-                'zip': company.tax_address.zip,
+                'zipCode': company.tax_address.zip,
                 'industry': company.business_category,
                 'category': company.business_type,
                 'mobileNumber': company.tax_phone,
