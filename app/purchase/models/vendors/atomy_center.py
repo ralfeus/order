@@ -55,7 +55,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         ordered_products = self.__add_products(purchase_order.order_products)
         self.__set_receiver_address(purchase_order.address)
         self.__set_shipment_options(ordered_products)
-        self.__set_purchase_order_id(purchase_order.id[11:])
+        self.__set_purchase_order_id(purchase_order.id[10:])
         self.__set_payment_method()
         self.__set_payment_destination(purchase_order.bank_id)
         self.__set_payment_mobile(purchase_order.payment_phone)
