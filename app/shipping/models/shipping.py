@@ -52,6 +52,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
                 or_(
                     Product.available_shipping.any(Shipping.id == self.id),
                     Product.available_shipping == None))
+            logging.debug(str(shippable_products))
             return shippable_products.count() == len(products)
         return True
 
