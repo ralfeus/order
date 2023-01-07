@@ -2,6 +2,7 @@
 Shipping method model
 '''
 from functools import reduce
+import logging
 from tempfile import _TemporaryFileWrapper
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, or_
@@ -45,7 +46,6 @@ class Shipping(db.Model, BaseModel): #type: ignore
         product_ids: list[str] = []
         for product_id in products:
             product_ids += [product_id, product_id.zfill(6)]
-
         if products:
             shippable_products = Product.query.filter(
                 Product.id.in_(product_ids),
@@ -57,6 +57,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
 
     def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
         if not self._are_all_products_shippable(products):
+            logging.debug("Not all products are shippable to %s by %s", country, self)
             return False
         if not country:
             return True
@@ -64,6 +65,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
             self.get_shipping_cost(country, weight)
             return True
         except NoShippingRateError:
+            logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
 
     def get_edit_url(self):
