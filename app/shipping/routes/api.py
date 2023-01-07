@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from operator import itemgetter
 
 from flask import Response, abort, jsonify, request
@@ -38,6 +39,9 @@ def get_shipping_methods(country_id, weight):
     for shipping in shipping_methods:
         if shipping.can_ship(country=country, weight=weight, products=product_ids):
             result.append(shipping.to_dict())
+            logging.debug("%s can ship", shipping)
+        else:
+            logging.debug("%s can't ship", shipping)
 
     if len(result) > 0:
         return jsonify(sorted(result, key=itemgetter('name')))

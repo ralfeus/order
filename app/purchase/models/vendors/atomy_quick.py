@@ -48,6 +48,7 @@ ORDER_STATUSES = {
     'PAYMENT_INITIATED': PurchaseOrderStatus.posted,
     'PAYMENT_NOTPAID': PurchaseOrderStatus.payment_past_due,
     'SHIPMENT_DELIVERING': PurchaseOrderStatus.shipped,
+    'SHIPMENT_READY': PurchaseOrderStatus.shipped,
     'SHIPMENT_COMPLETED': PurchaseOrderStatus.delivered,
     'CANCELLED': PurchaseOrderStatus.cancelled
 }

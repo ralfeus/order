@@ -40,11 +40,11 @@ class Shipping(db.Model, BaseModel): #type: ignore
 
     __mapper_args__ = {'polymorphic_on': discriminator}
 
-    def _are_all_products_shippable(self, products):
+    def _are_all_products_shippable(self, products: list[str]):
         from app.products.models.product import Product
-        product_ids = []
+        product_ids: list[str] = []
         for product_id in products:
-            product_ids += [product_id, '0' * (6 - len(product_id)) + product_id]
+            product_ids += [product_id, product_id.zfill(6)]
 
         if products:
             shippable_products = Product.query.filter(
@@ -55,7 +55,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
             return shippable_products.count() == len(products)
         return True
 
-    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
         if not self._are_all_products_shippable(products):
             return False
         if not country:
@@ -116,7 +116,7 @@ class NoShipping(Shipping):
     def name(self):
         return 'No shipping'
     
-    def can_ship(self, country: Country, weight: int, products: list=None) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
         if not self._are_all_products_shippable(products):
             return False
         return True
