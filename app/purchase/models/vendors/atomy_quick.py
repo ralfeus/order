@@ -50,7 +50,8 @@ ORDER_STATUSES = {
     'SHIPMENT_DELIVERING': PurchaseOrderStatus.shipped,
     'SHIPMENT_READY': PurchaseOrderStatus.shipped,
     'SHIPMENT_COMPLETED': PurchaseOrderStatus.delivered,
-    'CANCELLED': PurchaseOrderStatus.cancelled
+    'CANCELLED': PurchaseOrderStatus.cancelled,
+    'COMPLETED': PurchaseOrderStatus.delivered
 }
 
 class AtomyQuick(PurchaseOrderVendorBase):

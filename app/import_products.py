@@ -16,10 +16,6 @@ sel_item_points = CSSSelector('td.line_C_r:nth-child(5)')
 sel_item_image_url = CSSSelector('ul.bxslider img.scr')
 
 def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
-    # headers_list = [
-    #     header for set in list(map(
-    #         lambda h: ['-H', f"{h}: {headers[h]}"], headers)) for header in set
-    # ]
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
