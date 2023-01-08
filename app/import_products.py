@@ -1,11 +1,11 @@
 import itertools
-import json
 import logging
 import lxml.html
 from lxml.cssselect import CSSSelector
 import re
 import subprocess
-import requests
+
+from app.tools import get_json
 
 sel_item = CSSSelector('td.line_C_r input[name=chk]')
 sel_item_code = CSSSelector('td.line_C_r:nth-child(2)')
@@ -38,14 +38,11 @@ def get_document_from_url(url, headers=None, raw_data=None, encoding='euc-kr'):
     raise Exception(f"Couldn't get page {url}: " + output.stderr)
 
 def get_atomy_images(item_code):
-    product_url = "https://www.atomy.kr/v2/Home/Product/GetShoopGoodsForImg"
-    doc = get_document_from_url(product_url, headers=[{"content-type": "application/json"}],
-        raw_data='{"GdsCode" :"%s"}' % item_code, encoding='utf8')
-    data = json.loads(doc.text)
-    if data['jsonData']['GdsImg1'] is None:
-        image_url = ''
-    else:
-        image_url = "https://static.atomy.com"+data['jsonData']['GdsImg1']
+    product_url = f"https://shop-api.atomy.com/svc/product/read?productId={item_code}" +\
+        "&_siteId=kr&_deviceType=pc&locale=en-KR"
+    result = get_json(product_url)
+    image_url = '' if result.get('item') is None \
+        else  result['item']['snsImage']['verticalThumbnailPc']
    
     return image_url
 
