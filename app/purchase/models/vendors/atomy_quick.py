@@ -632,7 +632,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         vendor_purchase_orders = self.__get_purchase_orders()
         logger.debug('Got %s POs', len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
-            logger.debug(str(o))
+            # logger.debug(str(o))
             if ORDER_STATUSES[o['orderStatus']['value']] == PurchaseOrderStatus.posted:
                 logger.debug("Skipping PO %s", o['id'])
                 continue
