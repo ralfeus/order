@@ -133,8 +133,10 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
         return base_filter
 
     def is_editable(self):
-        return self.status in [PurchaseOrderStatus.pending, PurchaseOrderStatus.failed,
-                               PurchaseOrderStatus.payment_past_due, PurchaseOrderStatus.cancelled]
+        return self.status in [PurchaseOrderStatus.posted, PurchaseOrderStatus.pending, 
+                               PurchaseOrderStatus.failed, 
+                               PurchaseOrderStatus.payment_past_due, 
+                               PurchaseOrderStatus.cancelled]
                         
     def reset_status(self):
         self.set_status(PurchaseOrderStatus.pending)
