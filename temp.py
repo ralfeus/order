@@ -9,11 +9,11 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    po_id = "PO-2022-10-0101-001"
+    po_id = "PO-2022-10-0036-025"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
-    po.vendor = 'AtomyQuick'
-    po.company_id = 7
+    # po.vendor = 'AtomyQuick'
+    # po.company_id = 7
     po.customer.username = '23426444'
     po.customer.password = 'atomy#01'
     # po.customer.username = 'S5832131'

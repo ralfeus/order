@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 import logging
 from time import sleep
+from app.orders.models.order_product import OrderProduct
 
 from exceptions import PurchaseOrderError
 from app.orders.models import Subcustomer
@@ -32,7 +33,8 @@ class PurchaseOrderVendorBase(metaclass=ABCMeta):
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         pass
 
-    def _set_order_products_status(self, ordered_products, status):
+    def _set_order_products_status(self, ordered_products: list[tuple[OrderProduct, str]], 
+        status):
         for op in ordered_products:
             op[0].status = status
             op[0].when_changed = datetime.now()

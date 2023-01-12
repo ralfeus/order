@@ -25,26 +25,29 @@ class AtomyCenter(PurchaseOrderVendorBase):
     def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
         # self.__browser_attr = browser
+        self._set_logging(type(self).__name__, logger, config)
+
+    def _set_logging(self, source, logger=None, config=None):    
         log_level = logging.INFO
         if logger:
             log_level = logger.level
         elif config:
             log_level = config['LOG_LEVEL']
         logging.basicConfig(level=log_level)
-        logger = logging.getLogger('AtomyCenter')
+        logger = logging.getLogger(source)
         logger.setLevel(log_level)
         self._original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config = config
-
     def __str__(self):
         return "Atomy - Center"
 
-    def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
+    def post_purchase_order(self, purchase_order: PurchaseOrder
+        ) -> tuple[PurchaseOrder, dict[str, str]]:
         '''Posts purchase order on AtomyCenter'''
         self._logger = self._original_logger.getChild(purchase_order.id)
         self.__purchase_order = purchase_order
-        self.__session_cookies = self.login()
+        self.__session_cookies = self.login(self._username, self._password)
         self.__init_order_request()
         self.__set_customer_id(purchase_order.customer.username)
         self.__set_purchase_date(purchase_order.purchase_date)
@@ -62,7 +65,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         purchase_order.payment_account = po_params[1]
         db.session.flush()
         self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
-        return purchase_order
+        return purchase_order, {}
 
     def __init_order_request(self):
         self.__po_params = {
@@ -132,7 +135,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     tot_qty += op.quantity
                     tot_pv += op.product.points * op.quantity
                     tot_vat += product['vat_price']
-                    ordered_products.append(op)
+                    ordered_products.append((op, ''))
                     field_num += 1
                     self._logger.info("Added product %s", op.product_id)
                 else:
@@ -152,8 +155,8 @@ class AtomyCenter(PurchaseOrderVendorBase):
         logger = self._logger.getChild('__set_shipment_options')
         logger.debug('Set shipment options')
         free_shipping_eligible_amount = reduce(
-            lambda acc, op: acc + (op.price * op.quantity)
-                if not op.product.separate_shipping else 0,
+            lambda acc, op: acc + (op[0].price * op[0].quantity)
+                if not op[0].product.separate_shipping else 0,
             ordered_products, 0)
         local_shipment = free_shipping_eligible_amount < self.__config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD']
         if local_shipment:
@@ -262,13 +265,15 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 raw_data=urlencode(self.__po_params, encoding='euc-kr')
             )
             script = post_order_doc.cssselect('head script')[0].text
+            if len(post_order_doc.cssselect('#LGD_OID')) > 0:
+                return \
+                    post_order_doc.cssselect('#LGD_OID')[0].attrib['value'], \
+                    self.__get_bank_account_number(script)            
             message_match = re.search(r"alert\(['\"](.*)['\"]\);", script)
             if message_match is not None:
                 message = message_match.groups()[0]
                 raise PurchaseOrderError(self.__purchase_order, self, message)
-            return \
-                post_order_doc.cssselect('#LGD_OID')[0].attrib['value'], \
-                self.__get_bank_account_number(script)
+
         except HTTPError:
             self._logger.warning(self.__po_params)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
@@ -279,7 +284,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
             return match.groups()[0]
         return None
 
-    def login(self, username='atomy1026', password='5714'):
+    def login(self, username, password):
         ''' Logins to Atomy customer section '''
         output = subprocess.run([
             '/usr/bin/curl',

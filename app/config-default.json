@@ -18,7 +18,7 @@
     "PROFILER": true,
 
     "CELERY_TASK_DEFAULT_QUEUE": "order",
-
+    "ATOMY_CENTER": true,
     "NETWORK_MANAGER_URL": "http://localhost:5001",
     "MODULES": {
         "warehouse": {
