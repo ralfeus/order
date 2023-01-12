@@ -16,28 +16,25 @@ from app.purchase.models import PurchaseOrder
 from . import PurchaseOrderVendorBase
 
 class AtomyCenter(PurchaseOrderVendorBase):
-    __po_params = {}
+    __po_params: dict[str, dict] = {}
     __purchase_order = None
-    __session_cookies = []
-    __username = 'atomy1026'
-    __password = '5714'
+    __session_cookies: list[str] = []
+    _username = 'atomy1026'
+    _password = '5714'
 
     def __init__(self, browser=None, logger:logging.Logger=None, config=None):
         super().__init__()
         # self.__browser_attr = browser
-        log_level = None
+        log_level = logging.INFO
         if logger:
             log_level = logger.level
-        else:
-            if config:
-                log_level = config['LOG_LEVEL']
-            else:
-                log_level = logging.INFO
+        elif config:
+            log_level = config['LOG_LEVEL']
         logging.basicConfig(level=log_level)
         logger = logging.getLogger('AtomyCenter')
         logger.setLevel(log_level)
-        self.__original_logger = self.__logger = logger
-        self.__logger.info(logging.getLevelName(self.__logger.getEffectiveLevel()))
+        self._original_logger = self._logger = logger
+        self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config = config
 
     def __str__(self):
@@ -45,7 +42,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def post_purchase_order(self, purchase_order: PurchaseOrder) -> PurchaseOrder:
         '''Posts purchase order on AtomyCenter'''
-        self.__logger = self.__original_logger.getChild(purchase_order.id)
+        self._logger = self._original_logger.getChild(purchase_order.id)
         self.__purchase_order = purchase_order
         self.__session_cookies = self.login()
         self.__init_order_request()
@@ -80,8 +77,8 @@ class AtomyCenter(PurchaseOrderVendorBase):
 
     def update_purchase_orders_status(self, customer: Subcustomer, customer_pos: list):
         from .atomy_quick import AtomyQuick
-        self.__logger = self.__original_logger.getChild('update_purchase_orders_status')
-        proxy = AtomyQuick(None, self.__logger, self.__config)
+        self._logger = self._original_logger.getChild('update_purchase_orders_status')
+        proxy = AtomyQuick(None, self._logger, self.__config)
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
@@ -99,16 +96,16 @@ class AtomyCenter(PurchaseOrderVendorBase):
             else None
 
     def __add_products(self, order_products):
-        self.__logger.info("Adding products")
+        self._logger.info("Adding products")
         ordered_products = []
         field_num = 1
         tot_amt = tot_pv = tot_qty = tot_vat = 0
         for op in order_products:
             if not op.product.purchase:
-                self.__logger.warning("The product %s is exempted from purchase", op.product_id)
+                self._logger.warning("The product %s is exempted from purchase", op.product_id)
                 continue
             if op.quantity <= 0:
-                self.__logger.warning('The product %s has wrong quantity %s',
+                self._logger.warning('The product %s has wrong quantity %s',
                     op.product_id, op.quantity)
                 continue
             try:
@@ -137,11 +134,11 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     tot_vat += product['vat_price']
                     ordered_products.append(op)
                     field_num += 1
-                    self.__logger.info("Added product %s", op.product_id)
+                    self._logger.info("Added product %s", op.product_id)
                 else:
-                    self.__logger.warning("The product %s is not available", product_id)
+                    self._logger.warning("The product %s is not available", product_id)
             except Exception:
-                self.__logger.exception("Couldn't add product %s", op.product_id)
+                self._logger.exception("Couldn't add product %s", op.product_id)
         self.__po_params['good_amt'] = tot_amt
         self.__po_params['ipgum_amt'] = tot_amt
         self.__po_params['tot_amt'] = tot_amt
@@ -152,7 +149,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
         return ordered_products
 
     def __set_shipment_options(self, ordered_products):
-        logger = self.__logger.getChild('__set_shipment_options')
+        logger = self._logger.getChild('__set_shipment_options')
         logger.debug('Set shipment options')
         free_shipping_eligible_amount = reduce(
             lambda acc, op: acc + (op.price * op.quantity)
@@ -179,33 +176,33 @@ class AtomyCenter(PurchaseOrderVendorBase):
     #     self.__browser.get('https://atomy.kr/center/c_sale_ins.asp')
 
     def __set_customer_id(self, customer_id):
-        self.__logger.debug("Setting customer ID")
+        self._logger.debug("Setting customer ID")
         self.__po_params['cust_no'] = customer_id
         self.__po_params['ipgum_name'] = self.__purchase_order.customer.name
 
     def __set_payment_destination(self, bank_id='06'):
-        self.__logger.debug("Setting payment receiver")
+        self._logger.debug("Setting payment receiver")
         self.__po_params['bank_gubun'] = 1
         self.__po_params['bank'] = bank_id
 
     def __set_payment_method(self):
-        self.__logger.debug("Setting payment method")
+        self._logger.debug("Setting payment method")
         self.__po_params['settle_gubun'] = 2
 
     def __set_phones(self, phone='010-6275-2045'):
-        self.__logger.debug("Setting receiver phone number")
+        self._logger.debug("Setting receiver phone number")
         self.__po_params['orderhp'] = phone
         self.__po_params['revhp'] = phone
 
     def __set_payment_mobile(self, phone='010-6275-2045'):
-        self.__logger.debug("Setting payment phone number")
+        self._logger.debug("Setting payment phone number")
         if not re.match(r'^\d{3}-\d{4}-\d{4}', phone):
-            self.__logger.info("Payment phone isn't set as it isn't provided")
+            self._logger.info("Payment phone isn't set as it isn't provided")
             return
         self.__po_params['virhp'] = phone
 
     def __set_purchase_date(self, purchase_date):
-        self.__logger.debug("Setting sale date")
+        self._logger.debug("Setting sale date")
         if purchase_date and self.__is_purchase_date_valid(purchase_date):
             sale_date = purchase_date
         else:
@@ -215,21 +212,21 @@ class AtomyCenter(PurchaseOrderVendorBase):
         self.__po_params['sale_date'] = sale_date.strftime('%Y-%m-%d')
 
     def __set_purchase_order_id(self, purchase_order_id):
-        self.__logger.debug("Setting purchase order ID")
+        self._logger.debug("Setting purchase order ID")
         self.__po_params['revname'] = purchase_order_id.replace('-', 'ㅡ')
 
     def __set_receiver_address(self, address={
             'zip': '08584',
             'address_1': '서울특별시 금천구 두산로 70 (독산동)',
             'address_2': '291-1번지 현대지식산업센터  A동 605호'}):
-        self.__logger.debug("Setting shipment address")
+        self._logger.debug("Setting shipment address")
         self.__po_params['revzip'] = address.zip
         self.__po_params['addr1'] = address.address_1
         self.__po_params['addr2'] = address.address_2
 
     def __set_tax_info(self, tax_id=(123, 34, 26780)):
-        self.__logger.debug("Setting counteragent tax information")
-        self.__logger.debug(tax_id)
+        self._logger.debug("Setting counteragent tax information")
+        self._logger.debug(tax_id)
         if tax_id == ('', '', ''): # No company
             self.__po_params = {**self.__po_params,
                 'tax_check': 0,
@@ -248,13 +245,13 @@ class AtomyCenter(PurchaseOrderVendorBase):
             }
 
     def __submit_order(self):
-        self.__logger.info("Submitting the order")
+        self._logger.info("Submitting the order")
         result = self.__send_order_post_request()
-        self.__logger.debug(result)
+        self._logger.debug(result)
         return result
         
     def __send_order_post_request(self):
-        self.__logger.debug(self.__po_params)
+        self._logger.debug(self.__po_params)
         try:
             post_order_doc = get_document_from_url(
                 url='https://atomy.kr/center/payreq.asp',
@@ -273,7 +270,7 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 post_order_doc.cssselect('#LGD_OID')[0].attrib['value'], \
                 self.__get_bank_account_number(script)
         except HTTPError:
-            self.__logger.warning(self.__po_params)
+            self._logger.warning(self.__po_params)
             raise PurchaseOrderError(self.__purchase_order, self, "Unexpected error has occurred")
 
     def __get_bank_account_number(self, content):

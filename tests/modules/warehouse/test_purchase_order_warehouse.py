@@ -63,6 +63,11 @@ class TestPurchaseOrdersWarehouse(BaseTestCase):
     def test_purchase_order_delivered(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         gen_int_id = int(datetime.now().timestamp())
+        self.try_add_entities([
+            Order(id=gen_id, user=self.user, status=OrderStatus.po_created),
+            Subcustomer(id=gen_int_id + 1),
+            Subcustomer(id=gen_int_id + 2)
+        ])
         sos1 = Suborder(id=gen_id + '1', order_id=gen_id, subcustomer_id=gen_int_id + 1)
         sos2 = Suborder(id=gen_id + '2', order_id=gen_id, subcustomer_id=gen_int_id + 2)
         po1 = PurchaseOrder(id=gen_id + '1', suborder=sos1, company_id=gen_int_id,
@@ -70,9 +75,6 @@ class TestPurchaseOrdersWarehouse(BaseTestCase):
         po2 = PurchaseOrder(id=gen_id + '2', suborder=sos2, company_id=gen_int_id,
             status=PurchaseOrderStatus.pending)
         self.try_add_entities([
-            Order(id=gen_id, user=self.user, status=OrderStatus.po_created),
-            Subcustomer(id=gen_int_id + 1),
-            Subcustomer(id=gen_int_id + 2),
             sos1, sos2
         ])
         self.try_add_entities([

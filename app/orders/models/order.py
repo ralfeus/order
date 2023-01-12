@@ -448,10 +448,10 @@ class Order(db.Model, BaseModel): # type: ignore
             suborder.update_total()
             logger.debug("The suborder %s:", suborder.id)
             logger.debug("\tLocal shipping (KRW): %s", suborder.local_shipping)
-            logger.debug("\tSubtotal (KRW): %s", suborder.total_krw)
-            logger.debug("\tTotal weight: %s", suborder.total_weight)
+            logger.debug("\tSubtotal (KRW): %s", suborder.get_subtotal())
+            logger.debug("\tTotal weight: %s", suborder.get_total_weight())
 
-        order_weight = reduce(lambda acc, sub: acc + sub.total_weight,
+        order_weight = reduce(lambda acc, sub: acc + sub.get_total_weight(),
                               self.suborders, 0)
         logger.debug("Total order weight: %s", order_weight)
         attached_orders_weight = reduce(lambda acc, ao: acc + ao.total_weight,
@@ -483,17 +483,17 @@ class Order(db.Model, BaseModel): # type: ignore
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)
         self.subtotal_krw = reduce(
-            lambda acc, sub: acc + sub.total_krw, self.suborders, 0)
+            lambda acc, sub: acc + sub.get_subtotal() + sub.local_shipping, self.suborders, 0)
         logger.debug("Subtotal: %s", self.subtotal_krw)
-        self.subtotal_rur = self.subtotal_krw * Currency.query.get('RUR').rate
-        self.subtotal_usd = self.subtotal_krw * Currency.query.get('USD').rate
+        self.subtotal_rur = self.subtotal_krw * float(Currency.query.get('RUR').rate)
+        self.subtotal_usd = self.subtotal_krw * float(Currency.query.get('USD').rate)
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None,
             self.total_weight + self.shipping_box_weight)))
         logger.debug("Shipping (KRW): %s", self.shipping_krw)
-        self.shipping_rur = self.shipping_krw * Currency.query.get('RUR').rate
-        self.shipping_usd = self.shipping_krw * Currency.query.get('USD').rate
+        self.shipping_rur = self.shipping_krw * float(Currency.query.get('RUR').rate)
+        self.shipping_usd = self.shipping_krw * float(Currency.query.get('USD').rate)
 
         self.total_krw = self.subtotal_krw + self.shipping_krw
         logger.debug("Total (KRW): %s", self.total_krw)
@@ -550,8 +550,8 @@ class Order(db.Model, BaseModel): # type: ignore
             for cell in ws[f'A{row}:M{row}'][0]:
                 cell.fill = suborder_fill
             ws.cell(row, 2, f'{suborder.subcustomer.username}: {suborder.subcustomer.name}')
-            ws.cell(row, 6, suborder.total_krw)
-            ws.cell(row, 7, suborder.total_weight)
+            ws.cell(row, 6, suborder.get_subtotal())
+            ws.cell(row, 7, suborder.get_total_weight())
             # ws.cell(row, 8, suborder_shipping)
             ws.cell(row, 9, f'=F{row} + H{row}')
             ws.cell(row, 10, f'=I{row} / $E$8')

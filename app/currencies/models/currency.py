@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from app import db
 from .currency_history_entry import CurrencyHistoryEntry
 
-class Currency(db.Model):
+class Currency(db.Model): #type: ignore
     ''' Currency '''
     __tablename__ = 'currencies'
 
@@ -31,13 +31,13 @@ class Currency(db.Model):
             round(amount, self.decimal_places),
             self.suffix if self.suffix else "").replace(',', ' ')
 
-    def get_rate(self, date=datetime.now()):
+    def get_rate(self, date=datetime.now()) -> float:
         from app.currencies.models.currency_history_entry import CurrencyHistoryEntry
         latest_rate = self.history.filter(CurrencyHistoryEntry.when_created <= date) \
             .order_by(CurrencyHistoryEntry.when_created.desc()).first()
         if latest_rate is not None:
-            return latest_rate.rate
-        return self.rate
+            return float(latest_rate.rate)
+        return float(self.rate)
         
     def to_dict(self):
         return {

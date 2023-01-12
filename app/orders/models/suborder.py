@@ -2,6 +2,7 @@
 Suborder model
 Part of the order for single subcustomer
 '''
+from datetime import datetime
 from functools import reduce
 
 from flask import current_app
@@ -11,6 +12,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
+from app.currencies.models.currency import Currency
 from app.models.base import BaseModel
 from app.orders.models import Order, OrderProduct, OrderProductStatus
 from app.products.models import Product
@@ -20,18 +22,18 @@ class Suborder(db.Model, BaseModel): #type: ignore
     __tablename__ = 'suborders'
     __id_pattern = 'SOS-{order_num}-'
 
-    id = Column(String(20), primary_key=True, nullable=False)
-    seq_num = Column(Integer)
-    subcustomer_id = Column(Integer, ForeignKey('subcustomers.id'))
+    id: str = Column(String(20), primary_key=True, nullable=False)
+    seq_num: int = Column(Integer)
+    subcustomer_id: int = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
-    order_id = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
-    order = relationship('Order', foreign_keys=[order_id])
-    buyout_date = Column(DateTime, index=True)
+    order_id: str = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
+    order: Order = relationship('Order', foreign_keys=[order_id])
+    buyout_date: datetime = Column(DateTime, index=True)
     # subtotal_krw = Column(Integer(), default=0)
     #subtotal_rur = Column(Numeric(10, 2), default=0)
     #subtotal_usd = Column(Numeric(10, 2), default=0)
     order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
-    local_shipping = Column(Integer(), default=0)
+    local_shipping: int = Column(Integer(), default=0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         if order:
@@ -59,21 +61,14 @@ class Suborder(db.Model, BaseModel): #type: ignore
     def __repr__(self):
         return "<Suborder: {}>".format(self.id)
 
-    @property
-    def total_weight(self):
+    def get_total_weight(self):
         return reduce(
                 lambda acc, op: acc + op.product.weight * op.quantity,
                 self.get_order_products(), 0)
 
-    @property
-    def total_krw(self):
-        return self.get_total_krw()
-
-    def get_total_krw(self, local_shipping=True):
-        return reduce(
-            lambda acc, op: acc + op.price * op.quantity,
-            self.get_order_products(), 0) + \
-            (self.local_shipping if local_shipping and self.local_shipping else 0)
+    # @property
+    # def total_krw(self):
+    #     return self.get_total_krw()
 
     def delete(self):
         for op in self.order_products:
@@ -84,22 +79,33 @@ class Suborder(db.Model, BaseModel): #type: ignore
         return [op for op in self.order_products
                    if op.status != OrderProductStatus.unavailable]
 
-    def get_subtotal(self, currency=None):
+    def get_subtotal(self, currency:Currency=None) -> float:
         rate = 1 if currency is None else currency.get_rate(self.order.when_created)
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) * rate
 
-    def get_shipping(self, currency=None):
+    def get_shipping(self, currency:Currency=None, local_shipping=True) -> float:
         '''Returns shipping cost for a suborder, which is a proportional to its weight in total order.
         Provided in currency requested'''
         if self.order.total_weight == 0:
             return 0
+        rate = 1 if currency is None else currency.get_rate(self.order.when_created)
         return self.get_weight() / self.order.total_weight \
-            * float(self.order.get_shipping(currency))
+            * float(self.order.get_shipping(currency)) + \
+            (self.local_shipping * rate if local_shipping and self.local_shipping else 0)
 
-    def get_total(self, currency=None):
-        return float(self.get_subtotal(currency)) + self.get_shipping(currency)
+    # def get_total_krw(self, local_shipping=True) -> int:
+    #     return reduce(
+    #         lambda acc, op: acc + op.price * op.quantity,
+    #         self.get_order_products(), 0) + \
+    #         (self.local_shipping if local_shipping and self.local_shipping else 0)
+
+    def get_total(self, currency=None, local_shipping=True) -> float:
+        if isinstance(currency, str):
+            currency = Currency.query.get(currency)
+        return float(self.get_subtotal(currency)) + \
+            self.get_shipping(currency, local_shipping)
 
     def get_total_points(self):
         return reduce(
@@ -155,5 +161,6 @@ class Suborder(db.Model, BaseModel): #type: ignore
                 if free_local_shipment_eligibility_amount < \
                     current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'] \
                 else 0
+        self.when_changed = datetime.now()
         # db.session.commit()
 

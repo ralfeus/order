@@ -61,7 +61,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
         else:
             self.id = 'PO-{}-{}'.format(suborder.order_id[4:], suborder.id)
         self.suborder = suborder
-        self.total_krw = suborder.total_krw
+        self.total_krw = suborder.get_subtotal()
         # Here properties are set (attributes start with '__')
 
     @property
@@ -72,7 +72,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     def purchase_date(self) -> date:
         return self.suborder.buyout_date.date() \
             if self.suborder and self.suborder.buyout_date \
-            else None
+            else None #type: ignore
 
     @purchase_date.setter
     def purchase_date(self, value):
@@ -175,7 +175,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
             'company': self.company.name,
-            'total_krw': self.suborder.get_total_krw(local_shipping=False),
+            'total_krw': self.suborder.get_subtotal(),
             'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,
