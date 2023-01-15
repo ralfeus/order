@@ -597,7 +597,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
-        # logger.info((order_id, vendor_po))
+        logger.debug("Created order: %s", vendor_po)
         return (
             order_id, 
             vendor_po['paymentTransactions'][0]['info']['accountNumber'], 
