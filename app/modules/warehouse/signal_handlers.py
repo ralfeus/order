@@ -6,6 +6,7 @@ or other modules. Those signal handlers are here
 from functools import reduce
 import logging
 from app.modules.warehouse.exceptions import WarehouseError
+from app.purchase.models.purchase_order import PurchaseOrder
 
 def on_admin_order_products_rendering(_sender, **_extra):
     from app.modules.warehouse.models.warehouse import Warehouse
@@ -62,6 +63,10 @@ def on_order_product_saving(order_product, payload, **_extra):
     else:
         if order_product_warehouse is not None:
             db.session.delete(order_product_warehouse)
+
+def on_purchase_order_deleting(sender: PurchaseOrder, **_extra):
+    from app.modules.warehouse.models.purchase_order_warehouse import PurchaseOrderWarehouse
+    PurchaseOrderWarehouse.query.filter_by(purchase_order_id=sender.id).delete()
 
 def on_purchase_order_saving(purchase_order, warehouse_id=None, **kwargs):
     from app import db

@@ -89,9 +89,12 @@ def admin_create_purchase_orders():
     )
     
     from app.purchase.jobs import post_purchase_orders
-    task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
-    # post_purchase_orders()
-    current_app.logger.info("Post purchase orders task ID is %s", task.id)
+    try:
+        task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
+        current_app.logger.info("Post purchase orders task ID is %s", task.id)
+    except Exception as ex:
+        current_app.logger.warning("Created purchase orders but couldn't add background task")
+        current_app.logger.warning(str(ex))
 
     return (jsonify({'data': [po.to_dict() for po in purchase_orders]}), 202)
 

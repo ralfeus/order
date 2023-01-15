@@ -175,7 +175,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
             'customer_id': self.customer_id,
             'customer': self.customer.to_dict() if self.customer else None,
             'company': self.company.name,
-            'total_krw': self.suborder.get_subtotal(),
+            'total_krw': self.total_krw,
             'address': self.address.to_dict() if self.address else None,
             'payment_account': self.payment_account,
             'status': self.status.name if self.status else None,

@@ -588,13 +588,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug(self.__po_params)
         update_cart_part('UPDATE_ORDER_USER')
         update_cart_part('APPLY_PAYMENT_TRANSACTION')
-        res = get_json(
-            url=f'{URL_BASE}/cart/getBuynowCart?' +
-                f'cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' +
-                '&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22DELIVERY_INFOS%22%5D' +
-                f'&channel=WEB&{URL_SUFFIX}',
-            headers=self.__get_session_headers()
-        )
+        # res = get_json(
+        #     url=f'{URL_BASE}/cart/getBuynowCart?' +
+        #         f'cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}' +
+        #         '&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22DELIVERY_INFOS%22%5D' +
+        #         f'&channel=WEB&{URL_SUFFIX}',
+        #     headers=self.__get_session_headers()
+        # )
         order_id = self.__send_order_post_request()
         vendor_po = self.__get_order_details(order_id=order_id)
         logger.debug("Created order: %s", vendor_po)

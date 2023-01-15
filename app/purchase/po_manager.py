@@ -11,7 +11,7 @@ from app.orders.models.order import OrderStatus
 from app.purchase.models import Company
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.vendor_manager import PurchaseOrderVendorBase
-from app.purchase.signals import purchase_order_saving
+from app.purchase.signals import purchase_order_deleting, purchase_order_saving
 
 def create_purchase_orders(order: Order, company: Company, address: Address,
                           vendor: PurchaseOrderVendorBase, contact_phone: str,
@@ -20,9 +20,10 @@ def create_purchase_orders(order: Order, company: Company, address: Address,
                          ) -> "list[PurchaseOrder]":
     logger = logging.getLogger('app.purchase.po_manager.create_purchase_order()')
     if recreate_po:
-        PurchaseOrder.query.filter(
-            PurchaseOrder.id.like(order.id.replace('ORD', 'PO') + '-%')) \
-            .delete(synchronize_session=False)
+        for po in PurchaseOrder.query.filter(
+            PurchaseOrder.id.like(order.id.replace('ORD', 'PO') + '-%')):
+            purchase_order_deleting.send(po, **kwargs)
+            db.session.delete(po)
     purchase_orders = []
     for suborder in order.suborders:
         purchase_order = PurchaseOrder(
