@@ -157,7 +157,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         stdout, stderr = invoke_curl(
             url=f'{URL_BASE}/signIn?_siteId=kr',
             headers=[{'Cookie': jwt}],
-            raw_data=f'id={purchase_order.customer.username}&password={purchase_order.customer.password}'
+            raw_data=urlencode({
+                'id': purchase_order.customer.username, 
+                'password': purchase_order.customer.password
+            })
         )
         result = json.loads(stdout)
         if result['result'] == '200':
