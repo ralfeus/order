@@ -153,7 +153,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return result.get('result') == '200'
 
     def __login(self, purchase_order):
-        jwt = self.__getToken()
+        jwt = self.__get_token()
         stdout, stderr = invoke_curl(
             url=f'{URL_BASE}/signIn?_siteId=kr',
             headers=[{'Cookie': jwt}],
@@ -174,7 +174,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_session_headers(self):
         return [{'Cookie': c} for c in self.__session_cookies ]
 
-    def __getToken(self):
+    def __get_token(self):
         _, stderr = invoke_curl(
             url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
         )
@@ -226,6 +226,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __add_products(self, order_products: list[OrderProduct]
         ) -> tuple[list[tuple[OrderProduct, str]], dict[str, str]]:
+        '''Adds products to be purchased.
+        :param order_products: products to be ordered
+        :type order_products: list[OrderProduct]
+        :returns: list of tuples of ordered products and their entry in the cart 
+                  and dictionary of products that unavailable along with unavailability reason
+        :rtype: tuple[list[tuple[OrderProduct, str]], dict[str, str]]
+        '''
         logger = self._logger.getChild('__add_products')
         logger.info("Adding products")
         ordered_products: list[tuple[OrderProduct, str]] = []
