@@ -45,6 +45,7 @@ BANKS = {
     "11": "NONGHYEOP",
     "71": "POST",
     "45": "SAEMAUL",
+    "26": "SHINHAN",
     "88": "SHINHAN",
     "07": "SUHYEOP",
     "20": "WOORI",
