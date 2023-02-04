@@ -270,7 +270,7 @@ function get_product(line_input) {
                 }
             });
         } else {
-            update_product(product_line, product);
+            update_product(product_line, {...product});
             promise.resolve();
         }
     } else {
