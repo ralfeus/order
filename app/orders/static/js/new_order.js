@@ -248,6 +248,42 @@ async function get_attached_orders_weight() {
     return weight;
 }
 
+function get_product(line_input) {
+    var promise = $.Deferred()
+    var product_line = $(line_input).closest('tr')[0];
+    if (line_input.value) {
+        var product = g_products.find(
+            e => e.id == line_input.value
+              || e.id == line_input.value.padStart(6, '0')
+        );
+        if (product === undefined) {
+            $.ajax({
+                url: '/api/v1/product/' + line_input.value,
+                success: data => {
+                    update_product(product_line, data[0])
+                    promise.resolve();
+                },
+                error: (data) => {
+                    $('.modal-body').text(data.responseText);
+                    $('#modal').modal();
+                    promise.resolve();
+                }
+            });
+        } else {
+            update_product(product_line, product);
+            promise.resolve();
+        }
+    } else {
+        $('.item-name', product_line).html('');
+        $('.item-price', product_line).html('');
+        $('.item-points', product_line).html('');
+        delete g_cart[product_line.id];
+        update_item_subtotal(product_line);
+        promise.resolve();
+    }
+    return promise;
+}
+
 function get_products() {
     var promise = $.Deferred()
     $.ajax({
@@ -256,6 +292,11 @@ function get_products() {
             if (data) {
                 g_products = data.map(product => ({
                     value: product.id,
+                    id: product.id,
+                    product_id: product.id,
+                    name: product.name,
+                    name_english: product.name_english,
+                    name_russian: product.name_russian,
                     label: product.name_english == null
                                 ? product.name
                                 : product.name_english + " | " + product.name_russian,
@@ -361,33 +402,6 @@ function product_code_autocomplete(target) {
         minLength: 2
     });
     target.on('change', () => get_product(event.target));
-}
-
-function get_product(line_input) {
-    var promise = $.Deferred()
-    var product_line = $(line_input).closest('tr')[0];
-    if (line_input.value) {
-        $.ajax({
-            url: '/api/v1/product/' + line_input.value,
-            success: data => {
-                update_product(product_line, data[0])
-                promise.resolve();
-            },
-            error: (data) => {
-                $('.modal-body').text(data.responseText);
-                $('#modal').modal();
-                promise.resolve();
-            }
-        });
-    } else {
-        $('.item-name', product_line).html('');
-        $('.item-price', product_line).html('');
-        $('.item-points', product_line).html('');
-        delete g_cart[product_line.id];
-        update_item_subtotal(product_line);
-        promise.resolve();
-    }
-    return promise;
 }
 
 function load_dictionaries() {
