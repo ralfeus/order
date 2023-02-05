@@ -103,7 +103,7 @@ function add_product(current_node, item, product_id, quantity) {
     item_code_node.val(product_id);
     $('.item-quantity', current_node).last().val(quantity);
     order_product_number++;
-    get_product(item_code_node[0])
+    get_product(item_code_node[0], true)
         .then(() => {
             order_product_number--;
             if (!order_product_number) {
@@ -125,7 +125,7 @@ function load_products(ws) {
         // Just empty line. Ignored
         if (!ws['A' + i]) continue;
         // The line is beginning of new subcustomer
-        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['E' + i]) {
+        if (/^\d+$/.test(ws['A' + i].v) && ws['B' + i] && !ws['D' + i]) {
             current_node = add_subcustomer(ws['B' + i].v);
             $('.subcustomer-seq-num', current_node).val(ws['A' + i].v);
             item = 0;
@@ -150,5 +150,6 @@ function load_products(ws) {
             add_product(current_node, item, ws['A' + i].v, quantity);
             item++;
         }
-    }            
+    }      
+    update_grand_subtotal();      
 }

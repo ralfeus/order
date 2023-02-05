@@ -177,7 +177,7 @@ function delete_product(target) {
     }
 }
 
-async function update_product(product_row, product) {
+async function update_product(product_row, product, batch_load) {
     if (product.product_id) {
         $('.item-code', product_row).val(product.product_id);
     }
@@ -203,8 +203,7 @@ async function update_product(product_row, product) {
     $('.item-price', product_row).html(fmtKRW.format(product.price));
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
-    await update_item_subtotal(product_row);
-    
+    await update_item_subtotal(product_row, batch_load);
 }
 ///////////////////////////////////////////////////
 function show_product(product_id) {
@@ -248,7 +247,7 @@ async function get_attached_orders_weight() {
     return weight;
 }
 
-function get_product(line_input) {
+function get_product(line_input, batch_load=false) {
     var promise = $.Deferred()
     var product_line = $(line_input).closest('tr')[0];
     if (line_input.value) {
@@ -260,7 +259,7 @@ function get_product(line_input) {
             $.ajax({
                 url: '/api/v1/product/' + line_input.value,
                 success: data => {
-                    update_product(product_line, data[0])
+                    update_product(product_line, data[0], batch_load)
                     promise.resolve();
                 },
                 error: (data) => {
@@ -270,7 +269,7 @@ function get_product(line_input) {
                 }
             });
         } else {
-            update_product(product_line, {...product});
+            update_product(product_line, {...product}, batch_load);
             promise.resolve();
         }
     } else {
@@ -603,7 +602,7 @@ function update_grand_totals() {
         parseFloat($('#totalItemsCostUSD').html()) + parseFloat($('#totalShippingCostUSD').html()), 2));
 }
 
-async function update_item_subtotal(item) {
+async function update_item_subtotal(item, batch_load=false) {
     if (g_cart[item.id]) {
         g_cart[item.id].user = '';
         g_cart[item.id].quantity = /^\d+$/.test($('.item-quantity', item).val())
@@ -618,7 +617,7 @@ async function update_item_subtotal(item) {
         $('.total-points', item).html('');
     }
 
-    await update_subcustomer_local_shipping(item);
+    await update_subcustomer_local_shipping(item, batch_load);
 }
 
 function update_item_total() {
@@ -680,7 +679,7 @@ function distribute_shipping_cost(cost) {
     update_subcustomer_totals();
 }
 
-async function update_subcustomer_local_shipping(node) {
+async function update_subcustomer_local_shipping(node, batch_load=false) {
     var subcustomer_card = $(node).closest('.subcustomer-card');
     var subcustomer_total = $('.subcustomer-total', subcustomer_card)[0];
     var userId = parseInt(subcustomer_total.id.substr(14));
@@ -700,7 +699,9 @@ async function update_subcustomer_local_shipping(node) {
         local_shipping = 0;
     }
     update_total_local_shipping();
-    await update_grand_subtotal();
+    if (!batch_load) {
+        await update_grand_subtotal();
+    }
     // await update_all_totals();
 }
 
