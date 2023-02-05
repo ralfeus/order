@@ -374,8 +374,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone("Asia/Seoul")
         today = datetime.now().astimezone(tz)
-        min_date = (today - timedelta(days=2)).date()
-        max_date = (today + timedelta(days=1)).date()
+        days_back = 3 if today.weekday < 2 else 2
+        days_forth = 2 if today.weekday == 6 else 1
+        min_date = (today - timedelta(days=days_back)).date()
+        max_date = (today + timedelta(days=days_forth)).date()
         return purchase_date is None or (
             purchase_date >= min_date and purchase_date <= max_date
         )
