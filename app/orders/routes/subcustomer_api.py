@@ -7,7 +7,7 @@ from flask_security import login_required, roles_required
 
 from sqlalchemy import or_
 
-from utils.atomy import atomy_login
+from utils.atomy import atomy_login2
 from exceptions import AtomyLoginError, HTTPError, SubcustomerParseError
 
 from app import db
@@ -130,7 +130,7 @@ def validate_subcustomer():
     current_app.logger.debug(f"Validating subcustomer {payload}")
     try:
         subcustomer, _is_new = parse_subcustomer(payload['subcustomer'])
-        atomy_login(subcustomer.username, subcustomer.password, run_browser=False)
+        atomy_login2(subcustomer.username, subcustomer.password)
         return jsonify({'result': 'success'})
     except SubcustomerParseError as ex:
         return jsonify({'result': 'failure', 'message': str(ex)})
