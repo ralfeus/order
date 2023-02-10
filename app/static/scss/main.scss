@@ -1,0 +1,149 @@
+
+@import '../bootstrap/scss/bootstrap';
+@import 'bootstrap-input-spinner';
+
+.btn-checkbox {
+    background: red;
+}
+
+.btn-checkbox.focus {
+    background: red;
+}
+
+.btn-checkbox:not(:disabled):not(.disabled).active {
+    background: green;
+}
+
+.btn-red {
+    background: red;
+    color: yellow;
+}
+
+.btn-secondary:not(:disabled):not(.disabled).active {
+    background: greenyellow;
+    color: black;
+}
+
+.dropdown-submenu {
+    position: relative;
+}
+
+.dropdown-submenu .dropdown-menu {
+    top: 0;
+    left: 100%;
+    margin-top: -1px;
+}
+
+div.edit-form {
+    display: flex;
+    flex-flow: row wrap;
+}
+
+div.edit-form fieldset {
+    flex: 1;
+    border: 1px solid #aaa;
+    margin: 0.5em;
+}
+
+div.edit-form fieldset legend {
+    padding: 5px 20px;
+    border: 1px solid #aaa;
+    font-weight: bold;
+}
+
+div.DTE_Body div.DTE_Body_Content div.edit-form div.DTE_Field {
+    padding: 5px;
+}
+
+div.DTE_Body div.DTE_Body_Content div.edit-form div.DTE_Field * {
+    padding: 0px;
+    font-size: 0.9em;
+}
+
+.flash {
+    font-family: 'Courier New', Courier, monospace;
+    padding: 5px;
+}
+.flash-error {
+    color: red;
+    background-color: mistyrose;
+}
+
+.flash-info {
+    color: green;
+    background-color: honeydew;
+}
+
+.help-block {
+    color: orange;
+    background-color: peachpuff;
+}
+
+tr.orange-line {
+    color: orange;
+}
+
+tr.red-line {
+    color: red;
+}
+
+.subcustomer-total {
+    font-weight: bold;
+}
+
+.wait {
+    top: 50%;
+    left: 50%;
+    margin-top: -140px;
+    margin-left: -249px;
+}
+
+@media screen and (min-width: 769px) {
+    .width-adjusted {
+        min-width: 300px;
+    }   
+}
+@media screen and (max-width: 768px) {
+    .width-adjusted {
+        min-width: 100%;
+    }  
+}
+
+.select2-dropdown {
+    width: auto !important;
+    white-space: nowrap !important;
+}
+
+.select2-selection {
+    min-height: 25px !important;
+}
+
+table {
+    font-size: 11px;
+}
+
+table.dataTable td > input {
+    min-height: 25px;
+}
+
+td { 
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+td.details-control {
+    background: url('/static/images/details_open.png') no-repeat center center;
+    cursor: pointer;
+}
+
+td.wrapok { white-space: normal;}
+
+th { white-space: nowrap; }
+
+tr.shown td.details-control {
+    background: url('/static/images/details_close.png') no-repeat center center;
+}

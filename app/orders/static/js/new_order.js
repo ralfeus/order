@@ -769,6 +769,8 @@ function validate_subcustomer(sender) {
     if (!parseInt($('#check_subcustomers').val())) {
         return;
     }
+    $(sender).removeClass('is-valid').removeClass('is-invalid');
+    $(sender).next().show();
     $.ajax({
         url: '/api/v1/order/subcustomer/validate',
         method: 'post',
@@ -778,7 +780,7 @@ function validate_subcustomer(sender) {
         success: data => {
             if (data.result) {
                 if (data.result == 'success') {
-                    $(sender).addClass('is-valid').removeClass('is-invalid');
+                    $(sender).addClass('is-valid');
                 } else if (data.result === 'failure') {
                     modal(
                         'Subcustomer verification',
@@ -786,9 +788,10 @@ function validate_subcustomer(sender) {
                         "Problem subcustomer is: \n" + sender.value + "\n" +
                         data.message
                     );
-                    $(sender).addClass('is-invalid').removeClass('is-valid');
+                    $(sender).addClass('is-invalid');
                 }
             }
-        }
+        },
+        complete: () => $(sender).next().hide()
     })
 }

@@ -135,7 +135,12 @@
     <div id="accordion" class="container-fluid">
         <div class="card subcustomer-card">
             <div class="input-group card-header" id="userItemsHeader0">
-                <input class="form-control subcustomer-identity col-9" placeholder="Number, name, password" onchange="validate_subcustomer(this)"/>
+                <div class="is-loading">
+                    <input class="form-control subcustomer-identity col-9" 
+                        placeholder="Number, name, password" 
+                        onchange="validate_subcustomer(this)"/>
+                    <div class="spinner-border spinner-border-sm" style="display: none;"></div>
+                </div>
                 <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Purchase date" />
                 <input class="subcustomer-seq-num" type="hidden" />
                 <button class="btn btn-primary" type="button" 
