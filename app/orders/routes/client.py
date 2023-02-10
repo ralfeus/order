@@ -84,6 +84,7 @@ def user_get_order(order_id):
     if order.status == OrderStatus.draft:
         return render_template('new_order.html',
             order_id=order.id,        
+            check_subcustomers=Setting.get('order.new.check_subcustomers'),
             free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
             local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST']
         )
