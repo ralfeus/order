@@ -7,6 +7,7 @@ var g_shipping_methods;
 // var g_boxes;
 
 $(document).ready( function () {
+    $('#usd-rate').prependTo('.float-right');
     get_dictionaries()
         .then(init_orders_table);
     $('#orders tbody').on('click', 'td.details-control', function () {
@@ -428,7 +429,7 @@ function init_orders_table() {
         },
         initComplete: function() { 
             var table = this;
-            this.api().buttons().container().appendTo( '#orders_wrapper .col-sm-12:eq(0)' ); 
+            this.api().buttons().container().appendTo( '#orders_wrapper .col-sm-12:eq(0)' );
             init_search(table, g_filter_sources) 
             .then(() => init_table_filter(table));
         }
@@ -463,12 +464,12 @@ function open_order_invoice(target) {
 
 function set_status(target, new_status) {
     if (target.count()) {
-        modal(
-            "Order status change", 
-            "Are you sure you want to change orders status to &lt;" + new_status + "&gt;?",
-            "confirmation")
-        .then(result => {
-            if (result == 'yes') {
+        // modal(
+        //     "Order status change", 
+        //     "Are you sure you want to change orders status to &lt;" + new_status + "&gt;?",
+        //     "confirmation")
+        // .then(result => {
+        //     if (result == 'yes') {
                 $('.wait').show();
                 var orders_left = target.count();
                 for (var i = 0; i < target.count(); i++) {
@@ -491,8 +492,8 @@ function set_status(target, new_status) {
                             g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
                         });
                 }
-            }
-        });
+        //     }
+        // });
     } else {
         alert('Nothing selected');
     }
