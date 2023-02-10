@@ -23,8 +23,8 @@ function modal(title, text, type='info', params=[]) {
     $('.modal-body').html(text);
     if (type == 'confirmation') {
         $('.modal-footer').html(
-            '<button type="button" id="btn-yes" class="btn btn-danger"  data-dismiss="modal">Yes</button>' +
-            '<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>'
+            '<button type="button" id="btn-yes" class="btn btn-danger"  data-bs-dismiss="modal">Yes</button>' +
+            '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>'
         );
         $('#btn-yes').on('click', () => {promise.resolve('yes')});
     } else if (type == 'form') {
@@ -43,8 +43,8 @@ function modal(title, text, type='info', params=[]) {
             }
         });
         $('.modal-footer').html(
-            '<button type="button" id="btn-ok" class="btn btn-success" data-dismiss="modal">Ok</button>' +
-            '<button type="button" class="btn btn-cancel" data-dismiss="modal">Cancel</button>'
+            '<button type="button" id="btn-ok" class="btn btn-success" data-bs-dismiss="modal">Ok</button>' +
+            '<button type="button" class="btn btn-cancel" data-bs-dismiss="modal">Cancel</button>'
         );
         $('.modal-footer #btn-ok').on('click', () => {
             var result = $('.modal-body input').toArray().reduce((acc, input) => 
@@ -53,10 +53,10 @@ function modal(title, text, type='info', params=[]) {
         })
     } else {
         $('.modal-footer').html(
-            '<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>'
+            '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>'
         );
     }
-    $('.modal').modal();
+    new bootstrap.Modal($('.modal')).show();
     return promise;
 }
 

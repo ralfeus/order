@@ -7,16 +7,12 @@
 
 {% block content %}
 {{ super() }}
+<li id="usd-rate" class="navbar-text ps-2" style="
+padding-top: 0px; padding-bottom: 0px;
+font-size: 0.7rem; text-align:right; font-weight: bolder;">
+USD rate:<div>{{ usd_rate }}</div>
+</li>
 <div class="container-fluid">
-    <div class="container-fluid row">
-        <div class="col-9">&nbsp;</div>
-        <div class="input-group col-3">
-            <div class="input-group-prepend">
-                <label class="input-group-text" for="usd_rate">USD rate</label>
-            </div>
-            <input id="usd_rate" class="form-control" value="{{ usd_rate }}" />
-        </div>
-    </div>
     <table id="orders" class="table">
         <thead>
             <tr>

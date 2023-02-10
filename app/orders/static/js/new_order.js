@@ -540,9 +540,7 @@ function submit_order(_sender, draft=false) {
                 modal('Success!', "The request is posted. The request ID is " + data.order_id);
                 clear_form();
             } else if (data.status === 'updated') {
-                $('.modal-title').text('Order update');
-                $('.modal-body').text("The request is updated. The request ID is " + data.order_id);
-                $('.modal').modal();
+                modal('Order update', "The request is updated. The request ID is " + data.order_id);
             } else if (data.status === 'warning') {
                modal('Almost good...',
                     "The request is posted. The request ID is " + data.order_id +
