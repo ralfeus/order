@@ -7,7 +7,7 @@ var g_shipping_methods;
 // var g_boxes;
 
 $(document).ready( function () {
-    $('#usd-rate').prependTo('#infobar');
+    $('#usd-rate').closest('li').prependTo('#infobar');
     get_dictionaries()
         .then(init_orders_table);
     $('#orders tbody').on('click', 'td.details-control', function () {
@@ -183,7 +183,7 @@ function create_invoice(rows) {
     $('.wait').show();
     var orders = rows.data().map(row => row.id).toArray();
     $.ajax({
-        url: '/api/v1/admin/invoice/new/' + $('#usd-rate').val(),
+        url: '/api/v1/admin/invoice/new/' + $('#usd-rate').first().text(),
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',

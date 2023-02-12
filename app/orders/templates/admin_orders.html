@@ -7,10 +7,10 @@
 
 {% block content %}
 {{ super() }}
-<li id="usd-rate" class="navbar-text ps-2" style="
+<li class="navbar-text ps-2" style="
 padding-top: 0px; padding-bottom: 0px;
 font-size: 0.7rem; text-align:right; font-weight: bolder;">
-USD rate:<div>{{ usd_rate }}</div>
+USD rate:<div id="usd-rate">{{ usd_rate }}</div>
 </li>
 <div class="container-fluid">
     <table id="orders" class="table">
