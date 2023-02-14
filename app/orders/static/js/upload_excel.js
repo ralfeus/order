@@ -3,26 +3,27 @@ var urlJSZIP = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js";
 
 var order_product_number = 0;
 
-$(document).ready(() => {
-    g_dictionaries_loaded.then(() => {
-        $('#excel')
-            .on('change', function() {
-                $('.wait').show();
-                read_file(this.files[0]);
-            })
-        $('.excel').show();
-    });
+$(document).ready(async () => {
+    await g_dictionaries_loaded;
+    $('#excel')
+        .on('change', function() {
+            $('.wait').show();
+            read_file(this.files[0]);
+        })
+    $('.excel').show();
 });
 
 function read_file(file) {
     const reader = new FileReader();
-    reader.onload = function(event) {
-        load_excel(event.target.result)
+    reader.onload = async function(event) {
+        modals_off();
+        await load_excel(event.target.result)
+        modals_on();
     };
     reader.readAsBinaryString(file)
 }
 
-function load_excel(data) {
+async function load_excel(data) {
     cleanup();
     var wb;
     try {
@@ -71,30 +72,29 @@ function load_excel(data) {
     $('#address').val(ws['B6'].v);
     $('#phone').val(ws['B7'].v);
     $('#country').val(countries[ws['L2'].v]);
-    update_shipping_methods(countries[ws['L2'].v], 0)
-        .then(() => {
-            if (ws['L2'].v == 0) {
-                $('#shipping').val(4); // No shipping
-            } else {
-                // console.log("Country: ", $('#country').val());
-                // console.log("L1: ", ws['L1'].v);
-                // console.log("Shipping before: ", $('#shipping').val());
-                // console.log("Shipping methods:", $('#shipping')[0].options)
-                if (ws['L2'].v == 27) {
-                    $('#shipping').val(3);
-                } else if (ws['L2'].v == 28) {
-                    $('#shipping').val(3);
-                } else {
-                    $('#shipping').val(ws['L1'].v);
-                }
-                // console.log("Shipping after:", $('#shipping').val());
-            }
-            load_products(ws);
-        });
-    // alert('Order is prefilled. Submit it.');
+    await update_shipping_methods(countries[ws['L2'].v], 0);
+
+    if (ws['L2'].v == 0) {
+        $('#shipping').val(4); // No shipping
+    } else {
+        // console.log("Country: ", $('#country').val());
+        // console.log("L1: ", ws['L1'].v);
+        // console.log("Shipping before: ", $('#shipping').val());
+        // console.log("Shipping methods:", $('#shipping')[0].options)
+        if (ws['L2'].v == 27) {
+            $('#shipping').val(3);
+        } else if (ws['L2'].v == 28) {
+            $('#shipping').val(3);
+        } else {
+            $('#shipping').val(ws['L1'].v);
+        }
+        // console.log("Shipping after:", $('#shipping').val());
+    }
+    load_products(ws);
+
 }
 
-function add_product(current_node, item, product_id, quantity) {
+async function add_product(current_node, item, product_id, quantity) {
     if (item) {
         var button = $('input[id^=add_userItem]', current_node).attr('id');
         add_product_row(button);
@@ -103,13 +103,13 @@ function add_product(current_node, item, product_id, quantity) {
     item_code_node.val(product_id);
     $('.item-quantity', current_node).last().val(quantity);
     order_product_number++;
-    get_product(item_code_node[0], true)
-        .then(() => {
-            order_product_number--;
-            if (!order_product_number) {
-                $('.wait').hide();
-            }
-        });
+    await get_product(item_code_node[0], true);
+
+    order_product_number--;
+    if (!order_product_number) {
+        $('.wait').hide();
+    }
+
 }
 
 function cleanup() {
@@ -141,6 +141,7 @@ function load_products(ws) {
                 quantity = 0;
             }
             if (typeof current_node === "undefined") {
+                modals_on();
                 modal("Load order", 
                     "Couldn't load order from the Excel spreadsheet. " +
                     "No first subcustomer was identified");
