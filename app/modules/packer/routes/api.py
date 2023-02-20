@@ -18,7 +18,7 @@ from app.modules.packer import bp_api_admin
 @roles_required("admin")
 def admin_get_order_packers():
     """Returns all or selected warehouses in JSON"""
-    orders = Order.query.filter(not_(Order.id.like(r"%draft%")))
+    orders = Order.query.filter(not_(Order.id.like(r"%dr%ft%")))
     if request.values.get("draw") is not None:  # Args were provided by DataTables
         return _filter_objects(orders, request.values)
 

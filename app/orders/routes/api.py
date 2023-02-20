@@ -85,7 +85,7 @@ def admin_get_orders(order_id):
         if orders.count() == 1:
             return jsonify(orders.first().to_dict(details=True))
     else:
-        orders = orders.filter(not_(Order.id.like('%draft%')))
+        orders = orders.filter(not_(Order.id.like('%drft%')))
     if request.values.get('status'):
         orders = orders.filter(
             Order.status.in_(request.values.getlist('status')))
@@ -138,7 +138,7 @@ def filter_orders(orders, filter_params):
     })
 
 def _set_draft(order):
-    draft_order_id_prefix = f'ORD-draft-{current_user.id}-'
+    draft_order_id_prefix = f'ORD-drft-{current_user.id}-'
     if not order.id.startswith(draft_order_id_prefix):
         last_draft = Order.query \
             .filter(Order.id.startswith(draft_order_id_prefix)) \

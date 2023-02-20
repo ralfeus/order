@@ -880,8 +880,8 @@ class TestOrdersApi(BaseTestCase):
 
     def test_create_11th_order_draft(self):
         self.try_add_entities([
-            Order(id=f'ORD-draft-{self.user.id}-9', seq_num=9),
-            Order(id=f'ORD-draft-{self.user.id}-10', seq_num=10),
+            Order(id=f'ORD-drft-{self.user.id}-9', seq_num=9),
+            Order(id=f'ORD-drft-{self.user.id}-10', seq_num=10),
             Product(id='0001', name='Product 1', price=10, weight=10)
         ])
         res = self.try_user_operation(
@@ -907,7 +907,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json['order_id']
         order = Order.query.get(created_order_id)
-        self.assertEqual(order.id, f'ORD-draft-{self.user.id}-11')
+        self.assertEqual(order.id, f'ORD-drft-{self.user.id}-11')
 
     def test_create_order_with_po(self):
         self.try_add_entities([
