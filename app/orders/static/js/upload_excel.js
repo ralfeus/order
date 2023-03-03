@@ -9,6 +9,7 @@ $(document).ready(async () => {
         .on('change', function() {
             $('.wait').show();
             read_file(this.files[0]);
+            this.value = null;
         })
     $('.excel').show();
 });
