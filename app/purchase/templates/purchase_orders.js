@@ -2,7 +2,7 @@
 
 var g_addresses;
 var g_companies;
-var g_customers;
+// var g_customers;
 var g_create_editor;
 var g_edit_editor;
 var g_filter_sources;
@@ -74,11 +74,11 @@ async function get_dictionaries() {
             value: a.id,
             label: a.name
         }));
-    g_customers = (await get_list('/api/v1/admin/order/subcustomer')).map(
-        s => ({
-            value: s.id,
-            label: s.name + " | " + s.username
-        }));
+    // g_customers = (await get_list('/api/v1/admin/order/subcustomer')).map(
+    //     s => ({
+    //         value: s.id,
+    //         label: s.name + " | " + s.username
+    //     }));
     g_vendors = (await get_list('/api/v1/admin/purchase/vendor')).map(
         i => {
             entry = Object.entries(i)[0]; 
