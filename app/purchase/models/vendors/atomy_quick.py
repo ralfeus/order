@@ -345,7 +345,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 raw_data=f"searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20",
             )
             if result["totalCount"] > 0:
-                product = sorted(result["items"], key=lambda i: i['materialCode'])[0]
+                products = [items for items in result['items'] 
+                            if items['materialCode'] == product_id]
+                product = products[0] if len(products) == 1 \
+                    else sorted(result["items"], key=lambda i: i['materialCode'])[0]
                 option = (
                     self.__get_product_option(product, product_id)
                     if product["optionType"]["value"] == "mix"
