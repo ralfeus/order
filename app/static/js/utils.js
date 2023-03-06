@@ -14,8 +14,31 @@ function modals_on() {
     is_modals_on = true;
 }
 
-function modal(title, text, type='info', params=[]) {
+var modalPromises = [];
+var modalShown = false;
+async function modal(title, text, type='info', params=[]) {
     var promise = $.Deferred();
+    promise.id = text;
+    modalPromises.push(() => showModal(promise, title, text, type, params));
+    if (!modalShown) {
+        modalShown = true;
+        showModals();
+    }
+    return promise;
+}
+
+async function showModals() {
+    var modal;
+    while (modal = modalPromises.shift()) {
+        var promise = modal();
+        // console.log(`Waiting for ${promise.id} to be resolved`);
+        await promise;
+        // console.log(`Promise ${promise.id} is resolved, moving on`);
+    }
+    modalShown = false;
+}
+
+function showModal(promise, title, text, type, params) {
     if (!is_modals_on) {
         return promise.resolve(false);
     }
@@ -56,6 +79,7 @@ function modal(title, text, type='info', params=[]) {
             '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>'
         );
     }
+    $('.modal').on('hide.bs.modal', _ => promise.resolve());
     new bootstrap.Modal($('.modal')).show();
     return promise;
 }

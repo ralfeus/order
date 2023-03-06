@@ -263,8 +263,9 @@ function get_product(line_input, batch_load=false) {
                     promise.resolve();
                 },
                 error: (data) => {
-                    $('.modal-body').text(data.responseText);
-                    $('#modal').modal();
+                    // $('.modal-body').text(data.responseText);
+                    // $('#modal').modal();
+                    modal("Get product error", data.responseText);
                     promise.resolve();
                 }
             });
