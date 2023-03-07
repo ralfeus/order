@@ -49,7 +49,9 @@ function showModal(promise, title, text, type, params) {
             '<button type="button" id="btn-yes" class="btn btn-danger"  data-bs-dismiss="modal">Yes</button>' +
             '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>'
         );
-        $('#btn-yes').on('click', () => {promise.resolve('yes')});
+        $('#btn-yes').on('click', () => {
+            promise.resolve('yes')
+        });
     } else if (type == 'form') {
         $('.modal-body').html(params.reduce(
             (html, input) => html + 
@@ -79,7 +81,9 @@ function showModal(promise, title, text, type, params) {
             '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>'
         );
     }
-    $('.modal').on('hide.bs.modal', _ => promise.resolve());
+    // $('.modal').on('hide.bs.modal', _ => 
+    //     promise.resolve()
+    // );
     new bootstrap.Modal($('.modal')).show();
     return promise;
 }
