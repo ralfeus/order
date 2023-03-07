@@ -217,7 +217,14 @@ function edit_shipment(sender) {
                                 .map(e => {
                                     var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
                                     if (match === null) {
-                                        throw "Box information doesn't match format";
+                                        console.log(`Box information '${e}' doesn't match format Qty:Wght:LxWxH`);
+                                        return {
+                                            quantity: 0,
+                                            weight: 0,
+                                            length: 0,
+                                            width: 0,
+                                            height: 0
+                                        }
                                     }
                                     return {
                                         quantity: match[1],
