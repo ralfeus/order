@@ -291,11 +291,14 @@ class AtomyCenter(PurchaseOrderVendorBase):
             'https://www.atomy.kr/center/check_user.asp',
             '-H',
             'Referer: https://www.atomy.kr/center/login.asp?src=/center/c_sale_ins.asp',
+            '-H',
+            'User-Agent: AppleWebKit',
             '--data-raw',
             f'src=&admin_id={username}&passwd={password}',
             '-v'
             ],
-            encoding='euc-kr', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-        if re.search('< location: center_main', output.stderr):
-            return re.findall('set-cookie: (.*)', output.stderr)
+            stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
+        stderr = output.stderr.decode('utf-8')
+        if re.search('< location: center_main', stderr):
+            return re.findall('set-cookie: (.*)', stderr)
         raise AtomyLoginError(username)
