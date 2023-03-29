@@ -85,24 +85,27 @@ class AtomyCenter(PurchaseOrderVendorBase):
         proxy.update_purchase_orders_status(customer, customer_pos)
         del proxy
 
-    def __get_product(self, product_id):
+    def __get_products(self):
         result = get_document_from_url(
-            url=f"https://atomy.kr/center/pop_mcode.asp?id={product_id}",
+            url=f"https://atomy.kr/center/popup_material.asp",
             encoding='euc-kr',
-            headers=[{'Cookie': c} for c in self.__session_cookies ]
+            headers=
+                [{'Cookie': c} for c in self.__session_cookies ] +
+                [{'User-Agent': 'AppleWebKit'}],
         )
-        script = result.cssselect('script')[0].text
-        return {
-            'vat_price': int(re.search(r'vat_price\.value = "(\d+)"', script).groups()[0])
-        } \
-            if re.search(r'alert\(.+\);', result.text) is None \
-            else None
+        products = result.cssselect('input[onClick^="select_m"]')
+        result = {}
+        for product in products:
+            components = product.attrib['onclick'].split(',')
+            result[components[0][10:16]] = {'vat_price': int(components[8])}
+        return result
 
     def __add_products(self, order_products):
         self._logger.info("Adding products")
         ordered_products = []
         field_num = 1
         tot_amt = tot_pv = tot_qty = tot_vat = 0
+        products = self.__get_products()
         for op in order_products:
             if not op.product.purchase:
                 self._logger.warning("The product %s is exempted from purchase", op.product_id)
@@ -112,9 +115,9 @@ class AtomyCenter(PurchaseOrderVendorBase):
                     op.product_id, op.quantity)
                 continue
             try:
-                product_id = '0' * (6 - len(op.product_id)) + op.product_id
-                product = self.__get_product(product_id)
-                if product:
+                product_id = op.product_id.zfill(6)
+                product = products.get(product_id)
+                if product is not None:
                     self.__po_params = {**self.__po_params,
                         f'mgubun{field_num}': 1,
                         f'vat_price{field_num}': product['vat_price'],
@@ -260,7 +263,8 @@ class AtomyCenter(PurchaseOrderVendorBase):
                 url='https://atomy.kr/center/payreq.asp',
                 encoding='euc-kr',
                 headers=[{'Cookie': c} for c in self.__session_cookies] + [
-                    {'Referer': 'https://atomy.kr/center/c_sale_ins.asp'}
+                    {'Referer': 'https://atomy.kr/center/c_sale_ins.asp'},
+                    {'User-Agent': 'WebKit'}
                 ],
                 raw_data=urlencode(self.__po_params, encoding='euc-kr')
             )
@@ -300,5 +304,5 @@ class AtomyCenter(PurchaseOrderVendorBase):
             stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
         stderr = output.stderr.decode('utf-8')
         if re.search('< location: center_main', stderr):
-            return re.findall('set-cookie: (.*)', stderr)
+            return re.findall('set-cookie: (.*?);', stderr)
         raise AtomyLoginError(username)
