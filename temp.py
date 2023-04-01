@@ -15,13 +15,13 @@ with create_app().app_context():
     po_id = "PO-2023-03-0006-001"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
-    po.vendor = 'AtomyCenter'
+    po.vendor = 'AtomyQuick'
     # po.company_id = 7
     # po.customer.username = '23426444'
     # po.customer.password = 'atomy#01'
     # po.customer.username = 'S5832131'
     # po.customer.password = 'mkk03020529!!'
-    po.purchase_date = datetime.now()
+    po.purchase_date = datetime(2023, 4, 3)
     db.session.flush()
     # update_purchase_orders_status(po_id)
     post_purchase_orders(po_id=po_id)

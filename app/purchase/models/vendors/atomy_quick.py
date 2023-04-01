@@ -378,7 +378,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         tz = timezone("Asia/Seoul")
         today = datetime.now().astimezone(tz)
         days_back = 3 if today.weekday() < 2 else 2
-        days_forth = 2 if today.weekday() == 6 else 1
+        days_forth = 2 if today.weekday() == 5 else 1
         min_date = (today - timedelta(days=days_back)).date()
         max_date = (today + timedelta(days=days_forth)).date()
         return purchase_date is None or (

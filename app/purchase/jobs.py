@@ -24,6 +24,16 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @celery.task
 def post_purchase_orders(po_id=None):
+    def is_purchase_date_valid(purchase_date):
+        tz = timezone("Asia/Seoul")
+        today = datetime.now().astimezone(tz)
+        days_back = 3 if today.weekday() < 2 else 2
+        days_forth = 2 if today.weekday() == 5 else 1
+        min_date = (today - timedelta(days=days_back)).date()
+        max_date = (today + timedelta(days=days_forth)).date()
+        return purchase_date is None or (
+            purchase_date >= min_date and purchase_date <= max_date
+        )
     logger = get_task_logger(__name__)
     logger.setLevel(current_app.config['LOG_LEVEL'])
     pending_purchase_orders = PurchaseOrder.query
@@ -35,8 +45,6 @@ def post_purchase_orders(po_id=None):
         # Wrap whole operation in order to
         # mark all pending POs as failed in case of any failure
         logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
-        tz = timezone('Asia/Seoul')
-        today = datetime.now().astimezone(tz).date()
         grouped_vendors = map_reduce(
             pending_purchase_orders,
             lambda po: po.vendor
@@ -45,7 +53,7 @@ def post_purchase_orders(po_id=None):
             vendor = PurchaseOrderVendorManager.get_vendor(
                 vendor_id, logger=logger, config=current_app.config)
             for po in pos:
-                if po.purchase_date and po.purchase_date > today + timedelta(days=1):
+                if not is_purchase_date_valid(po.purchase_date):
                     logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
                     continue
                 logger.info("Posting a purchase order %s", po.id)
