@@ -251,6 +251,13 @@ function init_table() {
             }
         ]
     });
+    g_edit_editor.on('preSubmit', async function(e, data, action) {
+        var result = await modal(
+            "Purchase Order modification",
+            `Are you sure you want to modify ${Object.entries(data.data)[0][0]}?`,
+            "confirmation");
+        return result != 'no';
+    });
     $('#purchase_orders').on( 'click', 'td.editable', function (e) {
         g_edit_editor.inline(this, { onBlur: 'submit', drawType: 'none'});
     }); 
