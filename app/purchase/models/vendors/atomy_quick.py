@@ -693,10 +693,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
 
     def __get_atomy_company(self, username, tax_id) -> tuple[Any, bool]:
+        logger = self._logger.getChild("__get_atomy_company")
         result = get_json(
             url=f"{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&{URL_SUFFIX}",
             headers=[{"Cookie": c} for c in self.__session_cookies],
         )
+        logger.debug(result)
         company = [
             company
             for company in result.get("items")  # type: ignore
@@ -707,11 +709,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __create_atomy_company(self, company: Company):
         logger = self._logger.getChild("__create_atomy_company")
         logger.info("Creating new company object")
-        result = get_json(
-            url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
-            raw_data=urlencode(
-                {
+        payload = {
                     "companyName": company.name,
                     "businessNumber": "%s%s%s" % company.tax_id,
                     "ceoName": company.contact_person,
@@ -727,8 +725,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "saveAsCustomer": "false",
                     "isNonCustomer": "true",
                 }
+        logger.debug(payload)
+        result = get_json(
+            url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
+            headers=[{"Cookie": c} for c in self.__session_cookies],
+            raw_data=urlencode(
+                payload
             ),
         )
+        logger.debug(result)
         return result["item"]["id"], True
 
     def __submit_order(self):
