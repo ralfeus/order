@@ -16,8 +16,8 @@ from app.orders.models import Order, Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from app.purchase.po_manager import create_purchase_orders
-from exceptions import AtomyLoginError
-from utils.atomy import atomy_login
+from exceptions import AtomyLoginError, PurchaseOrderError
+from utils.atomy import atomy_login, atomy_login2
 
 from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 
@@ -84,10 +84,16 @@ def admin_create_purchase_orders():
     del payload['vendor']
     payload['purchase_restricted_products'] = payload.get('purchase_restricted_products', False)
 
-    purchase_orders = create_purchase_orders(
-        order, company, address, vendor, **payload
-    )
-    
+    try:
+        purchase_orders = create_purchase_orders(
+            order, company, address, vendor, **payload
+        )
+    except PurchaseOrderError:
+        return jsonify({
+                'data': [],
+                'error': f"Purchase orders for order {order.id} already exist",
+                'status': 409
+            })
     from app.purchase.jobs import post_purchase_orders
     try:
         task = post_purchase_orders.apply_async(retry=False, connect_timeout=1)
@@ -178,8 +184,8 @@ def validate_po_input():
             error_subcustomers = []
             for suborder in order.suborders:
                 try:
-                    atomy_login(suborder.subcustomer.username,
-                                suborder.subcustomer.password, run_browser=False)
+                    atomy_login2(suborder.subcustomer.username,
+                                suborder.subcustomer.password)
                 except AtomyLoginError:
                     current_app.logger.info("Couldn't validate subcustomer %s", payload)
                     error_subcustomers.append(suborder.subcustomer.username)

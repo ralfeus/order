@@ -74,6 +74,35 @@ class TestPurchaseOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 202)
         self.assertEqual(PurchaseOrder.query.count(), 2)
 
+    @patch('app.purchase.jobs.post_purchase_orders')
+    def test_create_existing_po(self, po_mock):
+        po_mock.return_value = None
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_int_id = int(datetime.now().timestamp())
+        order = Order(id=f'ORD-{gen_id}', user=self.user, status=OrderStatus.can_be_paid)
+        subcustomer = Subcustomer(id=gen_int_id)
+        suborder = Suborder(id=f'SOS-{gen_id}-1', order_id=f'ORD-{gen_id}', 
+                            subcustomer_id=gen_int_id)
+        self.try_add_entities([
+            order,
+            subcustomer,
+            suborder,
+            OrderProduct(suborder_id=f'SOS-{gen_id}-1', product_id='0000', quantity=1),
+            Address(id=gen_int_id, zip='00000'),
+            Company(id=gen_int_id, address_id=gen_int_id),
+            PurchaseOrder(suborder=suborder)
+        ])
+        res = self.try_admin_operation(lambda: 
+            self.client.post('/api/v1/admin/purchase/order', json={
+                'order_id': f'ORD-{gen_id}',
+                'company_id': gen_int_id,
+                'address_id': gen_int_id,
+                'vendor': 'AtomyQuick',
+                'contact_phone': '000-0000-0000'
+            })
+        )
+        self.assertEqual(res.json['status'], 409)
+
     def test_validate_order_subcustomers(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         gen_int_id = int(datetime.now().timestamp())
