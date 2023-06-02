@@ -1,7 +1,7 @@
 '''
 Product model
 '''
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app import db
@@ -11,7 +11,8 @@ from app.shipping.models import Shipping
 
 _products_shipping = db.Table('products_shipping',
     Column('product_id', String(16), ForeignKey('products.id')),
-    Column('shipping_method_id', Integer, ForeignKey('shipping.id'))
+    Column('shipping_method_id', Integer, ForeignKey('shipping.id')),
+    UniqueConstraint('product_id', 'shipping_method_id')
 )
 
 class Product(db.Model, BaseModel): #type: ignore

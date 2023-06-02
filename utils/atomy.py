@@ -249,7 +249,7 @@ def atomy_login2(username, password):
     jwt = __get_token()
     stdout, stderr = invoke_curl(
         url=f'{URL_BASE}/signIn?_siteId=kr',
-        headers=[{'Cookie': jwt}],
+        headers=[{'Cookie': jwt}, {'User-Agent': 'OM'}],
         raw_data=urlencode({
             'id': username, 
             'password': password
@@ -265,6 +265,7 @@ def atomy_login2(username, password):
 
 def __get_token():
     _, stderr = invoke_curl(
-        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
+        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr',
+        headers=[{'User-Agent': 'OM'}]
     )
     return re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
