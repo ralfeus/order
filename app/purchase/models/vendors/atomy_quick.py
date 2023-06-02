@@ -167,7 +167,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger = self._logger.getChild("__update_cart")
         result = get_json(
             url=f"{URL_BASE}/cart/updateCart?_siteId=kr",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
             raw_data="cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB"
             + f"&cart={self.__cart}&"
             + "&".join(
@@ -203,7 +203,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise AtomyLoginError(purchase_order.customer.username)
 
     def __get_session_headers(self):
-        return [{"Cookie": c} for c in self.__session_cookies]
+        return [{"Cookie": c} for c in self.__session_cookies] + [{'User-Agent': 'OM'}]
 
     def __get_token(self):
         _, stderr = invoke_curl(
@@ -215,7 +215,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __init_quick_order(self):
         result = get_json(
             url=f"{URL_BASE}/cart/createCart?{URL_SUFFIX}",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
             raw_data="cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB",
         )
         self.__cart = result["items"][0]["cartId"]
@@ -226,7 +226,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             validate = get_json(
                 url=f"{URL_BASE}/order/validateCheckout?{URL_SUFFIX}",
-                headers=[{"Cookie": c} for c in self.__session_cookies],
+                headers=self.__get_session_headers(),
                 raw_data="cartId=%s" % self.__cart,
             )
             if validate["result"] != "200":
@@ -240,7 +240,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 lambda: get_json(
                     url=f"{URL_BASE}/order/placeOrder?{URL_SUFFIX}",
                     # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                    headers=[{"Cookie": c} for c in self.__session_cookies],
+                    headers=self.__get_session_headers(),
                     raw_data=urlencode({"cartId": self.__cart, "customerId": ""}),
                 ),
                 logger=logger,
@@ -261,7 +261,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         result = try_perform(
             lambda: get_json(
                 url=f"{URL_BASE}/order/getOrderResult?id={order_id}&{URL_SUFFIX}",
-                headers=[{"Cookie": c} for c in self.__session_cookies],
+                headers=self.__get_session_headers(),
             ),
             logger=self._logger.getChild("__get_order_details"),
         )
@@ -328,7 +328,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         product_option = f',"optionProduct":"{option}"' if option is not None else ""
         res = get_json(
             url=f"{URL_BASE}/cart/addToCart?_siteId=kr",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
             raw_data=(
                 "cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB"
                 + '&cart=%s&products=[{"product":"%s","quantity":%s%s}]'
@@ -487,14 +487,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_addresses(self) -> list[dict[str, str]]:
         result = get_json(
             url=f"{URL_BASE}/address/getDeliveryAddressList?{URL_SUFFIX}",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
         )
         return result.get("items") or []
 
     def __create_address(self, address: Address, phone, order_id):
         result = get_json(
             url=f"{URL_BASE}/address/createAddress?_siteId=kr&_deviceType=pc&locale=en-GB",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
             method="POST",
             raw_data="address="
             + json.dumps({
@@ -615,7 +615,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             + f"?cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}"
             + "&options=%5B%22PAYMENT_TYPE%22%5D&channel=WEB&_siteId=kr"
             + "&_deviceType=pc&locale=en-KR",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
         )
         deadline = self.__get_payment_deadline(
             result["item"]["paymentType"]["configs"][0]["id"]
@@ -631,7 +631,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             url=f"{URL_BASE}/payment/getDepositDeadline"
             + f"?paymentTypeConfig={payment_config_id}&_siteId=kr"
             + "&_deviceType=pc&locale=en-KR",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
         )
         d = result["item"]["deadline"]
         return d[:4] + d[5:7] + d[8:10] + d[11:13] + d[14:16] + d[17:19]
@@ -697,7 +697,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger = self._logger.getChild("__get_atomy_company")
         result = get_json(
             url=f"{URL_BASE}/businessTaxbill/getBusinessTaxbillList?customer={username}&{URL_SUFFIX}",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
         )
         logger.debug(result)
         company = [
@@ -729,7 +729,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug(payload)
         result = get_json(
             url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
-            headers=[{"Cookie": c} for c in self.__session_cookies],
+            headers=self.__get_session_headers(),
             raw_data=urlencode(
                 payload
             ),
