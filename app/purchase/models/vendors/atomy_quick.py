@@ -183,7 +183,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         jwt = self.__get_token()
         stdout, stderr = invoke_curl(
             url=f"{URL_BASE}/signIn?_siteId=kr",
-            headers=[{"Cookie": jwt}],
+            headers=[{"Cookie": jwt}, {'User-Agent': 'OM'}],
             raw_data=urlencode(
                 {
                     "id": purchase_order.customer.username,
@@ -207,7 +207,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_token(self):
         _, stderr = invoke_curl(
-            url="https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr"
+            url="https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr",
+            headers=[{'User-Agent': 'OM'}]
         )
         return re.search("set-cookie: (atomySvcJWT=.*?);", stderr).group(1)
 
