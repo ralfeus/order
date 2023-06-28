@@ -48,7 +48,7 @@ def _create_po(order: Order, errors: list) -> None:
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
 @roles_required('admin')
-def delete_order(order_id):
+def admin_delete_order(order_id):
     '''
     Deletes specified order
     '''
@@ -72,7 +72,30 @@ def delete_order(order_id):
         "Sale Order <%s> of customer <%s> created on <%s> is deleted by <%s>",
         order_id, order.customer_name, order.when_created, current_user.username)
     return Response(status=200)
-        
+
+@bp_api_user.route('/<order_id>', methods=['DELETE'])
+@login_required
+def user_delete_order(order_id):
+    '''Deletes specified order. At the momend only drafts can be deleted by the user'''
+    query = Order.query \
+        .filter_by(id=order_id) \
+        .filter_by(status=OrderStatus.draft)
+    if not current_user.has_role('admin'):
+        query = query.filter_by(user=current_user) 
+    order = query.first()
+    if order is None:
+        abort(Response(f"No order <{order_id}> was found", status=404))
+
+    for suborder in order.suborders:
+        for op in suborder.order_products:
+            db.session.delete(op)
+        db.session.delete(suborder)
+    db.session.delete(order)
+    db.session.commit()
+    current_app.logger.warning(
+        "Sale Order <%s> of customer <%s> created on <%s> is deleted by <%s>",
+        order_id, order.customer_name, order.when_created, current_user.username)
+    return Response(status=200)
 
 @bp_api_admin.route('', defaults={'order_id': None})
 @bp_api_admin.route('/<order_id>')

@@ -853,6 +853,44 @@ class TestOrdersApi(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.suborders.count(), 1)
 
+    def test_delete_order_draft(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order1 = Order(id=gen_id, country_id='c1', shipping_method_id=1, user=self.user,
+                status=OrderStatus.pending)
+        order2 = Order(id=gen_id + "2", country_id='c1', shipping_method_id=1, user=self.user,
+                status=OrderStatus.pending)
+        order3 = Order(id=gen_id + "3", country_id='c1', shipping_method_id=1, user=self.user,
+                status=OrderStatus.pending)
+        self.try_add_entities([
+            order1, order2, order3,
+            Suborder(id=order1.id, order_id=order1.id),
+            OrderProduct(suborder_id=order1.id, product_id='0000', quantity=1,
+                status=OrderProductStatus.pending),
+            Suborder(id=order2.id, order_id=order2.id),
+            OrderProduct(suborder_id=order2.id, product_id='0000', quantity=1,
+                status=OrderProductStatus.pending),
+            Suborder(id=order3.id, order_id=order3.id),
+            OrderProduct(suborder_id=order3.id, product_id='0000', quantity=1,
+                status=OrderProductStatus.pending)
+        ])
+
+        # First try to delete non-draft order. Should return 404
+        res = self.try_user_operation(
+            operation=lambda: self.client.delete(f'/api/v1/order/{order2.id}')
+        )
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(Order.query.count(), 3)
+
+        # Now deleting draft
+        order2.status = OrderStatus.draft
+        order3.status = OrderStatus.draft
+        db.session.commit()
+        res = self.client.delete(f'/api/v1/order/{order3.id}')
+        self.assertEqual(res.status_code, 200)
+        orders = Order.query.all()
+        self.assertEqual(orders, [order1, order2])
+        # self.assertEqual(Order.query.last(), order3)
+
     def test_order_status(self):
         order = Order(status=OrderStatus.ready_to_ship)
         db.session.add(order)

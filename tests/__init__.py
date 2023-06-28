@@ -30,6 +30,15 @@ class BaseTestCase(TestCase):
     def try_admin_operation(self, operation, 
                             user_name=None, user_password='1',
                             admin_name=None, admin_password='1', admin_only=False):
+        '''
+        Attempt an admin operation
+        @param operation: function - a function to execute
+        @param user_name: str - user name to authenticate as
+        @param user_password: str - user password to authenticate
+        @param admin_name: str - admin name to authenticate as
+        @param admin_password: str - admin password to authenticate
+        @param admin_only: bool - if `true` - do not try to perform operation as a user
+        '''
         if user_name is None:
             user_name = self.user.username
         if admin_name is None:
