@@ -7,6 +7,7 @@
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
 </script>
+<script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
 <script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
 <script src="static/js/upload_excel.js"></script>
@@ -21,7 +22,8 @@
     <div class="row" style="position: sticky; top: 0px; z-index: 9; background: white;">
         <div class="col-3 width-adjusted">
             <input class="form-control" id="name" placeholder="Customer name"/>
-            <textarea id="comment" class="form-control" placeholder="Additional comments"></textarea>
+            <textarea id="comment" class="form-control" placeholder="Additional comments" 
+                maxlength="128" rows="4"></textarea>
         </div>
         <div class="col-3 width-adjusted">
             <input class="form-control" id="address" placeholder="Address" />

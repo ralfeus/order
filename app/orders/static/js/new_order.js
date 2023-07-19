@@ -94,7 +94,15 @@ $(document).ready(function() {
             product_code_autocomplete($('.item-code'));
         });
     product_quantity_change($('.item-quantity'));
+    set_comment_size_limit();
 });
+
+function set_comment_size_limit() {
+    $('#comment').maxlength([{
+        alwaysShow: true,
+        placement: 'bottom-right-inside'
+    }]);
+}
 
 function add_product_row(idString) {
     var id = idString.substring(13)
