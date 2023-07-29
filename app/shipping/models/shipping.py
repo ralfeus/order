@@ -52,7 +52,10 @@ class Shipping(db.Model, BaseModel): #type: ignore
                 or_(
                     Product.available_shipping.any(Shipping.id == self.id),
                     Product.available_shipping == None))
-            logging.debug(f"These products are shippable by {self}: {str(shippable_products)}")
+            non_shippable_products = [
+                p for p in products if p not in [sp.id for sp in shippable_products]
+            ]
+            logging.debug(f"These products are not shippable by {self}: {non_shippable_products}")
             return shippable_products.count() == len(products)
         return True
 
