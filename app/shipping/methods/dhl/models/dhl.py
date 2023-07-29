@@ -23,13 +23,21 @@ class DHL(Shipping):
     type = 'DHL'
 
     def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
+        logger = logging.getLogger("DHL::can_ship()")
         if not self._are_all_products_shippable(products):
+            logger.debug(f"Not all products are shippable to {country}")
             return False
         if weight and weight > 99999:
+            logger.debug(f"The parcel is too heavy: {weight}g")
             return False
         if country is None:
             return True
-        return DHLCountry.query.filter_by(country_id=country.id).first() is not None
+        rate_exists = DHLCountry.query.filter_by(country_id=country.id).first() is not None
+        if rate_exists:
+            logger.debug(f"There is a rate to country {country}. Can ship")
+        else:
+            logger.debug(f"There is no rate to country {country}. Can't ship")
+        return rate_exists
 
     def get_edit_url(self):
         from .. import bp_client_admin
