@@ -82,13 +82,17 @@ def _atomy_login_curl(username, password):
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
         # '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
+        '-H',
+        'User-Agent: OM',
         '--data-raw',
         urlencode({
-            'src': '',
             'userId': username,
             'userPw': password,
+            'orderNum': '',
+            'userName': '',
             'idSave': 'on',
-            'rpage': ''
+            'rpage': '',
+            'loadPage': ''
         }),
         '-v'
         ],
@@ -109,51 +113,6 @@ def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:
         return try_perform(lambda: _atomy_login_curl(username, password))
     raise "Browser login is not implemented"
-    # _logger = logger.getChild('atomy_login')
-    # local_browser = None
-    # if browser:
-    #     local_browser = browser
-    # else:
-    #     local_browser = Browser(config=current_app.config)
-    # _logger.debug("Getting loging page")
-    # local_browser.get('https://www.atomy.kr/v2/Home/Account/Login')
-    # try:
-    #     _logger.debug("Dismissing any alerts")
-    #     local_browser.switch_to_alert().dismiss()
-    # except NoAlertPresentException:
-    #     pass
-    # user_field = local_browser.get_element_by_id('userId')
-    # password_field = local_browser.get_element_by_id('userPw')
-    # user_field.send_keys(username)
-    # password_field.send_keys(password)
-    # _logger.debug("Submitting credentials")
-    # password_field.submit()
-    # try:
-    #     _logger.debug("Waiting for home page")
-    #     local_browser.wait_for_url('https://www.atomy.kr/v2/Home')
-    #     _logger.debug('Login is successful')
-    #     return
-    # except UnexpectedAlertPresentException as ex:
-    #     _logger.debug("Alert is %s. Login is failed", ex.args)
-    #     raise AtomyLoginError(ex.args[0])
-    # except Exception as ex:
-    #     _logger.debug("Couldn't get home page")
-    #     try:
-    #         if local_browser.get_element_by_id('btnRelayPassword'):
-    #             _logger.debug("Password change request is found. Dismissing")
-    #             __ignore_change_password(local_browser)
-    #         else:
-    #             _logger.debug("The reason is unknown. Login is failed")
-    #             raise AtomyLoginError(ex)
-    #     except AtomyLoginError as ex:
-    #         _logger.debug('Login is failed: %s', ex.args)
-    #         raise ex
-    #     except NoSuchElementException:
-    #         _logger.debug("No password change request is found. Login is failed")
-    #         raise AtomyLoginError()
-    # finally:
-    #     if not browser:
-    #         local_browser.quit()
 
 def __ignore_change_password(browser):
     try:

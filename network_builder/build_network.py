@@ -14,7 +14,7 @@ from neomodel import db, config
 
 from utils.atomy import atomy_login, get_document_from_url
 from exceptions import AtomyLoginError
-from .model import AtomyPerson
+from model import AtomyPerson
 
 class SessionManager:
     __instance = None
@@ -35,14 +35,14 @@ class SessionManager:
     def __create_session(self):
         with threading.Lock():
             self.__session = atomy_login(
-                username=self.__username, password=self.__password, run_browser=False)
+                username=self.__username, password=self.__password)
 
     def get_document(self, url, raw_data):
         attempts_left = 3
         while attempts_left:
             try:
                 return get_document_from_url(url,
-                    headers=[{'Cookie': c} for c in self.__session],
+                    headers=[{'Cookie': c} for c in self.__session] + [{'User-Agent': 'OM'}],
                     raw_data=raw_data)
             except AtomyLoginError:
                 logger = logging.getLogger('SessionManager.get_document()')
@@ -492,7 +492,7 @@ if __name__ == '__main__':
 
     if os.environ.get('TERM_PROGRAM'):
         # Means we run in VSCode debugger
-        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk030529!', '--threads', '1', '--root', '24987907'])
+        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk03020529!!', '--threads', '1', '--root', '24987907'])
         # args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--update', '--verbose', '--threads', '1'])
     else: 
         # Production run
