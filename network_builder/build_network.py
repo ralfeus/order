@@ -191,7 +191,7 @@ def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list):
         members = sel_members(page)
         if len(members) > 0:
             logger.debug("Got %s levels. Processing", levels)
-            logger.info("%s elements on the page to be processed", len(members))
+            logger.debug("%s elements on the page to be processed", len(members))
             elements = [
                 {
                     'id': e.attrib['id'][1:],
@@ -211,7 +211,7 @@ def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list):
             # sleep(60)
             break
         logger.debug("Couldn't get %s levels. Decreasing", levels)
-    logger.info("Done building node %s", node_id)
+    logger.debug("Done building node %s", node_id)
 
 def get_child_id(parent_id, child_type):
     result, _ = db.cypher_query(f'''
