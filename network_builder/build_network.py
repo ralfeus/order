@@ -490,7 +490,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
 
-    if os.environ.get('TERM_PROGRAM'):
+    if os.environ.get('TERM_PROGRAM') == 'vscode':
         # Means we run in VSCode debugger
         args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk03020529!!', '--threads', '1', '--root', '24987907'])
         # args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--update', '--verbose', '--threads', '1'])

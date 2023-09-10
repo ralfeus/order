@@ -13,10 +13,10 @@ from app.jobs import *
 from app.purchase.jobs import *
 
 with create_app().app_context():
-    po_id = "PO-2023-03-0006-001"
-    po = PurchaseOrder.query.get(po_id)
-    po.status = PurchaseOrderStatus.pending
-    po.vendor = 'AtomyQuick'
+    # po_id = "PO-2023-03-0006-001"
+    # po = PurchaseOrder.query.get(po_id)
+    # po.status = PurchaseOrderStatus.pending
+    # po.vendor = 'AtomyQuick'
     # po.company_id = 7
     # po.customer.username = '23426444'
     # po.customer.password = 'atomy#01'
@@ -29,6 +29,6 @@ with create_app().app_context():
     # db.session.rollback()
     # print(po.to_dict())
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    # build_network(user='S5832131', password='mkk030529!', incremental=True)
+    build_network(user='S5832131', password='mkk030529!', incremental=True)
     # copy_subtree(root_id='S9945812')
     get_atomy_products()
