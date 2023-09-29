@@ -26,37 +26,37 @@ def get_nodes(node_id):
     paging = {'start': '', 'limit': 'LIMIT 100'}
     query_filter = ''
     ############# Get tree root #####################
-    # if request_params is not None and request_params.get('root_id') is not None:
-    #     root_id = request_params['root_id']
-    # else:
-    #     query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
-    #     root_id = db.cypher_query(query)[0][0][0]
-    # query_params = {'root_id': root_id}
+    if request_params is not None and request_params.get('root_id') is not None:
+        root_id = request_params['root_id']
+    else:
+        query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
+        root_id = db.cypher_query(query)[0][0][0]
+    query_params = {'root_id': root_id}
     #################################################
-    total = db.cypher_query('''
-        MATCH (n:AtomyPerson)
-        RETURN COUNT(n)
-    ''')[0][0]
-    # total = db.cypher_query('''
-    #     MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
+    # total = db.cypher_query(f'''
+    #     MATCH (n:AtomyPerson)
     #     RETURN COUNT(n)
-    # ''', params=query_params)[0][0]
+    # ''')[0][0]
+    total = db.cypher_query('''
+        MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
+        RETURN COUNT(n)
+    ''', params=query_params)[0][0]
     filtered = total
     if request_params is not None:
         if request_params.get('filter') is not None:
             query_filter = _get_filter(request_params['filter'])
             # query_params.update(request_params['filter'])
             query_params = request_params['filter']
-            filtered = db.cypher_query(f'''
-                MATCH (n:AtomyPerson)
-                {query_filter}
-                RETURN COUNT(n)
-            ''', params=query_params)[0][0]
             # filtered = db.cypher_query(f'''
-            #     MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+            #     MATCH (n:AtomyPerson)
             #     {query_filter}
             #     RETURN COUNT(n)
             # ''', params=query_params)[0][0]
+            filtered = db.cypher_query(f'''
+                MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+                {query_filter}
+                RETURN COUNT(n)
+            ''', params=query_params)[0][0]
         if request_params.get('start') is not None and request_params.get('limit') is not None:
             paging['start'] = 'SKIP ' + str(request_params['start'])
             paging['limit'] = 'LIMIT ' + str(request_params['limit'])
@@ -68,16 +68,16 @@ def get_nodes(node_id):
             except:
                 pass
 
-    query = f'''
-        MATCH (n:AtomyPerson)
-        {query_filter}
-        RETURN n {paging["start"]} {paging["limit"]}
-    '''
     # query = f'''
-    #     MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+    #     MATCH (n:AtomyPerson)
     #     {query_filter}
     #     RETURN n {paging["start"]} {paging["limit"]}
     # '''
+    query = f'''
+        MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+        {query_filter}
+        RETURN n {paging["start"]} {paging["limit"]}
+    '''
     logger.debug(query)
     result, _ = db.cypher_query(query, params=query_params if query_filter else {})
     logger.info("Returning %s records", filtered)

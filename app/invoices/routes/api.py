@@ -95,13 +95,14 @@ def get_invoices(invoice_id):
 
     return jsonify([entry.to_dict(details=invoices.count() == 1) for entry in invoices])
 
-def get_invoice_order_products(invoice):
+def get_invoice_order_products(invoice: Invoice):
     cumulative_order_products = map_reduce(
         invoice.get_invoice_items(),
         keyfunc=lambda ii: (
             ii.product_id,
             ii.product.name_english if ii.product.name_english \
                 else ii.product.name,
+            ii.product.weight,
             ii.price),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum
@@ -110,9 +111,10 @@ def get_invoice_order_products(invoice):
     result = list(map(lambda ii: {
         'id': ii[0][0],
         'name': ii[0][1],
-        'price': ii[0][2],
+        'price': ii[0][3],
         'quantity': ii[1],
-        'subtotal': ii[0][2] * ii[1]
+        'weight': ii[0][2],
+        'subtotal': ii[0][3] * ii[1]
     }, cumulative_order_products.items()))
     return result
 
@@ -127,18 +129,18 @@ def create_invoice_excel(reference_invoice: Invoice):
     payee = reference_invoice.orders[0].get_payee()
     # Set invoice header
     ws.cell(7, 2, reference_invoice.id)
-    ws.cell(7, 5, reference_invoice.when_created)
+    ws.cell(7, 6, reference_invoice.when_created)
     ws.cell(13, 2, payee.contact_person if payee else None)
-    ws.cell(13, 4, reference_invoice.customer)
-    ws.cell(14, 5, reference_invoice.orders[0].params.get('shipping.passport_number'))
+    ws.cell(13, 5, reference_invoice.customer)
+    ws.cell(14, 6, reference_invoice.orders[0].params.get('shipping.passport_number'))
     ws.cell(15, 2, reference_invoice.payee)
     ws.cell(17, 2, payee.address.address_1_eng if payee else None)
-    ws.cell(17, 4, reference_invoice.orders[0].address)
+    ws.cell(17, 5, reference_invoice.orders[0].address)
     ws.cell(19, 2, payee.address.address_2_eng if payee else None)
     ws.cell(21, 2, payee.address.city_eng if payee else None)
-    ws.cell(23, 5, reference_invoice.orders[0].country.name)
+    ws.cell(23, 6, reference_invoice.orders[0].country.name)
     ws.cell(25, 2, payee.phone if payee else None)
-    ws.cell(25, 4, reference_invoice.orders[0].phone)
+    ws.cell(25, 5, reference_invoice.orders[0].phone)
 
     # Set packing list header
     pl.cell(7, 2, reference_invoice.id)
@@ -158,9 +160,9 @@ def create_invoice_excel(reference_invoice: Invoice):
     # Set invoice footer
     suffix = "ES" if len(reference_invoice.orders) > 1 else ""
     boxes = f"{len(reference_invoice.orders)} BOX{suffix}"
-    ws.cell(305, 5, total)
+    ws.cell(305, 6, total)
     ws.cell(309, 2, boxes)
-    ws.cell(311, 4, f"{round(total, 2)} USD")
+    ws.cell(311, 5, f"{round(total, 2)} USD")
     ws.cell(312, 2, f"{invoice_dict['weight']}g")
 
     # Set packing list footer
@@ -177,8 +179,9 @@ def create_invoice_excel(reference_invoice: Invoice):
         ws.cell(row, 1, op['id'])
         ws.cell(row, 2, op['name'])
         ws.cell(row, 3, op['quantity'])
-        ws.cell(row, 4, op['price'])
-        ws.cell(row, 5, op['subtotal'])
+        ws.cell(row, 4, op['weight'] * op['quantity'] / 1000)
+        ws.cell(row, 5, op['price'])
+        ws.cell(row, 6, op['subtotal'])
 
         # Set packing list product item
         pl.cell(row, 1, op['id'])
