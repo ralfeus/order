@@ -9,246 +9,334 @@ from app.users.models.role import Role
 from app.users.models.user import User
 from tests import BaseTestCase, db
 
+
 class TestInvoiceClient(BaseTestCase):
     def setUp(self):
         super().setUp()
         db.create_all()
-        
-        admin_role = Role(id=10, name='admin')
-        self.try_add_entities([
-            User(username='root_test_invoice_api', email='root_test_invoice_api@name.com',
-                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
-                enabled=True, roles=[admin_role]),
-            User(id=10, username='user1_test_invoice_api', email='user_test_invoice_api@name.com',
-                password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576', 
-                enabled=True),
-            admin_role,
-            Country(id='c1', name='country1'),
-            Currency(code='USD', rate=0.5),
-            Product(id='SHIPPING', name='Shipping', weight=0, available=False,
-                synchronize=False, separate_shipping=False, purchase=False)
-        ])
+
+        admin_role = Role(id=10, name="admin")
+        self.admin = User(
+            username="root_test_invoice_api",
+            email="root_test_invoice_api@name.com",
+            password_hash="pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576",
+            enabled=True,
+            roles=[admin_role],
+        )
+        self.user = User(
+            id=10,
+            username="user1_test_invoice_api",
+            email="user_test_invoice_api@name.com",
+            password_hash="pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576",
+            enabled=True,
+        )
+        self.try_add_entities(
+            [
+                self.admin,
+                self.user,
+                admin_role,
+                Country(id="c1", name="country1"),
+                Currency(code="USD", rate=0.5),
+                Product(
+                    id="SHIPPING",
+                    name="Shipping",
+                    weight=0,
+                    available=False,
+                    synchronize=False,
+                    separate_shipping=False,
+                    purchase=False,
+                ),
+            ]
+        )
 
     def try_admin_operation(self, operation):
-        '''
+        """
         Superseeds base method to add class-specific user and admin credentials
-        '''
+        """
         return super().try_admin_operation(
-            operation,
-            'user1_test_invoice_api', '1', 'root_test_invoice_api', '1')
-    
+            operation, "user1_test_invoice_api", "1", "root_test_invoice_api", "1"
+        )
+
     def test_create_invoice(self):
-        '''Test creation of invoice'''
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        id_prefix = datetime.now().strftime('INV-%Y-%m-')
-        self.try_add_entities([
-            Product(id=gen_id, name='Product 1', price=1)
-        ])
+        """Test creation of invoice"""
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        id_prefix = datetime.now().strftime("INV-%Y-%m-")
+        self.try_add_entities([Product(id=gen_id, name="Product 1", price=1)])
         order = Order(id=gen_id)
         suborder = Suborder(order=order)
-        self.try_add_entities([
-            order, suborder,
-            OrderProduct(suborder=suborder, product_id=gen_id, quantity=1, price=1)
-        ])
-        res = self.try_admin_operation(
-            lambda: self.client.post('/api/v1/admin/invoice/new/0.5',
-            json={
-                'order_ids': [gen_id]
-            })
+        self.try_add_entities(
+            [
+                order,
+                suborder,
+                OrderProduct(suborder=suborder, product_id=gen_id, quantity=1, price=1),
+            ]
         )
-        self.assertEqual(res.json['invoice_id'], f'{id_prefix}0001')
-        invoice = Invoice.query.get(res.json['invoice_id'])
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                "/api/v1/admin/invoice/new/0.5", json={"order_ids": [gen_id]}
+            )
+        )
+        self.assertEqual(res.json["invoice_id"], f"{id_prefix}0001")
+        invoice = Invoice.query.get(res.json["invoice_id"])
         self.assertEqual(len(invoice.orders), 1)
         self.assertEqual(invoice.invoice_items_count, 2)
 
     def test_save_invoice(self):
-        '''Tests update of invoice'''
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        self.try_add_entities([
-            Invoice(id=gen_id, customer='Customer 1')
-        ])
+        """Tests update of invoice"""
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities([Invoice(id=gen_id, customer="Customer 1")])
         res = self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/invoice/{gen_id}', json={
-                'customer': 'Customer 2'
-        }))
+            lambda: self.client.post(
+                f"/api/v1/admin/invoice/{gen_id}", json={"customer": "Customer 2"}
+            )
+        )
         self.assertEqual(res.status_code, 200)
         invoice = Invoice.query.get(gen_id)
-        self.assertEqual(invoice.customer, 'Customer 2')
+        self.assertEqual(invoice.customer, "Customer 2")
 
     def test_get_invoices(self):
-        '''Test getting invoices'''
-        self.try_add_entities([
-            Product(id='0001', name='Product 1', name_english='P1', weight=10),
-            Invoice(id='INV-2020-00-00',
-                    country_id='c1',
-                    customer='Customer 1',
+        """Test getting invoices"""
+        self.try_add_entities(
+            [
+                Product(id="0001", name="Product 1", name_english="P1", weight=10),
+                Invoice(
+                    id="INV-2020-00-00",
+                    country_id="c1",
+                    customer="Customer 1",
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
-                    when_changed=datetime(2020, 1, 1, 1, 0, 0)),
-            InvoiceItem(invoice_id='INV-2020-00-00', product_id='0001', price=10, quantity=1),
-            Order(id=__name__ + '-1', invoice_id='INV-2020-00-00', country_id='c1',
-                  customer_name='Customer 1')
-        ])
-        self.try_admin_operation(
-            lambda: self.client.get('/api/v1/admin/invoice'))
-        res = self.client.get('/api/v1/admin/invoice/INV-2020-00-00')
+                    when_changed=datetime(2020, 1, 1, 1, 0, 0),
+                ),
+                InvoiceItem(
+                    invoice_id="INV-2020-00-00", product_id="0001", price=10, quantity=1
+                ),
+                Order(
+                    id=__name__ + "-1",
+                    invoice_id="INV-2020-00-00",
+                    country_id="c1",
+                    customer_name="Customer 1",
+                ),
+            ]
+        )
+        self.try_admin_operation(lambda: self.client.get("/api/v1/admin/invoice"))
+        res = self.client.get("/api/v1/admin/invoice/INV-2020-00-00")
         self.assertEqual(len(res.json), 1)  # type: ignore
-        self.assertEqual(res.json[0], { # type: ignore
-            'address': None,
-            'country': 'country1',
-            'customer': 'Customer 1',
-            'payee': None,
-            'id': 'INV-2020-00-00',
-            'export_id': None,
-            'invoice_items': [{
-                'id': 1,
-                'invoice_id': 'INV-2020-00-00',
-                'product_id': '0001',
-                'product': 'P1',
-                'price': 10.0,
-                'weight': 10,
-                'quantity': 1,
-                'subtotal': 10.0,
-                'when_created': None,
-                'when_changed': None
-            }],
-            'orders': [__name__ + '-1'],
-            'shippings': [],
-            'phone': None,
-            'total': 10.0,
-            'weight': 10,
-            'when_changed': '2020-01-01 01:00:00',
-            'when_created': '2020-01-01 01:00:00'
-        })
+        self.assertEqual(
+            res.json[0],
+            {  # type: ignore
+                "address": None,
+                "country": "country1",
+                "customer": "Customer 1",
+                "payee": None,
+                "id": "INV-2020-00-00",
+                "export_id": None,
+                "invoice_items": [
+                    {
+                        "id": 1,
+                        "invoice_id": "INV-2020-00-00",
+                        "product_id": "0001",
+                        "product": "P1",
+                        "price": 10.0,
+                        "weight": 10,
+                        "quantity": 1,
+                        "subtotal": 10.0,
+                        "when_created": None,
+                        "when_changed": None,
+                    }
+                ],
+                "orders": [__name__ + "-1"],
+                "shippings": [],
+                "phone": None,
+                "total": 10.0,
+                "weight": 10,
+                "when_changed": "2020-01-01 01:00:00",
+                "when_created": "2020-01-01 01:00:00",
+            },
+        )
 
     def test_get_old_invoice(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        self.try_add_entities([
-            Product(id=gen_id, name='Product 1', weight=10),
-            Invoice(id=gen_id,
-                    country_id='c1',
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities(
+            [
+                Product(id=gen_id, name="Product 1", weight=10),
+                Invoice(
+                    id=gen_id,
+                    country_id="c1",
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
-                    when_changed=datetime(2020, 1, 1, 1, 0, 0)),
-            Order(id=gen_id, invoice_id=gen_id, country_id='c1')
-        ])
+                    when_changed=datetime(2020, 1, 1, 1, 0, 0),
+                ),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+            ]
+        )
         suborder = Suborder(order_id=gen_id)
-        self.try_add_entities([
-            suborder,
-            OrderProduct(suborder=suborder, product_id=gen_id, price=10, quantity=1)
-        ])
+        self.try_add_entities(
+            [
+                suborder,
+                OrderProduct(
+                    suborder=suborder, product_id=gen_id, price=10, quantity=1
+                ),
+            ]
+        )
         res = self.try_admin_operation(
-            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}'))
+            lambda: self.client.get(f"/api/v1/admin/invoice/{gen_id}")
+        )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.json), 1)
-        self.assertEqual(res.json[0], {
-            'address': None,
-            'country': 'country1',
-            'customer': None,
-            'payee': None,
-            'id': gen_id,
-            'export_id': None,
-            'invoice_items': [{
-                'id': 1,
-                'invoice_id': gen_id,
-                'product_id': gen_id,
-                'product': 'Product 1',
-                'price': 5.0,
-                'weight': 10,
-                'quantity': 1,
-                'subtotal': 5.0,
-                'when_created': None,
-                'when_changed': None
-            }],
-            'orders': [gen_id],
-            'shippings': [],
-            'phone': None,
-            'total': 5.0,
-            'weight': 10,
-            'when_changed': '2020-01-01 01:00:00',
-            'when_created': '2020-01-01 01:00:00'
-        })
-
+        self.assertEqual(
+            res.json[0],
+            {
+                "address": None,
+                "country": "country1",
+                "customer": None,
+                "payee": None,
+                "id": gen_id,
+                "export_id": None,
+                "invoice_items": [
+                    {
+                        "id": 1,
+                        "invoice_id": gen_id,
+                        "product_id": gen_id,
+                        "product": "Product 1",
+                        "price": 5.0,
+                        "weight": 10,
+                        "quantity": 1,
+                        "subtotal": 5.0,
+                        "when_created": None,
+                        "when_changed": None,
+                    }
+                ],
+                "orders": [gen_id],
+                "shippings": [],
+                "phone": None,
+                "total": 5.0,
+                "weight": 10,
+                "when_changed": "2020-01-01 01:00:00",
+                "when_created": "2020-01-01 01:00:00",
+            },
+        )
 
     def test_get_invoice_excel(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        self.try_add_entities([
-            Product(id=gen_id, weight=1),
-            Invoice(id=gen_id, country_id='c1'),
-            Order(id=gen_id, invoice_id=gen_id, country_id='c1'),
-            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
-        ])
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities(
+            [
+                Product(id=gen_id, weight=1),
+                Invoice(id=gen_id, country_id="c1"),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+                InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
+            ]
+        )
         self.try_admin_operation(
-            lambda: self.client.get(f'/api/v1/admin/invoice/{gen_id}/excel'))
+            lambda: self.client.get(f"/api/v1/admin/invoice/{gen_id}/excel")
+        )
+        self.client.get(
+            f"/api/v1/admin/invoice/{gen_id}/excel?template=[local]/tenant_specific.xlsx"
+        )
+        self.assertRaises(
+            FileNotFoundError,
+            lambda: self.client.get(
+                f"/api/v1/admin/invoice/{gen_id}/excel?template=[local]/tenant_specific1.xlsx"
+            ),
+        )
 
     def test_get_invoice_cumulative_excel(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        self.try_add_entities([
-            Product(id=gen_id, weight=1),
-            Invoice(id=gen_id, country_id='c1'),
-            Order(id=gen_id, invoice_id=gen_id, country_id='c1'),
-            InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1)
-        ])
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities(
+            [
+                Product(id=gen_id, weight=1),
+                Invoice(id=gen_id, country_id="c1"),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+                InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
+            ]
+        )
         res = self.try_admin_operation(
-            lambda: self.client.get(f'/api/v1/admin/invoice/excel?invoices={gen_id}&invoices={gen_id}'))
+            lambda: self.client.get(
+                f"/api/v1/admin/invoice/excel?invoices={gen_id}&invoices={gen_id}"
+            )
+        )
         self.assertTrue(res.status_code, 200)
 
     def test_create_invoice_item(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         order = Order(id=gen_id)
-        self.try_add_entities([
-            Product(id=gen_id, name='Product 1')
-        ])
-        self.try_add_entities([
-            order,
-            Suborder(id=gen_id, order=order),
-            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Invoice(id=gen_id, order_id=gen_id)
-        ])
-        self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/new')
+        self.try_add_entities([Product(id=gen_id, name="Product 1")])
+        self.try_add_entities(
+            [
+                order,
+                Suborder(id=gen_id, order=order),
+                OrderProduct(
+                    suborder_id=gen_id, product_id=gen_id, price=10, quantity=10
+                ),
+                Invoice(id=gen_id, order_id=gen_id),
+            ]
         )
-        res = self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/new',
-            json={'invoice_id': gen_id, 'product_id': gen_id, 'price': 10, 'quantity': 10})
+        self.try_admin_operation(
+            lambda: self.client.post(f"/api/v1/admin/invoice/{gen_id}/item/new")
+        )
+        res = self.client.post(
+            f"/api/v1/admin/invoice/{gen_id}/item/new",
+            json={
+                "invoice_id": gen_id,
+                "product_id": gen_id,
+                "price": 10,
+                "quantity": 10,
+            },
+        )
         self.assertTrue(res.status_code, 200)
-    
+
     def test_save_invoice_item(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         order = Order(id=gen_id)
-        self.try_add_entities([
-            Product(id=gen_id, name='Product 1')
-        ])
-        self.try_add_entities([
-            order,
-            Suborder(id=gen_id, order=order),
-            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Invoice(id=gen_id, order_id=gen_id),
-            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10)
-        ])
-        self.try_admin_operation(
-            lambda: self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/10')
+        self.try_add_entities([Product(id=gen_id, name="Product 1")])
+        self.try_add_entities(
+            [
+                order,
+                Suborder(id=gen_id, order=order),
+                OrderProduct(
+                    suborder_id=gen_id, product_id=gen_id, price=10, quantity=10
+                ),
+                Invoice(id=gen_id, order_id=gen_id),
+                InvoiceItem(
+                    id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10
+                ),
+            ]
         )
-        res = self.client.post(f'/api/v1/admin/invoice/{gen_id}/item/10', 
-            json={'price': 20})
+        self.try_admin_operation(
+            lambda: self.client.post(f"/api/v1/admin/invoice/{gen_id}/item/10")
+        )
+        res = self.client.post(
+            f"/api/v1/admin/invoice/{gen_id}/item/10", json={"price": 20}
+        )
         self.assertEqual(res.status_code, 200)
         invoice_item = InvoiceItem.query.get(10)
         self.assertEqual(invoice_item.price, 20)
-    
+
     def test_delete_invoice_item(self):
-        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         order = Order(id=gen_id)
-        self.try_add_entities([
-            Product(id=gen_id, name='Product 1')
-        ])
-        self.try_add_entities([
-            order,
-            Suborder(id=gen_id, order=order),
-            OrderProduct(suborder_id=gen_id, product_id=gen_id, price=10, quantity=10),
-            Invoice(id=gen_id, order_id=gen_id),
-            InvoiceItem(id=10, invoice_id=gen_id, product_id=gen_id, price=10, 
-                quantity=10)
-        ])
+        self.try_add_entities([Product(id=gen_id, name="Product 1")])
+        self.try_add_entities(
+            [
+                order,
+                Suborder(id=gen_id, order=order),
+                OrderProduct(
+                    suborder_id=gen_id, product_id=gen_id, price=10, quantity=10
+                ),
+                Invoice(id=gen_id, order_id=gen_id),
+                InvoiceItem(
+                    id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10
+                ),
+            ]
+        )
         res = self.try_admin_operation(
-            lambda: self.client.delete(f'/api/v1/admin/invoice/{gen_id}/item/10')
+            lambda: self.client.delete(f"/api/v1/admin/invoice/{gen_id}/item/10")
         )
         self.assertEqual(res.status_code, 200)
         invoice_item = InvoiceItem.query.get(10)
         self.assertEqual(invoice_item, None)
+
+    def test_get_invoice_templates(self):
+        res = self.try_admin_operation(
+            lambda: self.client.get("/api/v1/admin/invoice/template")
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.json), 2)
+        self.assertEqual(res.json[1], "[local]/tenant_specific.xlsx")

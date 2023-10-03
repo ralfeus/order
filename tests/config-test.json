@@ -12,6 +12,7 @@
     "EXPLAIN_TEMPLATE_LOADING": false,
 
     "UPLOAD_PATH": "upload",
+    "INVOICE_TEMPLATES_PATH": "tests/invoices/tenant_templates",
     "PRODUCT_IMPORT_PERIOD": 300,
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 30000,
     "LOCAL_SHIPPING_COST": 2500,
@@ -20,8 +21,6 @@
 
     "CELERY_TASK_DEFAULT_QUEUE": "order",
 
-    "SELENIUM_DRIVER": "/usr/local/bin/chromedriver",
-    "SELENIUM_LOG_PATH": "chromedriver.test.log",
     "NETWORK_MANAGER_URL": "http://localhost:5001",
     "MODULES": {
         "warehouse": {
