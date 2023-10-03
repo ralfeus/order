@@ -1,21 +1,25 @@
 var g_invoice_table;
-$.fn.dataTable.ext.buttons.xls = {
-    extend: 'selected',
-    action: function(e, dt, node, config) {
-        get_excel(dt.rows({selected: true}));
-    }
-};
+var g_invoice_templates;
 
-$(document).ready( function () {
+async function get_dictionaries() {
+    g_invoice_templates = await get_list('/api/v1/admin/invoice/template');
+}
+
+$(document).ready(function () {
+    get_dictionaries()
+        .then(init_invoices_table);
+});
+
+function init_invoices_table() {
     var editor = new $.fn.dataTable.Editor({
         table: '#invoices',
         idSrc: 'id',
         fields: [
-            {label: "Customer name", name: 'customer'},
-	    {label: "Export ID", name: "export_id"}
+            { label: "Customer name", name: 'customer' },
+            { label: "Export ID", name: "export_id" }
         ],
         ajax: {
-	    edit: {
+            edit: {
                 url: '/api/v1/admin/invoice/_id_',
                 method: 'post',
                 dataType: 'json',
@@ -24,58 +28,79 @@ $(document).ready( function () {
             }
         }
     });
-	//    Disable inline editing as more fields to edit emerge
-//    $('#invoices').on( 'click', 'td.editable', function (e) {
-//        editor.inline(this);
-//    });  
+
     g_invoice_table = $('#invoices').DataTable({
         dom: 'lrBtip',
         ajax: {
             url: '/api/v1/admin/invoice'
         },
         buttons: [
-            { extend: 'xls', text: 'Download' },
-	    { extend: 'edit', text: 'Edit', editor: editor }
+            {
+                extend: 'selected',
+                text: "Download",
+                action: function (e, dt, _node, _config) {
+                    get_excel(dt.rows({ selected: true }));
+                }
+            },
+            { extend: 'edit', text: 'Edit', editor: editor }
         ],
         columns: [
             {
-                "className":      'invoice-actions',
-                "orderable":      false,
-                "data":           null,
+                "className": 'invoice-actions',
+                "orderable": false,
+                "data": null,
                 // "defaultContent": ''
                 "defaultContent": ' \
                     <button \
                         class="btn btn-sm btn-secondary btn-open" \
                         onclick="open_invoice(this);">Open</button>'
             },
-            {data: 'id'},
-            {data: 'customer', className: 'editable'},
-            {name: 'orders', data: row => row.orders.join()},
-            {name: 'shippings', data: row => row.shippings.join()},
-            {data: 'total'},
-            {data: 'when_created'},
-            {data: 'when_changed'}
+            { data: 'id' },
+            { data: 'customer', className: 'editable' },
+            { name: 'orders', data: row => row.orders.join() },
+            { name: 'shippings', data: row => row.shippings.join() },
+            { data: 'total' },
+            { data: 'when_created' },
+            { data: 'when_changed' }
         ],
         order: [[6, 'desc']],
         select: true,
         serverSide: true,
         processing: true,
-        initComplete: function() { init_search(this); }
+        initComplete: function () { init_search(this); }
     });
-});
+}
 
 function get_excel(rows) {
-    $('.wait').show();
-    if (rows.count() == 1) {
-        window.open('/api/v1/admin/invoice/' + rows.data()[0].id + '/excel');
-    } else {
-        var invoices = '';
-        for (var i = 0; i < rows.count(); i++) {
-            invoices += 'invoices=' + rows.data()[i].id + '&';
-        }
-        window.open('/api/v1/admin/invoice/excel?' + invoices);
+    if (g_invoice_templates.length == 0) {
+        modal("Can't download invoice", "There is no available invoice template");
+        return false;
     }
-    $('.wait').hide();
+    var options = g_invoice_templates.reduce((html, template) => 
+        `${html}<option value="${template}">${template}</option>`, '');
+    modal("Choose the invoice template", `
+        <div class="form-group">
+            <select class="form-control" name="template" value="${g_invoice_templates[0]}">
+                ${options}
+            </select>
+        </div>`,
+        'form')
+        .then(form => {
+            if (!form || !form.template) {
+                return false;
+            }
+            $('.wait').show();
+            if (rows.count() == 1) {
+                window.open(`/api/v1/admin/invoice/${rows.data()[0].id}/excel?template=${form.template}`);
+            } else {
+                var invoices = '';
+                for (var i = 0; i < rows.count(); i++) {
+                    invoices += `invoices=${rows.data()[i].id}&`;
+                }
+                window.open(`/api/v1/admin/invoice/excel?${invoices}&template=${form.template}`);
+            }
+            $('.wait').hide();
+        });
 }
 
 function open_invoice(target) {
