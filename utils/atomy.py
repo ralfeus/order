@@ -168,6 +168,7 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         '/usr/bin/curl',
         url,
         '-X', method,
+        '--socks5', 'localhost:9050',
         '-v'
         ] + headers_list + raw_data_param
     try:
