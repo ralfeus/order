@@ -82,8 +82,7 @@ def _atomy_login_curl(username, password):
         '/usr/bin/curl',
         'https://www.atomy.kr/v2/Home/Account/Login',
         # '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
-        '-H',
-        'User-Agent: OM',
+        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         '--data-raw',
         urlencode({
             'userId': username,
@@ -169,7 +168,8 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         url,
         '-X', method,
         '--socks5', 'localhost:9050',
-        '-v'
+        '-v',
+        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         ] + headers_list + raw_data_param
     try:
         output = subprocess.run(run_params,
@@ -209,7 +209,7 @@ def atomy_login2(username, password):
     jwt = __get_token()
     stdout, stderr = invoke_curl(
         url=f'{URL_BASE}/signIn?_siteId=kr',
-        headers=[{'Cookie': jwt}, {'User-Agent': 'OM'}],
+        headers=[{'Cookie': jwt}],
         raw_data=urlencode({
             'id': username, 
             'password': password
@@ -225,7 +225,6 @@ def atomy_login2(username, password):
 
 def __get_token():
     _, stderr = invoke_curl(
-        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr',
-        headers=[{'User-Agent': 'OM'}]
+        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
     )
     return re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)

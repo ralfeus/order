@@ -103,14 +103,14 @@ def get_atomy_products():
 def _get_products_list(jwt):
     url_template = "{}/product/list?pageSize={}&{}"
     products_pre_get = get_json(
-        url_template.format(URL_BASE, 1, URL_SUFFIX), headers=[{"Cookie": jwt, "User-Agent": "OM"}]
+        url_template.format(URL_BASE, 1, URL_SUFFIX), headers=[{"Cookie": jwt}]
     )
     if products_pre_get["result"] != "200":
         raise products_pre_get["resultMessage"]
     products_count = products_pre_get["totalCount"]
     products = get_json(
         url_template.format(URL_BASE, products_count, URL_SUFFIX),
-        headers=[{"Cookie": jwt, "User-Agent": "OM"}],
+        headers=[{"Cookie": jwt}],
     )
     if products["result"] != "200":
         raise products["resultMessage"]
@@ -120,7 +120,7 @@ def _get_products_list(jwt):
 def _get_product_options(product, jwt):
     options = get_json(
         f"{URL_BASE}/product/optionsOnly?productId={product['id']}&{URL_SUFFIX}",
-        headers=[{"Cookie": jwt, "User-Agent": "OM"}]
+        headers=[{"Cookie": jwt}]
     )
     if options['result'] != '200':
         raise options['resultMessage']

@@ -189,6 +189,7 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         '-X', method,
         '--socks5', 'localhost:9050',
         '-v'
+        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         ] + headers_list + raw_data_param
     try:
         output = subprocess.run(run_params,

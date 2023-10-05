@@ -42,7 +42,7 @@ class SessionManager:
         while attempts_left:
             try:
                 return get_document_from_url(url,
-                    headers=[{'Cookie': c} for c in self.__session] + [{'User-Agent': 'OM'}],
+                    headers=[{'Cookie': c} for c in self.__session], 
                     raw_data=raw_data)
             except AtomyLoginError:
                 logger = logging.getLogger('SessionManager.get_document()')
