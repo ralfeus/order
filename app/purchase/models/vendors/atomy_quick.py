@@ -213,7 +213,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if token_match is not None:
             return token_match.group(1)
         else:
-            raise "Could not get token. The problem is at Atomy side"
+            raise Exception("Could not get token. The problem is at Atomy side")
 
     def __init_quick_order(self):
         result = get_json(
