@@ -209,7 +209,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         _, stderr = invoke_curl(
             url="https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr"
         )
-        return re.search("set-cookie: (atomySvcJWT=.*?);", stderr).group(1)
+        token_match = re.search("set-cookie: (atomySvcJWT=.*?);", stderr)
+        if token_match is not None:
+            return token_match.group(1)
+        else:
+            raise "Could not get token. The problem is at Atomy side"
 
     def __init_quick_order(self):
         result = get_json(
