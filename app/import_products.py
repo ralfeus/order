@@ -101,20 +101,23 @@ def get_atomy_products():
 
 
 def _get_products_list(jwt):
-    url_template = "{}/product/list?pageSize={}&{}"
+    url_template = "{}/product/list?page={}&{}"
+    products = []
     products_pre_get = get_json(
         url_template.format(URL_BASE, 1, URL_SUFFIX), headers=[{"Cookie": jwt}]
     )
     if products_pre_get["result"] != "200":
         raise products_pre_get["resultMessage"]
-    products_count = products_pre_get["totalCount"]
-    products = get_json(
-        url_template.format(URL_BASE, products_count, URL_SUFFIX),
-        headers=[{"Cookie": jwt}],
-    )
-    if products["result"] != "200":
-        raise products["resultMessage"]
-    return products["items"]
+    pages = products_pre_get["pageCount"]
+    for page in tqdm(range (1, pages + 1)):
+        products_page = get_json(
+            url_template.format(URL_BASE, page, URL_SUFFIX),
+            headers=[{"Cookie": jwt}],
+        )
+        if products_page["result"] != "200":
+            raise products_page["resultMessage"]
+        products += products_page['items']
+    return products
 
 
 def _get_product_options(product, jwt):

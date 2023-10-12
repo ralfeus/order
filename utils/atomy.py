@@ -10,11 +10,8 @@ from urllib.parse import urlencode
 import lxml.html
 from flask import current_app
 
-# from selenium.common.exceptions import NoAlertPresentException, \
-#     NoSuchElementException, UnexpectedAlertPresentException
-
+from app.tools import invoke_curl
 from exceptions import AtomyLoginError, HTTPError
-# from app.utils.browser import Browser
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -153,35 +150,35 @@ def get_document_from_url(url, headers=None, raw_data=None):
     except TypeError:
         _logger.exception(run_params)
 
-def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
-                method='GET') -> tuple[str, str]:
-    '''Calls curl and returns its stdout and stderr'''
-    _logger = logging.root.getChild('invoke_curl')
-    headers_list = list(itertools.chain.from_iterable([
-        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
-    ]))
-    raw_data_param = ['--data-raw', raw_data] if raw_data else []
-    if raw_data:
-        method = 'POST'
-    run_params = [ #type: ignore
-        '/usr/bin/curl',
-        url,
-        '-X', method,
-        '--socks5', 'localhost:9050',
-        '-v',
-        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-        ] + headers_list + raw_data_param
-    try:
-        output = subprocess.run(run_params,
-            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
-            _logger.warning("Server side error occurred. Will try in 30 seconds", url)
-            sleep(30)
-            return invoke_curl(url, raw_data, headers, method)
-        return output.stdout, output.stderr
-    except TypeError:
-        _logger.exception(run_params)
-        return '', ''
+# def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
+#                 method='GET') -> tuple[str, str]:
+#     '''Calls curl and returns its stdout and stderr'''
+#     _logger = logging.root.getChild('invoke_curl')
+#     headers_list = list(itertools.chain.from_iterable([
+#         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
+#     ]))
+#     raw_data_param = ['--data-raw', raw_data] if raw_data else []
+#     if raw_data:
+#         method = 'POST'
+#     run_params = [ #type: ignore
+#         '/usr/bin/curl',
+#         url,
+#         '-X', method,
+#         '--socks5', 'localhost:9050',
+#         '-v',
+#         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+#         ] + headers_list + raw_data_param
+#     try:
+#         output = subprocess.run(run_params,
+#             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+#         if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
+#             _logger.warning("Server side error occurred. Will try in 30 seconds", url)
+#             sleep(30)
+#             return invoke_curl(url, raw_data, headers, method)
+#         return output.stdout, output.stderr
+#     except TypeError:
+#         _logger.exception(run_params)
+#         return '', ''
 
 def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
     last_exception = None
@@ -227,4 +224,8 @@ def __get_token():
     _, stderr = invoke_curl(
         url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
     )
-    return re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
+    token_match = re.search("set-cookie: (atomySvcJWT=.*?);", stderr)
+    if token_match is not None:
+        return token_match.group(1)
+    else:
+        raise Exception("Could not get token. The problem is at Atomy side")

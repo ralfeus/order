@@ -15,6 +15,8 @@ import lxml
 from time import sleep
 from werkzeug.datastructures import MultiDict
 
+from flask import current_app
+
 from exceptions import FilterError, HTTPError
 
 
@@ -187,10 +189,12 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         '/usr/bin/curl',
         url,
         '-X', method,
-        '--socks5', 'localhost:9050',
+        # '--socks5', 'localhost:9050',
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-        ] + headers_list + raw_data_param
+        ] + headers_list + raw_data_param + \
+        (['--socks5', current_app.config.get('SOCKS5_PROXY')] 
+            if current_app.config.get('SOCKS5_PROXY') is not None else [])
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
