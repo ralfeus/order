@@ -18,7 +18,7 @@ from app import celery, db
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
-    sender.add_periodic_task(28800, import_ems_rates,
+    sender.add_periodic_task(86400, import_ems_rates,
         name="Import EMS rates every day")
 
 @celery.task
