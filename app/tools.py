@@ -176,7 +176,7 @@ def stream_and_close(file_handle):
 
 
 def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
-                method='GET') -> tuple[str, str]:
+                method='GET', retry=True) -> tuple[str, str]:
     '''Calls curl and returns its stdout and stderr'''
     _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
@@ -198,7 +198,8 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        if 'Could not resolve host' in output.stderr or re.search(r'HTTP.*? 50\d', output.stderr):
+        if ('Could not resolve host' in output.stderr 
+            or re.search(r'HTTP.*? 50\d', output.stderr)) and retry:
             _logger.warning("Server side error occurred. Will try in 30 seconds", url)
             sleep(30)
             return invoke_curl(url, raw_data, headers, method)
@@ -227,9 +228,10 @@ def get_document_from_url(url: str, headers: dict[str, str]=None, raw_data: str=
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
-def get_json(url, raw_data=None, headers=[], method='GET') -> dict[str, Any]:
+def get_json(url, raw_data=None, headers=[], method='GET', retry=True) -> dict[str, Any]:
     content, _ = invoke_curl(url, method=method, raw_data=raw_data,
-        headers=headers)
+        headers=headers, retry=retry)
+        
     return json.loads(content)
 
 def try_perform(action, attempts=3, logger=logging.root):

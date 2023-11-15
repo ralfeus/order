@@ -71,3 +71,4 @@ profile-*
 include/*
 tags
 .DS_Store
+stubs

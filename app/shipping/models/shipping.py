@@ -5,9 +5,9 @@ from functools import reduce
 import logging
 from tempfile import _TemporaryFileWrapper
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, or_
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql.schema import ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
+from sqlalchemy.orm import relationship #type: ignore
+from sqlalchemy.sql.schema import ForeignKey #type: ignore
 
 from app import db
 from exceptions import NoShippingRateError
@@ -78,16 +78,16 @@ class Shipping(db.Model, BaseModel): #type: ignore
     def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
         return None, None #type: ignore
 
-    def get_shipping_cost(self, destination, weight):
+    def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''
-        Returns shipping cost to provided destination for provided weight
+        Returns shipping cost in KRW to provided destination for provided weight
 
         :param destination: destination (mostly country)
         :param weight: shipment weight in grams
         '''
         weight = int(weight) if weight is not None else 0
         if isinstance(destination, Country):
-            destination = destination.id
+            destination = destination.id #type: ignore
         rate = self.rates \
             .filter_by(destination=destination) \
             .filter(ShippingRate.weight >= weight) \
@@ -117,7 +117,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
         else 0
 
 class NoShipping(Shipping):
-    __mapper_args__ = {'polymorphic_identity': 'noshipping'}
+    __mapper_args__ = {'polymorphic_identity': 'noshipping'} #type: ignore
     @property
     def name(self):
         return 'No shipping'
@@ -131,7 +131,7 @@ class NoShipping(Shipping):
         return 0
 
 class PostponeShipping(NoShipping):
-    __mapper_args__ = {'polymorphic_identity': 'postpone'}
+    __mapper_args__ = {'polymorphic_identity': 'postpone'} #type: ignore
 
     @property
     def name(self):

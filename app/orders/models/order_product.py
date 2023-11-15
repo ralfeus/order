@@ -29,7 +29,7 @@ class OrderProductStatus(enum.Enum):
 
 class OrderProductStatusEntry(db.Model): # type: ignore
     __tablename__ = 'order_product_status_history'
-    # __table_args__ = { 'extend_existing': True }
+    __table_args__ = { 'extend_existing': True }
 
     order_product_id = Column('order_product_id', Integer,
         ForeignKey('order_products.id'), primary_key=True)

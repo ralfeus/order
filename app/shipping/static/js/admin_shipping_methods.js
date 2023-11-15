@@ -33,7 +33,10 @@ $(document).ready(() => {
                 label: 'Type',
                 name: 'type',
                 type: 'select2',
-                options: [{value: 'weight_based', label: 'Weight based'}]
+                options: [
+                    {value: 'ems', label: 'EMS'},
+                    {value: 'weight_based', label: 'Weight based'}
+                ]
             },
             {
                 label: 'Enabled', 

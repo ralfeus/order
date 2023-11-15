@@ -17,9 +17,9 @@ from .dhl_zone import DHLZone
 
 class DHL(Shipping):
     '''DHL shipping'''
-    __mapper_args__ = {'polymorphic_identity': 'dhl'}
+    __mapper_args__ = {'polymorphic_identity': 'dhl'} #type: ignore
 
-    name = 'DHL'
+    name = 'DHL' #type: ignore
     type = 'DHL'
 
     def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
@@ -43,7 +43,7 @@ class DHL(Shipping):
         from .. import bp_client_admin
         return f"{bp_client_admin.url_prefix}/"
 
-    def get_shipping_cost(self, destination, weight):
+    def get_shipping_cost(self, destination: str, weight):
         logger = logging.getLogger("DHL::get_shipping_cost()")
         weight = int(weight) / 1000
         country = DHLCountry.query.get(destination)

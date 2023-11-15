@@ -3,6 +3,7 @@ from celery.utils.log import get_task_logger
 import logging
 import requests
 from sqlalchemy.sql.elements import Null
+from tqdm import tqdm
 from app.models.file import File
 from app import celery, db
 
@@ -17,8 +18,8 @@ from app import celery, db
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
-    # sender.add_periodic_task(crontab(hour=16, minute=0), post_purchase_orders,
-    #     name="Run pending POs every day")
+    sender.add_periodic_task(28800, import_ems_rates,
+        name="Import EMS rates every day")
 
 @celery.task
 def import_products():
@@ -117,6 +118,17 @@ def import_products():
         "Product synchronization result: same: %d, new: %d, modified: %d, ignored: %d",
         same, new, modified, ignored)
     db.session.commit()
+
+@celery.task
+def import_ems_rates():
+    from app.shipping.methods.ems.jobs import get_all_rates
+    rates = get_all_rates()
+    with db.engine.connect() as conn:
+        conn.execute("DELETE FROM shipping_rates WHERE shipping_method_id = 1")
+        for rate in tqdm(rates):
+            conn.execute(f"""
+                INSERT INTO shipping_rates (destination, weight, rate, shipping_method_id)
+                VALUES ('{rate["country"]}', {rate["weight"]}, {rate["rate"]}, 1)""")
 
 @celery.task
 def add_together(a, b):

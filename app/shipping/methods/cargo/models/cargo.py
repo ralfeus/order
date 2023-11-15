@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from app.orders.models import Order
 
 class Cargo(Shipping):
-    __mapper_args__ = {'polymorphic_identity': 'cargo'}
+    __mapper_args__ = {'polymorphic_identity': 'cargo'} #type: ignore
 
     def get_customs_label(self, order: Order) -> tuple[_TemporaryFileWrapper, str]:
         '''Generates an invoice in excel format. Returns a temporary file object'''
