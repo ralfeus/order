@@ -18,8 +18,10 @@ from app import celery, db
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(28800, import_products,
         name="Import products from Atomy every 8 hours")
-    sender.add_periodic_task(86400, import_ems_rates,
-        name="Import EMS rates every day")
+    sender.add_periodic_task(43200, import_ems_rates,
+        name="Import EMS rates every 12 hours")
+    sender.add_periodic_task(43200, import_ems_premium_rates,
+        name="Import EMS premium rates every 12 hours")
 
 @celery.task
 def import_products():
@@ -130,6 +132,17 @@ def import_ems_rates():
                 INSERT INTO shipping_rates (destination, weight, rate, shipping_method_id)
                 VALUES ('{rate["country"]}', {rate["weight"]}, {rate["rate"]}, 1)""")
 
+
+@celery.task
+def import_ems_premium_rates():
+    from app.shipping.methods.ems.jobs import get_all_rates
+    rates = get_all_rates(premium=True)
+    with db.engine.connect() as conn:
+        conn.execute("DELETE FROM shipping_rates WHERE shipping_method_id = 14")
+        for rate in tqdm(rates):
+            conn.execute(f"""
+                INSERT INTO shipping_rates (destination, weight, rate, shipping_method_id)
+                VALUES ('{rate["country"]}', {rate["weight"]}, {rate["rate"]}, 14)""")
 @celery.task
 def add_together(a, b):
 #    for i in range(100):

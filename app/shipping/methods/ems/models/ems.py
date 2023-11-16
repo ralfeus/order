@@ -51,7 +51,7 @@ class EMS(Shipping):
                      weight, destination, rate)
         return rate
 
-def get_rates(country) -> list[dict]:
+def __get_rates(country, url: str) -> list[dict]:
     if isinstance(country, Country):
         country_code = country.id.upper()
     elif isinstance(country, str):
@@ -60,7 +60,7 @@ def get_rates(country) -> list[dict]:
         raise NoShippingRateError("Unknown country")
     try:
         result = get_json(
-            url=f'https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{country_code}', 
+            url=url.format(country_code), 
             retry=False)
         rates: list[dict] = result['charge_info']
         weight_limit = int(result['country_info']['weight_limit']) * 1000
@@ -70,3 +70,9 @@ def get_rates(country) -> list[dict]:
         ]
     except:
         raise NoShippingRateError
+    
+def get_rates(country):
+    return __get_rates(country, 'https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{}')
+
+def get_premium_rates(country):
+    return __get_rates(country, 'https://myems.co.kr/api/v1/common/emsChargeList/type/PREMIUM/country/{}')

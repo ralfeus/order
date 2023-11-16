@@ -33,3 +33,4 @@ with create_app().app_context():
     # copy_subtree(root_id='S9945812')
     # get_atomy_products()
     import_ems_rates()
+    import_ems_premium_rates()
