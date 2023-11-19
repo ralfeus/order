@@ -66,8 +66,11 @@ class EMS(Shipping):
             f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
             headers=self.session)
         logger.debug(stdout)
-        result = json.loads(stdout)
-        return int(result['post_price'])
+        try:
+            result = json.loads(stdout)
+            return int(result['post_price'])
+        except:
+            logger.exception(stderr)
 
     @cache.cached(timeout=120)
     def __login(self):
