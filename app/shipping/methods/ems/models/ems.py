@@ -47,6 +47,7 @@ class EMS(Shipping):
 
     session: list[dict[str, str]] = []
     def __get_rate(self, country: str, weight: int) -> int:
+        logger = logging.getLogger('EMS::__get_rate()')
         if not self.session:
             self.session = [self.__login()]
         result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
@@ -57,6 +58,7 @@ class EMS(Shipping):
                 headers=self.session)
         else:
             id = result[1][0]['ems_code']
+        logger.debug(result)
         result = get_json(
             f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
             headers=self.session)
