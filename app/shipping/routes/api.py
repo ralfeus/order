@@ -63,7 +63,7 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
         weight - package weight in grams
     Returns JSON
     '''
-    logger = logging.getLogger(get_shipping_rate())
+    logger = logging.getLogger('get_shipping_rate()')
     logger.info("Calculating shipping rates to %s of weight %s", country, weight)
     shipping_methods = Shipping.query
     if shipping_method_id:
