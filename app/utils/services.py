@@ -31,3 +31,4 @@ def init_celery(celery, flask_app):
     celery.conf.task_default_queue = flask_app.config['CELERY_TASK_DEFAULT_QUEUE']
     celery.Task = ContextTask
     return celery
+

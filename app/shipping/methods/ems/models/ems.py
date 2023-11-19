@@ -1,9 +1,10 @@
 import logging
 from operator import itemgetter
 
+from app import cache
 from app.models import Country
 from app.shipping.models import Shipping
-from app.tools import get_json
+from app.tools import get_json, invoke_curl
 from exceptions import NoShippingRateError
 
 class EMS(Shipping):
@@ -38,18 +39,35 @@ class EMS(Shipping):
 
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")
-        weight = int(weight)
-        rates = sorted(
-            [rate for rate in get_rates(destination) if rate['weight'] >= weight],
-            key=itemgetter('weight'), 
-        )
-        if len(rates) == 0:
-            raise NoShippingRateError()
-        rate = rates[0]['rate']
+        rate = self.__get_rate(destination.upper(), weight)
 
         logger.debug("Shipping rate for %skg parcel to %s is %s",
                      weight, destination, rate)
         return rate
+
+    session: list[dict[str, str]] = []
+    def __get_rate(self, country: str, weight: int) -> int:
+        if not self.session:
+            self.session = [self.__login()]
+        result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
+                          headers=self.session)
+        if result[0][0]['cnt'] == '0':
+            id, _ = invoke_curl(
+                'https://myems.co.kr/api/v1/order/temp_orders/new', 
+                headers=self.session)
+        else:
+            id = result[1][0]['ems_code']
+        result = get_json(
+            f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
+            headers=self.session)
+        return int(result['post_price'])
+
+    @cache.cached(timeout=120)
+    def __login(self):
+        result = get_json(url='https://myems.co.kr/api/v1/login',
+                        raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+                        method='POST')
+        return {'Authorization': result[1]['authorizationToken']}
 
 def __get_rates(country, url: str) -> list[dict]:
     if isinstance(country, Country):

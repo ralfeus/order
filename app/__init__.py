@@ -7,6 +7,7 @@ import types
 from blinker import Namespace
 from flask import Flask
 from flask_bootstrap import Bootstrap
+from flask_caching import Cache
 from flask_migrate import Migrate
 from flask_security import Security
 from flask_security.datastore import SQLAlchemyUserDatastore
@@ -27,7 +28,8 @@ JSONEncoder.default = _default  #type: ignore # Replace it.
 ###################################################################
 
 
-
+app: Flask
+cache = Cache()
 db = SQLAlchemy()
 
 celery = get_celery(__name__, 
@@ -39,31 +41,33 @@ signals = Namespace()
 
 def create_app(config=None):
     ''' Application factory '''
+    global app 
     from app.users.forms import LoginForm
-    flask_app = Flask(__name__)
+    app = Flask(__name__)
     # flask_app.config.from_object(config)
     # flask_app.config.from_envvar('ORDER_CONFIG')
-    flask_app.config.from_file(
+    app.config.from_file(
         config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json',
         load=load)
-    init_logging(flask_app)
+    init_logging(app)
 
-    Bootstrap(flask_app)
-    db.init_app(flask_app)
-    migrate.init_app(flask_app, db, compare_type=True)
-    init_celery(celery, flask_app)
+    Bootstrap(app)
+    cache.init_app(app)
+    db.init_app(app)
+    migrate.init_app(app, db, compare_type=True)
+    init_celery(celery, app)
     
     from app.users.models.user import User
     from app.users.models.role import Role
-    security.init_app(flask_app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
+    security.init_app(app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
-    register_components(flask_app)
+    register_components(app)
     # init_navbar(flask_app)
-    if flask_app.config.get('DEBUG'):
-        init_debug(flask_app)
+    if app.config.get('DEBUG'):
+        init_debug(app)
    
     logging.info("The application is started")
-    return flask_app
+    return app
 
 def register_components(flask_app):
     import_models(flask_app)

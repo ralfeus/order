@@ -76,3 +76,8 @@ def test(task_id):
     from flask import jsonify
     
     return jsonify(result)
+
+@client.route('/cache')
+def get_cache():
+    from app import cache
+    return cache.get_dict(), 200

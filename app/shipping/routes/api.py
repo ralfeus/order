@@ -5,7 +5,7 @@ from operator import itemgetter
 from flask import Response, abort, jsonify, request
 from flask_security import login_required, roles_required
 
-from app import db
+from app import db, cache
 from app.tools import modify_object
 from exceptions import NoShippingRateError
 from app.models import Country
@@ -22,6 +22,7 @@ def admin_get_shipping_methods():
 @bp_api_user.route('/<country_id>', defaults={'weight': None})
 @bp_api_user.route('/<country_id>/<int:weight>')
 @login_required
+@cache.cached()
 def get_shipping_methods(country_id, weight):
     '''Returns shipping methods available for specific country and weight (if both provided)'''
     country_name = ''
@@ -49,10 +50,11 @@ def get_shipping_methods(country_id, weight):
         f"Couldn't find shipping method to send {weight}g parcel to {country_name}",
         status=409))
 
-@bp_api_user.route('/rate/<country>/<shipping_method_id>/<weight>')
-@bp_api_user.route('/rate/<country>/<weight>', defaults={'shipping_method_id': None})
+@bp_api_user.route('/rate/<country>/<int:shipping_method_id>/<int:weight>')
+@bp_api_user.route('/rate/<country>/<int:weight>', defaults={'shipping_method_id': None})
 @login_required
-def get_shipping_rate(country, shipping_method_id: int, weight):
+@cache.cached()
+def get_shipping_rate(country, shipping_method_id: int, weight: int):
     '''
     Returns shipping cost for provided country and weight
     Accepts parameters:
@@ -61,18 +63,19 @@ def get_shipping_rate(country, shipping_method_id: int, weight):
         weight - package weight in grams
     Returns JSON
     '''
-    # print(country, weight)
     shipping_methods = Shipping.query
     if shipping_method_id:
-        shipping_method_id = int(shipping_method_id)
         shipping_methods = shipping_methods.filter_by(id=shipping_method_id)
     
     rates = {}
     for shipping_method in shipping_methods:
-        try:
-            rates[shipping_method.id] = shipping_method.get_shipping_cost(country, int(weight))
-        except NoShippingRateError:
-            pass
+        if weight == 0:
+            rates[shipping_method.id] = 0
+        else:
+            try:
+                rates[shipping_method.id] = shipping_method.get_shipping_cost(country, weight)
+            except NoShippingRateError:
+                pass
     if len(rates) > 0:
         if shipping_method_id:
             return jsonify({

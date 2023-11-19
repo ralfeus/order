@@ -4,6 +4,7 @@ email-validator==1.1.1
 Flask==2.1.2
 Flask-Admin==1.5.6
 Flask-Bootstrap==3.3.7.1
+Flask-Caching==2.1.0
 Flask-Debug-API==0.1.0
 Flask-DebugToolbar==0.11.0
 Flask-DebugToolbar-LineProfilerPanel==1.0.2
