@@ -1,3 +1,4 @@
+import json
 import logging
 from operator import itemgetter
 
@@ -58,10 +59,14 @@ class EMS(Shipping):
                 headers=self.session)
         else:
             id = result[1][0]['ems_code']
-        logger.debug(result)
-        result = get_json(
+        # result = get_json(
+        #     f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
+        #     headers=self.session)
+        stdout, stderr = invoke_curl(
             f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
             headers=self.session)
+        logger.debug(stdout)
+        result = json.loads(stdout)
         return int(result['post_price'])
 
     @cache.cached(timeout=120)
