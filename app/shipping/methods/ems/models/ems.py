@@ -6,7 +6,7 @@ from app import cache
 from app.models import Country
 from app.shipping.models import Shipping
 from app.tools import get_json, invoke_curl
-from exceptions import NoShippingRateError
+from exceptions import HTTPError, NoShippingRateError
 
 class EMS(Shipping):
     '''EMS shipping'''
@@ -46,38 +46,38 @@ class EMS(Shipping):
                      weight, destination, rate)
         return rate
 
-    session: list[dict[str, str]] = []
     def __get_rate(self, country: str, weight: int) -> int:
         logger = logging.getLogger('EMS::__get_rate()')
-        if not self.session:
-            self.session = [self.__login()]
+        session = [self.__login()]
         result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
-                          headers=self.session)
+                          headers=session)
         if result[0][0]['cnt'] == '0':
             id, _ = invoke_curl(
                 'https://myems.co.kr/api/v1/order/temp_orders/new', 
-                headers=self.session)
+                headers=session)
         else:
             id = result[1][0]['ems_code']
-        # result = get_json(
-        #     f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
-        #     headers=self.session)
-        stdout, stderr = invoke_curl(
-            f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
-            headers=self.session)
-        logger.debug(stdout)
         try:
-            result = json.loads(stdout)
+            result = get_json(
+                f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
+                headers=session)
             return int(result['post_price'])
-        except:
-            logger.exception(stderr)
+        except HTTPError as e:
+            if e.status == 401:
+                logger.warning("EMS authentication error. Retrying...")
+                self.__login(force=True)
+                return self.__get_rate(country, weight)
+            raise
 
-    @cache.cached(timeout=120)
-    def __login(self):
-        result = get_json(url='https://myems.co.kr/api/v1/login',
-                        raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
-                        method='POST')
-        return {'Authorization': result[1]['authorizationToken']}
+    def __login(self, force=False):
+        logger = logging.getLogger("EMS::__login()")
+        if cache.get('ems_auth') is None or force:
+            logger.info("Logging in to EMS")
+            result = get_json(url='https://myems.co.kr/api/v1/login',
+                            raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+                            method='POST')
+            cache.set('ems_auth', result[1]['authorizationToken'])
+        return {'Authorization': cache.get('ems_auth')}
 
 def __get_rates(country, url: str) -> list[dict]:
     if isinstance(country, Country):

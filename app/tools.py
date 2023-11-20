@@ -229,10 +229,16 @@ def get_document_from_url(url: str, headers: dict[str, str]=None, raw_data: str=
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
 def get_json(url, raw_data=None, headers=[], method='GET', retry=True) -> dict[str, Any]:
-    content, _ = invoke_curl(url, method=method, raw_data=raw_data,
+    stdout, stderr = invoke_curl(url, method=method, raw_data=raw_data,
         headers=headers, retry=retry)
         
-    return json.loads(content)
+    try:
+        return json.loads(stdout)
+    except:
+        if re.search('HTTP.*? 401', stderr):
+            raise HTTPError(401)
+        logging.exception("Couldn't get JSON out of response", stdout, stderr)
+        raise Exception("Unknown error")
 
 def try_perform(action, attempts=3, logger=logging.root):
     last_exception = None
