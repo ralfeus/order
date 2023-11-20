@@ -22,7 +22,7 @@ def admin_get_shipping_methods():
 @bp_api_user.route('/<country_id>', defaults={'weight': None})
 @bp_api_user.route('/<country_id>/<int:weight>')
 @login_required
-@cache.cached()
+@cache.cached(timeout=86400)
 def get_shipping_methods(country_id, weight):
     '''Returns shipping methods available for specific country and weight (if both provided)'''
     country_name = ''
@@ -53,7 +53,7 @@ def get_shipping_methods(country_id, weight):
 @bp_api_user.route('/rate/<country>/<int:shipping_method_id>/<int:weight>')
 @bp_api_user.route('/rate/<country>/<int:weight>', defaults={'shipping_method_id': None})
 @login_required
-@cache.cached()
+@cache.cached(timeout=86400)
 def get_shipping_rate(country, shipping_method_id: int, weight: int):
     '''
     Returns shipping cost for provided country and weight
