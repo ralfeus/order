@@ -49,14 +49,7 @@ class EMS(Shipping):
     def __get_rate(self, country: str, weight: int) -> int:
         logger = logging.getLogger('EMS::__get_rate()')
         session = [self.__login()]
-        result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
-                          headers=session)
-        if result[0][0]['cnt'] == '0':
-            id, _ = invoke_curl(
-                'https://myems.co.kr/api/v1/order/temp_orders/new', 
-                headers=session)
-        else:
-            id = result[1][0]['ems_code']
+        id = self.__get_shipping_order()
         try:
             result = get_json(
                 f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
@@ -68,6 +61,28 @@ class EMS(Shipping):
                 self.__login(force=True)
                 return self.__get_rate(country, weight)
             raise
+
+    def __get_shipping_order(self, force=False):
+        logger = logging.getLogger('EMS::__get_shipping_order()')
+        if cache.get('ems_shpping_order') is None or force:
+            session = [self.__login()]
+            try:
+                result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
+                                headers=session)
+                if result[0][0]['cnt'] == '0':
+                    id, _ = invoke_curl(
+                        'https://myems.co.kr/api/v1/order/temp_orders/new', 
+                        headers=session)
+                else:
+                    id = result[1][0]['ems_code']
+                cache.set('ems_shipping_order', id, timeout=28800)
+            except HTTPError as e:
+                if e.status == 401:
+                    logger.warning("EMD authentication error. Retrying...")
+                    self.__login(force=True)
+                    return self.__get_shipping_order(force=force)
+        return cache.get('ems_shipping_order')
+
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")
