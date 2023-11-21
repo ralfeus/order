@@ -97,6 +97,8 @@ class EMS(Shipping):
             logger.info('and use newly generated token')
             while cache.get('ems_login_in_progress'):
                 time.sleep(1)
+            logger.info("Another login process has finished. Will use existing token")
+            logger.info(cache.get('ems_auth'))
             force = False
         if cache.get('ems_auth') is None or force:
             logger.info("Logging in to EMS")
