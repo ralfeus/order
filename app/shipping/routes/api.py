@@ -3,7 +3,7 @@ import logging
 from operator import itemgetter
 
 from flask import Response, abort, jsonify, request
-from flask_security import login_required, roles_required
+from flask_security import login_required, roles_required #type: ignore
 
 from app import db, cache
 from app.tools import modify_object

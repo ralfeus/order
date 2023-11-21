@@ -6,7 +6,7 @@ import time
 from app import cache
 from app.models import Country
 from app.shipping.models import Shipping
-from app.tools import get_json, invoke_curl, retryable
+from app.tools import get_json, invoke_curl
 from exceptions import HTTPError, NoShippingRateError
 
 class EMS(Shipping):
@@ -44,7 +44,7 @@ class EMS(Shipping):
         rate = self.__get_rate(destination.upper(), weight)
 
         logger.debug("Shipping rate for %skg parcel to %s is %s",
-                     weight, destination, rate)
+                     weight / 1000  , destination, rate)
         return rate
 
     def __get_rate(self, country: str, weight: int) -> int:
@@ -55,7 +55,7 @@ class EMS(Shipping):
             result = get_json(
                 f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
                 headers=session)
-            return int(result['post_price'])
+            return int(result['post_price']) + result['extra_shipping_charge']
         except HTTPError as e:
             if e.status == 401:
                 logger.warning("EMS authentication error. Retrying...")
