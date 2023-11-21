@@ -27,7 +27,10 @@ class EMS(Shipping):
         if country is None:
             return True
         
-        rates = get_rates(country)
+        try:
+            rates = get_rates(country)
+        except:
+            rates = []
         rates = sorted(
             [rate for rate in rates if rate['weight'] >= weight],
             key=itemgetter('weight'), 
@@ -55,13 +58,15 @@ class EMS(Shipping):
             result = get_json(
                 f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
                 headers=session)
-            return int(result['post_price']) + result['extra_shipping_charge']
+            return int(result['post_price']) + int(result.get('extra_shipping_charge') or 0)
         except HTTPError as e:
             if e.status == 401:
                 logger.warning("EMS authentication error. Retrying...")
                 self.__login(force=True)
                 return self.__get_rate(country, weight)
             raise
+        except:
+            raise NoShippingRateError()
 
     def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger('EMS::__get_shipping_order()')
