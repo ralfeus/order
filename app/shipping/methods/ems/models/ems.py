@@ -115,6 +115,7 @@ class EMS(Shipping):
                             raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
                             method='POST')
             cache.set('ems_auth', result[1]['authorizationToken'], timeout=28800)
+            logger.debug("Auth result: %s", cache.get('ems_auth'))
             cache.delete('ems_login_in_progress')
         return {'Authorization': cache.get('ems_auth')}
 
