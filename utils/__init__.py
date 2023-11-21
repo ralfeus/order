@@ -4,6 +4,35 @@ import re
 import subprocess
 from time import sleep
 
+import lxml
+import lxml.html
+
+from exceptions import AtomyLoginError
+
+def get_document_from_url(url, headers=None, raw_data=None):
+    logger = logging.getLogger('utils.get_document_from_url')
+    stdout, stderr = invoke_curl(url=url, headers=headers, raw_data=raw_data)
+    try:
+        if re.search('HTTP.*? (200|304)', stderr):
+            doc = lxml.html.fromstring(stdout)
+            return doc
+        if 'Could not resolve host' in stderr:
+            logger.warning("Couldn't resolve host name for %s. Will try in 30 seconds", url)
+            sleep(30)
+            return get_document_from_url(url, headers, raw_data)
+        if re.search('HTTP.* 302', stderr) and \
+            re.search('location: /v2/Home/Account/Login', stderr):
+            raise AtomyLoginError()
+        if re.search(r'HTTP.*? 50\d', stderr):
+            logger.warning('Server has returned HTTP 50*. Will try in 30 seconds')
+            sleep(30)
+            return get_document_from_url(url, headers, raw_data)
+
+        raise Exception("Couldn't get page", stderr)
+    except TypeError:
+        logger.exception(url, headers, raw_data)
+
+
 def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
                 method='GET', retry=True, socks5_proxy:str='') -> tuple[str, str]:
     '''Calls curl and returns its stdout and stderr'''

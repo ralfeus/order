@@ -12,8 +12,10 @@ from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
 from neomodel import db, config
 
-from utils.atomy import atomy_login, get_document_from_url
 from exceptions import AtomyLoginError
+from utils import get_document_from_url
+from utils.atomy import atomy_login
+
 from model import AtomyPerson
 
 class SessionManager:
@@ -307,9 +309,9 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                 'atomy_id': node_id,
                 'rank': sel_rank(node_element['element']),
                 'highest_rank': sel_highest_rank(node_element['element']),
-                'pv': int(re.search('\\d+', sel_pv(node_element['element'])).group()),
-                'total_pv': int(re.search('\\d+', sel_total_pv(node_element['element'])).group()),
-                'network_pv': int(re.search('\\d+', sel_network_pv(node_element['element'])).group()),
+                'pv': int(re.search('\\d+', sel_pv(node_element['element'])).group()), #type: ignore
+                'total_pv': int(re.search('\\d+', sel_total_pv(node_element['element'])).group()), #type: ignore
+                'network_pv': int(re.search('\\d+', sel_network_pv(node_element['element'])).group()), #type: ignore
                 'now': datetime.now()
             })
         if left is not None:
