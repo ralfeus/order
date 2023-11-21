@@ -38,5 +38,5 @@ class WeightBased(Shipping):
         cost_per_unit = props.cost_per_kg / 1000 * props.weight_step
         units = math.ceil(max(weight, props.minimum_weight) / props.weight_step)
         logger.debug("Shipping rate for %skg parcel to %s is %s",
-                     weight, destination, cost_per_unit * units)
+                     weight / 1000, destination, cost_per_unit * units)
         return cost_per_unit * units

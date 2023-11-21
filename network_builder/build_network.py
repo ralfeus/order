@@ -12,7 +12,7 @@ from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
 from neomodel import db, config
 
-from utils.atomy import atomy_login, get_document_from_url
+from app.utils.atomy import atomy_login, get_document_from_url
 from exceptions import AtomyLoginError
 from .model import AtomyPerson
 

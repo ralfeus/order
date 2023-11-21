@@ -23,7 +23,7 @@ from exceptions import (
 )
 from app.orders.models.order_product import OrderProduct, OrderProductStatus
 from app.purchase.models import PurchaseOrderStatus
-from utils.atomy import atomy_login
+from app.utils.atomy import atomy_login
 from . import PurchaseOrderVendorBase
 
 URL_BASE = "https://shop-api.atomy.com/svc"

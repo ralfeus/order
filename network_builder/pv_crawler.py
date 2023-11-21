@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import requests
 from model import AtomyPerson
-from utils.atomy import SessionManager
+from app.utils.atomy import SessionManager
 
 
 def get_pvs():

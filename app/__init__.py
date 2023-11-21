@@ -15,7 +15,7 @@ from flask_sqlalchemy import SQLAlchemy
 # from flask_navbar import Nav
 # from flask_navbar.elements import Link, Navbar, Subgroup, View
 
-from utils.services import get_celery, init_celery
+from app.utils.services import get_celery, init_celery
 
 ################### JSON serialization patch ######################
 # In order to have all objects use to_dict() function providing
@@ -90,7 +90,7 @@ def register_components(flask_app):
     flask_app.register_blueprint(client)
     components_modules = [m[1] for m in globals().items()
                           if isinstance(m[1], types.ModuleType)
-                             and m[1].__name__ not in ['app.models', 'app.modules']
+                             and m[1].__name__ not in ['app.models', 'app.modules', 'app.utils']
                              and m[1].__name__.startswith('app.')
                              and m[1].__file__
                              and m[1].__file__.endswith('__init__.py')
