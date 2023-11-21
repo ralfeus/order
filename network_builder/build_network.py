@@ -12,9 +12,9 @@ from lxml.cssselect import CSSSelector
 from more_itertools import map_reduce
 from neomodel import db, config
 
-from app.utils.atomy import atomy_login, get_document_from_url
+from utils.atomy import atomy_login, get_document_from_url
 from exceptions import AtomyLoginError
-from .model import AtomyPerson
+from model import AtomyPerson
 
 class SessionManager:
     __instance = None
