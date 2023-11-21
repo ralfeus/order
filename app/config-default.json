@@ -22,8 +22,8 @@
     "ATOMY_CENTER": true,
     "NETWORK_MANAGER_URL": "http://localhost:5001",
 
-    "CACHE_TYPE": "FileSystemCache",
-    "CACHE_DIR": "/tmp",
+    "CACHE_TYPE": "MemcachedCache",
+    "CACHE_MEMCACHED_SERVERS": ["127.0.0.1"],
 
     "MODULES": {
         "warehouse": {
