@@ -95,8 +95,15 @@ class EMS(Shipping):
         if cache.get('ems_login_in_progress'):
             logger.info('Another login process is running. Will wait till the end')
             logger.info('and use newly generated token')
-            while cache.get('ems_login_in_progress'):
+            timeout = 20
+            while cache.get('ems_login_in_progress') and not timeout:
                 time.sleep(1)
+                timeout -= 1
+            if cache.get('ems_login_in_progress'):
+                logger.warning("Waiting for another login process to complete has timed out")
+                logger.warning("will clear login semaphore and exit")
+                cache.delete('ems_login_in_progress')
+                return None
             logger.info("Another login process has finished. Will use existing token")
             logger.info(cache.get('ems_auth'))
             force = False
