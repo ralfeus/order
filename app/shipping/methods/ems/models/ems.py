@@ -3,7 +3,8 @@ import logging
 from operator import itemgetter
 import time
 
-from app import cache
+from flask import current_app
+
 from app.models import Country
 from app.shipping.models import Shipping
 from app.tools import get_json, invoke_curl
@@ -70,6 +71,7 @@ class EMS(Shipping):
 
     def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger('EMS::__get_shipping_order()')
+        cache = current_app.cache
         if cache.get('ems_shipping_order') is None or force:
             session = [self.__login()]
             try:
@@ -92,6 +94,7 @@ class EMS(Shipping):
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")
+        cache = current_app.cache
         if cache.get('ems_login_in_progress'):
             logger.info('Another login process is running. Will wait till the end')
             logger.info('and use newly generated token')
