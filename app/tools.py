@@ -10,7 +10,7 @@ from functools import reduce
 import os
 import os.path
 import re
-from typing import Any
+from typing import Any, Callable
 import lxml
 from time import sleep
 from werkzeug.datastructures import MultiDict
@@ -175,14 +175,17 @@ def stream_and_close(file_handle):
     file_handle.close()
 
 
-def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
-                method='GET', retry=True) -> tuple[str, str]:
+def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
+                method='GET', retry=True, use_proxy:bool=True) -> tuple[str, str]:
     '''Calls curl and returns its stdout and stderr'''
     _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
         ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items()
     ]))
     raw_data_param = ['--data-raw', raw_data] if raw_data else []
+    socks5_proxy_param = (
+        ['--socks5', current_app.config.get('SOCKS5_PROXY')] #type: ignore
+            if use_proxy and current_app.config.get('SOCKS5_PROXY') is not None else [])
     if raw_data:
         method = 'POST'
     run_params = [ #type: ignore
@@ -192,9 +195,7 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         # '--socks5', 'localhost:9050',
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-        ] + headers_list + raw_data_param + \
-        (['--socks5', current_app.config.get('SOCKS5_PROXY')] 
-            if current_app.config.get('SOCKS5_PROXY') is not None else [])
+        ] + headers_list + raw_data_param + socks5_proxy_param
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -208,22 +209,22 @@ def invoke_curl(url: str, raw_data: str=None, headers: list[dict[str, str]]=[],
         _logger.exception(run_params)
         return '', ''
 
-def get_document_from_url(url: str, headers: dict[str, str]=None, raw_data: str=None,
-        encoding: str='utf-8', resolve: str=None):
-    headers_list = list(itertools.chain.from_iterable([
-        ['-H', f"{k}: {v}"] for pair in headers for k,v in pair.items() #type: ignore
+def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str='',
+        encoding: str='utf-8', resolve: str=''):
+    headers_list = list(itertools.chain.from_iterable([ #type: ignore
+        ['-H', f"{k}: {v}"] for pair in headers.items() for k,v in pair #type: ignore
     ]))
-    raw_data: list[str] = ['--data-raw', raw_data] if raw_data else [] #type: ignore
-    resolve_list = ['--resolve', resolve] if resolve is not None else []
-    output = subprocess.run([ #type: ignore
+    raw_data_param: list[str] = ['--data-raw', raw_data] if raw_data != '' else []
+    resolve_param: list[str] = ['--resolve', resolve] if resolve != '' else []
+    output = subprocess.run([ 
         '/usr/bin/curl',
         url,
         '-v'
-        ] + headers_list + resolve_list + raw_data,
+        ] + headers_list + resolve_param + raw_data_param,
         encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
     if re.search('HTTP.*? 200', output.stderr) and len(output.stdout) > 0:
-        doc = lxml.html.fromstring(output.stdout)
+        doc = lxml.html.fromstring(output.stdout) #type: ignore
         return doc
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
@@ -272,3 +273,23 @@ def merge(a: dict, b: dict, path=None, force=False) -> dict:
         else:
             a[key] = b[key]
     return a
+
+def retryable(func:Callable, attempts:int=3) -> Callable:
+    '''Calls a function. If it raises an exception it '''
+    def wrapper(*args, **kwargs):
+        __attempts = kwargs.get('__attempts') or attempts
+        try:
+            if kwargs.get('__attempts'): del kwargs['__attempts']
+            if kwargs.get('__last_exc'): del kwargs['__last_exc']
+            func(*args, **kwargs)
+        except Exception as e:
+            if __attempts > 1:
+                kwargs['__last_exc'] = e
+                kwargs['__attempts'] = __attempts - 1
+                logging.exception("During calling %s an error has occurred %s", func, e)
+                logging.error("Will retry %s more time%s", kwargs['__attempts'], 
+                                's' if kwargs['__attempts'] > 1 else '')
+                return wrapper(*args, **kwargs)
+            else:
+                raise e
+    return wrapper

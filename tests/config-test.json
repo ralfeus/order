@@ -20,6 +20,7 @@
     "PROFILER": true,
 
     "CELERY_TASK_DEFAULT_QUEUE": "order",
+    "CACHE_TYPE": "NullCache",
 
     "NETWORK_MANAGER_URL": "http://localhost:5001",
     "MODULES": {

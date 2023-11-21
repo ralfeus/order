@@ -1,11 +1,12 @@
 import json
 import logging
 from operator import itemgetter
+import time
 
 from app import cache
 from app.models import Country
 from app.shipping.models import Shipping
-from app.tools import get_json, invoke_curl
+from app.tools import get_json, invoke_curl, retryable
 from exceptions import HTTPError, NoShippingRateError
 
 class EMS(Shipping):
@@ -62,9 +63,9 @@ class EMS(Shipping):
                 return self.__get_rate(country, weight)
             raise
 
-    def __get_shipping_order(self, force=False):
+    def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger('EMS::__get_shipping_order()')
-        if cache.get('ems_shpping_order') is None or force:
+        if cache.get('ems_shipping_order') is None or force:
             session = [self.__login()]
             try:
                 result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
@@ -78,20 +79,28 @@ class EMS(Shipping):
                 cache.set('ems_shipping_order', id, timeout=28800)
             except HTTPError as e:
                 if e.status == 401:
-                    logger.warning("EMD authentication error. Retrying...")
-                    self.__login(force=True)
-                    return self.__get_shipping_order(force=force)
+                    if attempts:
+                        logger.warning("EMS authentication error. Retrying...")
+                        self.__login(force=True)
+                        return self.__get_shipping_order(force=force, attempts=attempts - 1)
         return cache.get('ems_shipping_order')
-
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")
+        if cache.get('ems_login_in_progress'):
+            logger.info('Another login process is running. Will wait till the end')
+            logger.info('and use newly generated token')
+            while cache.get('ems_login_in_progress'):
+                time.sleep(1)
+            force = False
         if cache.get('ems_auth') is None or force:
             logger.info("Logging in to EMS")
+            cache.set('ems_login_in_progress', True)
             result = get_json(url='https://myems.co.kr/api/v1/login',
                             raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
                             method='POST')
-            cache.set('ems_auth', result[1]['authorizationToken'])
+            cache.set('ems_auth', result[1]['authorizationToken'], timeout=28800)
+            cache.delete('ems_login_in_progress')
         return {'Authorization': cache.get('ems_auth')}
 
 def __get_rates(country, url: str) -> list[dict]:

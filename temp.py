@@ -1,5 +1,6 @@
 import cProfile
 from datetime import datetime
+import random
 
 from app import db, create_app
 from app.purchase.models import PurchaseOrder
@@ -11,8 +12,11 @@ from network_builder.build_network import build_network
 logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
 from app.purchase.jobs import *
+from app.tools import invoke_curl
+import threading
+import time
 
-with create_app().app_context():
+# with create_app().app_context():
     # po_id = "PO-2023-03-0006-001"
     # po = PurchaseOrder.query.get(po_id)
     # po.status = PurchaseOrderStatus.pending
@@ -32,5 +36,16 @@ with create_app().app_context():
     # build_network(user='S5832131', password='mkk030529!', incremental=True)
     # copy_subtree(root_id='S9945812')
     # get_atomy_products()
-    import_ems_rates()
-    import_ems_premium_rates()
+for i in range(10):
+    weight = random.randint(0, 10000)
+    threading.Thread(target=lambda:
+        print(weight, invoke_curl(
+            url=f'http://127.0.0.1:5000/api/v1/shipping/rate/de/1/{weight}',
+            use_proxy=False)[0])
+    ).start()
+    time.sleep(2)
+    if random.randint(0, 1):
+        invoke_curl(
+            url='https://myems.co.kr/api/v1/login',
+            raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+            use_proxy=False)

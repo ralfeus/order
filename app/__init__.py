@@ -15,7 +15,7 @@ from flask_sqlalchemy import SQLAlchemy
 # from flask_navbar import Nav
 # from flask_navbar.elements import Link, Navbar, Subgroup, View
 
-from app.utils.services import get_celery, init_celery
+from utils.services import get_celery, init_celery
 
 ################### JSON serialization patch ######################
 # In order to have all objects use to_dict() function providing
