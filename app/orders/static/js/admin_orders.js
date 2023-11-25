@@ -36,6 +36,29 @@ $(document).ready( function () {
     } );
 });
 
+function consign(target) {
+    var order = g_orders_table.row($(target).parents('tr')).data().id;
+    $('.wait').show();
+    $.ajax({
+        url: `/api/v1/admin/shipping/consign/${order}`,
+        complete: function() {
+            $('.wait').hide();
+        },
+        success: (data) => {
+            if (data.status == 'success') {
+                modal(
+                    'The consignment is submitted', 
+                    `The consignment ${data.consignment_id} is submitted`);
+            } else {
+                modal('Consignment error', data.message);
+            }
+        },
+        error: (response) => {
+            modal('Consignment error', response.responseText);
+        }
+    })
+}
+
 function delete_order(_target, row) {
     modal(
         "Order delete", 
@@ -54,7 +77,7 @@ function delete_order(_target, row) {
                     row.draw();
                 },
                 error: (response) => {
-                    modal('Delete sale order error', response.responseText)
+                    modal('Delete sale order error', response.responseText);
                 }
             });
         }
@@ -122,7 +145,7 @@ function save_order_action(order_node, row) {
 }
 
 /**
- * Draws invoice details
+ * Draws order details
  * @param {object} row - row object 
  * @param {object} data - data object for the row
  */
@@ -369,16 +392,19 @@ function init_orders_table() {
                 }
             },
             {
-                "className":      'order-actions',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": ' \
+                className:      'order-actions',
+                orderable:      false,
+                data:           null,
+                defaultContent: ` \
                     <button \
                         class="btn btn-sm btn-secondary btn-open" \
                         onclick="open_order(this);">Open</button> \
                     <button \
                         class="btn btn-sm btn-secondary btn-shipment" \
-                        onclick="edit_shipment(this);">Shipment</button>'
+                        onclick="edit_shipment(this);">Shipment</button> \
+                    <button \
+                        class="btn btn-sm btn-secondary btn-consign" \
+                        onclick="consign(this);">Consign</button> `
             },            
             {
                 name: 'id', 
@@ -432,6 +458,9 @@ function init_orders_table() {
         createdRow: (row, data) => {
             if (data.status != 'packed') {
                 $('.btn-shipment', row).remove();
+            }
+            if (data.status != 'packed' || !data.shipping.is_consignable) {
+                $('.btn-consign', row).remove();
             }
         },
         initComplete: function() { 

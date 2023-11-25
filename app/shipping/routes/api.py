@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import datetime
 import logging
 from operator import itemgetter
@@ -9,9 +10,11 @@ from app import db, cache
 from app.tools import modify_object
 from exceptions import NoShippingRateError
 from app.models import Country
+import app.orders.models as o
 from app.shipping import bp_api_admin, bp_api_user
 from app.shipping.models.shipping import Shipping
 
+from exceptions import OrderError
 
 @bp_api_admin.route('')
 @roles_required('admin')
@@ -133,3 +136,20 @@ def delete_shipping_method(shipping_method_id):
     db.session.delete(shipping_method)
     db.session.commit()
     return jsonify({})
+
+@bp_api_admin.route('/consign/<order_id>')
+@roles_required('admin')
+def consign_order(order_id:str):
+    order: o.Order = o.Order.query.get(order_id)
+    if order is None:
+        abort(Response("Couldn't find an order {order_id}", 404))
+    try:
+        result = order.shipping.consign(order)
+        return jsonify({'status': 'success', 'consignment_id': result})   
+    except NotImplementedError:
+        return jsonify({
+            'status': 'error', 
+            'message': "The order shipping method {order.shipping} doesn't support consignment"
+        })
+    except OrderError as e:
+        return jsonify({'status': 'error', 'message': e.args})

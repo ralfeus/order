@@ -1,6 +1,7 @@
 '''
 Shipping method model
 '''
+from __future__ import annotations
 from functools import reduce
 import logging
 from tempfile import _TemporaryFileWrapper
@@ -10,11 +11,11 @@ from sqlalchemy.orm import relationship #type: ignore
 from sqlalchemy.sql.schema import ForeignKey #type: ignore
 
 from app import db
-from exceptions import NoShippingRateError
-
 from .shipping_rate import ShippingRate
 from app.models import Country
 from app.models.base import BaseModel
+import app.orders.models as o
+from exceptions import NoShippingRateError
 
 box_weights = {
     30000: 2200,
@@ -71,6 +72,9 @@ class Shipping(db.Model, BaseModel): #type: ignore
         except NoShippingRateError:
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
+        
+    def consign(self, order: 'o.Order') -> str:
+        raise NotImplementedError()
 
     def get_edit_url(self):
         return None
@@ -96,6 +100,13 @@ class Shipping(db.Model, BaseModel): #type: ignore
         if rate:
             return rate.rate
         raise NoShippingRateError()
+    
+    def is_consignable(self):
+        try:
+            self.consign(None)
+            return True
+        except NotImplementedError:
+            return False
 
     def to_dict(self):
         return {
@@ -103,6 +114,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
             'name': self.name,
             'type': self.type,
             'enabled': self.enabled,
+            'is_consignable': self.is_consignable(),
             'notification': self.notification,
             'params': [param.to_dict() for param in self.params],
             'edit_url': self.get_edit_url(),
@@ -149,5 +161,6 @@ class ShippingParam(db.Model, BaseModel): #type: ignore
     def to_dict(self):
         return {
             'label': self.label,
-            'name': self.name
+            'name': self.name,
+            'type': self.type
         }

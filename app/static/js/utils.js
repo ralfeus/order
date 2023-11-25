@@ -53,14 +53,7 @@ async function modal(title, text, type = 'info', params = []) {
         } else if (type == 'form') {
             if (!text) {
                 $('.modal-body').html(params.reduce(
-                    (html, input) => html +
-                        '<div class="form-group">' +
-                        "<label>" + input.label + '</label>' +
-                        '<input class="form-control"' +
-                        'name="' + input.name + '" ' +
-                        'value="' + (input.value ? input.value : "") + '"/>' +
-                        '</div>',
-                    ''));
+                    (html, input) => `${html} ${get_input_element(input)}`, ''));
                 $('.modal-body input').on('keypress', e => {
                     if (e.originalEvent.key == 'Enter') {
                         $('.modal-footer #btn-ok').trigger('click')
@@ -72,8 +65,9 @@ async function modal(title, text, type = 'info', params = []) {
                 '<button type="button" id="btn-cancel" class="btn btn-cancel" data-bs-dismiss="modal">Cancel</button>'
             );
             $('.modal-footer #btn-ok').on('click', () => {
-                var result = $('.modal-body :is(input, select)').toArray().reduce((acc, input) =>
-                    ({ [input.name]: input.value, ...acc }), {});
+                var result = $('.modal-body :is(input, select, textarea)').toArray()
+                    .reduce((acc, input) =>
+                        ({ [input.name]: input.value, ...acc }), {});
                 promise.resolve(result);
             });
             $('.modal-footer #btn-cancel').on('click', () => promise.resolve());
@@ -89,6 +83,25 @@ async function modal(title, text, type = 'info', params = []) {
         });
         new bootstrap.Modal($('.modal')).show();
         return promise;
+    }
+}
+
+function get_input_element(input) {
+    if (input.type == 'multiline') {
+        return `
+        <div class="form-group">
+        <label>${input.label}</label>
+        <textarea class="form-control"
+            name="${input.name}">${input.value ? input.value : ""}</textarea>
+        </div>`;
+    } else { 
+        return `
+        <div class="form-group">
+        <label>${input.label}</label>
+        <input class="form-control"
+            name="${input.name}"
+            value="${input.value ? input.value : ""}"/>
+        </div>`;
     }
 }
 

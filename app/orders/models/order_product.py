@@ -1,8 +1,8 @@
 ''' Order product model'''
+from __future__ import annotations
 from datetime import datetime
 import enum
 from functools import reduce
-import itertools
 
 from flask_security import current_user
 

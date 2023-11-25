@@ -1,11 +1,12 @@
 ''' Order model '''
-import enum
+from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 import logging
 from functools import reduce
 import os.path
 from tempfile import _TemporaryFileWrapper, NamedTemporaryFile
+from typing import Optional
 import openpyxl
 from openpyxl.styles import PatternFill
 
@@ -17,15 +18,16 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app import db
-from app.orders.models.order_product import OrderProduct
-from app.shipping.models.shipping import Shipping
-from exceptions import OrderError, UnfinishedOrderError
+from app.currencies.models.currency import Currency
 from app.models.base import BaseModel
 from app.models.country import Country
-from app.currencies.models.currency import Currency
-from app.users.models.user import User
-from app.settings.models.setting import Setting
+from app.orders.models.order_product import OrderProduct
 from app.orders.signals import sale_order_model_preparing
+from app.purchase.models import Company
+from app.settings.models.setting import Setting
+from app.shipping.models.shipping import Shipping
+from app.users.models.user import User
+from exceptions import OrderError, UnfinishedOrderError
 
 from .order_status import OrderStatus
 
@@ -45,12 +47,12 @@ class OrderBox(db.Model, BaseModel): # type: ignore
     ''' Specific box used in order '''
     __tablename__ = 'order_boxes'
 
-    order_id = Column(String(16), ForeignKey('orders.id'))
-    length = Column(Integer)
-    width = Column(Integer)
-    height = Column(Integer)
-    weight = Column(Integer)
-    quantity = Column(Integer)
+    order_id: str = Column(String(16), ForeignKey('orders.id'))
+    length: int = Column(Integer)
+    width: int = Column(Integer)
+    height: int = Column(Integer)
+    weight: int = Column(Integer)
+    quantity: int = Column(Integer)
 
     def to_dict(self):
         return {
@@ -74,12 +76,12 @@ class Order(db.Model, BaseModel): # type: ignore
     invoice = relationship('Invoice', foreign_keys=[invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
-    country_id = Column(String(2), ForeignKey('countries.id'))
+    country_id: str = Column(String(2), ForeignKey('countries.id'))
     country: Country = relationship(Country, foreign_keys=[country_id])
     zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(128))
-    boxes = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
+    boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
@@ -109,7 +111,7 @@ class Order(db.Model, BaseModel): # type: ignore
     attached_orders = relationship('Order',
         foreign_keys=[attached_order_id], lazy='dynamic')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
-    payment_method = relationship('PaymentMethod', foreign_keys=[payment_method_id])
+    payment_method: PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id])
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
     params = association_proxy('order_params', 'value',
@@ -282,11 +284,11 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_boxes_weight(self):
         return reduce(lambda acc, b: acc + b.weight * b.quantity, self.boxes, 0)
 
-    def get_payee(self):
+    def get_payee(self) -> Optional[Company]:
         return self.payment_method.payee if self.payment_method \
             else None
 
-    def get_shipping(self, currency: Currency=None):
+    def get_shipping(self, currency: Optional[Currency]=None):
         ''' Returns shipping cost in currency provided '''
         return \
             self.shipping_usd if currency and currency.code == 'USD' \
@@ -295,7 +297,7 @@ class Order(db.Model, BaseModel): # type: ignore
             else round(self.shipping_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.shipping_krw
 
-    def get_subtotal(self, currency: Currency=None):
+    def get_subtotal(self, currency: Optional[Currency]=None):
         '''Returns subtotal of the order - sum of cost of all order products'''
         return \
             self.subtotal_usd if currency and currency.code == 'USD' \
@@ -304,7 +306,7 @@ class Order(db.Model, BaseModel): # type: ignore
             else round(self.subtotal_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.subtotal_krw
 
-    def get_total(self, currency: Currency=None):
+    def get_total(self, currency: Optional[Currency]=None):
         '''Returns total of the order - subtotal plus shipping costs'''
         return \
             self.total_usd if currency and currency.code == 'USD' \
