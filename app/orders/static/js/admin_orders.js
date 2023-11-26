@@ -176,6 +176,22 @@ async function format(row, data) {
     $('#tracking-id', order_details).val(data.tracking_id);
     $('#tracking-url', order_details).val(data.tracking_url);
     $('#comment', order_details).val(data.comment);
+    $('#order-params', order_details).DataTable({
+        data: Object.entries(order.params)
+            .map((e) =>
+            Object.entries(e[1]).map((s) => ({
+                type: e[0],
+                name: s[0],
+                value: s[1].replace("\n", "<br />"),
+            }))
+            )
+            .flat(),
+        rowGroup: {dataSrc: 'type'},
+        columns: [
+            {data: 'name'},
+            {data: 'value'}
+        ]
+    });
     return order_details;
 }
 
