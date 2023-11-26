@@ -55,6 +55,7 @@ class TestClientApi(BaseTestCase):
                 'name': 'DHL',
                 'type': 'DHL',
                 'enabled': True,
+                'is_consignable': False,
                 'notification': None,
                 'edit_url': '/admin/shipping/dhl/',
                 'params': []
@@ -64,6 +65,7 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping1',
                 'type': '',
                 'enabled': True,
+                'is_consignable': False,
                 'notification': None,
                 'edit_url': None,
                 'params': []
@@ -73,6 +75,7 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping2',
                 'type': '',
                 'enabled': True,
+                'is_consignable': False,
                 'notification': None,
                 'edit_url': None,
                 'params': []
@@ -82,6 +85,7 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping3',
                 'type': '',
                 'enabled': True,
+                'is_consignable': False,
                 'notification': None,
                 'edit_url': None,
                 'params': []
