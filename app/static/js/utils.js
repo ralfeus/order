@@ -53,7 +53,7 @@ async function modal(title, text, type = 'info', params = []) {
         } else if (type == 'form') {
             if (!text) {
                 $('.modal-body').html(params.reduce(
-                    (html, input) => `${html} ${get_input_element(input)}`, ''));
+                    (html, input) => `${html}${get_input_element(input)}`, ''));
                 $('.modal-body input').on('keypress', e => {
                     if (e.originalEvent.key == 'Enter') {
                         $('.modal-footer #btn-ok').trigger('click')
@@ -88,20 +88,21 @@ async function modal(title, text, type = 'info', params = []) {
 
 function get_input_element(input) {
     if (input.type == 'multiline') {
-        return `
-        <div class="form-group">
-        <label>${input.label}</label>
-        <textarea class="form-control"
-            name="${input.name}">${input.value ? input.value : ""}</textarea>
-        </div>`;
+        return `` +
+            `<div class="form-group">` +
+                `<label>${input.label}</label>` +
+                `<textarea class="form-control"
+                    name="${input.name}">${input.value ? input.value : ""}` +
+                `</textarea>` +
+            `</div>`;
     } else { 
-        return `
-        <div class="form-group">
-        <label>${input.label}</label>
-        <input class="form-control"
-            name="${input.name}"
-            value="${input.value ? input.value : ""}"/>
-        </div>`;
+        return `` +
+            `<div class="form-group">` +
+                `<label>${input.label}</label>` +
+                `<input class="form-control"
+                    name="${input.name}"
+                    value="${input.value ? input.value : ""}"/>` +
+            `</div>`;
     }
 }
 
