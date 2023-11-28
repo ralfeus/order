@@ -16,7 +16,7 @@ class Company(db.Model, BaseModel): #type: ignore
     tax_id_3 = Column(String(5))
     phone = Column(String(13))
     address_id = Column(Integer, ForeignKey('addresses.id'))
-    address = relationship(Address, foreign_keys=[address_id])
+    address:Address = relationship(Address, foreign_keys=[address_id])
     tax_simplified = Column(Boolean, default=True)
     tax_phone = Column(String(13))
     tax_address_id = Column(Integer, ForeignKey('addresses.id'))

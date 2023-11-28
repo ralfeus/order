@@ -1,15 +1,13 @@
-import itertools
 import json
 import logging
 import re
-import subprocess
 import threading
 from time import sleep
 from urllib.parse import urlencode
 
 from flask import current_app
 
-from . import invoke_curl, get_document_from_url
+from . import invoke_curl
 from exceptions import AtomyLoginError, HTTPError
 
 logging.basicConfig(level=logging.DEBUG)
@@ -40,47 +38,13 @@ class SessionManager:
             self.__session = atomy_login(
                 username=self.__username, password=self.__password, run_browser=False)
 
-    # def get_document(self, url, raw_data=None, headers={}):
-    #     logger = logging.getLogger('SessionManager.get_document()')
-    #     attempts_left = 3
-    #     while attempts_left:
-    #         try:
-    #             return get_document_from_url(url,
-    #                 headers=[{'Cookie': c} for c in self.__session] + \
-    #                         [{key: value} for key, value in headers.items()],
-    #                 raw_data=raw_data)
-    #         except AtomyLoginError:
-    #             logger.info("Session expired. Logging in")
-    #             self.__create_session()
-    #             attempts_left -= 1
-    
-    def get_json(self, url, raw_data=None, headers={}, method='get'):
-        _logger = logging.getLogger('SessionManager.get_json()')
-        attempts_left = 3
-        while attempts_left:
-            try:
-                content = invoke_curl(url, method=method, raw_data=raw_data,
-                    headers=[{'Cookie': c} for c in self.__session] +
-                            [{key: value} for key, value in headers.items()] +
-                            [{"Content-type": "application/json"}]).output
-                return json.loads(content)
-            except AtomyLoginError:
-                _logger.info("Session expired. Logging in")
-                self.__create_session()
-                attempts_left -= 1
-        raise "Couldn't get JSON document due to login issue"
-
 def _atomy_login_curl(username, password):
     '''    Logins to Atomy customer section    '''
     if len(username) < 8:
         username = 'S' + username
-    output = subprocess.run([
-        '/usr/bin/curl',
-        'https://www.atomy.kr/v2/Home/Account/Login',
-        # '--resolve', 'www.atomy.kr:443:13.209.185.92,3.39.241.190',
-        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-        '--data-raw',
-        urlencode({
+    stdout, stderr = invoke_curl(
+        url='https://www.atomy.kr/v2/Home/Account/Login',
+        raw_data=urlencode({
             'userId': username,
             'userPw': password,
             'orderNum': '',
@@ -88,21 +52,19 @@ def _atomy_login_curl(username, password):
             'idSave': 'on',
             'rpage': '',
             'loadPage': ''
-        }),
-        '-v'
-        ],
-        encoding='utf-8', stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=False)
-    if re.search('< location: /[vV]2', output.stderr) or \
-       re.search('btnChangePassword', output.stdout):
-        return re.findall('set-cookie: (.*)', output.stderr)
-    elif re.search("var isLoginFail = \\'True\\';", output.stdout):
-        message = re.search(r"isLoginFail ==.*\n.*?alert\('(.*?)'", output.stdout, re.MULTILINE).groups()[0]
+        })
+    )
+    if re.search('< location: /[vV]2', stderr) or \
+       re.search('btnChangePassword', stdout):
+        return re.findall('set-cookie: (.*)', stderr)
+    elif re.search("var isLoginFail = \\'True\\';", stdout):
+        message = re.search(r"isLoginFail ==.*\n.*?alert\('(.*?)'", stdout, re.MULTILINE).groups()[0]
         raise AtomyLoginError(username=username, message=message)
-    elif re.search("HTTP.*503", output.stderr):
+    elif re.search("HTTP.*503", stderr):
         message = "Vendor's server is temporary unavailable. Please try again later"
         raise AtomyLoginError(username=username, message=message)
 
-    raise HTTPError(output)
+    raise HTTPError((stdout, stderr))
 
 def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:

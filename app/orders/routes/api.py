@@ -587,7 +587,7 @@ def admin_save_order(order_id):
     Updates existing order
     Payload is provided in JSON
     '''
-    logger = logging.getLogger(f'admin_save_order:{order_id}')
+    logger = logging.getLogger(f'admin_save_order({order_id})')
     order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
@@ -620,7 +620,7 @@ def admin_save_order(order_id):
     db.session.commit()
     return jsonify({'data': [order.to_dict()]})
 
-def update_order_boxes(order, boxes_input):
+def update_order_boxes(order:Order, boxes_input):
     order.boxes = []
     for order_box in boxes_input:
         order.boxes.append(OrderBox(

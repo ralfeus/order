@@ -1,6 +1,7 @@
 '''
 Product model
 '''
+from __future__ import annotations
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 

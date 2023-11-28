@@ -11,7 +11,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
-from app.orders.models import Subcustomer, Suborder
+import app.orders.models as o
 from .company import Company
 
 class PurchaseOrderStatus(enum.Enum):
@@ -33,9 +33,9 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     id = Column(String(23), primary_key=True, nullable=False)
     vendor_po_id = Column(String(18))
     suborder_id = Column(String(20), ForeignKey('suborders.id'), nullable=False)
-    suborder: Suborder = relationship(Suborder, foreign_keys=[suborder_id], lazy='joined')
+    suborder: 'o.Suborder' = relationship('Suborder', foreign_keys=[suborder_id], lazy='joined')
     customer_id = Column(Integer, ForeignKey('subcustomers.id'))
-    customer: Subcustomer = relationship(Subcustomer, foreign_keys=[customer_id])
+    customer: 'o.Subcustomer' = relationship('Subcustomer', foreign_keys=[customer_id])
     contact_phone = Column(String(13))
     payment_phone = Column(String(13))
     payment_account = Column(String(32))
@@ -54,7 +54,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     total_krw = Column(Integer)
 
 
-    def __init__(self, suborder: Suborder, **kwargs):
+    def __init__(self, suborder: 'o.Suborder', **kwargs):
         super().__init__(**kwargs)
         if len(suborder.id) > 5:
             self.id = 'PO-{}'.format(suborder.id[4:])
@@ -108,7 +108,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
         if isinstance(column, InstrumentedAttribute):
             return \
                 base_filter.filter(column.has(
-                    Subcustomer.name.like(part_filter))) \
+                    o.Subcustomer.name.like(part_filter))) \
                     if column.key == 'customer' \
                 else base_filter.filter(column.in_([PurchaseOrderStatus[status]
                                         for status in filter_value.split(',')])) \
@@ -121,13 +121,13 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
             column = column.fget.__name__
             return \
                 base_filter.filter(PurchaseOrder.suborder.has(
-                    Suborder.buyout_date == filter_value)) \
+                    o.Suborder.buyout_date == filter_value)) \
                     if column == 'purchase_date' \
                 else base_filter
         if isinstance(column, str):
             return \
                 base_filter.filter(PurchaseOrder.customer.has(
-                    Subcustomer.name.like(part_filter))) \
+                    o.Subcustomer.name.like(part_filter))) \
                     if column == 'customer.name' \
                     else base_filter
         return base_filter

@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import reduce
 import logging
 from tempfile import _TemporaryFileWrapper
+from flask import current_app
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
 from sqlalchemy.orm import relationship #type: ignore
@@ -102,6 +103,8 @@ class Shipping(db.Model, BaseModel): #type: ignore
         raise NoShippingRateError()
     
     def is_consignable(self):
+        if not current_app.config.get("SHIPPING_AUTOMATION"):
+            return False
         try:
             self.consign(None)
             return True
