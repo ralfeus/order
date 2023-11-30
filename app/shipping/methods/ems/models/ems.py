@@ -12,25 +12,27 @@ from app.shipping.models import Shipping
 from app.tools import get_json, invoke_curl
 from exceptions import HTTPError, NoShippingRateError, OrderError
 
-class EMS(Shipping):
-    '''EMS shipping'''
-    __mapper_args__ = {'polymorphic_identity': 'ems'} #type: ignore
 
-    name = 'EMS'
-    type = 'EMS'
+class EMS(Shipping):
+    """EMS shipping"""
+
+    __mapper_args__ = {"polymorphic_identity": "ems"}  # type: ignore
+
+    name = "EMS"
+    type = "EMS"
 
     def __invoke_curl(self, *args, **kwargs) -> tuple[str, str]:
         logger = logging.getLogger("EMS::__invoke_curl()")
-        kwargs['headers'] = [self.__login()]
+        kwargs["headers"] = [self.__login()]
         for _ in range(0, 3):
             stdout, stderr = invoke_curl(*args, **kwargs)
-            if re.search('HTTP.*? 401', stderr):
+            if re.search("HTTP.*? 401", stderr):
                 logger.warning("EMS authentication error. Retrying...")
-                kwargs['headers'] = [self.__login(force=True)]
+                kwargs["headers"] = [self.__login(force=True)]
             return stdout, stderr
         raise HTTPError(401)
-    
-    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
+
+    def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("EMS::can_ship()")
         if not self._are_all_products_shippable(products):
             logger.debug(f"Not all products are shippable to {country}")
@@ -40,14 +42,14 @@ class EMS(Shipping):
             return False
         if country is None:
             return True
-        
+
         try:
             rates = get_rates(country)
         except:
             rates = []
         rates = sorted(
-            [rate for rate in rates if rate['weight'] >= weight],
-            key=itemgetter('weight'), 
+            [rate for rate in rates if rate["weight"] >= weight],
+            key=itemgetter("weight"),
         )
         rate_exists = len(rates) > 0
         if rate_exists:
@@ -55,11 +57,11 @@ class EMS(Shipping):
         else:
             logger.debug(f"There is no rate to country {country}. Can't ship")
         return rate_exists
-    
+
     def consign(self, order: o.Order) -> str:
         if order is None:
             return
-        logger = logging.getLogger('EMS::consign()')
+        logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
         self.__submit_consignment(consignment_id)
@@ -67,80 +69,106 @@ class EMS(Shipping):
         return consignment_id
 
     def __create_new_consignment(self) -> str:
-        logger = logging.getLogger('EMS::__create_new_consignment()')
-        result, _ = self.__invoke_curl(url='https://myems.co.kr/api/v1/order/temp_orders/new',
-                                    method='PUT')
+        logger = logging.getLogger("EMS::__create_new_consignment()")
+        result, _ = self.__invoke_curl(
+            url="https://myems.co.kr/api/v1/order/temp_orders/new", method="PUT"
+        )
         logger.info("The new consignment ID is: %s", result)
         return result[1:-1]
-    
+
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, any]]:
-        items = order.params['shipping.items'].split('\n')
         try:
-            return [{
-                'name': item.split('|')[0],
-                'quantity': item.split('|')[1],
-                'price': item.split('|')[2],
-                'hscode': '2106909099' if re.search('vitamin', item, re.I) else '3304991000'
-            } for item in items]
+            items = order.params.get["shipping.items"].split("\n")
+            return [
+                {
+                    "name": item.split("|")[0],
+                    "quantity": item.split("|")[1],
+                    "price": item.split("|")[2],
+                    "hscode": "2106909099"
+                    if re.search("vitamin", item, re.I)
+                    else "3304991000",
+                }
+                for item in items
+            ]
         except:
-            return [{
-                'name': 'Cosmetics',
-                'quantity': 1,
-                'price': order.total_krw / 10,
-                'hscode': '3304991000'
-            }]
+            return [
+                {
+                    "name": "Cosmetics",
+                    "quantity": 1,
+                    "price": order.total_krw / 10,
+                    "hscode": "3304991000",
+                }
+            ]
 
     def __save_consignment(self, consignment_id: str, order: o.Order):
-        logger = logging.getLogger('EMS::__save_consignment()')
+        logger = logging.getLogger("EMS::__save_consignment()")
         logger.info("Saving a consignment %s", consignment_id)
         payee = order.get_payee()
-        sender_phone = payee.phone.split('-')
+        sender_phone = payee.phone.split("-")
         volume_weight = 0
         try:
-            volume_weight = int(order.boxes[0].width * order.boxes[0].length * 
-                                order.boxes[0].height / 6)
+            box = {
+                "length": int(order.boxes[0].length),
+                "width": int(order.boxes[0].width),
+                "height": int(order.boxes[0].height),
+            }
         except:
-            logger.error("The box information is absent")
-            raise OrderError("The box information is absent")
+            logger.info("The box information is absent. Using default values")
+            box = {"length": 42, "width": 30, "height": 19}
+        volume_weight = int(
+            int(box['width'] * box['length'] * box['height']) / 6
+        )
         weight = max(order.total_weight, volume_weight)
-        price = self.__get_rate(order.country_id, weight)        
+        price = self.__get_rate(order.country_id, weight)
         items = self.__get_consignment_items(order)
         request_payload = {
             "ems_code": consignment_id,
             "user_select_date": None,
-            "p_hp1": sender_phone[0], # sender phone number
-            "p_hp2": sender_phone[1], # sender phone number
-            "p_hp3": sender_phone[2], # sender phone number
-            "p_name": payee.contact_person, # sender name 
-            "p_post": payee.address.zip, # sender zip code
-            "p_address": payee.address.address_1_eng + ' ' + payee.address.address_2_eng, # sender address
-            "f_hp": order.phone, # recipient phone number
-            "f_name": order.customer_name, # recipient name
-            "f_post": order.zip, # recipient zip code
-            "f_address": order.address, # recipient address
-            "nation": order.country_id.upper(), # recipient country
-            "item_name": ';'.join([i['name'] for i in items]), # names of items separated by ';'
-            "item_count": ';'.join([str(i['quantity']) for i in items]), # quantities of items separated by ';'
-            "item_price": ';'.join([str(int(i['price'])) for i in items]), # prices of items separated by ';'
-            "item_hscode": ';'.join([i['hscode'] for i in items]), # HS codes of items separated by ';'
-            "item_name1": "", # probably can be omited
-            "item_name2": "", # probably can be omited
-            "item_name3": "", # probably can be omited
-            "p_weight": weight, # overall weight of the content
-            "ems_price": "", # leave empty
-            "post_price": price['post_price'], # get price from calculation service
-            "n_code": order.country_id.upper(), # recipient country
-            "extra_shipping_charge": price['extra_shipping_charge'], # get additional fee from calculation service
-            "vol_weight1": order.boxes[0].width, # width
-            "vol_weight2": order.boxes[0].length, # length
-            "vol_weight3": order.boxes[0].height, # height
-            "vol_weight": volume_weight, # volume translated to weight. Calculated as width * length * height / 6
+            "p_hp1": sender_phone[0],  # sender phone number
+            "p_hp2": sender_phone[1],  # sender phone number
+            "p_hp3": sender_phone[2],  # sender phone number
+            "p_name": payee.contact_person,  # sender name
+            "p_post": payee.address.zip,  # sender zip code
+            "p_address": payee.address.address_1_eng
+            + " "
+            + payee.address.address_2_eng,  # sender address
+            "f_hp": order.phone,  # recipient phone number
+            "f_name": order.customer_name,  # recipient name
+            "f_post": order.zip,  # recipient zip code
+            "f_address": order.address,  # recipient address
+            "nation": order.country_id.upper(),  # recipient country
+            "item_name": ";".join(
+                [i["name"] for i in items]
+            ),  # names of items separated by ';'
+            "item_count": ";".join(
+                [str(i["quantity"]) for i in items]
+            ),  # quantities of items separated by ';'
+            "item_price": ";".join(
+                [str(int(i["price"])) for i in items]
+            ),  # prices of items separated by ';'
+            "item_hscode": ";".join(
+                [i["hscode"] for i in items]
+            ),  # HS codes of items separated by ';'
+            "item_name1": "",  # probably can be omited
+            "item_name2": "",  # probably can be omited
+            "item_name3": "",  # probably can be omited
+            "p_weight": weight,  # overall weight of the content
+            "ems_price": "",  # leave empty
+            "post_price": price["post_price"],  # get price from calculation service
+            "n_code": order.country_id.upper(),  # recipient country
+            "extra_shipping_charge": price[
+                "extra_shipping_charge"
+            ],  # get additional fee from calculation service
+            "vol_weight1": box['width'],  # width
+            "vol_weight2": box['length'],  # length
+            "vol_weight3": box['height'],  # height
+            "vol_weight": volume_weight,  # volume translated to weight. Calculated as width * length * height / 6
             # p_weight (above) is either itself of this value, if this value is bigger
-            "item_detailed": "32" # type of parcel 1 - Merch, 31 - gift, 32 - sample
+            "item_detailed": "32",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
         }
         stdout, stderr = self.__invoke_curl(
-            url='https://myems.co.kr/api/v1/order/temp_orders',
-            raw_data=json.dumps(request_payload)
+            url="https://myems.co.kr/api/v1/order/temp_orders",
+            raw_data=json.dumps(request_payload),
         )
         # logger.debug(stdout)
         # logger.debug(stderr)
@@ -149,8 +177,7 @@ class EMS(Shipping):
         logger = logging.getLogger("EMS::__submit_consignment")
         logger.info("Submitting consignment %s", consignment_id)
         stdout, stderr = self.__invoke_curl(
-            url='https://myems.co.kr/api/v1/order/new',
-            raw_data=f'["{consignment_id}"]'
+            url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]'
         )
         # logger.debug(stdout)
         # logger.debug(stderr)
@@ -158,65 +185,78 @@ class EMS(Shipping):
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")
         result = self.__get_rate(destination.upper(), weight)
-        rate = int(result['post_price']) + int(result.get('extra_shipping_charge') or 0)
+        rate = int(result["post_price"]) + int(result.get("extra_shipping_charge") or 0)
 
-        logger.debug("Shipping rate for %skg parcel to %s is %s",
-                     weight / 1000  , destination, rate)
+        logger.debug(
+            "Shipping rate for %skg parcel to %s is %s",
+            weight / 1000,
+            destination,
+            rate,
+        )
         return rate
 
     def __get_rate(self, country: str, weight: int) -> dict[str, any]:
-        '''Return raw price structure from EMS'''
-        logger = logging.getLogger('EMS::__get_rate()')
+        """Return raw price structure from EMS"""
+        logger = logging.getLogger("EMS::__get_rate()")
         id = self.__get_shipping_order()
         try:
             result = get_json(
-                f'https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N', 
-                get_data=self.__invoke_curl)
+                f"https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N",
+                get_data=self.__invoke_curl,
+            )
             return result
         except:
             raise NoShippingRateError()
 
     def __get_shipping_order(self, force=False, attempts=3):
-        logger = logging.getLogger('EMS::__get_shipping_order()')
-        if cache.get('ems_shipping_order') is None or force:
-            result = get_json('https://myems.co.kr/api/v1/order/temp_orders', 
-                            get_data=self.__invoke_curl)
-            if result[0][0]['cnt'] == '0':
+        logger = logging.getLogger("EMS::__get_shipping_order()")
+        if cache.get("ems_shipping_order") is None or force:
+            result = get_json(
+                "https://myems.co.kr/api/v1/order/temp_orders",
+                get_data=self.__invoke_curl,
+            )
+            if result[0][0]["cnt"] == "0":
                 id, _ = self.__invoke_curl(
-                    'https://myems.co.kr/api/v1/order/temp_orders/new')
+                    "https://myems.co.kr/api/v1/order/temp_orders/new"
+                )
             else:
-                id = result[1][0]['ems_code']
-            cache.set('ems_shipping_order', id, timeout=28800)
-        return cache.get('ems_shipping_order')
+                id = result[1][0]["ems_code"]
+            cache.set("ems_shipping_order", id, timeout=28800)
+        return cache.get("ems_shipping_order")
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")
-        if cache.get('ems_login_in_progress'):
-            logger.info('Another login process is running. Will wait till the end')
-            logger.info('and use newly generated token')
+        if cache.get("ems_login_in_progress"):
+            logger.info("Another login process is running. Will wait till the end")
+            logger.info("and use newly generated token")
             timeout = 20
-            while cache.get('ems_login_in_progress') and not timeout:
+            while cache.get("ems_login_in_progress") and not timeout:
                 time.sleep(1)
                 timeout -= 1
-            if cache.get('ems_login_in_progress'):
-                logger.warning("Waiting for another login process to complete has timed out")
+            if cache.get("ems_login_in_progress"):
+                logger.warning(
+                    "Waiting for another login process to complete has timed out"
+                )
                 logger.warning("will clear login semaphore and exit")
-                cache.delete('ems_login_in_progress')
+                cache.delete("ems_login_in_progress")
                 return None
             logger.info("Another login process has finished. Will use existing token")
-            logger.info(cache.get('ems_auth'))
+            logger.info(cache.get("ems_auth"))
             force = False
-        logger.debug("%s, %s", cache.get('ems_auth'), force)
-        if cache.get('ems_auth') is None or force:
+        logger.debug("%s, %s", cache.get("ems_auth"), force)
+        if cache.get("ems_auth") is None or force:
             logger.info("Logging in to EMS")
-            cache.set('ems_login_in_progress', True)
-            result = get_json(url='https://myems.co.kr/api/v1/login',
-                            raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
-                            method='POST')
-            cache.set('ems_auth', result[1]['authorizationToken'], timeout=28800)
-            logger.debug("Auth result: %s", cache.get('ems_auth'))
-            cache.delete('ems_login_in_progress')
-        return {'Authorization': cache.get('ems_auth')}
+            cache.set("ems_login_in_progress", True)
+            result = get_json(
+                url="https://myems.co.kr/api/v1/login",
+                raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+                method="POST",
+            )
+            cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)
+            logger.debug("Auth result: %s", cache.get("ems_auth"))
+            cache.delete("ems_login_in_progress")
+        return {"Authorization": cache.get("ems_auth")}
+
 
 def __get_rates(country, url: str) -> list[dict]:
     if isinstance(country, Country):
@@ -226,20 +266,26 @@ def __get_rates(country, url: str) -> list[dict]:
     else:
         raise NoShippingRateError("Unknown country")
     try:
-        result = get_json(
-            url=url.format(country_code), 
-            retry=False)
-        rates: list[dict] = result['charge_info']
-        weight_limit = int(result['country_info']['weight_limit']) * 1000
-        return [ 
-            {'weight': int(rate['code_name2']), 'rate': int(rate['charge'])} 
-            for rate in rates if int(rate['code_name2']) <= weight_limit
+        result = get_json(url=url.format(country_code), retry=False)
+        rates: list[dict] = result["charge_info"]
+        weight_limit = int(result["country_info"]["weight_limit"]) * 1000
+        return [
+            {"weight": int(rate["code_name2"]), "rate": int(rate["charge"])}
+            for rate in rates
+            if int(rate["code_name2"]) <= weight_limit
         ]
     except:
         raise NoShippingRateError
-    
+
+
 def get_rates(country):
-    return __get_rates(country, 'https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{}')
+    return __get_rates(
+        country, "https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{}"
+    )
+
 
 def get_premium_rates(country):
-    return __get_rates(country, 'https://myems.co.kr/api/v1/common/emsChargeList/type/PREMIUM/country/{}')
+    return __get_rates(
+        country,
+        "https://myems.co.kr/api/v1/common/emsChargeList/type/PREMIUM/country/{}",
+    )
