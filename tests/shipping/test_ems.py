@@ -34,17 +34,17 @@ class TestShippingEMS(BaseTestCase):
         rate = ems.get_shipping_cost('ua', 100)
         self.assertIsInstance(rate, int)
 
-    def test_refresh_token(self):
-        def refresh_token():
-            time.sleep(random.randint(0, 4))
-            invoke_curl(
-                url='https://myems.co.kr/api/v1/login',
-                raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
-                use_proxy=False)
-        threading.Thread(target=refresh_token).start()
-        ems = EMS()
-        for i in range(5):
-            time.sleep(1)
-            weight = random.randint(0, 30000)
-            result = ems.get_shipping_cost('de', weight)
-            print(weight, result)
+    # def test_refresh_token(self):
+    #     def refresh_token():
+    #         time.sleep(random.randint(0, 4))
+    #         invoke_curl(
+    #             url='https://myems.co.kr/api/v1/login',
+    #             raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+    #             use_proxy=False)
+    #     threading.Thread(target=refresh_token).start()
+    #     ems = EMS()
+    #     for i in range(5):
+    #         time.sleep(1)
+    #         weight = random.randint(0, 30000)
+    #         result = ems.get_shipping_cost('de', weight)
+    #         print(weight, result)

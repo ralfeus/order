@@ -53,7 +53,7 @@ def write_to_file(path, data):
         file.write(data)
         file.close()
 
-def prepare_datatables_query(query, args, filter_clause=None):
+def prepare_datatables_query(query, args, filter_clause=None) -> tuple[any, int, int]:
     logger = logging.getLogger('prepare_datatables_query')
     def get_column(query, column_name):
         try:

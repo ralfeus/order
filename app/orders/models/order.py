@@ -82,7 +82,7 @@ class Order(db.Model, BaseModel): # type: ignore
     phone = Column(String(64))
     comment = Column(String(128))
     boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
-    shipping_box_weight = Column(Integer())
+    shipping_box_weight: int = Column(Integer())
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
@@ -394,6 +394,7 @@ class Order(db.Model, BaseModel): # type: ignore
             'invoice': self.invoice.to_dict() if self.invoice is not None else None,
             'subtotal_krw': self.subtotal_krw,
             'total_weight': self.total_weight,
+            'shipping_box_weight': self.shipping_box_weight,
             'shipping_krw': self.shipping_krw,
             'total': self.total_krw,
             'total_krw': self.total_krw,

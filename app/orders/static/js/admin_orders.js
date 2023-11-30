@@ -280,7 +280,12 @@ function edit_shipment(sender) {
         table: '#orders',
         idSrc: 'id',
         fields: [
-            { name: 'total_weight', label: 'Total weight' },
+            { 
+                name: 'total_weight', 
+                label: 'Total weight',
+                labelInfo: 'Total weight of the order including shipping box (in grams)',
+                data: (data, _a, _b) => data.total_weight + data.shipping_box_weight
+            },
             {
                 name: 'boxes', 
                 label: 'Boxes',
@@ -292,7 +297,7 @@ function edit_shipment(sender) {
                            'W - width<br />' +
                            'H - height',
                 type: 'textarea',
-                data: (data, type, set) => {
+                data: (data, _t, _s) => {
                     return data.boxes.map(e => {return e.quantity + ":" + e.weight + ":" + 
                                         e.length + "x" + e.width + "x" + e.height})
                         .join("\n");

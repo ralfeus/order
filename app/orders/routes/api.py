@@ -149,7 +149,7 @@ def user_get_orders(order_id):
                         for entry in orders])
 
 def filter_orders(orders, filter_params):
-    orders = orders.order_by(Order.purchase_date_sort)
+    orders: list[Order] = orders.order_by(Order.purchase_date_sort)
     orders, records_total, records_filtered = prepare_datatables_query(
         orders, filter_params, None
     )
@@ -157,7 +157,7 @@ def filter_orders(orders, filter_params):
         'draw': int(filter_params['draw']),
         'recordsTotal': records_total,
         'recordsFiltered': records_filtered,
-        'data': [entry .to_dict() for entry in orders]
+        'data': [entry.to_dict() for entry in orders]
     })
 
 def _set_draft(order):

@@ -118,7 +118,7 @@ class EMS(Shipping):
         volume_weight = int(
             int(box['width'] * box['length'] * box['height']) / 6
         )
-        weight = max(order.total_weight, volume_weight)
+        weight = max(order.total_weight + order.shipping_box_weight, volume_weight)
         price = self.__get_rate(order.country_id, weight)
         items = self.__get_consignment_items(order)
         request_payload = {
