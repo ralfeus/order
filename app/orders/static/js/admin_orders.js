@@ -6,22 +6,22 @@ var g_payment_methods;
 var g_shipping_methods;
 // var g_boxes;
 
-$(document).ready( function () {
+$(document).ready(function () {
     $('#usd-rate').closest('li').prependTo('#infobar');
     get_dictionaries()
         .then(init_orders_table);
     $('#orders tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
-        var row = g_orders_table.row( tr );
- 
-        if ( row.child.isShown() ) {
+        var row = g_orders_table.row(tr);
+
+        if (row.child.isShown()) {
             // This row is already open - close it
             row.child.hide();
             tr.removeClass('shown');
         }
         else {
             // First close all open rows
-            $('tr.shown').each(function() {
+            $('tr.shown').each(function () {
                 g_orders_table.row(this).child.hide();
                 $(this).removeClass('shown');
             })
@@ -33,7 +33,7 @@ $(document).ready( function () {
             $('.btn-save').on('click', event => save_order(event.target, row));
             $('.btn-delete').on('click', event => delete_order(event.target, row));
         }
-    } );
+    });
 });
 
 function consign(target) {
@@ -41,13 +41,13 @@ function consign(target) {
     $('.wait').show();
     $.ajax({
         url: `/api/v1/admin/shipping/consign/${order}`,
-        complete: function() {
+        complete: function () {
             $('.wait').hide();
         },
         success: (data) => {
             if (data.status == 'success') {
                 modal(
-                    'The consignment is submitted', 
+                    'The consignment is submitted',
                     `The consignment ${data.consignment_id} is submitted`);
             } else {
                 modal('Consignment error', data.message);
@@ -61,27 +61,27 @@ function consign(target) {
 
 function delete_order(_target, row) {
     modal(
-        "Order delete", 
+        "Order delete",
         "Are you sure you want to delete order <" + row.data().id + ">?",
         "confirmation")
-    .then(result => {
-        if (result == 'yes') {
-            $('.wait').show();
-            $.ajax({
-                url: '/api/v1/admin/order/' + row.data().id,
-                method: 'delete',
-                complete: function() {
-                    $('.wait').hide();
-                },
-                success: () => {
-                    row.draw();
-                },
-                error: (response) => {
-                    modal('Delete sale order error', response.responseText);
-                }
-            });
-        }
-    });
+        .then(result => {
+            if (result == 'yes') {
+                $('.wait').show();
+                $.ajax({
+                    url: '/api/v1/admin/order/' + row.data().id,
+                    method: 'delete',
+                    complete: function () {
+                        $('.wait').hide();
+                    },
+                    success: () => {
+                        row.draw();
+                    },
+                    error: (response) => {
+                        modal('Delete sale order error', response.responseText);
+                    }
+                });
+            }
+        });
 }
 
 async function get_dictionaries() {
@@ -93,7 +93,7 @@ async function get_dictionaries() {
         item => ({ id: item.id, text: item.name }));
     // g_boxes = await get_list('/api/v1/admin/shipping/box');
     g_filter_sources = {
-        'country': g_countries.map(i => ({id: i.id, text: i.name})),
+        'country': g_countries.map(i => ({ id: i.id, text: i.name })),
         'status': g_order_statuses,
         'payment_method': g_payment_methods,
         'shipping': g_shipping_methods
@@ -105,14 +105,14 @@ function save_order(target, row) {
     var new_status = $('#status', order_node).val();
     if (row.data().status != new_status) {
         modal(
-            "Order status change", 
+            "Order status change",
             "Are you sure you want to change order status to &lt;" + new_status + "&gt;?",
             "confirmation")
-        .then(result => {
-            if (result == 'yes') {
-                save_order_action(order_node, row);
-            }
-        });
+            .then(result => {
+                if (result == 'yes') {
+                    save_order_action(order_node, row);
+                }
+            });
     } else {
         save_order_action(order_node, row);
     }
@@ -132,10 +132,10 @@ function save_order_action(order_node, row) {
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify(update),
-        complete: function() {
+        complete: function () {
             $('.wait').hide();
         },
-        success: function(data) {
+        success: function (data) {
             row.data(data.data[0]).draw();
         },
         error: xhr => {
@@ -160,13 +160,13 @@ async function format(row, data) {
             dataSrc: ''
         },
         columns: [
-            {data: 'subcustomer'},
-	        {data: 'buyout_date'},
-            {data: 'product_id'},
-            {data: 'product', class: 'wrapok'},
-            {data: 'price'},
-            {data: 'quantity'},
-            {data: 'status'}
+            { data: 'subcustomer' },
+            { data: 'buyout_date' },
+            { data: 'product_id' },
+            { data: 'product', class: 'wrapok' },
+            { data: 'price' },
+            { data: 'quantity' },
+            { data: 'status' }
         ],
         rowGroup: {
             dataSrc: 'subcustomer'
@@ -181,8 +181,8 @@ async function format(row, data) {
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#export-id', order_details).val(order.invoice_id ? order.invoice.export_id : null);
-    $('#po-company', order_details).val(order.purchase_orders.length ? 
-	    order.purchase_orders[0].company : null);
+    $('#po-company', order_details).val(order.purchase_orders.length ?
+        order.purchase_orders[0].company : null);
     $('#shipping', order_details).val(data.shipping.name);
     $('#subtotal', order_details).val(data.subtotal_krw.toLocaleString());
     $('#shipping-cost', order_details).val(data.shipping_krw.toLocaleString());
@@ -202,17 +202,17 @@ async function format(row, data) {
     $('#order-params', order_details).DataTable({
         data: Object.entries(order.params)
             .map((e) =>
-            Object.entries(e[1]).map((s) => ({
-                type: e[0],
-                name: s[0],
-                value: s[1].replace("\n", "<br />"),
-            }))
+                Object.entries(e[1]).map((s) => ({
+                    type: e[0],
+                    name: s[0],
+                    value: s[1].replace("\n", "<br />"),
+                }))
             )
             .flat(),
-        rowGroup: {dataSrc: 'type'},
+        rowGroup: { dataSrc: 'type' },
         columns: [
-            {data: 'name'},
-            {data: 'value'}
+            { data: 'name' },
+            { data: 'value' }
         ]
     });
     return order_details;
@@ -226,20 +226,20 @@ function create_invoice(rows) {
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
-        data: JSON.stringify({order_ids: orders}),
-        complete: function() {
+        data: JSON.stringify({ order_ids: orders }),
+        complete: function () {
             $('.wait').hide();
         },
         success: function (data) {
             modal(
-                'Invoice', 
-                'Invoice <a href="/admin/invoices/' + data.invoice_id + '">' 
+                'Invoice',
+                'Invoice <a href="/admin/invoices/' + data.invoice_id + '">'
                 + data.invoice_id + '</a> is created for orders ' + orders.join());
         },
         error: function (ex) {
             console.log(ex);
         }
-    });  
+    });
 }
 
 function edit_shipment(sender) {
@@ -253,26 +253,16 @@ function edit_shipment(sender) {
                     return JSON.stringify({
                         total_weight: obj.total_weight,
                         boxes: Object.entries(obj.boxes.split('\n'))
-                                .map(e => {
-                                    var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
-                                    if (match === null) {
-                                        console.log(`Box information '${e}' doesn't match format Qty:Wght:LxWxH`);
-                                        return {
-                                            quantity: 0,
-                                            weight: 0,
-                                            length: 0,
-                                            width: 0,
-                                            height: 0
-                                        }
-                                    }
-                                    return {
-                                        quantity: match[1],
-                                        weight: match[2],
-                                        length: match[3],
-                                        width: match[4],
-                                        height: match[5]
-                                    };
-                                })
+                            .map(e => {
+                                var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
+                                return {
+                                    quantity: match[1],
+                                    weight: match[2],
+                                    length: match[3],
+                                    width: match[4],
+                                    height: match[5]
+                                };
+                            })
                     });
                 }
             }
@@ -280,32 +270,43 @@ function edit_shipment(sender) {
         table: '#orders',
         idSrc: 'id',
         fields: [
-            { 
-                name: 'total_weight', 
+            {
+                name: 'total_weight',
                 label: 'Total weight',
                 labelInfo: 'Total weight of the order including shipping box (in grams)',
                 data: (data, _a, _b) => data.total_weight + data.shipping_box_weight
             },
             {
-                name: 'boxes', 
+                name: 'boxes',
                 label: 'Boxes',
                 labelInfo: 'Enter boxes information (one box per line) in a format: ' +
-                           '<span style="color:blue;">Qty:Wght:LxWxH</span> where:<br/>' +
-                           'Qty - quantity<br/>' +
-                           'Wght - weight<br />' +
-                           'L - length<br />' +
-                           'W - width<br />' +
-                           'H - height',
+                    '<span style="color:blue;">Qty:Wght:LxWxH</span> where:<br/>' +
+                    'Qty - quantity<br/>' +
+                    'Wght - weight<br />' +
+                    'L - length<br />' +
+                    'W - width<br />' +
+                    'H - height',
                 type: 'textarea',
                 data: (data, _t, _s) => {
-                    return data.boxes.map(e => {return e.quantity + ":" + e.weight + ":" + 
-                                        e.length + "x" + e.width + "x" + e.height})
+                    return data.boxes.map(e => {
+                        return e.quantity + ":" + e.weight + ":" +
+                            e.length + "x" + e.width + "x" + e.height
+                    })
                         .join("\n");
                 }
             }
         ]
     });
     var order_row = g_orders_table.row($(sender).closest('tr'));
+    editor.on('preSubmit', function (e, data, action) {
+        for (var entry of Object.entries(data.data)[0][1].boxes.split('\n')) {
+            var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(entry);
+            if (match === null) {
+                this.error(`Box information '${entry}' doesn't match format Qty:Wght:LxWxH`);
+                return false;
+            }
+        }
+    });
     editor
         .edit(order_row, true, {
             title: 'Set shipment info',
@@ -323,46 +324,46 @@ function init_orders_table() {
                 text: 'Print',
                 autoPrint: false,
                 customize: window => {
-                    window.location = g_orders_table.rows({selected: true}).data()[0].id + '?view=print'
+                    window.location = g_orders_table.rows({ selected: true }).data()[0].id + '?view=print'
                 }
             },
             {
                 extend: 'selected',
                 text: 'Create invoice',
-                action: function(e, dt, node, config) {
-                    create_invoice(dt.rows({selected: true}));
+                action: function (e, dt, node, config) {
+                    create_invoice(dt.rows({ selected: true }));
                 }
             },
             {
                 extend: 'selected',
                 text: 'Export to Excel',
-                action: function(e, dt, node, config) {
-                    open_order_invoice(dt.rows({selected: true}));
+                action: function (e, dt, node, config) {
+                    open_order_invoice(dt.rows({ selected: true }));
                 }
             },
             {
                 extend: 'selected',
                 text: 'Customs label',
-                action: function(e, dt, node, config) {
-                    open_order_customs_label(dt.rows({selected: true}));
-                }            
+                action: function (e, dt, node, config) {
+                    open_order_customs_label(dt.rows({ selected: true }));
+                }
             },
-            { 
-                extend: 'collection', 
+            {
+                extend: 'collection',
                 text: 'Set status',
-                buttons: [ g_order_statuses.map(s => ({
+                buttons: [g_order_statuses.map(s => ({
                     extend: 'selected',
                     text: s,
-                    action: function(e, dt, node, config) {
-                        set_status(dt.rows({selected: true}), this.text());
+                    action: function (e, dt, node, config) {
+                        set_status(dt.rows({ selected: true }), this.text());
                     }
                 }))]
             },
             {
                 extend: 'selected',
                 text: 'Copy',
-                action: function(e, dt, node, config) {
-                    open_order_copy_from(dt.rows({selected: true}));
+                action: function (e, dt, node, config) {
+                    open_order_copy_from(dt.rows({ selected: true }));
                 }
             },
             'pageLength'
@@ -375,23 +376,23 @@ function init_orders_table() {
         searchBuilder: {},
         columns: [
             {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
                 "defaultContent": ''
             },
             {
                 'orderable': false,
                 'data': null,
-                fnCreatedCell: function(cell, sData, oData, iRow, iCol) {
+                fnCreatedCell: function (cell, sData, oData, iRow, iCol) {
                     var html = '';
                     if (oData.comment) {
-                        html += 
+                        html +=
                             "<span " +
                             "    data-toggle=\"tooltip\" data-delay=\"{ show: 5000, hide: 3000}\"" +
                             "    style=\"color: blue; font-weight:bolder; font-size:large;\"" +
                             "    title=\"" + oData.comment + "\">C</span>";
-                    } 
+                    }
                     if (oData.outsiders.length) {
                         html +=
                             "<span " +
@@ -413,9 +414,9 @@ function init_orders_table() {
                 }
             },
             {
-                className:      'order-actions',
-                orderable:      false,
-                data:           null,
+                className: 'order-actions',
+                orderable: false,
+                data: null,
                 defaultContent: ` \
                     <button \
                         class="btn btn-sm btn-secondary btn-open" \
@@ -426,43 +427,43 @@ function init_orders_table() {
                     <button \
                         class="btn btn-sm btn-secondary btn-consign" \
                         onclick="consign(this);">Consign</button> `
-            },            
+            },
             {
-                name: 'id', 
+                name: 'id',
                 data: 'id',
                 render: (data, type, row, meta) => {
-                    return "<a href=\"/admin/orders/products?order_id=" + data + "\">" + 
-                            data + "</a>";
+                    return "<a href=\"/admin/orders/products?order_id=" + data + "\">" +
+                        data + "</a>";
                 }
             },
-            {data: 'user'},
-            {data: 'customer_name'},
-            {data: 'subtotal_krw'},
-            {data: 'shipping_krw'},
-            {data: 'total_krw'},
-            {data: 'status'},
-            {data: 'payment_method', orderable: false},
-            {data: 'shipping', render: 'name', orderable: false},
-            {data: 'country', render: 'name', orderable: false},
+            { data: 'user' },
+            { data: 'customer_name' },
+            { data: 'subtotal_krw' },
+            { data: 'shipping_krw' },
+            { data: 'total_krw' },
+            { data: 'status' },
+            { data: 'payment_method', orderable: false },
+            { data: 'shipping', render: 'name', orderable: false },
+            { data: 'country', render: 'name', orderable: false },
             {
-                name: 'invoice_export_id', 
+                name: 'invoice_export_id',
                 data: null,
                 render: (data, type, row) => { return row.invoice ? row.invoice.export_id : null; }
             },
-            {data: 'purchase_date'},
+            { data: 'purchase_date' },
             {
                 data: 'when_po_posted',
                 orderable: false,
                 render: (data, type, row, meta) => {
-                    return data 
-                        ? "<a href=\"/admin/purchase/orders?id=" + 
-                            row.id.replace('ORD', 'PO') + "\">" + 
-                            dt_render_local_time(data, type, row) + "</a>"
+                    return data
+                        ? "<a href=\"/admin/purchase/orders?id=" +
+                        row.id.replace('ORD', 'PO') + "\">" +
+                        dt_render_local_time(data, type, row) + "</a>"
                         : dt_render_local_time(data, type, row);
                 }
             },
-            {data: 'when_created'},
-            {data: 'when_changed'},
+            { data: 'when_created' },
+            { data: 'when_changed' },
         ],
         columnDefs: [
             {
@@ -484,11 +485,11 @@ function init_orders_table() {
                 $('.btn-consign', row).remove();
             }
         },
-        initComplete: function() { 
+        initComplete: function () {
             var table = this;
-            this.api().buttons().container().appendTo( '#orders_wrapper .col-sm-12:eq(0)' );
-            init_search(table, g_filter_sources) 
-            .then(() => init_table_filter(table));
+            this.api().buttons().container().appendTo('#orders_wrapper .col-sm-12:eq(0)');
+            init_search(table, g_filter_sources)
+                .then(() => init_table_filter(table));
         }
     });
 }
@@ -509,8 +510,8 @@ function open_order_invoice(target) {
         if (target.data()[i].status == 'shipped') {
             window.open('/orders/' + target.data()[i].id + '/excel');
         } else {
-            error += "Can't export order " + 
-                target.data()[i].id + 
+            error += "Can't export order " +
+                target.data()[i].id +
                 " to Excel because it's not in 'shipped' status<br />"
         }
     }
@@ -522,35 +523,35 @@ function open_order_invoice(target) {
 function set_status(target, new_status) {
     if (target.count()) {
         modal(
-            "Order status change", 
+            "Order status change",
             "Are you sure you want to change orders status to &lt;" + new_status + "&gt;?",
             "confirmation")
-        .then(result => {
-            if (result == 'yes') {
-                $('.wait').show();
-                var orders_left = target.count();
-                for (var i = 0; i < target.count(); i++) {
-                    $.post({
-                        url: '/api/v1/admin/order/' + target.data()[i].id,
-                        dataType: 'json',
-                        contentType: 'application/json',
-                        data: JSON.stringify({status: new_status}),
-                    })
-                    .always(() => {
-                            orders_left--;
-                            if (!orders_left) {
-                                $('.wait').hide();
-                            }
+            .then(result => {
+                if (result == 'yes') {
+                    $('.wait').show();
+                    var orders_left = target.count();
+                    for (var i = 0; i < target.count(); i++) {
+                        $.post({
+                            url: '/api/v1/admin/order/' + target.data()[i].id,
+                            dataType: 'json',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ status: new_status }),
                         })
-                    .fail((xhr, status, error) => {
-                            alert(xhr.responseText);
-                        })
-                    .done((data, status, xhr) => {
-                            g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
-                        });
+                            .always(() => {
+                                orders_left--;
+                                if (!orders_left) {
+                                    $('.wait').hide();
+                                }
+                            })
+                            .fail((xhr, status, error) => {
+                                alert(xhr.responseText);
+                            })
+                            .done((data, status, xhr) => {
+                                g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();
+                            });
+                    }
                 }
-            }
-        });
+            });
     } else {
         alert('Nothing selected');
     }
@@ -559,5 +560,5 @@ function set_status(target, new_status) {
 function open_order_copy_from(rows) {
     if (rows.count() == 1) {
         window.location = '/orders/new?from_order=' + rows.data()[0].id;
-    } 
+    }
 }
