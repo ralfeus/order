@@ -77,8 +77,9 @@ class EMS(Shipping):
         return result[1:-1]
 
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, any]]:
+        logger = logging.getLogger('EMS::__get_consignment_items()')
         try:
-            items = order.params.get["shipping.items"].split("\n")
+            items = order.params["shipping.items"].split("\n")
             return [
                 {
                     "name": item.split("|")[0],
@@ -91,6 +92,8 @@ class EMS(Shipping):
                 for item in items
             ]
         except:
+            logger.warning("Couldn't get items from:")
+            logger.warning(order.params.get("shipping.items"))
             return [
                 {
                     "name": "Cosmetics",
