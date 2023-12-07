@@ -4,13 +4,36 @@ import logging
 from operator import itemgetter
 import re
 import time
+from typing import Any
 
 from app import cache
 from app.models import Country
 import app.orders.models as o
 from app.shipping.models import Shipping
-from app.tools import get_json, invoke_curl
+from app.tools import first_or_default, get_json, invoke_curl
 from exceptions import HTTPError, NoShippingRateError, OrderError
+
+hs_codes = {
+    "Coffee": "0901902000",
+    "Hair dryer": "1516310000",
+    "Vitamin": "2106909099",
+    "Skin": "3005909900",
+    "Hair": "3305909000",
+    "Face": "3304991000",
+    "Cosmetic": "3304991000",
+    "Shampoo": "3305100000",
+    "Oral": "3306901000",
+    "mask": "3307904000",
+    "Detergent": "3402902000",
+    "Beauty": "3924990090",
+    "glove": "6116929000",
+    "Cloth": "6211499000",
+    "Household": "6912002000",
+    "Kitchen": "8215999000",
+    "Brush": "8545200000",
+    "Sanitary": "9619001090",
+    "_default_": "3304991000",
+}
 
 
 class EMS(Shipping):
@@ -76,8 +99,8 @@ class EMS(Shipping):
         logger.info("The new consignment ID is: %s", result)
         return result[1:-1]
 
-    def __get_consignment_items(self, order: o.Order) -> list[dict[str, any]]:
-        logger = logging.getLogger('EMS::__get_consignment_items()')
+    def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
+        logger = logging.getLogger("EMS::__get_consignment_items()")
         try:
             items = order.params["shipping.items"].split("\n")
             return [
@@ -85,9 +108,10 @@ class EMS(Shipping):
                     "name": item.split("|")[0],
                     "quantity": item.split("|")[1],
                     "price": item.split("|")[2],
-                    "hscode": "2106909099"
-                    if re.search("vitamin", item, re.I)
-                    else "3304991000",
+                    "hscode": hs_codes[first_or_default(
+                        hs_codes.keys(), 
+                        lambda i: re.search(i, item, re.I), 
+                        '_default_')] 
                 }
                 for item in items
             ]
@@ -107,6 +131,8 @@ class EMS(Shipping):
         logger = logging.getLogger("EMS::__save_consignment()")
         logger.info("Saving a consignment %s", consignment_id)
         payee = order.get_payee()
+        if payee is None:
+            raise OrderError("Order is not paid. Can't send")
         sender_phone = payee.phone.split("-")
         volume_weight = 0
         try:
@@ -114,14 +140,18 @@ class EMS(Shipping):
                 "length": int(order.boxes[0].length),
                 "width": int(order.boxes[0].width),
                 "height": int(order.boxes[0].height),
+                "weight": int(order.boxes[0].weight),
             }
         except:
             logger.info("The box information is absent. Using default values")
-            box = {"length": 42, "width": 30, "height": 19}
-        volume_weight = int(
-            int(box['width'] * box['length'] * box['height']) / 6
-        )
-        weight = max(order.total_weight + order.shipping_box_weight, volume_weight)
+            box = {
+                "length": 42,
+                "width": 30,
+                "height": 19,
+                "weight": order.total_weight + order.shipping_box_weight,
+            }
+        volume_weight = int(int(box["width"] * box["length"] * box["height"]) / 6)
+        weight = max(box["weight"], volume_weight)
         price = self.__get_rate(order.country_id, weight)
         items = self.__get_consignment_items(order)
         request_payload = {
@@ -162,13 +192,14 @@ class EMS(Shipping):
             "extra_shipping_charge": price[
                 "extra_shipping_charge"
             ],  # get additional fee from calculation service
-            "vol_weight1": box['width'],  # width
-            "vol_weight2": box['length'],  # length
-            "vol_weight3": box['height'],  # height
+            "vol_weight1": box["width"],  # width
+            "vol_weight2": box["length"],  # length
+            "vol_weight3": box["height"],  # height
             "vol_weight": volume_weight,  # volume translated to weight. Calculated as width * length * height / 6
             # p_weight (above) is either itself of this value, if this value is bigger
             "item_detailed": "32",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
         }
+        logger.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
             url="https://myems.co.kr/api/v1/order/temp_orders",
             raw_data=json.dumps(request_payload),
@@ -198,7 +229,7 @@ class EMS(Shipping):
         )
         return rate
 
-    def __get_rate(self, country: str, weight: int) -> dict[str, any]:
+    def __get_rate(self, country: str, weight: int) -> dict[str, Any]:
         """Return raw price structure from EMS"""
         logger = logging.getLogger("EMS::__get_rate()")
         id = self.__get_shipping_order()

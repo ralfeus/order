@@ -10,7 +10,7 @@ from functools import reduce
 import os
 import os.path
 import re
-from typing import Any, Callable
+from typing import T, Any, Callable
 import lxml
 from time import sleep
 from werkzeug.datastructures import MultiDict
@@ -295,3 +295,9 @@ def retryable(func:Callable, attempts:int=3) -> Callable:
             else:
                 raise e
     return wrapper
+
+def first_or_default(list: list[T], filter: Callable[[T], bool], default: T=None) -> T:
+    for item in list:
+        if filter(item):
+            return item
+    return default
