@@ -102,12 +102,12 @@ class EMS(Shipping):
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
         logger = logging.getLogger("EMS::__get_consignment_items()")
         try:
-            items = order.params["shipping.items"].split("\n")
+            items: list[str] = order.params["shipping.items"].replace('|', '/').splitlines()
             return [
                 {
-                    "name": item.split("|")[0],
-                    "quantity": item.split("|")[1],
-                    "price": item.split("|")[2],
+                    "name": item.split("/")[0],
+                    "quantity": item.split("/")[1],
+                    "price": item.split("/")[2],
                     "hscode": hs_codes[first_or_default(
                         hs_codes.keys(), 
                         lambda i: re.search(i, item, re.I), 
