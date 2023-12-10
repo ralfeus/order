@@ -2,6 +2,7 @@
 from json import JSONEncoder, load
 import logging
 import os
+import time
 import types
 
 from blinker import Namespace
@@ -53,7 +54,7 @@ def create_app(config=None):
 
     Bootstrap(app)
     cache.init_app(app)
-    db.init_app(app)
+    init_db(app, db)
     migrate.init_app(app, db, compare_type=True)
     init_celery(celery, app)
     
@@ -116,6 +117,24 @@ def import_models(flask_app):
     import app.users.models
     with flask_app.app_context():
         db.create_all()
+
+def init_db(app: Flask, db: SQLAlchemy):
+    from sqlalchemy import text
+    logger = logging.getLogger('init_db()')
+    db.init_app(app)
+    logger.info("Ensuring DB is operational")
+    statement = text("SELECT COUNT(*) FROM users")
+    with app.app_context():
+        for _ in range(5):
+            try:
+                db.session.execute(statement)
+                logger.info("DB connection is successfully established")
+                return
+            except Exception as e:
+                logger.warning(e)
+                time.sleep(1)
+    raise Exception("Couldn't establish a DB connection")
+
 
 def init_debug(flask_app):
     import flask_debugtoolbar
