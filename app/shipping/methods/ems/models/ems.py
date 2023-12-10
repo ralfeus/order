@@ -225,8 +225,8 @@ class EMS(Shipping):
             url="https://myems.co.kr/api/v1/order/temp_orders",
             raw_data=json.dumps(request_payload),
         )
-        logger.debug(stdout)
-        logger.debug(stderr)
+        # logger.debug(stdout)
+        # logger.debug(stderr)
 
     def __submit_consignment(self, consignment_id):
         logger = logging.getLogger("EMS::__submit_consignment")

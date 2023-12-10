@@ -47,7 +47,12 @@
       <td><h5>Phone</h5></td>
     </tr>
     <tr>
-      <td>{{ order.shipping.name }}</td>
+      <td>
+        <table>
+          <tr><td>{{ order.shipping.name }}</td></tr>
+          <tr><td>Tracking: {{ order.tracking_id }}</td></tr>
+        </table>
+      </td>
       <td>        
         <table>
           <tr>
