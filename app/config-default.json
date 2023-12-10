@@ -4,27 +4,33 @@
     "ADMIN_HASH": "1500004ci4LtPz8641fd1956415e82846cddecb7a419e1fecc34b6e73b3dd6e22a1a943dce9a4a",
     "SQLALCHEMY_DATABASE_URI": "mysql+mysqldb://root@localhost/talya?unix_socket=/tmp/mysql.sock",
     "SQLALCHEMY_ECHO": false,
-    "SQLALCHEMY_ENGINE_OPTIONS": { },
+    "SQLALCHEMY_ENGINE_OPTIONS": {},
     "SQLALCHEMY_TRACK_MODIFICATIONS": true,
-
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
-
     "UPLOAD_PATH": "upload",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "PRODUCT_IMPORT_PERIOD": 300,
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 50000,
     "LOCAL_SHIPPING_COST": 2900,
-    "SHIPPING_AUTOMATION": true,
+
+    "SHIPPING_AUTOMATION": {
+        "enabled": true,
+        "ems": {
+            "login": "myems1055",
+            "password": "1111"
+        }
+    },
 
     "PROFILER": true,
-
     "CELERY_TASK_DEFAULT_QUEUE": "order",
     "ATOMY_CENTER": true,
     "NETWORK_MANAGER_URL": "http://localhost:5001",
 
     "CACHE_TYPE": "MemcachedCache",
-    "CACHE_MEMCACHED_SERVERS": ["127.0.0.1"],
+    "CACHE_MEMCACHED_SERVERS": [
+        "127.0.0.1"
+    ],
 
     "MODULES": {
         "warehouse": {

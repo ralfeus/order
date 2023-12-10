@@ -4,7 +4,7 @@ import logging
 from operator import itemgetter
 import re
 import time
-from typing import Any
+from typing import Any, Optional
 
 from app import cache
 from app.models import Country
@@ -44,6 +44,9 @@ class EMS(Shipping):
     name = "EMS"
     type = "EMS"
 
+    __username = "sub1079"
+    __password = "2045"
+
     def __invoke_curl(self, *args, **kwargs) -> tuple[str, str]:
         logger = logging.getLogger("EMS::__invoke_curl()")
         kwargs["headers"] = [self.__login()]
@@ -52,7 +55,8 @@ class EMS(Shipping):
             if re.search("HTTP.*? 401", stderr):
                 logger.warning("EMS authentication error. Retrying...")
                 kwargs["headers"] = [self.__login(force=True)]
-            return stdout, stderr
+            else:
+                return stdout, stderr
         raise HTTPError(401)
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
@@ -81,9 +85,21 @@ class EMS(Shipping):
             logger.debug(f"There is no rate to country {country}. Can't ship")
         return rate_exists
 
-    def consign(self, order: o.Order) -> str:
+    def consign(self, order: o.Order, config: Optional[dict[str, Any]] = None) -> str:
+        '''
+        Creates an EMS consignment. 
+        @param order - order to create a consignment for (including attached orders)
+        @param login - EMS login to use to communicate to EMS
+        @param password - the password to the EMS account
+        @return - ID of the created consignment
+        '''
         if order is None:
             return
+        if not (config is None or config.get('ems') is None or 
+                config['ems'].get('login') is None or 
+                config['ems'].get('password') is None):
+            self.__username = config['ems']['login']
+            self.__password = config['ems']['password']
         logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
@@ -102,16 +118,21 @@ class EMS(Shipping):
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
         logger = logging.getLogger("EMS::__get_consignment_items()")
         try:
-            items: list[str] = order.params["shipping.items"].replace('|', '/').splitlines()
+            items: list[str] = (
+                order.params["shipping.items"].replace("|", "/").splitlines()
+            )
             return [
                 {
                     "name": item.split("/")[0],
                     "quantity": item.split("/")[1],
                     "price": item.split("/")[2],
-                    "hscode": hs_codes[first_or_default(
-                        hs_codes.keys(), 
-                        lambda i: re.search(i, item, re.I), 
-                        '_default_')] 
+                    "hscode": hs_codes[
+                        first_or_default(
+                            hs_codes.keys(),
+                            lambda i: re.search(i, item, re.I),
+                            "_default_",
+                        )
+                    ],
                 }
                 for item in items
             ]
@@ -204,8 +225,8 @@ class EMS(Shipping):
             url="https://myems.co.kr/api/v1/order/temp_orders",
             raw_data=json.dumps(request_payload),
         )
-        # logger.debug(stdout)
-        # logger.debug(stderr)
+        logger.debug(stdout)
+        logger.debug(stderr)
 
     def __submit_consignment(self, consignment_id):
         logger = logging.getLogger("EMS::__submit_consignment")
@@ -279,11 +300,11 @@ class EMS(Shipping):
             force = False
         logger.debug("%s, %s", cache.get("ems_auth"), force)
         if cache.get("ems_auth") is None or force:
-            logger.info("Logging in to EMS")
+            logger.info("Logging in to EMS as %s", self.__username)
             cache.set("ems_login_in_progress", True)
             result = get_json(
                 url="https://myems.co.kr/api/v1/login",
-                raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
+                raw_data=f'{{"user":{{"userid":"{self.__username}","password":"{self.__password}"}}}}',
                 method="POST",
             )
             cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import reduce
 import logging
 from tempfile import _TemporaryFileWrapper
+from typing import Any, Optional
 from flask import current_app
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
@@ -74,7 +75,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
         
-    def consign(self, order: 'o.Order') -> str:
+    def consign(self, order: 'o.Order', config:Optional[dict[str, Any]]=None) -> str:
         raise NotImplementedError()
 
     def get_edit_url(self):
@@ -103,7 +104,8 @@ class Shipping(db.Model, BaseModel): #type: ignore
         raise NoShippingRateError()
     
     def is_consignable(self):
-        if not current_app.config.get("SHIPPING_AUTOMATION"):
+        if not (current_app.config.get("SHIPPING_AUTOMATION") and
+                current_app.config['SHIPPING_AUTOMATION']['enabled']):
             return False
         try:
             self.consign(None)
