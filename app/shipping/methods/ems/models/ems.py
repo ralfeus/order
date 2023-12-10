@@ -100,6 +100,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
+            self.__login(force=True)
         logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
