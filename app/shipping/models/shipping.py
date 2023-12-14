@@ -13,11 +13,13 @@ from sqlalchemy.orm import relationship #type: ignore
 from sqlalchemy.sql.schema import ForeignKey #type: ignore
 
 from app import db
-from .shipping_rate import ShippingRate
 from app.models import Country
 from app.models.base import BaseModel
 import app.orders.models as o
 from exceptions import NoShippingRateError
+
+from .consign_result import ConsignResult
+from .shipping_rate import ShippingRate
 
 box_weights = {
     30000: 2200,
@@ -75,9 +77,15 @@ class Shipping(db.Model, BaseModel): #type: ignore
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
         
-    def consign(self, order: 'o.Order', config:Optional[dict[str, Any]]=None) -> str:
+    def consign(self, order: 'o.Order', config:dict[str, Any]={}) -> ConsignResult:
+        '''Creates consignment at shipping provider.
+        :param Order order: order, for which consignment is to be created
+        :param dic[str, Any] config: configuration to be used for shipping provider
+        :raises: :class:`NotImplementedError`: In case the consignment functionality
+        is not implemented by a shipping provider
+        :returns str: consignment ID'''
         raise NotImplementedError()
-
+    
     def get_edit_url(self):
         return None
 

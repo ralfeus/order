@@ -38,10 +38,14 @@ $(document).ready(function () {
 
 function consign(target) {
     var order = g_orders_table.row($(target).parents('tr')).data().id;
+    consign_step(`/api/v1/admin/shipping/consign/${order}`)
+}
+
+function consign_step(url) {
     $('.wait').show();
     $.ajax({
-        url: `/api/v1/admin/shipping/consign/${order}`,
-        complete: function () {
+        url: url,
+        complete: () => {
             $('.wait').hide();
         },
         success: (data) => {
@@ -49,6 +53,18 @@ function consign(target) {
                 modal(
                     'The consignment is submitted',
                     `The consignment ${data.consignment_id} is submitted`);
+            } else if (data.status == 'next_step_available') {
+                modal(
+                    "The consignment is submitted",
+                    `The consignment ${data.consignment_id} is submitted. ` +
+                    `Do you want to perform next step: ${data.next_step_message}?`,
+                    'confirmation'
+                )
+                .then((result) => {
+                    if (result == 'yes') {
+                        consign_step(data.next_step_url);
+                    }
+                });
             } else {
                 modal('Consignment error', data.message);
             }

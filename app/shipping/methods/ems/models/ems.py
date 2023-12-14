@@ -4,7 +4,9 @@ import logging
 from operator import itemgetter
 import re
 import time
-from typing import Any, Optional
+from typing import Any
+
+from flask import url_for
 
 from app import cache
 from app.models import Country
@@ -12,6 +14,8 @@ import app.orders.models as o
 from app.shipping.models import Shipping
 from app.tools import first_or_default, get_json, invoke_curl
 from exceptions import HTTPError, NoShippingRateError, OrderError
+
+from app.shipping.models.consign_result import ConsignResult
 
 hs_codes = {
     "Coffee": "0901902000",
@@ -85,17 +89,12 @@ class EMS(Shipping):
             logger.debug(f"There is no rate to country {country}. Can't ship")
         return rate_exists
 
-    def consign(self, order: o.Order, config: Optional[dict[str, Any]] = None) -> str:
-        '''
-        Creates an EMS consignment. 
-        @param order - order to create a consignment for (including attached orders)
-        @param login - EMS login to use to communicate to EMS
-        @param password - the password to the EMS account
-        @return - ID of the created consignment
-        '''
+    def consign(self, order, config={}):
+        from .. import bp_client_admin
         if order is None:
             return
-        if not (config is None or config.get('ems') is None or 
+        if isinstance(config, dict) and \
+           not (config.get('ems') is None or 
                 config['ems'].get('login') is None or 
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
@@ -106,7 +105,75 @@ class EMS(Shipping):
         self.__save_consignment(consignment_id, order)
         self.__submit_consignment(consignment_id)
         logger.info("The order %s is consigned as %s", order.id, consignment_id)
-        return consignment_id
+        return ConsignResult(
+            consignment_id=consignment_id, 
+            next_step_message="Finalize shipping order and print label",
+            next_step_url=url_for(
+                endpoint=f'{bp_client_admin.name}.admin_print_label', 
+                order_id=order.id if order else None))
+    
+    def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
+        '''Prints shipping label to be applied too the parcel
+        :param Order order: order, for which label is to be printed
+        :param dic[str, Any] config: configuration to be used for 
+        shipping provider
+        :raises: :class:`NotImplementedError`: In case the consignment
+        functionality is not implemented by a shipping provider
+        :returns bytes: label file'''
+        if order.tracking_id is None:
+            raise AttributeError(f'Order {order.id} has no consignment created')
+        if isinstance(config, dict) and \
+           not (config.get('ems') is None or 
+                config['ems'].get('login') is None or 
+                config['ems'].get('password') is None):
+            self.__username = config['ems']['login']
+            self.__password = config['ems']['password']
+            self.__login(force=True)
+        logger = logging.getLogger("EMS::print()")
+        logger.info("Getting consignment %s", order.tracking_id)
+        try:
+            code = self.__get_consignment_code(order.tracking_id)
+            logger.debug(code)
+            self.__print_label(code)
+            # if order.invoice is not None and order.invoice.export_id is not None:
+            #     label = self.__blend_export_id(label, order.invoice.export_id)
+            return self.__get_consignment(code)
+        except Exception as e:
+            logger.warning(f"Couldn't print label for order {order.id}")
+            raise e
+    
+    def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
+        return get_json(
+            url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}',
+            get_data=self.__invoke_curl
+        )
+        
+
+    def __get_consignment_code(self, consignment_id: str) -> str:
+        logger = logging.getLogger('EMS::__get_consignment()')
+        consignments = get_json(
+            url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0',
+            # url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0',
+            get_data=self.__invoke_curl)
+        if len(consignments) != 2:
+            logger.warning("Couldn't get consignment")
+            logger.warning(consignments)
+            raise Exception()
+        for consignment in consignments[1]:
+            if isinstance(consignment, dict) and \
+                consignment.get('ems_code') == consignment_id:
+                return consignment['code']
+        raise Exception(f"No consignment {consignment_id} was found")
+    
+    def __print_label(self, consignment: str):
+        '''Submits request to print label. This makes the consignment obligatory 
+        to be picked up and paid for
+        :param consignment str: an internal code of a consignment to be printed'''
+        logger = logging.getLogger("EMS::__get_print_label()")
+        output, _ = self.__invoke_curl(
+            f'https://myems.co.kr/b2b/order_print.php?type=declaration&codes={consignment}')
+        # logger.debug(output)
+        # logger.debug(_)
 
     def __create_new_consignment(self) -> str:
         logger = logging.getLogger("EMS::__create_new_consignment()")
@@ -129,8 +196,8 @@ class EMS(Shipping):
                     "price": item.split("/")[2],
                     "hscode": hs_codes[
                         first_or_default(
-                            hs_codes.keys(),
-                            lambda i: re.search(i, item, re.I),
+                            list(hs_codes.keys()),
+                            lambda i: re.search(i, item, re.I) is not None,
                             "_default_",
                         )
                     ],

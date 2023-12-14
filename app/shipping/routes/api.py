@@ -172,9 +172,14 @@ def consign_order(order_id: str):
         result = order.shipping.consign(
             order, config=current_app.config.get("SHIPPING_AUTOMATION")
         )
-        order.tracking_id = result
+        order.tracking_id = result.consignment_id
         db.session.commit()
-        return jsonify({"status": "success", "consignment_id": result})
+        return jsonify({
+            "status": "next_step_available" if result.next_step_url else "success", 
+            "consignment_id": result,
+            "next_step_message": result.next_step_message,
+            "next_step_url": result.next_step_url
+        })
     except NotImplementedError:
         return jsonify(
             {

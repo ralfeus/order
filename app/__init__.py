@@ -123,17 +123,17 @@ def init_db(app: Flask, db: SQLAlchemy):
     logger = logging.getLogger('init_db()')
     db.init_app(app)
     logger.info("Ensuring DB is operational")
-    statement = text("SELECT COUNT(*) FROM users")
-    with app.app_context():
-        for _ in range(5):
-            try:
-                db.session.execute(statement)
-                logger.info("DB connection is successfully established")
-                return
-            except Exception as e:
-                logger.warning(e)
-                time.sleep(1)
-    raise Exception("Couldn't establish a DB connection")
+    # statement = text("SELECT COUNT(*) FROM users")
+    # with app.app_context():
+    #     for _ in range(5):
+    #         try:
+    #             db.session.execute(statement)
+    #             logger.info("DB connection is successfully established")
+    #             return
+    #         except Exception as e:
+    #             logger.warning(e)
+    #             time.sleep(1)
+    # raise Exception("Couldn't establish a DB connection")
 
 
 def init_debug(flask_app):

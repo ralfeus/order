@@ -1,0 +1,25 @@
+'''Client routes for EMS shipping'''
+import json
+from flask import Response, abort, current_app, render_template, request
+from flask_security import roles_required
+
+import app.orders.models as o
+from ..models.ems import EMS
+
+from .. import bp_client_admin
+
+@bp_client_admin.route('/label')
+@roles_required('admin')
+def admin_print_label():
+    order_id = request.args.get('order_id')
+    order:o.Order = o.Order.query.get(order_id)
+    if order is None:
+        abort(status=404)
+    shipping: EMS = order.shipping
+    if not isinstance(shipping, EMS):
+        abort(Response(f"The order {order_id} is not shipped by EMS", status=400))
+    export_id = ''
+    if order.invoice is not None and order.invoice.export_id is not None:
+        export_id = order.invoice.export_id
+    consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
+    return render_template('label.html', consignment=consignment, export_id=export_id)

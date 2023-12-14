@@ -234,7 +234,6 @@ def get_json(url, raw_data=None, headers=[], method='GET', retry=True,
              get_data: Callable=invoke_curl) -> dict[str, Any]:
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
         headers=headers, retries=3 if retry else 0)
-        
     try:
         return json.loads(stdout)
     except:
