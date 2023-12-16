@@ -99,7 +99,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=True)
+            self.__login(force=cache.get('ems_user') != self.__username)
         logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
@@ -128,16 +128,16 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=True)
+            self.__login(force=cache.get('ems_user') != self.__username)
         logger = logging.getLogger("EMS::print()")
         logger.info("Getting consignment %s", order.tracking_id)
         try:
             code = self.__get_consignment_code(order.tracking_id)
             logger.debug(code)
-            self.__print_label(code)
-            # if order.invoice is not None and order.invoice.export_id is not None:
-            #     label = self.__blend_export_id(label, order.invoice.export_id)
-            return self.__get_consignment(code)
+            #TODO: uncomment for production
+            # self.__print_label(code) 
+            # consignment = self.__get_consignment(code)
+            return {}
         except Exception as e:
             logger.warning(f"Couldn't print label for order {order.id}")
             raise e
@@ -152,8 +152,8 @@ class EMS(Shipping):
     def __get_consignment_code(self, consignment_id: str) -> str:
         logger = logging.getLogger('EMS::__get_consignment()')
         consignments = get_json(
-            url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0',
-            # url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0',
+            # url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0',
+            url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0',
             get_data=self.__invoke_curl)
         if len(consignments) != 2:
             logger.warning("Couldn't get consignment")
@@ -376,6 +376,7 @@ class EMS(Shipping):
                 method="POST",
             )
             cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)
+            cache.set('ems_user', self.__username, timeout=28800)
             logger.debug("Auth result: %s", cache.get("ems_auth"))
             cache.delete("ems_login_in_progress")
         return {"Authorization": cache.get("ems_auth")}

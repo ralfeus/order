@@ -10,7 +10,7 @@ from .. import bp_client_admin
 
 @bp_client_admin.route('/label')
 @roles_required('admin')
-def admin_print_label():
+def admin_print_label() -> str:
     order_id = request.args.get('order_id')
     order:o.Order = o.Order.query.get(order_id)
     if order is None:

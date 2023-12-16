@@ -176,7 +176,7 @@ def consign_order(order_id: str):
         db.session.commit()
         return jsonify({
             "status": "next_step_available" if result.next_step_url else "success", 
-            "consignment_id": result,
+            "consignment_id": result.consignment_id,
             "next_step_message": result.next_step_message,
             "next_step_url": result.next_step_url
         })

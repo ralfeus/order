@@ -119,7 +119,7 @@ def import_models(flask_app):
         db.create_all()
 
 def init_db(app: Flask, db: SQLAlchemy):
-    from sqlalchemy import text
+    # from sqlalchemy import text
     logger = logging.getLogger('init_db()')
     db.init_app(app)
     logger.info("Ensuring DB is operational")

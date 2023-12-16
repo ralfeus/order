@@ -42,6 +42,10 @@ function consign(target) {
 }
 
 function consign_step(url) {
+    if (!/\/api\//.exec(url)) {
+        window.open(url);
+        return;
+    }
     $('.wait').show();
     $.ajax({
         url: url,
