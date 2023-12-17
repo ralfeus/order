@@ -43,6 +43,18 @@ services:
     - "5672:5672"
     - "15672:15672"
 
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+      - 3001:3000
+    volumes:
+      - /var/lib/metabase/plugins:/plugins
+    environment:
+      - MB_SITE_URL=https://request.talya.kim/mb/
+      - MB_DB_TYPE=mysql
+      - MB_DB_CONNECTION_URI=jdbc:mysql://172.17.0.1:3306/metabase?user=metabase&password=metabase
+      - JAVA_TIMEZONE=Asia/Seoul
+
      # celery:
      #  image: ralfeus/order-master
      #  depends_on:

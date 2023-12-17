@@ -135,9 +135,9 @@ class EMS(Shipping):
             code = self.__get_consignment_code(order.tracking_id)
             logger.debug(code)
             #TODO: uncomment for production
-            # self.__print_label(code) 
-            # consignment = self.__get_consignment(code)
-            return {}
+            self.__print_label(code) 
+            consignment = self.__get_consignment(code)
+            return consignment
         except Exception as e:
             logger.warning(f"Couldn't print label for order {order.id}")
             raise e
