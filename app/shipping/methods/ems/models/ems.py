@@ -134,7 +134,7 @@ class EMS(Shipping):
         try:
             code = self.__get_consignment_code(order.tracking_id)
             logger.debug(code)
-            #TODO: uncomment for production
+            # uncomment for production, comment for development
             self.__print_label(code) 
             consignment = self.__get_consignment(code)
             return consignment
