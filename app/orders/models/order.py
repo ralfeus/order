@@ -19,6 +19,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from app import db
 from app.currencies.models.currency import Currency
+import app.invoices.models as i
 from app.models.base import BaseModel
 from app.models.country import Country
 from app.orders.models.order_product import OrderProduct
@@ -73,7 +74,7 @@ class Order(db.Model, BaseModel): # type: ignore
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship(User, foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
-    invoice = relationship('Invoice', foreign_keys=[invoice_id])
+    invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
     country_id: str = Column(String(2), ForeignKey('countries.id'))

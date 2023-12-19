@@ -2,6 +2,7 @@
 from json import JSONEncoder, load
 import logging
 import os
+import re
 import time
 import types
 
@@ -44,12 +45,13 @@ def create_app(config=None):
     ''' Application factory '''
     global app 
     from app.users.forms import LoginForm
-    app = Flask(__name__)
-    # flask_app.config.from_object(config)
-    # flask_app.config.from_envvar('ORDER_CONFIG')
-    app.config.from_file(
-        config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json',
-        load=load)
+    config_file = config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json'
+    app = Flask(re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')).group() 
+                if os.environ.get('OM_CONFIG_FILE') and 
+                   re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')) 
+                else __name__)
+    # app = Flask(__name__)
+    app.config.from_file(config_file, load=load)
     init_logging(app)
 
     Bootstrap(app)
@@ -119,21 +121,21 @@ def import_models(flask_app):
         db.create_all()
 
 def init_db(app: Flask, db: SQLAlchemy):
-    from sqlalchemy import text
+    # from sqlalchemy import text
     logger = logging.getLogger('init_db()')
     db.init_app(app)
     logger.info("Ensuring DB is operational")
-    statement = text("SELECT COUNT(*) FROM users")
-    with app.app_context():
-        for _ in range(5):
-            try:
-                db.session.execute(statement)
-                logger.info("DB connection is successfully established")
-                return
-            except Exception as e:
-                logger.warning(e)
-                time.sleep(1)
-    raise Exception("Couldn't establish a DB connection")
+    # statement = text("SELECT COUNT(*) FROM users")
+    # with app.app_context():
+    #     for _ in range(5):
+    #         try:
+    #             db.session.execute(statement)
+    #             logger.info("DB connection is successfully established")
+    #             return
+    #         except Exception as e:
+    #             logger.warning(e)
+    #             time.sleep(1)
+    # raise Exception("Couldn't establish a DB connection")
 
 
 def init_debug(flask_app):
@@ -169,6 +171,7 @@ def init_logging(flask_app):
     handler.setFormatter(logging.Formatter(
         fmt="%(asctime)s\t%(levelname)s\t%(name)s: %(message)s"))
     logger.addHandler(handler)
+    logger.info("Starting %s", flask_app.name)
     logger.info("Log level is %s", logging.getLevelName(logger.level))
     flask_app.logger.setLevel(flask_app.config['LOG_LEVEL'])
 

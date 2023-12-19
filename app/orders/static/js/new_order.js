@@ -329,9 +329,9 @@ function get_products() {
  */
 function get_shipping_cost(shipping_method, weight) {
     if (weight == 0) {
-        update_shipping_cost(0, 0);
+        update_shipping_cost(0);
     } else {
-        update_shipping_cost(g_shipping_rates[shipping_method], weight);
+        update_shipping_cost(g_shipping_rates[shipping_method]);
     }
 }
 
@@ -581,10 +581,9 @@ function submit_order(_sender, draft=false) {
 /**
  * Updates all grand totals (subtotals + shipping) and items totals 
  * @param {number} shippingCost - shipping cost for chosen country and weight
- * @param {number} totalWeight - total weight of the order
  */
-function update_all_grand_totals(shippingCost, totalWeight) {
-    update_shipping_cost(shippingCost, totalWeight)
+function update_all_grand_totals(shippingCost) {
+    update_shipping_cost(shippingCost)
     update_grand_totals();
     update_item_total();
     update_subcustomer_totals();
