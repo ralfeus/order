@@ -37,7 +37,7 @@ $(document).ready(function () {
 });
 
 function consign(target) {
-    var order = g_orders_table.row($(target).parents('tr')).data().id;
+    var order = target.row(target).data().id;
     consign_step(`/api/v1/admin/shipping/consign/${order}`)
 }
 
@@ -108,9 +108,9 @@ async function get_dictionaries() {
     g_countries = await get_list('/api/v1/country');
     g_order_statuses = await get_list('/api/v1/order/status');
     g_payment_methods = (await get_payment_methods()).map(
-        item => ({ id: item.id, text: item.name }));
+        item => ({ text: item.name, ...item }));
     g_shipping_methods = (await get_list('/api/v1/shipping')).map(
-        item => ({ id: item.id, text: item.name }));
+        item => ({ text: item.name, ...item }));
     // g_boxes = await get_list('/api/v1/admin/shipping/box');
     g_filter_sources = {
         'country': g_countries.map(i => ({ id: i.id, text: i.name })),
@@ -118,6 +118,12 @@ async function get_dictionaries() {
         'payment_method': g_payment_methods,
         'shipping': g_shipping_methods
     }
+}
+
+async function print_label(target) {
+    var order = target.row(target).data();
+    var shipping = g_shipping_methods.find(sm => sm.id === order.shipping.id);
+    window.open(`${shipping.links.print_label}?order_id=${order.id}`);
 }
 
 function save_order(target, row) {
@@ -386,6 +392,27 @@ function init_orders_table() {
                     open_order_copy_from(dt.rows({ selected: true }));
                 }
             },
+            {
+                extend: 'collection',
+                name: 'shipping',
+                text: 'Shipping',
+                buttons: [
+                    {
+                        extend: 'selectedSingle',
+                        text: 'Consign',
+                        action: function(e, dt, node, config) {
+                            consign(dt.rows({selected: true}));
+                        }
+                    },
+                    {
+                        extend: 'selectedSingle',
+                        text: 'Print label',
+                        action: function(e, dt, node, config) {
+                            print_label(dt.rows({selected: true}));
+                        }
+                    }
+                ]
+            },
             'pageLength'
         ],
         ajax: {
@@ -443,10 +470,7 @@ function init_orders_table() {
                         onclick="open_order(this);">Open</button> \
                     <button \
                         class="btn btn-sm btn-secondary btn-shipment" \
-                        onclick="edit_shipment(this);">Shipment</button> \
-                    <button \
-                        class="btn btn-sm btn-secondary btn-consign" \
-                        onclick="consign(this);">Consign</button> `
+                        onclick="edit_shipment(this);">Shipment</button>`
             },
             {
                 name: 'id',
@@ -501,15 +525,20 @@ function init_orders_table() {
             if (data.status != 'packed') {
                 $('.btn-shipment', row).remove();
             }
-            if (data.status != 'packed' || !data.shipping.is_consignable) {
-                $('.btn-consign', row).remove();
-            }
         },
         initComplete: function () {
             var table = this;
             this.api().buttons().container().appendTo('#orders_wrapper .col-sm-12:eq(0)');
             init_search(table, g_filter_sources)
                 .then(() => init_table_filter(table));
+        }
+    })
+    .on('select', function(e, dt, type, indexes) {
+        var order = g_orders_table.rows(indexes).data()[0];
+        if (order.shipping.is_consignable) {
+            g_orders_table.button('shipping:name').enable();
+        } else {
+            g_orders_table.button('shipping:name').disable();
         }
     });
 }

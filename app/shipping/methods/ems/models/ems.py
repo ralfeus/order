@@ -6,7 +6,7 @@ import re
 import time
 from typing import Any
 
-from flask import url_for
+from flask import current_app, url_for
 
 from app import cache
 from app.models import Country
@@ -62,6 +62,10 @@ class EMS(Shipping):
             else:
                 return stdout, stderr
         raise HTTPError(401)
+    
+    def _get_print_label_url(self):
+        from .. import bp_client_admin
+        return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("EMS::can_ship()")
@@ -90,7 +94,6 @@ class EMS(Shipping):
         return rate_exists
 
     def consign(self, order, config={}):
-        from .. import bp_client_admin
         if order is None:
             return
         if isinstance(config, dict) and \
@@ -99,7 +102,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=cache.get('ems_user') != self.__username)
+            self.__login(force=cache.get(f'{current_app.name}:ems_user') != self.__username)
         logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
@@ -108,9 +111,8 @@ class EMS(Shipping):
         return ConsignResult(
             consignment_id=consignment_id, 
             next_step_message="Finalize shipping order and print label",
-            next_step_url=url_for(
-                endpoint=f'{bp_client_admin.name}.admin_print_label', 
-                order_id=order.id if order else None))
+            next_step_url=f'{self._get_print_label_url()}?order_id={order.id}'
+                if order else None)
     
     def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
         '''Prints shipping label to be applied too the parcel
@@ -128,7 +130,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=cache.get('ems_user') != self.__username)
+            self.__login(force=cache.get(f'{current_app.name}:ems_user') != self.__username)
         logger = logging.getLogger("EMS::print()")
         logger.info("Getting consignment %s", order.tracking_id)
         try:
@@ -147,19 +149,23 @@ class EMS(Shipping):
             url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}',
             get_data=self.__invoke_curl
         )
-        
-
-    def __get_consignment_code(self, consignment_id: str) -> str:
-        logger = logging.getLogger('EMS::__get_consignment()')
-        consignments = get_json(
-            # url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0',
-            url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0',
-            get_data=self.__invoke_curl)
+    
+    def __get_consignments(self, url:str) -> list[dict[str, Any]]:
+        logger = logging.getLogger('EMS::__get_consignments()')
+        consignments = get_json(url=url, get_data=self.__invoke_curl)
         if len(consignments) != 2:
             logger.warning("Couldn't get consignment")
             logger.warning(consignments)
-            raise Exception()
-        for consignment in consignments[1]:
+            return []
+        return consignments[1] #type: ignore
+
+    def __get_consignment_code(self, consignment_id: str) -> str:
+        consignments = \
+            self.__get_consignments(
+                url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0') + \
+            self.__get_consignments(
+                url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0')
+        for consignment in consignments:
             if isinstance(consignment, dict) and \
                 consignment.get('ems_code') == consignment_id:
                 return consignment['code']
@@ -376,7 +382,7 @@ class EMS(Shipping):
                 method="POST",
             )
             cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)
-            cache.set('ems_user', self.__username, timeout=28800)
+            cache.set(f'{current_app.name}:ems_user', self.__username, timeout=28800)
             logger.debug("Auth result: %s", cache.get("ems_auth"))
             cache.delete("ems_login_in_progress")
         return {"Authorization": cache.get("ems_auth")}

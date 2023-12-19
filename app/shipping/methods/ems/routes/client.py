@@ -21,5 +21,8 @@ def admin_print_label() -> str:
     export_id = ''
     if order.invoice is not None and order.invoice.export_id is not None:
         export_id = order.invoice.export_id
-    consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
-    return render_template('label.html', consignment=consignment, export_id=export_id)
+    try:
+        consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
+        return render_template('label.html', consignment=consignment, export_id=export_id)
+    except Exception as e:
+        return Response(str(e), status=400)

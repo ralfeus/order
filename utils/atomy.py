@@ -69,7 +69,7 @@ def _atomy_login_curl(username, password):
 def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:
         return try_perform(lambda: _atomy_login_curl(username, password))
-    raise "Browser login is not implemented"
+    raise Exception("Browser login is not implemented")
 
 def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
     last_exception = None

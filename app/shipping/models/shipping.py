@@ -86,7 +86,13 @@ class Shipping(db.Model, BaseModel): #type: ignore
         :returns str: consignment ID'''
         raise NotImplementedError()
     
-    def get_edit_url(self):
+    def get_edit_url(self) -> str:
+        '''Returns URL for editing the shipping method'''
+        return None
+    
+    def _get_print_label_url(self) -> str:
+        '''Returns URL of printing label for the shipping method.
+        URL should accept `order_id` parameter'''
         return None
 
     def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
@@ -131,6 +137,10 @@ class Shipping(db.Model, BaseModel): #type: ignore
             'notification': self.notification,
             'params': [param.to_dict() for param in self.params],
             'edit_url': self.get_edit_url(),
+            'links': {
+                'edit': self.get_edit_url(),
+                'print_label': self._get_print_label_url()
+            }
         }
 
     @staticmethod

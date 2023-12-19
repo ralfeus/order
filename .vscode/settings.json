@@ -22,5 +22,10 @@
     ],
     "python.testing.pytestArgs": [
         "tests"
-    ]
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "local",
+        "projectKey": "order-master"
+    },
+    "sonarlint.focusOnNewCode": true
 }

@@ -1,4 +1,4 @@
-import imp
+import importlib
 import glob
 from os.path import dirname, basename, isfile, join, splitext
 import sys
@@ -17,7 +17,7 @@ for module in modules:
         module_name = splitext(basename(module))[0]
         # res = imp.find_module(splitext(basename(module))[0], __path__)
         # print(res)
-        ma = imp.load_source(
+        ma = importlib.import_module(
             __name__ + '.' + module_name, 
             module)
         # print(ma)  

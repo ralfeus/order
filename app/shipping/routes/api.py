@@ -181,11 +181,9 @@ def consign_order(order_id: str):
             "next_step_url": result.next_step_url
         })
     except NotImplementedError:
-        return jsonify(
-            {
-                "status": "error",
-                "message": "The order shipping method {order.shipping} doesn't support consignment",
-            }
-        )
+        return jsonify({
+            "status": "error",
+            "message": f"The order shipping method {order.shipping} doesn't support consignment",
+        })
     except OrderError as e:
         return jsonify({"status": "error", "message": e.args})
