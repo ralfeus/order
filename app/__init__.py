@@ -46,11 +46,11 @@ def create_app(config=None):
     global app 
     from app.users.forms import LoginForm
     config_file = config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json'
-    app = Flask(re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')).group() 
-                if os.environ.get('OM_CONFIG_FILE') and 
-                   re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')) 
-                else __name__)
-    # app = Flask(__name__)
+    # app = Flask(re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')).group() 
+    #             if os.environ.get('OM_CONFIG_FILE') and 
+    #                re.search('[^/]*(?=/config)', os.environ.get('OM_CONFIG_FILE')) 
+    #             else __name__)
+    app = Flask(__name__)
     app.config.from_file(config_file, load=load)
     init_logging(app)
 
