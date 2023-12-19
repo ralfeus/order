@@ -28,8 +28,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('order_id')
     )
     op.create_index(op.f('ix_warehouse_orders_when_created'), 'warehouse_orders', ['when_created'], unique=False)
-    op.drop_table('temp')
-    op.drop_table('tmp')
     op.alter_column('dhl_countries', 'country_id',
                existing_type=mysql.VARCHAR(length=2),
                nullable=False)
