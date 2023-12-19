@@ -370,10 +370,10 @@ class EMS(Shipping):
                 cache.delete("ems_login_in_progress")
                 return None
             logger.info("Another login process has finished. Will use existing token")
-            logger.info(cache.get("ems_auth"))
+            logger.info(cache.get(f"ems_auth:{self.__username}"))
             force = False
-        logger.debug("%s, %s", cache.get("ems_auth"), force)
-        if cache.get("ems_auth") is None or force:
+        logger.debug("%s, %s", cache.get(f"ems_auth:{self.__username}"), force)
+        if cache.get(f"ems_auth:{self.__username}") is None or force:
             logger.info("Logging in to EMS as %s", self.__username)
             cache.set("ems_login_in_progress", True)
             result = get_json(
@@ -381,12 +381,13 @@ class EMS(Shipping):
                 raw_data=f'{{"user":{{"userid":"{self.__username}","password":"{self.__password}"}}}}',
                 method="POST",
             )
-            cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)
-            cache.set(f'{current_app.config.get("TENANT_NAME")}:ems_user', self.__username, 
+            cache.set(f"ems_auth:{self.__username}", result[1]["authorizationToken"], 
                       timeout=28800)
-            logger.debug("Auth result: %s", cache.get("ems_auth"))
+            cache.set(f'ems_user:{self.__username}', self.__username, 
+                      timeout=28800)
+            logger.debug("Auth result: %s", cache.get(f"ems_auth:{self.__username}"))
             cache.delete("ems_login_in_progress")
-        return {"Authorization": cache.get("ems_auth")}
+        return {"Authorization": cache.get(f"ems_auth:{self.__username}")}
 
 
 def __get_rates(country, url: str) -> list[dict]:
