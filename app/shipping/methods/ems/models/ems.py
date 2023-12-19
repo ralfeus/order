@@ -102,7 +102,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=cache.get(f'{current_app.name}:ems_user') != self.__username)
+            self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
         logger = logging.getLogger("EMS::consign()")
         consignment_id = self.__create_new_consignment()
         self.__save_consignment(consignment_id, order)
@@ -130,7 +130,7 @@ class EMS(Shipping):
                 config['ems'].get('password') is None):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
-            self.__login(force=cache.get(f'{current_app.name}:ems_user') != self.__username)
+            self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
         logger = logging.getLogger("EMS::print()")
         logger.info("Getting consignment %s", order.tracking_id)
         try:
@@ -382,7 +382,8 @@ class EMS(Shipping):
                 method="POST",
             )
             cache.set("ems_auth", result[1]["authorizationToken"], timeout=28800)
-            cache.set(f'{current_app.name}:ems_user', self.__username, timeout=28800)
+            cache.set(f'{current_app.config.get("TENANT_NAME")}:ems_user', self.__username, 
+                      timeout=28800)
             logger.debug("Auth result: %s", cache.get("ems_auth"))
             cache.delete("ems_login_in_progress")
         return {"Authorization": cache.get("ems_auth")}
