@@ -80,6 +80,7 @@ def import_products():
             path_image, image_name = save_image(atomy_product['image_url'])
             product = Product(
                 id=atomy_product['id'],
+                vendor_id=atomy_product['atomy_id'],
                 name=atomy_product['name'],
                 price=atomy_product['price'],
                 points=atomy_product['points'],

@@ -24,7 +24,7 @@ from app.models.base import BaseModel
 from app.models.country import Country
 from app.orders.models.order_product import OrderProduct
 from app.orders.signals import sale_order_model_preparing
-from app.purchase.models import Company
+import app.purchase.models as p
 from app.settings.models.setting import Setting
 from app.shipping.models.shipping import Shipping
 from app.users.models.user import User
@@ -81,7 +81,7 @@ class Order(db.Model, BaseModel): # type: ignore
     country: Country = relationship(Country, foreign_keys=[country_id])
     zip = Column(String(15))
     phone = Column(String(64))
-    comment = Column(String(128))
+    comment = Column(String(65536))
     boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
     shipping_box_weight: int = Column(Integer())
     total_weight = Column(Integer(), default=0)
@@ -285,7 +285,7 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_boxes_weight(self):
         return reduce(lambda acc, b: acc + b.weight * b.quantity, self.boxes, 0)
 
-    def get_payee(self) -> Optional[Company]:
+    def get_payee(self) -> Optional[p.Company]:
         return self.payment_method.payee if self.payment_method \
             else None
 

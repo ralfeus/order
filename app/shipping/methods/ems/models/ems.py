@@ -370,9 +370,10 @@ class EMS(Shipping):
                 cache.delete("ems_login_in_progress")
                 return None
             logger.info("Another login process has finished. Will use existing token")
-            logger.info(cache.get(f"ems_auth:{self.__username}"))
+            logger.info(self.__username, cache.get(f"ems_auth:{self.__username}"))
             force = False
-        logger.debug("%s, %s", cache.get(f"ems_auth:{self.__username}"), force)
+        logger.debug("%s, %s, %s", self.__username, 
+                     cache.get(f"ems_auth:{self.__username}"), force)
         if cache.get(f"ems_auth:{self.__username}") is None or force:
             logger.info("Logging in to EMS as %s", self.__username)
             cache.set("ems_login_in_progress", True)
@@ -385,7 +386,8 @@ class EMS(Shipping):
                       timeout=28800)
             cache.set(f'ems_user:{self.__username}', self.__username, 
                       timeout=28800)
-            logger.debug("Auth result: %s", cache.get(f"ems_auth:{self.__username}"))
+            logger.debug("Auth result: %s, %s", self.__username, 
+                         cache.get(f"ems_auth:{self.__username}"))
             cache.delete("ems_login_in_progress")
         return {"Authorization": cache.get(f"ems_auth:{self.__username}")}
 

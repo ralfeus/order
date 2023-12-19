@@ -36,7 +36,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
     '''
     __tablename__ = 'shipping'
 
-    name = Column(String(16))
+    name = Column(String(32))
     type = ''
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))

@@ -60,7 +60,6 @@ def get_atomy_products():
     global URL_SUFFIX
     URL_SUFFIX = URL_SUFFIX.replace('ko-KR', 'en-KR')
     logger = logging.getLogger("get_atomy_products")
-    product_url = "https://www.atomy.kr/center/popup_material.asp"
     jwt = atomy_login2("S5832131", "mkk03020529!!")
     logger.info("Getting core products list")
     core_products = _get_products_list(jwt)

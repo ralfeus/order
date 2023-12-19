@@ -23,6 +23,7 @@ class Product(db.Model, BaseModel): #type: ignore
     __tablename__ = 'products'
 
     id = Column(String(16), primary_key=True)
+    vendor_id = Column(String(16), index=True)
     name = Column(String(256), index=True)
     name_english = Column(String(256), index=True)
     name_russian = Column(String(256), index=True)
@@ -78,6 +79,7 @@ class Product(db.Model, BaseModel): #type: ignore
     def to_dict(self, details=False):
         result = {
             'id': self.id,
+            'vendor_id': self.vendor_id,
             'name': self.name,
             'name_english': self.name_english,
             'name_russian': self.name_russian,

@@ -280,7 +280,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                   and dictionary of products that unavailable along with unavailability reason
         :rtype: tuple[list[tuple[OrderProduct, str]], dict[str, str]]
         """
-        logger = self._logger.getChild("__add_products")
+        logger = self._logger.getChild("__add_products()")
         logger.info("Adding products")
         ordered_products: list[tuple[OrderProduct, str]] = []
         unavailable_products = {}
