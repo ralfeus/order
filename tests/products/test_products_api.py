@@ -50,6 +50,7 @@ class TestProductsApi(BaseTestCase):
                     "available": True,
                     "synchronize": True,
                     "id": "0000",
+                    "vendor_id": None,
                     "name": "Test product",
                     "name_english": None,
                     "name_russian": None,
@@ -95,6 +96,7 @@ class TestProductsApi(BaseTestCase):
             [
                 {
                     "id": "0001",
+                    "vendor_id": None,
                     "name": "Korean name 1",
                     "name_english": "English name",
                     "name_russian": "Russian name",

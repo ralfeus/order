@@ -53,7 +53,7 @@ def write_to_file(path, data):
         file.write(data)
         file.close()
 
-def prepare_datatables_query(query, args, filter_clause=None) -> tuple[any, int, int]:
+def prepare_datatables_query(query, args, filter_clause=None) -> tuple[Any, int, int]:
     logger = logging.getLogger('prepare_datatables_query')
     def get_column(query, column_name):
         try:
@@ -85,7 +85,7 @@ def prepare_datatables_query(query, args, filter_clause=None) -> tuple[any, int,
                 except NotImplementedError:
                     try:
                         query_filtered = query_filtered.filter(
-                            column.like('%' + column_data['search']['value'] + '%'))
+                            column.like('%' + column_data['search']['value'] + '%')) #type: ignore
                     except:
                         raise FilterError(f"Couldn't figure out how to filter the column '{column_name}' in the object {target_model}. Probably {target_model} has no get_filter() implemented or get_filter() doesn't filter by '{column_name}'")
     records_filtered = query_filtered.count()
@@ -242,7 +242,7 @@ def get_json(url, raw_data=None, headers=[], method='GET', retry=True,
         logging.exception("Couldn't get JSON out of response", stdout, stderr)
         raise Exception("Unknown error")
 
-def try_perform(action, attempts=3, logger=logging.root):
+def try_perform(action:Callable, attempts:int=3, logger:logging.Logger=logging.root) -> Any:
     last_exception = None
     for _attempt in range(attempts):
         logger.debug("Running action %s. Attempt %s of %s", action, _attempt + 1, attempts)

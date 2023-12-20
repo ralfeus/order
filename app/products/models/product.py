@@ -86,7 +86,7 @@ class Product(db.Model, BaseModel): #type: ignore
             'price': self.price if self.price else 0,
             'weight': self.weight if self.weight else 0,
             'points': self.points if self.points else 0,
-            'separate_shipping': self.separate_shipping if self.separate_shipping else 0,
+            'separate_shipping': self.separate_shipping if self.separate_shipping else False,
             'available': self.available,
             'synchronize': self.synchronize,
             'purchase': self.purchase,

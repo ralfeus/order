@@ -37,6 +37,11 @@ def import_products():
             if product.synchronize:
                 logger.debug('Synchronizing product %s', atomy_product['id'])
                 is_dirty = False
+                if product.vendor_id != atomy_product['atomy_id']:
+                    logger.debug('\tname(%s): vendor(%s) != local(%s)', 
+                        atomy_product['id'], atomy_product['name'], product.name)
+                    product.vendor_id = atomy_product['atomy_id']
+                    is_dirty = True
                 if product.name != atomy_product['name']:
                     logger.debug('\tname(%s): vendor(%s) != local(%s)', 
                         atomy_product['id'], atomy_product['name'], product.name)

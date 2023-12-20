@@ -1,7 +1,7 @@
 """ Fills and submits purchase order at Atomy
 using quick order"""
 from functools import reduce
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlencode
 from app.models.address import Address
 from app.purchase.models.company import Company
@@ -69,7 +69,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __purchase_order: PurchaseOrder = None  # type: ignore
     __po_params: dict[str, dict] = {}
 
-    def __init__(self, browser=None, logger: logging.Logger = None, config=None):
+    def __init__(self, browser=None, logger: Optional[logging.Logger] = None, 
+                 config: dict[str, Any]={}):
         super().__init__()
         log_level = None
         if logger:
@@ -84,7 +85,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.setLevel(log_level)  # type: ignore
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
-        self.__config = config
+        self.__config: dict[str, Any] = config
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -196,7 +197,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.info(
                 f"Logged in successfully as {purchase_order.customer.username}"
             )
-            jwt = re.search("set-cookie: (atomySvcJWT=.*?);", stderr).group(1)
+            jwt = re.search("set-cookie: (atomySvcJWT=.*?);", stderr).group(1) #type: ignore
             self.__session_cookies = [jwt]
             return [jwt]
         else:
@@ -260,8 +261,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__purchase_order, self, "Unexpected error has occurred"
             )
 
-    def __get_order_details(self, order_id):
-        result = try_perform(
+    def __get_order_details(self, order_id) -> dict[str, Any]:
+        result:dict = try_perform(
             lambda: get_json(
                 url=f"{URL_BASE}/order/getOrderResult?id={order_id}&{URL_SUFFIX}",
                 headers=self.__get_session_headers(),
@@ -297,19 +298,26 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 continue
             try:
                 product_id = op.product_id.zfill(6)
-                product, option = self.__get_product(product_id)
-                if product:
-                    op.product.separate_shipping = "supplier" in product["flags"]
-                    added_product = self.__add_to_cart(product, option, op)
-                    if added_product["success"]:
-                        ordered_products.append((op, added_product["entryId"]))
-                        logger.info("Added product %s", op.product_id)
-                    else:
-                        raise ProductNotAvailableError(
-                            product_id, added_product["statusCode"]
-                        )
+                product, option = self.__get_product_by_id(product_id)
+                if not product:
+                    logger.info(
+                        "Couldn't find product %s. Attempting to get it via vendor product ID",
+                        product_id)
+                    product_id = op.product.vendor_id
+                    product, option = self.__get_product_by_vendor_id(product_id)
+                    if not product:
+                        raise ProductNotAvailableError(product_id)
+
+                op.product.separate_shipping = bool(product.get('flags')
+                    and "supplier" in product["flags"])
+                added_product = self.__add_to_cart(product, option, op)
+                if added_product["success"]:
+                    ordered_products.append((op, added_product["entryId"]))
+                    logger.info("Added product %s", op.product_id)
                 else:
-                    raise ProductNotAvailableError(product_id)
+                    raise ProductNotAvailableError(
+                        product_id, added_product["statusCode"]
+                    )
             except ProductNotAvailableError as ex:
                 logger.warning(
                     "Product %s is not available: %s", ex.product_id, ex.message
@@ -340,7 +348,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         return res["items"][0]
 
-    def __get_product(self, product_id):
+    def __get_product_by_id(self, product_id):
         try:
             result = get_json(
                 url=f"{URL_BASE}/atms/search?{URL_SUFFIX}",
@@ -364,6 +372,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
                 product_id,
             )
+        return None, None
+    
+    def __get_product_by_vendor_id(self, vendor_product_id):
+        logger = self._logger.getChild('__get_product_by_vendor_id()')
+        try:
+            result = get_json(
+                url=f'{URL_BASE}/product/simpleList?productIds={vendor_product_id}&_siteId=kr&_deviceType=pc',
+                headers=self.__get_session_headers()
+            )
+            if not isinstance(result, dict) or len(result['items']) == 0:
+                return None, None
+            return result['items'][0], None
+        except Exception as e:
+            logger.warning("Couldn't get product %s: %s", vendor_product_id, e)
         return None, None
 
     def __get_product_option(self, product, option_id):
