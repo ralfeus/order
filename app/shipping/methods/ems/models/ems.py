@@ -197,9 +197,9 @@ class EMS(Shipping):
             )
             return [
                 {
-                    "name": item.split("/")[0],
-                    "quantity": item.split("/")[1],
-                    "price": item.split("/")[2],
+                    "name": item.split("/")[0].strip(),
+                    "quantity": item.split("/")[1].strip(),
+                    "price": item.split("/")[2].strip(),
                     "hscode": hs_codes[
                         first_or_default(
                             list(hs_codes.keys()),
