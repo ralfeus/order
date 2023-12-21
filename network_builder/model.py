@@ -19,7 +19,7 @@ class CustomDateProperty(DateProperty):
             if "T" in value:
                 value = value[:value.find('T')]
             return date(int(value[:4]), int(value[5:7]), int(value[8:10]))
-        raise f"Unknown format: {value}"
+        raise Exception(f"Unknown format: {value}")
 
 class AtomyPerson(StructuredNode):
     '''Atomy person object as it's saved in Neo4j'''

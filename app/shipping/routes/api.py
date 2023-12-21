@@ -173,6 +173,7 @@ def consign_order(order_id: str):
             order, config=current_app.config.get("SHIPPING_AUTOMATION")
         )
         order.tracking_id = result.consignment_id
+        order.tracking_url = f'https://t.17track.net/en#nums={result.consignment_id}'
         db.session.commit()
         return jsonify({
             "status": "next_step_available" if result.next_step_url else "success", 

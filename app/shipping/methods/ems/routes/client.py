@@ -3,6 +3,7 @@ import json
 from flask import Response, abort, current_app, render_template, request
 from flask_security import roles_required
 
+from app import db
 import app.orders.models as o
 from ..models.ems import EMS
 
@@ -23,6 +24,8 @@ def admin_print_label() -> str:
         export_id = order.invoice.export_id
     try:
         consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
+        order.status = o.OrderStatus.shipped
+        db.session.commit()
         return render_template('label.html', consignment=consignment, export_id=export_id)
     except Exception as e:
         return Response(str(e), status=400)

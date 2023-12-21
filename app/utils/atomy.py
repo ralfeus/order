@@ -69,7 +69,7 @@ class SessionManager:
                 _logger.info("Session expired. Logging in")
                 self.__create_session()
                 attempts_left -= 1
-        raise "Couldn't get JSON document due to login issue"
+        raise Exception("Couldn't get JSON document due to login issue")
 
 def _atomy_login_curl(username, password):
     '''    Logins to Atomy customer section    '''
@@ -108,7 +108,7 @@ def _atomy_login_curl(username, password):
 def atomy_login(username, password, browser=None, run_browser=False):
     if not run_browser:
         return try_perform(lambda: _atomy_login_curl(username, password))
-    raise "Browser login is not implemented"
+    raise Exception("Browser login is not implemented")
 
 def __ignore_change_password(browser):
     try:
