@@ -217,7 +217,7 @@ class EMS(Shipping):
                 {
                     "name": "Cosmetics",
                     "quantity": 1,
-                    "price": order.total_krw / 10,
+                    "price": order.total_usd / 10,
                     "hscode": "3304991000",
                 }
             ]
