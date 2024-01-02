@@ -261,9 +261,9 @@ A:hover {
 .linedTab ul {
     position: relative;
     margin-left: 0px;
+    padding: 0;
     padding-left: 5px;
     padding-top: 5px;
-    padding: 0;
     list-style: none;
     border-bottom: 1px solid #ccc;
     font-family: 'Noto sans KR', sans-serif, Sans-serif;

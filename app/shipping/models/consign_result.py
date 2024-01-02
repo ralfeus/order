@@ -4,7 +4,8 @@ class ConsignResult:
     next_step_message: str
     next_step_url: str
 
-    def __init__(self, consignment_id: str, next_step_message: str, next_step_url: str):
+    def __init__(self, consignment_id: str, next_step_message: str='', 
+                 next_step_url: str=''):
         self.consignment_id = consignment_id
         self.next_step_message = next_step_message
         self.next_step_url = next_step_url

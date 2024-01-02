@@ -1,5 +1,6 @@
 import itertools
 import logging
+from typing import Any
 import lxml.html
 from lxml.cssselect import CSSSelector
 import re
@@ -56,7 +57,7 @@ def get_atomy_images(item_code):
     return image_url
 
 
-def get_atomy_products():
+def get_atomy_products() -> list[dict[str, Any]]:
     global URL_SUFFIX
     URL_SUFFIX = URL_SUFFIX.replace('ko-KR', 'en-KR')
     logger = logging.getLogger("get_atomy_products")

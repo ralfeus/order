@@ -1,11 +1,11 @@
-import random
-import threading
-import time
+from datetime import datetime
+from unittest.mock import patch
 from tests import BaseTestCase, db
 from app.models import Country
+import app.orders.models as o
+import app.shipping.models as s
 from app.users.models import Role, User
 from app.shipping.methods.ems.models import EMS
-from app.tools import invoke_curl
 
 class TestShippingEMS(BaseTestCase):
     def setUp(self):
@@ -34,17 +34,28 @@ class TestShippingEMS(BaseTestCase):
         rate = ems.get_shipping_cost('ua', 100)
         self.assertIsInstance(rate, int)
 
-    # def test_refresh_token(self):
-    #     def refresh_token():
-    #         time.sleep(random.randint(0, 4))
-    #         invoke_curl(
-    #             url='https://myems.co.kr/api/v1/login',
-    #             raw_data='{"user":{"userid":"sub1079","password":"2045"}}',
-    #             use_proxy=False)
-    #     threading.Thread(target=refresh_token).start()
-    #     ems = EMS()
-    #     for i in range(5):
-    #         time.sleep(1)
-    #         weight = random.randint(0, 30000)
-    #         result = ems.get_shipping_cost('de', weight)
-    #         print(weight, result)
+    @patch('app.shipping.methods.ems.models.ems:EMS.print')
+    def test_print_label(self, po_mock):
+        po_mock.return_value = {}
+        self.try_add_entity(EMS())
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = o.Order(id=gen_id, user=self.user, status=o.OrderStatus.pending)
+        order.shipping = s.Shipping.query.get(1)
+        self.try_add_entities([order])
+        res = self.try_admin_operation(
+            lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))
+        self.assertEqual(res.status_code, 200)
+        order = o.Order.query.get(gen_id)
+        self.assertEqual(order.status, o.OrderStatus.shipped)
+
+    @patch('app.shipping.methods.ems.models.ems:EMS.print')
+    def test_print_label_non_ems(self, po_mock):
+        po_mock.return_value = {}
+        self.try_add_entity(s.Shipping())
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        order = o.Order(id=gen_id, user=self.user, status=o.OrderStatus.pending)
+        order.shipping = s.Shipping.query.get(1)
+        self.try_add_entities([order])
+        res = self.try_admin_operation(
+            lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))
+        self.assertEqual(res.status_code, 400)

@@ -37,7 +37,7 @@ $(document).ready(function () {
 });
 
 function consign(target) {
-    var order = target.row(target).data().id;
+    const order = target.row(target).data().id;
     consign_step(`/api/v1/admin/shipping/consign/${order}`)
 }
 
@@ -203,7 +203,7 @@ async function format(row, data) {
             }
         }
     });
-    var order = await (await fetch('/api/v1/admin/order/' + data.id)).json()
+    const order = await (await fetch('/api/v1/admin/order/' + data.id)).json()
     $('#invoice-id', order_details).val(data.invoice_id);
     $('#invoice-input-group', order_details).click(() => window.location = '/admin/invoices');
     $('#export-id', order_details).val(order.invoice_id ? order.invoice.export_id : null);
@@ -432,7 +432,7 @@ function init_orders_table() {
                 'orderable': false,
                 'data': null,
                 fnCreatedCell: function (cell, sData, oData, iRow, iCol) {
-                    var html = '';
+                    let html = '';
                     if (oData.comment) {
                         html +=
                             "<span " +
@@ -534,8 +534,8 @@ function init_orders_table() {
         }
     })
     .on('select', function(e, dt, type, indexes) {
-        var order = g_orders_table.rows(indexes).data()[0];
-        if (order.shipping.is_consignable) {
+        const order = g_orders_table.rows(indexes).data()[0];
+        if (order.shipping.is_consignable && order.status == 'packed') {
             g_orders_table.button('shipping:name').enable();
         } else {
             g_orders_table.button('shipping:name').disable();

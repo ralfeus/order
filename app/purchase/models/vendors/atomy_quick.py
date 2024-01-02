@@ -801,7 +801,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 return purchase_order
 
         raise NoPurchaseOrderError(
-            "No corresponding purchase order for Atomy PO <%s> was found" % o["id"]
+            "No corresponding purchase order for Atomy PO <%s> was found" % 
+            purchase_order.vendor_po_id
         )
 
     def update_purchase_orders_status(self, subcustomer, purchase_orders):

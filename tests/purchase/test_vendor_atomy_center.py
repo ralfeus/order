@@ -3,7 +3,7 @@ from exceptions import AtomyLoginError
 
 from tests import BaseTestCase
 
-class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
+class TestPurchaseOrdersVendorAtomyCenter(BaseTestCase):
     def test_login(self):
         center = AtomyCenter()
         username = 'atomy1026'
