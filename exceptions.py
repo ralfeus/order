@@ -62,6 +62,10 @@ class ProductNotFoundError(Exception):
     def __str__(self):
         return f"Product {self.product_id} was not found"
 
+class ShippingException(Exception):
+    def __init__(self, message):
+        self.message = message
+
 class SubcustomerParseError(Exception):
     pass
 

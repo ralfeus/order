@@ -16,6 +16,7 @@ from app.tools import first_or_default, get_json, invoke_curl
 from exceptions import HTTPError, NoShippingRateError, OrderError
 
 from app.shipping.models.consign_result import ConsignResult
+from ..exceptions import EMSItemsException
 
 hs_codes = {
     "Coffee": "0901902000",
@@ -94,25 +95,28 @@ class EMS(Shipping):
         return rate_exists
 
     def consign(self, order, config={}):
-        if order is None:
-            return
-        if isinstance(config, dict) and \
-           not (config.get('ems') is None or 
-                config['ems'].get('login') is None or 
-                config['ems'].get('password') is None):
-            self.__username = config['ems']['login']
-            self.__password = config['ems']['password']
-            self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
-        logger = logging.getLogger("EMS::consign()")
-        consignment_id = self.__create_new_consignment()
-        self.__save_consignment(consignment_id, order)
-        self.__submit_consignment(consignment_id)
-        logger.info("The order %s is consigned as %s", order.id, consignment_id)
-        return ConsignResult(
-            consignment_id=consignment_id, 
-            next_step_message="Finalize shipping order and print label",
-            next_step_url=f'{self._get_print_label_url()}?order_id={order.id}'
-                if order else None)
+        try:
+            if order is None:
+                return
+            if isinstance(config, dict) and \
+            not (config.get('ems') is None or 
+                    config['ems'].get('login') is None or 
+                    config['ems'].get('password') is None):
+                self.__username = config['ems']['login']
+                self.__password = config['ems']['password']
+                self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
+            logger = logging.getLogger("EMS::consign()")
+            consignment_id = self.__create_new_consignment()
+            self.__save_consignment(consignment_id, order)
+            self.__submit_consignment(consignment_id)
+            logger.info("The order %s is consigned as %s", order.id, consignment_id)
+            return ConsignResult(
+                consignment_id=consignment_id, 
+                next_step_message="Finalize shipping order and print label",
+                next_step_url=f'{self._get_print_label_url()}?order_id={order.id}'
+                    if order else '')
+        except EMSItemsException:
+            raise OrderError("Couldn't get EMS items description from the order")
     
     def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
         '''Prints shipping label to be applied too the parcel
@@ -190,12 +194,20 @@ class EMS(Shipping):
         return result[1:-1]
 
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
+        def verify_consignment_items(items):
+            for item in items:
+                if not (
+                    isinstance(item['quantity'], int) and
+                    isinstance(item['price'], float) and 
+                    len(item['hscode']) == 10):
+                    raise EMSItemsException()
         logger = logging.getLogger("EMS::__get_consignment_items()")
+        result: list[dict] = []
         try:
             items: list[str] = (
                 order.params["shipping.items"].replace("|", "/").splitlines()
             )
-            return [
+            result = [
                 {
                     "name": item.split("/")[0].strip(),
                     "quantity": item.split("/")[1].strip(),
@@ -203,17 +215,17 @@ class EMS(Shipping):
                     "hscode": hs_codes[
                         first_or_default(
                             list(hs_codes.keys()),
-                            lambda i: re.search(i, item, re.I) is not None,
+                            lambda i, ii=item: re.search(i, ii, re.I) is not None,
                             "_default_",
                         )
                     ],
                 }
                 for item in items
             ]
-        except:
+        except (KeyError, IndexError):
             logger.warning("Couldn't get items from:")
             logger.warning(order.params.get("shipping.items"))
-            return [
+            result = [
                 {
                     "name": "Cosmetics",
                     "quantity": 1,
@@ -221,6 +233,8 @@ class EMS(Shipping):
                     "hscode": "3304991000",
                 }
             ]
+        verify_consignment_items(result) 
+        return result
 
     def __save_consignment(self, consignment_id: str, order: o.Order):
         logger = logging.getLogger("EMS::__save_consignment()")
@@ -237,7 +251,7 @@ class EMS(Shipping):
                 "height": int(order.boxes[0].height),
                 "weight": int(order.boxes[0].weight),
             }
-        except:
+        except Exception:
             logger.info("The box information is absent. Using default values")
             box = {
                 "length": 42,
@@ -245,6 +259,7 @@ class EMS(Shipping):
                 "height": 19,
                 "weight": order.total_weight + order.shipping_box_weight,
             }
+            
         volume_weight = int(int(box["width"] * box["length"] * box["height"]) / 6)
         weight = max(box["weight"], volume_weight)
         price = self.__get_rate(order.country_id, weight)
@@ -340,10 +355,10 @@ class EMS(Shipping):
     def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger("EMS::__get_shipping_order()")
         if cache.get("ems_shipping_order") is None or force:
-            result = get_json(
+            result: list[list] = get_json(
                 "https://myems.co.kr/api/v1/order/temp_orders",
                 get_data=self.__invoke_curl,
-            )
+            ) #type: ignore
             if result[0][0]["cnt"] == "0":
                 id, _ = self.__invoke_curl(
                     "https://myems.co.kr/api/v1/order/temp_orders/new"
@@ -377,11 +392,11 @@ class EMS(Shipping):
         if cache.get(f"ems_auth:{self.__username}") is None or force:
             logger.info("Logging in to EMS as %s", self.__username)
             cache.set("ems_login_in_progress", True)
-            result = get_json(
+            result: list[dict] = get_json(
                 url="https://myems.co.kr/api/v1/login",
                 raw_data=f'{{"user":{{"userid":"{self.__username}","password":"{self.__password}"}}}}',
                 method="POST",
-            )
+            ) #type: ignore
             cache.set(f"ems_auth:{self.__username}", result[1]["authorizationToken"], 
                       timeout=28800)
             cache.set(f'ems_user:{self.__username}', self.__username, 

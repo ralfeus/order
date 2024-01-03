@@ -1,0 +1,2 @@
+class EMSItemsException(Exception):
+    pass
