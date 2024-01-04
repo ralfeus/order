@@ -197,11 +197,13 @@ class EMS(Shipping):
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
         def verify_consignment_items(items):
             for item in items:
-                if not (
-                    isinstance(item['quantity'], int) and
-                    isinstance(item['price'], float) and 
-                    len(item['hscode']) == 10):
-                    raise EMSItemsException(items)
+                try:
+                    int(item['quantity'])
+                    float(item['price'])
+                    if len(item['hscode']) != 10:
+                        raise EMSItemsException({'hscode': item['hscode']})
+                except Exception as e:
+                    raise EMSItemsException(e, items)
         logger = logging.getLogger("EMS::__get_consignment_items()")
         result: list[dict] = []
         try:
