@@ -1,2 +1,3 @@
 class EMSItemsException(Exception):
-    pass
+    def __str__(self):
+        return f"<EMSItemsException: {self.args}>"

@@ -201,7 +201,7 @@ class EMS(Shipping):
                     isinstance(item['quantity'], int) and
                     isinstance(item['price'], float) and 
                     len(item['hscode']) == 10):
-                    raise EMSItemsException()
+                    raise EMSItemsException(items)
         logger = logging.getLogger("EMS::__get_consignment_items()")
         result: list[dict] = []
         try:
