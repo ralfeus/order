@@ -95,6 +95,7 @@ class EMS(Shipping):
         return rate_exists
 
     def consign(self, order, config={}):
+        logger = logging.getLogger("EMS::consign()")
         try:
             if order is None:
                 return
@@ -105,7 +106,6 @@ class EMS(Shipping):
                 self.__username = config['ems']['login']
                 self.__password = config['ems']['password']
                 self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
-            logger = logging.getLogger("EMS::consign()")
             consignment_id = self.__create_new_consignment()
             self.__save_consignment(consignment_id, order)
             self.__submit_consignment(consignment_id)
@@ -115,7 +115,8 @@ class EMS(Shipping):
                 next_step_message="Finalize shipping order and print label",
                 next_step_url=f'{self._get_print_label_url()}?order_id={order.id}'
                     if order else '')
-        except EMSItemsException:
+        except EMSItemsException as e:
+            logger.warning(str(e))
             raise OrderError("Couldn't get EMS items description from the order")
     
     def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
