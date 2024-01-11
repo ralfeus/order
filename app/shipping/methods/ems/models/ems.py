@@ -417,6 +417,9 @@ def __get_rates(country, url: str) -> list[dict]:
         country_code = country.upper()
     else:
         raise NoShippingRateError("Unknown country")
+    #TODO: Remove when MyEMS supports Lithuania
+    if country_code == 'LT':
+        country_code = 'PL'
     try:
         result = get_json(url=url.format(country_code), retry=False)
         rates: list[dict] = result["charge_info"]

@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 import logging
 from operator import itemgetter
+from typing import Any, Optional
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import login_required, roles_required  # type: ignore
@@ -31,7 +32,7 @@ def admin_get_shipping_methods():
 def get_shipping_methods(country_id, weight):
     """Returns shipping methods available for specific country and weight (if both provided)"""
     country_name = ""
-    country = None
+    country: Optional[Country] = None
     if country_id:
         country = Country.query.get(country_id)
         if country:
@@ -41,7 +42,7 @@ def get_shipping_methods(country_id, weight):
     result = []
     product_ids = []
     product_ids = (
-        request.values.get("products").split(",")
+        request.values.get("products").split(",") #type: ignore
         if request.values.get("products")
         else []
     )
@@ -126,7 +127,7 @@ def admin_save_shipping_method(shipping_method_id):
     #             'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
     #                             for message in validator.errors]
     #         }), 400
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     if shipping_method_id == "null":
         shipping_method = Shipping()
         db.session.add(shipping_method)
@@ -170,7 +171,7 @@ def consign_order(order_id: str):
         abort(Response("Couldn't find an order {order_id}", 404))
     try:
         result = order.shipping.consign(
-            order, config=current_app.config.get("SHIPPING_AUTOMATION")
+            order, config=current_app.config.get("SHIPPING_AUTOMATION") #type: ignore
         )
         order.tracking_id = result.consignment_id
         order.tracking_url = f'https://t.17track.net/en#nums={result.consignment_id}'
