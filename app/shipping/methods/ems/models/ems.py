@@ -332,6 +332,8 @@ class EMS(Shipping):
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")
         result = self.__get_rate(destination.upper(), weight)
+        if result.get('post_price') == None:
+            raise NoShippingRateError()
         rate = int(result["post_price"]) + int(result.get("extra_shipping_charge") or 0)
 
         logger.debug(
