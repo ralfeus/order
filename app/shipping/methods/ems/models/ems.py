@@ -332,17 +332,20 @@ class EMS(Shipping):
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")
         result = self.__get_rate(destination.upper(), weight)
-        if result.get('post_price') == None:
-            raise NoShippingRateError()
-        rate = int(result["post_price"]) + int(result.get("extra_shipping_charge") or 0)
+        try:
+            rate = int(result["post_price"]) + int(result.get("extra_shipping_charge") or 0)
 
-        logger.debug(
-            "Shipping rate for %skg parcel to %s is %s",
-            weight / 1000,
-            destination,
-            rate,
-        )
-        return rate
+            logger.debug(
+                "Shipping rate for %skg parcel to %s is %s",
+                weight / 1000,
+                destination,
+                rate,
+            )
+            return rate
+        except Exception:
+            logger.info("Couldn't get rate for %s", destination)
+            logger.info(result)
+            raise NoShippingRateError()
 
     def __get_rate(self, country: str, weight: int) -> dict[str, Any]:
         """Return raw price structure from EMS"""
