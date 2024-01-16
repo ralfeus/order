@@ -343,7 +343,8 @@ class EMS(Shipping):
             )
             return rate
         except Exception:
-            logger.info("Couldn't get rate for %s", destination)
+            logger.info("Couldn't get rate for %skg parcel to %s", 
+                        weight / 1000, destination)
             logger.info(result)
             raise NoShippingRateError()
 
