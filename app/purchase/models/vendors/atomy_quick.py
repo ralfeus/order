@@ -471,7 +471,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return res["item"]["deliveryInfos"][0]["id"]
     
     def __get_order_id(self, purchase_order: PurchaseOrder) -> str:
-        return purchase_order.id[8:].replace("-", "ㅡ")
+        order_id_parts = purchase_order.id[8:].split('-')
+        return order_id_parts[2] + "ㅡ" + order_id_parts[1] + "ㅡ" + order_id_parts[0]
+        # return purchase_order.id[8:].replace("-", "ㅡ")
 
     def __set_purchase_order_id(self, purchase_order_id):
         logger = self._logger.getChild("__set_purchase_order_id")
