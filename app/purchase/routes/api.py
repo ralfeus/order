@@ -12,7 +12,8 @@ from app.purchase import bp_api_admin
 from app.tools import prepare_datatables_query, modify_object
 
 from app.models.address import Address
-from app.orders.models import Order, Subcustomer
+from app.orders.models.order import Order
+from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from app.purchase.po_manager import create_purchase_orders

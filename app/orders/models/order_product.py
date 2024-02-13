@@ -93,7 +93,9 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     def get_filter(cls, base_filter, column=None, filter_value=None):
         if column is None or filter_value is None:
             return base_filter
-        from app.orders.models import Order, Subcustomer, Suborder
+        from .order import Order
+        from .subcustomer import Subcustomer
+        from .suborder import Suborder
         from app.products.models.product import Product
         part_filter = f'%{filter_value}%'
         if isinstance(column, InstrumentedAttribute):
@@ -134,7 +136,8 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
                    set(payload.keys())) > 0 
 
     def postpone(self):
-        from . import Order, Suborder
+        from .order import Order
+        from .suborder import Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
             Order.user_id == self.suborder.order.user_id,
             Order.status.in_([OrderStatus.pending, OrderStatus.can_be_paid])

@@ -2,8 +2,10 @@
 Suborder model
 Part of the order for single subcustomer
 '''
+from __future__ import annotations
 from datetime import datetime
 from functools import reduce
+from typing import Optional
 
 from flask import current_app
 
@@ -14,8 +16,10 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 from app import db
 from app.currencies.models.currency import Currency
 from app.models.base import BaseModel
-from app.orders.models import Order, OrderProduct, OrderProductStatus
+import app.orders.models.order as o
 from app.products.models import Product
+
+from .order_product import OrderProduct, OrderProductStatus
 
 class Suborder(db.Model, BaseModel): #type: ignore
     ''' Suborder '''
@@ -27,11 +31,8 @@ class Suborder(db.Model, BaseModel): #type: ignore
     subcustomer_id: int = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
     order_id: str = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
-    order: Order = relationship('Order', foreign_keys=[order_id])
+    order: o.Order = relationship('Order', foreign_keys=[order_id])
     buyout_date: datetime = Column(DateTime, index=True)
-    # subtotal_krw = Column(Integer(), default=0)
-    #subtotal_rur = Column(Numeric(10, 2), default=0)
-    #subtotal_usd = Column(Numeric(10, 2), default=0)
     order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
     local_shipping: int = Column(Integer(), default=0)
 
@@ -39,9 +40,7 @@ class Suborder(db.Model, BaseModel): #type: ignore
         if order:
             self.order = order
             order_id = order.id
-        elif order_id:
-            order = Order.query.get(order_id)
-        else:
+        if not order_id:
             raise AttributeError("No order is referred")
         self.order_id = order_id
 
@@ -79,13 +78,13 @@ class Suborder(db.Model, BaseModel): #type: ignore
         return [op for op in self.order_products
                    if op.status != OrderProductStatus.unavailable]
 
-    def get_subtotal(self, currency:Currency=None) -> float:
+    def get_subtotal(self, currency:Optional[Currency]=None) -> float:
         rate = 1 if currency is None else currency.get_rate(self.order.when_created)
         return reduce(
             lambda acc, op: acc + op.price * op.quantity,
             self.get_order_products(), 0) * rate
 
-    def get_shipping(self, currency:Currency=None, local_shipping=True) -> float:
+    def get_shipping(self, currency:Optional[Currency]=None, local_shipping=True) -> float:
         '''Returns shipping cost for a suborder, which is a proportional to its weight in total order.
         Provided in currency requested'''
         if self.order.total_weight == 0:

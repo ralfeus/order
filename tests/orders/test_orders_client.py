@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.orders.models.order import Order
 from app.orders.models.order_product import OrderProduct
 from app.orders.models.order_status import OrderStatus
 from app.orders.models.subcustomer import Subcustomer
@@ -7,7 +8,6 @@ from app.users.models.role import Role
 from app.users.models.user import User
 from app.models import Country
 from app.currencies.models import Currency
-from app.orders.models import Order
 from app.products.models import Product
 
 from tests import BaseTestCase, db

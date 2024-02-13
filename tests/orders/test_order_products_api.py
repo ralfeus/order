@@ -6,8 +6,12 @@ from datetime import datetime
 from tests import BaseTestCase, db
 from app.models import Country
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderProduct, OrderProductStatus, \
-    OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
+from app.orders.models.order_product import OrderProduct, OrderProductStatus, \
+    OrderProductStatusEntry
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.shipping.models import PostponeShipping, Shipping, ShippingRate
 from app.users.models.role import Role

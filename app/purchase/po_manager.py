@@ -6,8 +6,8 @@ from flask_security import current_user
 
 from app import db
 from app.models.address import Address
-from app.orders.models import Order
-from app.orders.models.order import OrderStatus
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
 from app.purchase.models import Company
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.vendor_manager import PurchaseOrderVendorBase

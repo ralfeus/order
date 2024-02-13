@@ -2,7 +2,7 @@ from datetime import datetime
 
 from tests import BaseTestCase, db
 
-from app.orders.models import Order
+from app.orders.models.order import Order
 from app.users.models.role import Role
 from app.users.models.user import User
 

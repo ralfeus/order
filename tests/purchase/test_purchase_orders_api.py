@@ -4,7 +4,11 @@ from datetime import datetime
 
 from app.users.models.role import Role
 from app.users.models.user import User
-from app.orders.models import Order, OrderProduct, OrderStatus, Subcustomer, Suborder
+from app.orders.models.order import Order
+from app.orders.models.order_product import OrderProduct
+from app.orders.models.order_status import OrderStatus
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.purchase.models import PurchaseOrder
 from app.purchase.models.company import Company

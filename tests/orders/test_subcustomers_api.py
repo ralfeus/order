@@ -2,7 +2,9 @@ from unittest.mock import patch
 from tests import BaseTestCase, db
 from app.users.models.role import Role
 from app.users.models.user import User
-from app.orders.models import Order, Subcustomer, Suborder
+from app.orders.models.order import Order
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 
 class TestSubcustomersApi(BaseTestCase):

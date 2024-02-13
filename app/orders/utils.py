@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.exc import DataError
 
 from exceptions import SubcustomerParseError
-from .models import Subcustomer
+from .models.subcustomer import Subcustomer
 
 def parse_subcustomer(subcustomer_data):
     '''Returns a tuple of customer from raw data

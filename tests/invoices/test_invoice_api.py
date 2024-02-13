@@ -3,7 +3,9 @@ from datetime import datetime
 from app.models import Country
 from app.currencies.models import Currency
 from app.invoices.models import Invoice, InvoiceItem
-from app.orders.models import Order, OrderProduct, Suborder
+from app.orders.models.order import Order
+from app.orders.models.order_product import OrderProduct
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.users.models.role import Role
 from app.users.models.user import User

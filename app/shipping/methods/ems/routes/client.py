@@ -4,7 +4,8 @@ from flask import Response, abort, current_app, render_template, request
 from flask_security import roles_required
 
 from app import db
-import app.orders.models as o
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
 from ..models.ems import EMS
 
 from .. import bp_client_admin
@@ -13,7 +14,7 @@ from .. import bp_client_admin
 @roles_required('admin')
 def admin_print_label() -> str:
     order_id = request.args.get('order_id')
-    order:o.Order = o.Order.query.get(order_id)
+    order:Order = Order.query.get(order_id)
     if order is None:
         abort(status=404)
     shipping: EMS = order.shipping
@@ -24,7 +25,7 @@ def admin_print_label() -> str:
         export_id = order.invoice.export_id
     try:
         consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
-        order.status = o.OrderStatus.shipped
+        order.status = OrderStatus.shipped
         db.session.commit()
         return render_template('label.html', consignment=consignment, export_id=export_id)
     except Exception as e:

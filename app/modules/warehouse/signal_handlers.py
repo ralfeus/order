@@ -107,7 +107,7 @@ def on_purchase_order_delivered(sender, **_extra):
     logger = logging.getLogger('modules.warehouse.signal_handlers.on_purchase_order_delivered()')
     logger.debug("Got signal from: %s", sender.id)
     from app.modules.warehouse.models.purchase_order_warehouse import PurchaseOrderWarehouse
-    from app.orders.models import OrderStatus
+    from app.orders.models.order_status import OrderStatus
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
     po_warehouse = PurchaseOrderWarehouse.query.get(sender.id)
     if po_warehouse is not None:

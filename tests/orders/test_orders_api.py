@@ -9,8 +9,12 @@ from tests import BaseTestCase, db
 from app.models import Country
 from app.addresses.models import Address
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderProduct, OrderProductStatus, \
-    OrderProductStatusEntry, OrderStatus, Subcustomer, Suborder
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
+from app.orders.models.order_product import OrderProduct, OrderProductStatus, \
+    OrderProductStatusEntry
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.purchase.models import Company, PurchaseOrder
 from app.settings.models import Setting
@@ -391,6 +395,7 @@ class TestOrdersApi(BaseTestCase):
     def test_delete_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
+        order.params['p1'] = 'P1' # type: ignore
         order1 = Order(id=gen_id + '1', user=self.user, status=OrderStatus.shipped)
         order2 = Order(id=gen_id + '2', user=self.user)
         suborder = Suborder(order=order)
@@ -463,8 +468,42 @@ class TestOrdersApi(BaseTestCase):
             }))
         self.assertEqual(res.status_code, 200)
 
-
-
+    def test_create_order_from_draft(self):
+        order = Order(user=self.user, status=OrderStatus.draft)
+        order.params['p1'] = 'P1' # type: ignore
+        subcustomer = Subcustomer(name='A000', username='A000')
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        self.try_add_entities([
+            order, suborder, subcustomer,
+            OrderProduct(suborder=suborder, product_id='0000', price=10, quantity=10)
+        ])
+        self.try_user_operation(
+            operation=lambda: self.client.post(f'/api/v1/order/{order.id}', json={
+                'address': 'Address1',
+                'country': 'c1',
+                'customer_name': "Customer1",
+                'phone': '1',
+                'zip': '1',
+                'shipping': '999',
+                'suborders': [
+                    {
+                        'subcustomer': 'A000',
+                        'seq_num': 1,
+                        'items': [
+                            {
+                                'item_code': '0000',
+                                'quantity': 3000
+                            }
+                        ]
+                    }
+                ],
+                'params': {
+                    'p1': 'P1'
+                }
+            }))
+        o = Order.query.first()
+        self.assertEqual(o.address, 'Address1')
+        
     def test_increase_order_amount_over_free_shipping_threshold(self):
         order = Order(user=self.user)
         subcustomer = Subcustomer(name='A000', username='A000')
@@ -682,7 +721,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.attached_orders.count(), 1)
         self.assertEqual(order.shipping_krw, 200)
         self.assertEqual(order.total_krw, 3700)
-        res = self.client.post(f'/api/v1/order/{order.id}', json={
+        self.client.post(f'/api/v1/order/{order.id}', json={
             'address': 'Address1',
             'country': 'c1',
             'customer_name': "User1",

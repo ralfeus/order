@@ -7,10 +7,12 @@ from flask_security import current_user, login_required, roles_required
 
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderStatus
 from app.settings.models import Setting
 from app.tools import stream_and_close
 from exceptions import OrderError
+
+from ..models.order import Order
+from ..models.order_status import OrderStatus
 
 file_types = {
     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

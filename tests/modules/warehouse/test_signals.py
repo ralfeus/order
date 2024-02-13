@@ -8,7 +8,10 @@ from app.models import Country
 from app.currencies.models import Currency
 from app.users.models import Role
 from app.users.models import User
-from app.orders.models import Order, OrderStatus, OrderProduct, OrderProductStatus, Suborder
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
+from app.orders.models.order_product import OrderProduct, OrderProductStatus
+from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.modules.warehouse.models import OrderProductWarehouse, Warehouse, \
     WarehouseProduct

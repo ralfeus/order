@@ -4,7 +4,10 @@ from flask import current_app
 
 from app import db
 from app.addresses.models import Address
-import app.orders.models as o
+from app.orders.models.order import Order
+from app.orders.models.order_product import OrderProduct
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 import app.products.models as pr
 import app.purchase.models as p
 from app.purchase.models.vendors.atomy_quick import AtomyQuick
@@ -87,10 +90,10 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
     @patch('app.purchase.models.vendors.atomy_quick.get_json',
            MagicMock(side_effect=get_json))
     def test_post_purchase_order(self):
-        subcustomer = o.Subcustomer(username='s1', password='p1')
-        order = o.Order()
-        so = o.Suborder(order)
-        op = o.OrderProduct(suborder=so, product_id='000000', quantity=10)
+        subcustomer = Subcustomer(username='s1', password='p1')
+        order = Order()
+        so = Suborder(order)
+        op = OrderProduct(suborder=so, product_id='000000', quantity=10)
         company = p.Company(bank_id='32')
         po = p.PurchaseOrder(so, customer=subcustomer, company=company,
                              contact_phone='010-1234-1234', 

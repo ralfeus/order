@@ -12,9 +12,11 @@ from exceptions import AtomyLoginError, HTTPError, SubcustomerParseError
 
 from app import db
 from app.orders import bp_api_admin, bp_api_user
-from app.orders.models import Suborder, Subcustomer
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query, modify_object
+
+from ..models.subcustomer import Subcustomer
+from ..models.suborder import Suborder
 
 from ..utils import parse_subcustomer
 

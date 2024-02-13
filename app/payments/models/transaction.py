@@ -47,7 +47,7 @@ class Transaction(BaseModel, db.Model):
         ''' Returns object based SQL Alchemy filter '''
         if column is None or filter_value is None:
             return base_filter
-        from app.orders.models import Order
+        from app.orders.models.order import Order
         part_filter = f'%{filter_value}%'
         if isinstance(column, str):
             return \

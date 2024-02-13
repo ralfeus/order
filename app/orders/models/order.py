@@ -20,9 +20,10 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 from app import db
 from app.currencies.models.currency import Currency
 import app.invoices.models as i
+import app.orders.models.suborder as so
+import app.payments.models.payment_method as pm
 from app.models.base import BaseModel
 from app.models.country import Country
-from app.orders.models.order_product import OrderProduct
 from app.orders.signals import sale_order_model_preparing
 import app.purchase.models as p
 from app.settings.models.setting import Setting
@@ -30,6 +31,7 @@ from app.shipping.models.shipping import Shipping
 from app.users.models.user import User
 from exceptions import OrderError, UnfinishedOrderError
 
+from .order_product import OrderProduct
 from .order_status import OrderStatus
 
 # class OrderStatus(enum.Enum):
@@ -44,11 +46,13 @@ from .order_status import OrderStatus
 #     ready_to_ship = 7
 #     at_warehouse = 8
 
+ORDER_ID = 'orders.id'
+
 class OrderBox(db.Model, BaseModel): # type: ignore
     ''' Specific box used in order '''
     __tablename__ = 'order_boxes'
 
-    order_id: str = Column(String(16), ForeignKey('orders.id'))
+    order_id: str = Column(String(16), ForeignKey(ORDER_ID))
     length: int = Column(Integer)
     width: int = Column(Integer)
     height: int = Column(Integer)
@@ -105,17 +109,17 @@ class Order(db.Model, BaseModel): # type: ignore
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan')
+    suborders:list[so.Suborder] = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan')
     __order_products = relationship('OrderProduct', lazy='dynamic')
-    attached_order_id = Column(String(16), ForeignKey('orders.id'))
+    attached_order_id = Column(String(16), ForeignKey(ORDER_ID))
     attached_order = relationship('Order', remote_side=[id])
     attached_orders = relationship('Order',
         foreign_keys=[attached_order_id], lazy='dynamic')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
-    payment_method: PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id])
+    payment_method: pm.PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id])
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
-    params = association_proxy('order_params', 'value',
+    params:dict[str, str] = association_proxy('order_params', 'value',
         creator=lambda k, v: OrderParam(name=k, value=v,
                                         when_created=datetime.now(),
                                         when_changed=datetime.now())
@@ -124,7 +128,7 @@ class Order(db.Model, BaseModel): # type: ignore
     @property
     def order_products(self) -> list[OrderProduct]:
         ''' Returns aggregated list of order products for all suborders '''
-        if self.suborders.count() > 0:
+        if self.suborders.count() > 0: #type: ignore
             return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
         return list(self.__order_products)
@@ -231,6 +235,7 @@ class Order(db.Model, BaseModel): # type: ignore
     def delete(self):
         for suborder in self.suborders:
             suborder.delete()
+        OrderParam.query.filter_by(order_id=self.id).delete()
         super().delete()
 
     @classmethod
@@ -447,7 +452,7 @@ class Order(db.Model, BaseModel): # type: ignore
         from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
         logger = logging.getLogger(self.id)
         logger.debug("Updating total")
-        logger.debug("There are %s suborders", self.suborders.count())
+        logger.debug("There are %s suborders", self.suborders.count()) #type: ignore
         for suborder in self.suborders:
             suborder.update_total()
             logger.debug("The suborder %s:", suborder.id)
@@ -587,7 +592,7 @@ class Order(db.Model, BaseModel): # type: ignore
         #TODO: Modify compensation to take into account attached orders
         # # Compensate rounding error
         if len(op_shipping) > 0 \
-            and self.attached_order is None and self.attached_orders.count() == 0:
+            and self.attached_order is None and self.attached_orders.count() == 0: #type: ignore
             diff = self.shipping_krw - \
                 reduce(lambda acc, op_ship: acc + op_ship[1], op_shipping.items(), 0)
             if op_shipping.get(row) is None:
@@ -620,7 +625,7 @@ class OrderParam(db.Model, BaseModel): # type: ignore
     '''Additional Order parameter'''
     __tablename__ = 'order_params'
 
-    order_id = Column(String(16), ForeignKey('orders.id'))
+    order_id = Column(String(16), ForeignKey(ORDER_ID))
     order = relationship('Order',
         backref=backref('order_params',
             collection_class=attribute_mapped_collection('name'),

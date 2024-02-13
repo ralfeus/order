@@ -4,6 +4,8 @@ from unittest import TestCase
 #unittest.TestCase.run = lambda self,*args,**kw: unittest.TestCase.debug(self)
 from app import db, create_app
 
+from app.orders.models.subcustomer import Subcustomer
+from app.orders.models.suborder import Suborder
 
 app = create_app("../tests/config-test.json")
 app.app_context().push()

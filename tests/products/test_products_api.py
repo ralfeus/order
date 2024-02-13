@@ -3,7 +3,8 @@ from datetime import datetime
 from tests import BaseTestCase, db
 from app.models import Country
 from app.currencies.models import Currency
-from app.orders.models import Order, OrderProduct
+from app.orders.models.order import Order
+from app.orders.models.order_product import OrderProduct
 from app.products.models import Product
 from app.shipping.models import Shipping, ShippingRate
 from app.users.models.role import Role

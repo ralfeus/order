@@ -5,7 +5,7 @@ from time import sleep
 from app.orders.models.order_product import OrderProduct
 
 from exceptions import PurchaseOrderError
-from app.orders.models import Subcustomer
+from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models import PurchaseOrder
 
 ATTEMPTS_TOTAL = 3

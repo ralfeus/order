@@ -2,7 +2,8 @@ from datetime import datetime
 from unittest.mock import patch
 from tests import BaseTestCase, db
 from app.models import Country
-import app.orders.models as o
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
 import app.shipping.models as s
 from app.users.models import Role, User
 from app.shipping.methods.ems.models import EMS
@@ -39,21 +40,21 @@ class TestShippingEMS(BaseTestCase):
         po_mock.return_value = {}
         self.try_add_entity(EMS())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        order = o.Order(id=gen_id, user=self.user, status=o.OrderStatus.pending)
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
         order.shipping = s.Shipping.query.get(1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))
         self.assertEqual(res.status_code, 200)
-        order = o.Order.query.get(gen_id)
-        self.assertEqual(order.status, o.OrderStatus.shipped)
+        order = Order.query.get(gen_id)
+        self.assertEqual(order.status, OrderStatus.shipped)
 
     @patch('app.shipping.methods.ems.models.ems:EMS.print')
     def test_print_label_non_ems(self, po_mock):
         po_mock.return_value = {}
         self.try_add_entity(s.Shipping())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        order = o.Order(id=gen_id, user=self.user, status=o.OrderStatus.pending)
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
         order.shipping = s.Shipping.query.get(1)
         self.try_add_entities([order])
         res = self.try_admin_operation(

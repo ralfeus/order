@@ -1,6 +1,7 @@
 '''API endpoints for sale order management'''
 from datetime import datetime
 import logging
+from typing import Any
 from more_itertools import map_reduce
 import re
 
@@ -17,12 +18,16 @@ from app import db
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
-from app.orders.models import Order, OrderProduct, OrderProductStatus, \
-    OrderStatus, Suborder, Subcustomer
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models import Shipping, PostponeShipping
 from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
+
+from ..models.order import Order
+from ..models.order_product import OrderProduct, OrderProductStatus
+from ..models.order_status import OrderStatus
+from ..models.subcustomer import Subcustomer
+from ..models.suborder import Suborder
 
 from ..utils import parse_subcustomer
 
@@ -76,7 +81,7 @@ def admin_delete_order(order_id):
 @bp_api_user.route('/<order_id>', methods=['DELETE'])
 @login_required
 def user_delete_order(order_id):
-    '''Deletes specified order. At the momend only drafts can be deleted by the user'''
+    '''Deletes specified order. At the moment only drafts can be deleted by the user'''
     query = Order.query \
         .filter_by(id=order_id) \
         .filter_by(status=OrderStatus.draft)
@@ -149,7 +154,7 @@ def user_get_orders(order_id):
                         for entry in orders])
 
 def filter_orders(orders, filter_params):
-    orders: list[Order] = orders.order_by(Order.purchase_date_sort)
+    orders = orders.order_by(Order.purchase_date_sort)
     orders, records_total, records_filtered = prepare_datatables_query(
         orders, filter_params, None
     )
@@ -184,7 +189,7 @@ def user_create_order():
         if not validator.validate():
             return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
 
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     logger.debug(f"Create sale order with data: {payload}")
     result = {}
     shipping = Shipping.query.get(payload['shipping'])
@@ -199,7 +204,7 @@ def user_create_order():
             zip=payload['zip'],
             shipping=shipping,
             phone=payload['phone'],
-            comment=payload['comment'],
+            comment=payload.get('comment'),
             subtotal_krw=0,
             status=OrderStatus.pending,
             when_created=datetime.now()
@@ -264,7 +269,7 @@ def user_create_order():
         }
     return jsonify(result)
 
-def _set_shipping_params(order, shipping_params):
+def _set_shipping_params(order: Order, shipping_params):
     for k, v in shipping_params.items():
         order.params['shipping.' + k] = v
 
@@ -333,7 +338,7 @@ def _add_suborder(order, suborder_data, errors):
 def user_save_order(order_id):
     ''' Updates existing order '''
     logger = logging.getLogger(f'user_save_order:{order_id}')
-    order = Order.query.get(order_id) if 'admin' in current_user.roles \
+    order:Order = Order.query.get(order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
         abort(Response(f"No order <{order_id}> was found", status=404))
@@ -343,11 +348,12 @@ def user_save_order(order_id):
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     logger.info('Modifying order by %s with data: %s',
                 current_user, payload)
-    if not ('draft' in payload.keys() and payload['draft']) and order.status == OrderStatus.draft:
-        db.session.delete(order)
+    if not payload.get('draft') and order.status == OrderStatus.draft:
+        order.delete()
+        # db.session.delete(order)
         return user_create_order()
 
     errors = []
