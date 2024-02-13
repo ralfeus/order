@@ -11,7 +11,7 @@ from app import db, cache
 from app.tools import modify_object
 from exceptions import NoShippingRateError
 from app.models import Country
-import app.orders.models as o
+import app.orders.models.order as o
 from app.shipping import bp_api_admin, bp_api_user
 from app.shipping.models.shipping import Shipping
 

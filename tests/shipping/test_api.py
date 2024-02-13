@@ -3,7 +3,8 @@ from typing import Any
 
 from app.models import Country
 from app.users.models import Role, User
-import app.orders.models as o
+from app.orders.models.order import Order
+from app.orders.models.order_status import OrderStatus
 import app.products.models as p
 import app.shipping.models as s
 
@@ -15,7 +16,7 @@ class FakeShipping(s.Shipping):
     name = "FakeShipping"
     type = "Fake"
 
-    def consign(self, order: o.Order, config: dict[str, Any] = {}) -> s.ConsignResult:
+    def consign(self, order: Order, config: dict[str, Any] = {}) -> s.ConsignResult:
         return s.ConsignResult('XXX')
     
 class TestShippingAPI(BaseTestCase):
@@ -39,12 +40,12 @@ class TestShippingAPI(BaseTestCase):
 
     def test_consign(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        order = o.Order(id=gen_id, user=self.user, status=o.OrderStatus.pending)
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
         order.shipping = s.Shipping.query.get(1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
         self.assertEqual(res.status_code, 200)
-        order = o.Order.query.get(gen_id)
+        order = Order.query.get(gen_id)
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
