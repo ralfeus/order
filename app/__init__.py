@@ -124,18 +124,17 @@ def init_db(app: Flask, db: SQLAlchemy):
     # from sqlalchemy import text
     logger = logging.getLogger('init_db()')
     db.init_app(app)
-    logger.info("Ensuring DB is operational")
-    # statement = text("SELECT COUNT(*) FROM users")
-    # with app.app_context():
-    #     for _ in range(5):
-    #         try:
-    #             db.session.execute(statement)
-    #             logger.info("DB connection is successfully established")
-    #             return
-    #         except Exception as e:
-    #             logger.warning(e)
-    #             time.sleep(1)
-    # raise Exception("Couldn't establish a DB connection")
+
+    def _dispose_db_pool():
+        with app.app_context():
+            db.engine.dispose() #type: ignore
+
+    try:
+        logger.info("Trying to postfork the DB connection")
+        from uwsgidecorators import postfork
+        postfork(_dispose_db_pool)
+    except ImportError:
+        logger.info("No UWSGI environment is detected")
 
 
 def init_debug(flask_app):
