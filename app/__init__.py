@@ -127,11 +127,12 @@ def init_db(app: Flask, db: SQLAlchemy):
 
     def _dispose_db_pool():
         with app.app_context():
+            logging.getLogger('_dispose_db_pool()').info("Disposing DB engine")
             db.engine.dispose() #type: ignore
 
     try:
         logger.info("Trying to postfork the DB connection")
-        from uwsgidecorators import postfork
+        from uwsgidecorators import postfork #type: ignore
         postfork(_dispose_db_pool)
     except ImportError:
         logger.info("No UWSGI environment is detected")
