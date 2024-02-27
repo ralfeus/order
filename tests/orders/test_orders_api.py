@@ -954,9 +954,94 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(self.user.balance, 0)
 
+    def test_create_order_draft(self):
+        self.try_add_entities([
+            Order(id=f'ORD-drft-{self.user.id}-1', seq_num=1),
+            Order(id=f'ORD-drft-{self.user.id}-9', seq_num=9),
+            Order(id=f'ORD-drft-{self.user.id}-10', seq_num=10),
+            Product(id='0001', name='Product 1', price=10, weight=10)
+        ])
+        # Create draft between existing
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                'draft': True,
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    }
+                ]
+        }))
+        self.assertEqual(res.json['order_id'], f'ORD-drft-{self.user.id}-2')
+        Order.query.get(f'ORD-drft-{self.user.id}-1').delete()
+        Order.query.get(f'ORD-drft-{self.user.id}-2').delete()
+
+        # Create draft at the beginning
+        res = self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                'draft': True,
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    }
+                ]
+        })
+        self.assertEqual(res.json['order_id'], f'ORD-drft-{self.user.id}-1')
+        Order.query.get(f'ORD-drft-{self.user.id}-9').delete()
+        Order.query.get(f'ORD-drft-{self.user.id}-10').delete()
+
+        # Create draft at the end
+        res = self.client.post('/api/v1/order', json={
+                "customer_name":"User1",
+                "address":"Address1",
+                "country":"c1",
+                'zip': '0000',
+                "shipping":"1",
+                "phone":"1",
+                "comment":"",
+                'draft': True,
+                "suborders": [
+                    {
+                        "subcustomer":"A000, Subcustomer1, P@ssw0rd",
+                        "items": [
+                            {"item_code":"0000", "quantity":"1"},
+                            {"item_code":"1", "quantity": "1"}
+                        ]
+                    }
+                ]
+        })
+        self.assertEqual(res.json['order_id'], f'ORD-drft-{self.user.id}-2')
 
     def test_create_11th_order_draft(self):
         self.try_add_entities([
+            Order(id=f'ORD-drft-{self.user.id}-1', seq_num=1),
+            Order(id=f'ORD-drft-{self.user.id}-2', seq_num=2),
+            Order(id=f'ORD-drft-{self.user.id}-3', seq_num=3),
+            Order(id=f'ORD-drft-{self.user.id}-4', seq_num=4),
+            Order(id=f'ORD-drft-{self.user.id}-5', seq_num=5),
+            Order(id=f'ORD-drft-{self.user.id}-6', seq_num=6),
+            Order(id=f'ORD-drft-{self.user.id}-7', seq_num=7),
+            Order(id=f'ORD-drft-{self.user.id}-8', seq_num=8),
             Order(id=f'ORD-drft-{self.user.id}-9', seq_num=9),
             Order(id=f'ORD-drft-{self.user.id}-10', seq_num=10),
             Product(id='0001', name='Product 1', price=10, weight=10)

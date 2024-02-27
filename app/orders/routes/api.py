@@ -168,10 +168,15 @@ def filter_orders(orders, filter_params):
 def _set_draft(order):
     draft_order_id_prefix = f'ORD-drft-{current_user.id}-'
     if not order.id.startswith(draft_order_id_prefix):
-        last_draft = Order.query \
+        drafts = Order.query \
             .filter(Order.id.startswith(draft_order_id_prefix)) \
-            .order_by(Order.seq_num.desc()).first()
-        order.seq_num = last_draft.seq_num + 1 if last_draft else 1
+            .order_by(Order.seq_num)
+        seq_num = 1
+        for draft in drafts:
+            if draft.seq_num > seq_num:
+                break
+            seq_num += 1
+        order.seq_num = seq_num
         order.id = draft_order_id_prefix + str(order.seq_num)
     order.status = OrderStatus.draft
     return order
