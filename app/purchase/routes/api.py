@@ -39,10 +39,10 @@ def get_purchase_orders(po_id):
         purchase_orders, records_total, records_filtered = prepare_datatables_query(
             purchase_orders, request.values,
             or_(
-                PurchaseOrder.id.like(f"%{request.values['search[value]']}%"),
+                PurchaseOrder.id.like(f"%{request.values['search[value]']}%"), #type:ignore
                 PurchaseOrder.customer.has(
-                    Subcustomer.name.like(f"%{request.values['search[value]']}%")),
-                PurchaseOrder.status.like(f'%{request.values["search[value]"]}%')
+                    Subcustomer.name.like(f"%{request.values['search[value]']}%")), #type:ignore
+                PurchaseOrder.status.like(f'%{request.values["search[value]"]}%') #type:ignore
             )
         )
         return jsonify({

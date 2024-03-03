@@ -43,6 +43,20 @@ class TestPurchaseOrdersApi(BaseTestCase):
         self.try_admin_operation(
             lambda: self.client.get(f"/api/v1/admin/purchase/order/{po.id}")
         )
+
+    def test_search_purchase_order_by_subcustomer(self):
+        subcustomer = Subcustomer(name='Test')
+        order = Order()
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        po = PurchaseOrder(suborder=suborder, company=Company(name='Test'))
+        self.try_add_entities([
+            order, suborder, po,
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.get("/api/v1/admin/purchase/order?draw=2&columns%5B0%5D%5Bdata%5D=customer.name&columns%5B0%5D%5Bname%5D=&columns%5B0%5D%5Bsearch%5D%5Bvalue%5D={}&search%5Bvalue%5D=".format(
+                                    subcustomer.name))
+        )
+        self.assertEqual(res.status_code, 200)
     
     def test_get_vendors(self):
         res = self.try_admin_operation(
