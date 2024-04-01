@@ -79,7 +79,8 @@ def get_atomy_products() -> list[dict[str, Any]]:
                     "price": core_product["memRetailPrice"],
                     "points": core_product["pvPrice"],
                     "available": "soldOut" not in core_product["flags"],
-                    "image_url": core_product["images"][0]["file"],
+                    "image_url": core_product["images"][0]["file"] 
+                        if len(core_product['images']) > 0 else '',
                 }
             )
         else:
@@ -92,7 +93,8 @@ def get_atomy_products() -> list[dict[str, Any]]:
                     "price": p["memRetailPrice"],
                     "points": p["pvPrice"],
                     "available": p['enable'] and not p['soldOut'],
-                    "image_url": core_product["images"][0]["file"] if len(core_product['images']) > 0 else '',
+                    "image_url": core_product["images"][0]["file"] 
+                        if len(core_product['images']) > 0 else '',
                 }
                 for p in _get_product_options(core_product, jwt)
             ]
