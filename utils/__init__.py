@@ -4,8 +4,7 @@ import re
 import subprocess
 from time import sleep
 
-import lxml
-import lxml.html
+from lxml.html.soupparser import fromstring
 
 from exceptions import AtomyLoginError
 
@@ -14,7 +13,10 @@ def get_document_from_url(url, headers=None, raw_data=None):
     stdout, stderr = invoke_curl(url=url, headers=headers, raw_data=raw_data)
     try:
         if re.search('HTTP.*? (200|304)', stderr):
-            doc = lxml.html.fromstring(stdout)
+            cleaned_string = re.sub(
+                u'[^\u0020-\uD7FF\u0009\u000A\u000D\uE000-\uFFFD\U00010000-\U0010FFFF]+',
+                '', stdout)
+            doc = fromstring(cleaned_string)
             return doc
         if 'Could not resolve host' in stderr:
             logger.warning("Couldn't resolve host name for %s. Will try in 30 seconds", url)

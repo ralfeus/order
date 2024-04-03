@@ -326,12 +326,25 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
             logger.debug("%s is done. Removing from the crawling set", node_id)
             traversing_nodes_set.discard(node_id)
 
-def _get_element_style_items(element):
-    style_items = element.attrib['style'].split(';')
+def _get_element_style_items(element) -> dict[str, str]:
+    style_items: list[str] = element.attrib['style'].split(';') \
+        if element.attrib.get('style') else []
     dict_style_items = {e.split(':')[0].strip(): e.split(':')[1].strip()
                         for e in style_items
                         if ':' in e}
     return dict_style_items
+
+def _get_element_left(element) -> int:
+    style_items = _get_element_style_items(element)
+    if len(style_items) > 0:
+        return int(style_items['left'][:-2]) 
+    raise Exception("The element has no style attributes and no position")
+
+def _get_element_top(element):
+    style_items = _get_element_style_items(element)
+    if len(style_items) > 0:
+        return int(style_items['top'][:-2]) 
+    raise Exception("The element has no style attributes and no position")
 
 def _get_levels_distance(members):
     if len(members) <= 1:
@@ -426,8 +439,7 @@ def _is_left(parent_element, child_element):
     horizontal_line = _get_element_horizontal_line(parent_element)
     if horizontal_line is not None:
         return v_lines['child']['top'] == v_lines['parent']['bottom'] \
-           and v_lines['child']['left'] == \
-               int(_get_element_style_items(horizontal_line)['left'][:-2])
+           and v_lines['child']['left'] == _get_element_left(horizontal_line)
     else:
         return v_lines['child']['top'] == v_lines['parent']['bottom'] \
            and v_lines['child']['left'] == v_lines['parent']['left']
@@ -448,8 +460,7 @@ def _is_right(parent_element, child_element):
 def _get_vertical_lines(parent_element, child_element):
     parent_vertical_line = parent_element.getnext()
     if parent_vertical_line is not None and \
-       int(_get_element_style_items(parent_vertical_line)['top'][:-2]) < \
-       int(_get_element_style_items(parent_element)['top'][:-2]):
+       _get_element_top(parent_vertical_line) < _get_element_top(parent_element):
         parent_vertical_line = parent_vertical_line.getnext()
         if parent_vertical_line is None or parent_vertical_line.tag != 'img':
             return None
@@ -457,13 +468,13 @@ def _get_vertical_lines(parent_element, child_element):
     child_vertical_line = child_element.getnext()
     return {
         'parent':{
-            'bottom': int(parent_vertical_line_style_items['top'][:-2]) + \
+            'bottom': _get_element_top(parent_vertical_line) + \
                       int(parent_vertical_line_style_items['height'][:-2]) - 1,
-            'left': int(parent_vertical_line_style_items['left'][:-2])
+            'left': _get_element_left(parent_vertical_line)
         },
         'child': {
-            'top': int(_get_element_style_items(child_vertical_line)['top'][:-2]),
-            'left': int(_get_element_style_items(child_vertical_line)['left'][:-2])
+            'top': _get_element_top(child_vertical_line),
+            'left': _get_element_left(child_vertical_line)
         }
     }
 
@@ -494,7 +505,7 @@ if __name__ == '__main__':
 
     if os.environ.get('TERM_PROGRAM') == 'vscode':
         # Means we run in VSCode debugger
-        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk03020529!!', '--threads', '1', '--root', '24987907'])
+        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk03020529!!', '--threads', '1', '--root', '24530127'])
         # args = arg_parser.parse_args(['--user', 'S0004669', '--password', 'a121212**', '--update', '--verbose', '--threads', '1'])
     else: 
         # Production run

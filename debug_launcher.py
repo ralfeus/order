@@ -8,7 +8,7 @@ from app.products.models import *
 import logging
 from app.import_products import get_atomy_products
 
-# from network_builder.build_network import build_network
+from network_builder.build_network import build_network
 logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
 from app.purchase.jobs import *
@@ -31,7 +31,7 @@ with create_app().app_context():
     # print(po.to_dict())
 
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    # build_network(user='S5832131', password='mkk030529!', incremental=True)
+    build_network(user='S5832131', password='mkk030529!', root_id="24530127")
     # copy_subtree(root_id='S9945812')
 
-    get_atomy_products()
+    # get_atomy_products()
