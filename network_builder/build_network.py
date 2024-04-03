@@ -255,14 +255,17 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                 left = _get_node(element=element['element'], parent_id=node_id, is_left=True, logger=logger)
                 logger.debug("%s is added to DB as left child of %s", element_id, node_id)
                 left_element = element
-            elif left_child_id == element_id:
-                logger.debug('%s already has %s as a left child. Updating data...', node_id, element_id)
+            else:
+                if left_child_id != element_id:
+                    logger.warning(
+                        "%s has %s as a left child. Will be overwritten with %s.",
+                        node_id, left_child_id, element_id)
+                else:
+                    logger.debug(
+                        '%s already has %s as a left child. Updating data...',
+                        node_id, element_id)
                 left = _get_node(element=element['element'], parent_id=node_id, is_left=True, logger=logger)
                 left_element = element
-            else:
-                logger.error("%s has %s as a left child and I don't know what to do with %s. Skipping %s...",
-                             node_id, left_child_id, element_id, element_id)
-                continue
             is_left_found = True
         elif _is_right(node_element['element'], element['element']):
             logger.debug("%s is right to %s", element_id, node_id)
