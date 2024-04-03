@@ -279,15 +279,17 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                 else:
                     logger.warning("No left child was found for %s before. I don't know what to do. Skipping %s",
                                    node_id, element_id)
-                    continue
-            elif right_child_id == element_id:
-                logger.debug('%s already has %s as a right child. Updating data...', node_id, element_id)
+            else:
+                if right_child_id != element_id:
+                    logger.warning(
+                        "%s has %s as a right child. Will be overwritten with %s.",
+                        node_id, right_child_id, element_id)
+                else:
+                    logger.debug(
+                        '%s already has %s as a right child. Updating data...',
+                        node_id, element_id)
                 right = _get_node(element=element['element'], parent_id=node_id, is_left=False, logger=logger)
                 right_element = element
-            else:
-                logger.error("%s has %s as a right child and I don't know what to do with %s. Skipping %s...",
-                             node_id, right_child_id, element_id, element_id)
-                continue
                 
     if node_element_top == last_level_top and len(elements) != 0:
         # Means the element is the last one in row but not a single one on the page
