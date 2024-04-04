@@ -3,6 +3,7 @@ import logging
 import re
 import threading
 from time import sleep
+from typing import Any
 from urllib.parse import urlencode
 
 from flask import current_app
@@ -38,8 +39,10 @@ class SessionManager:
             self.__session = atomy_login(
                 username=self.__username, password=self.__password, run_browser=False)
 
-def _atomy_login_curl(username, password):
-    '''    Logins to Atomy customer section    '''
+def _atomy_login_curl(username, password) -> list[str]:
+    '''    Logins to Atomy customer section    
+    Returns list of session cookies
+    '''
     if len(username) < 8:
         username = 'S' + username
     stdout, stderr = invoke_curl(
@@ -66,12 +69,12 @@ def _atomy_login_curl(username, password):
 
     raise HTTPError((stdout, stderr))
 
-def atomy_login(username, password, browser=None, run_browser=False):
+def atomy_login(username, password, browser=None, run_browser=False) -> list[str]:
     if not run_browser:
         return try_perform(lambda: _atomy_login_curl(username, password))
-    raise Exception("Browser login is not implemented")
+    raise NotImplementedError("Browser login is not implemented")
 
-def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
+def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) -> Any:
     last_exception = None
     for _attempt in range(attempts):
         logger.debug("Running action %s. Attempt %s of %s", action, _attempt + 1, attempts)

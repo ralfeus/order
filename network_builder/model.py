@@ -47,7 +47,7 @@ class AtomyPerson(StructuredNode):
     left_child = RelationshipTo('AtomyPerson', 'LEFT_CHILD')
 
     @classmethod
-    def inflate(cls, node, lazy=True):
+    def inflate(cls, node, lazy=True) -> 'AtomyPerson':
         '''Augments base inflate() with parent and children'''
         person = super().inflate(node)
         if not lazy:
