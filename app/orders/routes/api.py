@@ -195,7 +195,6 @@ def user_create_order():
             return Response(f"Couldn't create an Order\n{validator.errors}", status=409)
 
     payload: dict[str, Any] = request.get_json() #type: ignore
-    logger.debug(f"Create sale order with data: {payload}")
     result = {}
     shipping = Shipping.query.get(payload['shipping'])
     country = Country.query.get(payload['country'])
@@ -216,13 +215,12 @@ def user_create_order():
         )
         if 'draft' in payload.keys() and payload['draft']:
             order = _set_draft(order)
-        logger.info("Order %s is created", order.id)
+        logger.info("Order %s is created by %s with data: %s", order.id, 
+                    current_user, payload)
 
         order.attach_orders(payload.get('attached_orders'))
         db.session.add(order)
-        # order_products = []
         errors = []
-        # ordertotal_weight = 0
         if payload.get('params') is not None and \
            payload['params'].get('shipping') is not None:
             _set_shipping_params(order, payload['params']['shipping'])
@@ -255,7 +253,7 @@ def user_create_order():
             
     except DataError as ex:
         db.session.rollback()
-        message = ex.orig.args[1]
+        message = ex.orig.args[1] if ex.orig is not None else ''
         table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
         if table:
             if table == 'subcustomers':
