@@ -8,7 +8,7 @@ import re
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
-from sqlalchemy import and_, not_, or_
+from sqlalchemy import and_, not_, or_ # type: ignore
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
 from exceptions import EmptySuborderError, NoShippingRateError, \
@@ -116,7 +116,7 @@ def admin_get_orders(order_id):
         orders = orders.filter(not_(Order.id.like('%drft%')))
     if request.values.get('status'):
         orders = orders.filter(
-            Order.status.in_(request.values.getlist('status')))
+            Order.status.in_(request.values.getlist('status'))) # type: ignore
     if request.values.get('user_id'):
         orders = orders.filter_by(user_id=request.values['user_id'])
     if request.values.get('draw') is not None: # Args were provided by DataTables
@@ -249,15 +249,17 @@ def user_create_order():
             'status': 'warning' if len(errors) > 0 else 'success',
             'order_id': order.id,
             'message': errors
-        })
+        }) # type: ignore
             
     except DataError as ex:
         db.session.rollback()
         message = ex.orig.args[1] if ex.orig is not None else ''
-        table = re.search('INSERT INTO (.+?) ', ex.statement).groups()[0]
-        if table:
-            if table == 'subcustomers':
-                message = "Subcustomer error: " + message + " " + str(ex.params[2:5])
+        if ex.statement:
+            match = re.search('INSERT INTO (.+?) ', ex.statement)
+            table = match.groups()[0] if match else None
+        if table == 'subcustomers':
+            message = "Subcustomer error: " + message + " " + \
+                str(ex.params[2:5] if ex.params else '')
         result = {
             'status': 'error',
             'message': f"""Couldn't add order due to input error. Check your form and try again.
@@ -662,14 +664,14 @@ def get_order_products():
         order_products, records_total, records_filtered = prepare_datatables_query(
             order_products, request.values,
             or_(
-                OrderProduct.suborder.has(Suborder.order_id.like(filter_clause)),
+                OrderProduct.suborder.has(Suborder.order_id.like(filter_clause)), # type: ignore
                 OrderProduct.suborder.has(
                     Suborder.subcustomer.has(
-                        Subcustomer.name.like(filter_clause))),
+                        Subcustomer.name.like(filter_clause))), # type: ignore
                 OrderProduct.suborder.has(
                     Suborder.order.has(
                         Order.customer_name.like(filter_clause))),
-                OrderProduct.product_id.like(filter_clause),
+                OrderProduct.product_id.like(filter_clause), # type: ignore
                 OrderProduct.product.has(Product.name.like(filter_clause)),
                 OrderProduct.product.has(Product.name_english.like(filter_clause)),
                 OrderProduct.product.has(Product.name_russian.like(filter_clause)),

@@ -176,7 +176,8 @@ def stream_and_close(file_handle):
 
 
 def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
-                method='GET', use_proxy: bool=True, retries=2) -> tuple[str, str]:
+                method='GET', use_proxy: bool=True, retries=2,
+                ignore_ssl_check=False) -> tuple[str, str]:
     '''Calls curl and returns its stdout and stderr'''
     _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
@@ -186,6 +187,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
     socks5_proxy_param = (
         ['--socks5', current_app.config.get('SOCKS5_PROXY')] #type: ignore
             if use_proxy and current_app.config.get('SOCKS5_PROXY') is not None else [])
+    ignore_ssl_check_param = ['-k'] if ignore_ssl_check else []
     if raw_data:
         method = 'POST'
     run_params = [ #type: ignore
@@ -195,7 +197,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         # '--socks5', 'localhost:9050',
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-        ] + headers_list + raw_data_param + socks5_proxy_param
+        ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -231,9 +233,11 @@ def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str=''
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
 def get_json(url, raw_data=None, headers=[], method='GET', retry=True, 
-             get_data: Callable=invoke_curl) -> dict[str, Any]:
+             get_data: Callable=invoke_curl, ignore_ssl_check=False
+             ) -> dict[str, Any]:
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
-        headers=headers, retries=3 if retry else 0)
+        headers=headers, retries=3 if retry else 0, 
+        ignore_ssl_check=ignore_ssl_check)
     try:
         return json.loads(stdout)
     except:

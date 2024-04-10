@@ -55,6 +55,7 @@ class EMS(Shipping):
     def __invoke_curl(self, *args, **kwargs) -> tuple[str, str]:
         logger = logging.getLogger("EMS::__invoke_curl()")
         kwargs["headers"] = [self.__login()]
+        kwargs['ignore_ssl_check'] = True
         for _ in range(0, 3):
             stdout, stderr = invoke_curl(*args, **kwargs)
             if re.search("HTTP.*? 401", stderr):
@@ -404,7 +405,7 @@ class EMS(Shipping):
             result: list[dict] = get_json(
                 url="https://myems.co.kr/api/v1/login",
                 raw_data=f'{{"user":{{"userid":"{self.__username}","password":"{self.__password}"}}}}',
-                method="POST",
+                method="POST", ignore_ssl_check=True
             ) #type: ignore
             cache.set(f"ems_auth:{self.__username}", result[1]["authorizationToken"], 
                       timeout=28800)
