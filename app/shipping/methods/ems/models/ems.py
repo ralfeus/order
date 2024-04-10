@@ -428,7 +428,7 @@ def __get_rates(country, url: str) -> list[dict]:
     if country_code == 'LT':
         country_code = 'PL'
     try:
-        result = get_json(url=url.format(country_code), retry=False)
+        result = get_json(url=url.format(country_code), retry=False, ignore_ssl_check=True)
         rates: list[dict] = result["charge_info"]
         weight_limit = int(result["country_info"]["weight_limit"]) * 1000
         return [

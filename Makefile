@@ -1,7 +1,9 @@
 install:
+	vf activate order
 	pip3 install -r requirements.txt
 
 upgrade:
+	vf activate order
 	sudo echo Upgrading Order Master
 	git pull
 	pip3 install -r requirements.txt
