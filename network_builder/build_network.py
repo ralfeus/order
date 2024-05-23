@@ -447,8 +447,11 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
                 node.network_pv = $network_pv,
                 node.when_updated = $now
         ON MATCH SET
+                node.name = $name,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
+                node.center = $center,
+                node.country = $country,
                 node.pv = $pv,
                 node.total_pv = $total_pv,
                 node.network_pv = $network_pv,

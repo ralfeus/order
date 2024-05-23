@@ -5,11 +5,11 @@ $(document).ready(() => {
         columns: [
             {data: 'id'},
             {data: 'name'},
+            {data: 'rank'},
+            {data: 'highest_rank'},
             {data: 'parent_id'},
             {data: 'left_id'},
             {data: 'right_id'},
-            {data: 'rank'},
-            {data: 'highest_rank'},
             {data: 'signup_date'},
             {data: 'center'},
             {data: 'country'},
