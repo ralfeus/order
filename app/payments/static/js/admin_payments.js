@@ -395,7 +395,17 @@ async function set_status(target, newStatus) {
     $('.wait').show();
     var errors = '';
     var successful = '';
-    for (var i = 0; i < target.count(); i++) {
+    const paymentsCount = target.count();
+    let paymentsDone = 0;
+    let promise = $.Deferred();
+    promise.then((success, errors) => {
+        if (success !== '' || errors !== '') {
+            modal("Payments status set", `
+                <h3>Success</h3>${success}
+                <h3>Errors</h3>${errors}`);
+        }
+    });
+    for (var i = 0; i < paymentsCount; i++) {
         await $.ajax({
             url: '/api/v1/admin/payment/' + target.data()[i].id,
             method: 'POST',
@@ -404,6 +414,11 @@ async function set_status(target, newStatus) {
             data: JSON.stringify({
                 'status': newStatus,
             }),
+            complete: () => { 
+                if (++paymentsDone == paymentsCount) {
+                    promise.resolve(successful, errors);
+                }
+            },
             success: function(response, _status, _xhr) {
                 if (response.data.length > 0) {
                     target.cell(

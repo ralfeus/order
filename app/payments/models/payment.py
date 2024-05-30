@@ -34,8 +34,8 @@ class Payment(db.Model, BaseModel):
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
     sender_name = Column(String(128))
-    orders = db.relationship('Order', secondary=payments_orders,
-                             backref=db.backref('payments', lazy='dynamic'),
+    orders = db.relationship('Order', secondary=payments_orders, # type: ignore
+                             backref=db.backref('payments', lazy='dynamic'), # type: ignore
                              lazy='dynamic')
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
@@ -79,15 +79,16 @@ class Payment(db.Model, BaseModel):
                 else base_filter
                 
         if isinstance(column, InstrumentedAttribute):       
-            return \
-                base_filter.filter(column.in_([PaymentStatus[status]
-                    for status in filter_values])) \
-                    if column.key == 'status' else \
-                base_filter.filter(column.any(Order.id.like(part_filter))) \
-                    if column.key == 'orders' else \
-                base_filter.filter(cls.payment_method.has(PaymentMethod.name.in_(filter_values))) \
-                    if column.key == 'payment_method' \
-                else base_filter.filter(column.like(part_filter)) 
+            if column.key == 'status':
+                return base_filter.filter(column.in_([PaymentStatus[status]
+                    for status in filter_values])) 
+            if column.key == 'orders':
+                return base_filter.filter(column.any(Order.id.like(part_filter))) 
+            if column.key == 'payment_method':
+                return base_filter.filter(
+                    cls.payment_method.has(PaymentMethod.name.in_(filter_values)))
+                     
+            return base_filter.filter(column.like(part_filter)) 
 
     def is_editable(self):
         return self.status != PaymentStatus.approved
@@ -98,15 +99,19 @@ class Payment(db.Model, BaseModel):
         elif isinstance(value, int):
             value = PaymentStatus(value)
 
-        self.status = value
-        self.when_changed = datetime.now()
-
         if value == PaymentStatus.approved:
             if not self.amount_received_krw:
                 raise PaymentNoReceivedAmountException(
                     f"No received amount is set for payment <{self.id}>")
 
             self.add_payment(messages)
+
+        if value == PaymentStatus.rejected:
+            if self.status == PaymentStatus.approved:
+                self.revert_payment()
+
+        self.status = value
+        self.when_changed = datetime.now()
 
     def add_payment(self, messages):
         from app.payments.models.transaction import Transaction
@@ -119,6 +124,16 @@ class Payment(db.Model, BaseModel):
         self.transaction = transaction
 
         self.update_orders(messages)
+
+    def revert_payment(self):
+        from app.payments.models.transaction import Transaction
+        transaction = Transaction(
+            amount=-self.amount_received_krw,
+            customer=self.user,
+            user=self.changed_by
+        )
+        db.session.add(transaction)
+        self.transaction = transaction
 
     def update_orders(self, messages):
         logger = logging.getLogger('update_orders')

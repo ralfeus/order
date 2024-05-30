@@ -7,6 +7,7 @@ import os, os.path
 import re
 import shutil
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
@@ -66,15 +67,10 @@ def filter_payments(payments, filter_params):
 def admin_save_payment(payment_id):
     ''' Saves updates of user payment '''
     logger = logging.getLogger('admin_save_payment')
-    payload = request.get_json()
-    payment = Payment.query.get(payment_id)
+    payload: dict[str, Any] = request.get_json() # type: ignore
+    payment: Payment = Payment.query.get(payment_id)
     if not payment:
-        abort(404)
-    if not payment.is_editable():
-        return jsonify({
-                'data': [],
-                'error': f"Can't update payment in state <{payment.status}>"
-            })   
+        abort(404)  
     messages = []
     logger.info("Updating payment %s by %s with data %s", payment_id, current_user, payload)
     if payload.get('status'):
