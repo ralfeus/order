@@ -311,7 +311,7 @@ class EMS(Shipping):
             "vol_weight3": box["height"],  # height
             "vol_weight": volume_weight,  # volume translated to weight. Calculated as width * length * height / 6
             # p_weight (above) is either itself of this value, if this value is bigger
-            "item_detailed": "32",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
+            "item_detailed": "31",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
         }
         logger.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
