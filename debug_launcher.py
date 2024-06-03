@@ -8,7 +8,7 @@ from app.products.models import *
 import logging
 from app.import_products import get_atomy_products
 
-from network_builder.build_network import build_network
+# from network_builder.build_network import build_network
 logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
 from app.purchase.jobs import *
@@ -17,8 +17,8 @@ import threading
 import time
 
 with create_app().app_context():
-    # po_id = "PO-2023-12-0447-001"
-    # po = PurchaseOrder.query.get(po_id)
+    po_id = "PO-2024-06-0001-001"
+    po = PurchaseOrder.query.get(po_id)
     # po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 7
@@ -26,12 +26,12 @@ with create_app().app_context():
     # po.customer.password = 'mkk03020529!!'
     # po.purchase_date = datetime.now()
     # db.session.flush()
-    # post_purchase_orders(po_id=po_id)
-    # db.session.rollback()
+    post_purchase_orders(po_id=po_id)
+    db.session.rollback()
     # print(po.to_dict())
 
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    build_network(user='S5832131', password='mkk030529!', root_id="24530127")
+    # build_network(user='S5832131', password='mkk030529!', root_id="24530127")
     # copy_subtree(root_id='S9945812')
 
     # get_atomy_products()

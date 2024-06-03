@@ -354,7 +354,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 url=f"{URL_BASE}/atms/search?{URL_SUFFIX}",
                 # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
                 headers=self.__get_session_headers(),
-                raw_data=f"searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20",
+                raw_data=f"searchKeyword={product_id}&page=1&from=0&pageCount=0&pageSize=20&size=20&isQuickSearch=true",
             )
             if result["totalCount"] > 0:
                 products = [items for items in result['items'] 
