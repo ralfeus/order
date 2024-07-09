@@ -135,7 +135,7 @@ function open_order(target) {
 }
 
 function open_order_invoice(target) {
-    window.location = '/api/v1/order/' + 
+    window.location = '/orders/' + 
         g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
 }
