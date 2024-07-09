@@ -42,7 +42,7 @@ function get_excel(rows) {
         for (var i = 0; i < rows.count(); i++) {
             orders += 'orders=' + rows.data()[i].id + '&';
         }
-        window.open('/api/v1/admin/order/excel?' + orders);
+        window.open('/orders/excel?' + orders);
     }
     $('.wait').hide()
 }
