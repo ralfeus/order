@@ -36,7 +36,7 @@ async function get_dictionaries() {
 function get_excel(rows) {
     $('.wait').show();
     if (rows.count() == 1) {
-        window.open('/api/v1/admin/order/' + rows.data()[0].id + '/excel');
+        window.open('/orders/' + rows.data()[0].id + '/excel');
     } else {
         var orders = '';
         for (var i = 0; i < rows.count(); i++) {
