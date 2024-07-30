@@ -472,7 +472,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     
     def __get_order_id(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split('-')
-        return order_id_parts[2] + "ㅡ" + order_id_parts[1] + "ㅡ" + order_id_parts[0]
+        return order_id_parts[2][1:] + "ㅡ" + order_id_parts[1] + "ㅡ" + order_id_parts[0]
         # return purchase_order.id[8:].replace("-", "ㅡ")
 
     def __set_purchase_order_id(self, purchase_order_id):
