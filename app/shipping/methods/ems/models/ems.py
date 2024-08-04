@@ -395,7 +395,7 @@ class EMS(Shipping):
                 cache.delete("ems_login_in_progress")
                 return None
             logger.info("Another login process has finished. Will use existing token")
-            logger.info(self.__username, cache.get(f"ems_auth:{self.__username}"))
+            logger.info("%s, %s", self.__username, cache.get(f"ems_auth:{self.__username}"))
             force = False
         logger.debug("%s, %s, %s", self.__username, 
                      cache.get(f"ems_auth:{self.__username}"), force)
