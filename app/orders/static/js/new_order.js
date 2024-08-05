@@ -667,12 +667,16 @@ function update_shipping_cost(cost) {
 
 function distribute_shipping_cost(cost) {
     // Distribute shipping cost among items
-    var user_products = Object.entries(g_cart);
-    total_weight = user_products.reduce(
+    let user_products = Object.entries(g_cart);
+    let total_weight = user_products.reduce(
         (acc, product) => acc + product[1].weight * product[1].quantity, 0);
     for (product in g_cart) {
-        g_cart[product].shippingCostKRW = 
-            round_up(cost / total_weight * g_cart[product].weight * g_cart[product].quantity, 0);
+        if (total_weight === 0) {
+            g_cart[product].shippingCostKRW = cost / user_products.length;
+        } else {
+            g_cart[product].shippingCostKRW = 
+                round_up(cost / total_weight * g_cart[product].weight * g_cart[product].quantity, 0);
+        }
     }
     $('.shipping-cost-krw').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
