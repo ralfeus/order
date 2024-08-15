@@ -36,7 +36,7 @@
             "justMyCode": true
         },
         {
-            "name": "Flask - network_builder",
+            "name": "Flask - network_manager",
             "type": "python",
             "request": "launch",
             "module": "flask",
