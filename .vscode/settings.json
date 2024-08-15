@@ -26,5 +26,6 @@
     "sonarlint.connectedMode.project": {
         "connectionId": "local",
         "projectKey": "order"
-    }
+    },
+    "makefile.configureOnOpen": false
 }

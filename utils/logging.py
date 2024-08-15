@@ -1,5 +1,5 @@
 from logging import Logger
-from logging import basicConfig, debug, getLogger, info
+from logging import basicConfig, debug, error, exception, fatal, getLogger, info, warning
 from logging import DEBUG, INFO
 from logging import _levelToName, _nameToLevel, root
 
