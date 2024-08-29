@@ -11,7 +11,7 @@ from requests import HTTPError
 
 from exceptions import AtomyLoginError
 
-def get_document_from_url(url, headers: list[dict[str, str]]=[], raw_data: str=''):
+def get_document_from_url(url, headers=[], raw_data: str=''):
     logger = logging.getLogger('utils.get_document_from_url')
     stdout, stderr = invoke_curl(url=url, headers=headers, raw_data=raw_data)
     try:
@@ -38,9 +38,9 @@ def get_document_from_url(url, headers: list[dict[str, str]]=[], raw_data: str='
         logger.exception(url, headers, raw_data)
 
 
-def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
+def invoke_curl(url: str, raw_data: str='', headers=[],
                 method='GET', retries=2, socks5_proxy:str='', ignore_ssl_check=False
-                ) -> tuple[str, str]:
+                ):
     '''Calls curl and returns its stdout and stderr'''
     _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
@@ -76,11 +76,12 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
 
     
 def get_json(url, raw_data=None, headers=[], method='GET', retries=0, 
-             get_data: Callable=invoke_curl, ignore_ssl_check=False
-             ) -> dict[str, Any]:
+             get_data: Callable=invoke_curl, ignore_ssl_check=False,
+             socks5_proxy=''
+             ):
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
         headers=headers, retries=retries, 
-        ignore_ssl_check=ignore_ssl_check)
+        ignore_ssl_check=ignore_ssl_check, socks5_proxy=socks5_proxy)
     try:
         return json.loads(stdout)
     except json.JSONDecodeError:
