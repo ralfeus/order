@@ -91,20 +91,22 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) ->
 
 URL_BASE = 'https://shop-api.atomy.com/svc'
 URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
-def atomy_login2(username, password):
+def atomy_login2(username, password, socks5_proxy=""):
     '''Logs in to Atomy using new authentication interface
     :param username: user name
     :param password: password
+     param socks5_proxy: address for socks5 proxy if needed
     :returns: JWT token'''
     URL_BASE = 'https://shop-api.atomy.com/svc'
-    jwt = __get_token()
+    jwt = __get_token(socks5_proxy)
     stdout, stderr = invoke_curl(
         url=f'{URL_BASE}/signIn?_siteId=kr',
         headers=[{'Cookie': jwt}],
         raw_data=urlencode({
             'id': username, 
             'password': password
-        })
+        }),
+        socks5_proxy=socks5_proxy
     )
     result = json.loads(stdout)
     if result['result'] == '200':
@@ -114,9 +116,10 @@ def atomy_login2(username, password):
     else:
         raise AtomyLoginError(username)
 
-def __get_token():
+def __get_token(socks5_proxy=""):
     _, stderr = invoke_curl(
-        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr'
+        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr',
+        socks5_proxy=socks5_proxy
     )
     token_match = re.search("set-cookie: (atomySvcJWT=.*?);", stderr)
     if token_match is not None:

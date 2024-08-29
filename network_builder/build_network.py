@@ -67,7 +67,7 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
     global token
-    token = [{'Cookie': atomy_login2(user, password)}]
+    token = [{'Cookie': atomy_login2(user, password, 'localhost:9050')}]
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
     while True:
@@ -145,7 +145,8 @@ def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list):
     try:
         page = get_json(TREE_URL + '?' + 
                         DATA_TEMPLATE.format(node_id, start_date), headers=token,
-                        retries=3)
+                        retries=3,
+                        socks5_proxy='localhost:9050')
         if page['result'] != '200':
             raise Exception(page['resultMessage'])
     except Exception as ex:
@@ -300,7 +301,7 @@ def _get_node(element: dict[str, Any], parent_id, is_left, logger: logging.Logge
     return node
         
 def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetime, 
-                    last_purchase_date: datetime|None) -> AtomyPerson:
+                    last_purchase_date: datetime) -> AtomyPerson:
     result, _ = db.cypher_query('''
         MERGE (node:AtomyPerson {atomy_id: $atomy_id})
         ON CREATE SET
@@ -339,7 +340,7 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
     return AtomyPerson.inflate(result[0][0])
 
 def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool, 
-                     signup_date: datetime, last_purchase_date: datetime|None
+                     signup_date: datetime, last_purchase_date: datetime
                      ) -> AtomyPerson:
     result, _ = db.cypher_query(f'''
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})

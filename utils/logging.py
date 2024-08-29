@@ -15,10 +15,10 @@ __all__ = ['BASIC_FORMAT', 'BufferingFormatter', 'CRITICAL', 'DEBUG', 'ERROR',
 
 FINE = 15
 
-_levelToName = _levelToName | {
+_levelToName = {**_levelToName, 
     FINE: 'FINE'
 }
-_nameToLevel = _nameToLevel | {
+_nameToLevel = {**_nameToLevel, 
     'FINE': FINE
 }
 
