@@ -1,11 +1,30 @@
 ''' API views for network management'''
 import json
+import logging
 import requests
+
 from flask import abort, current_app, jsonify, request
 from flask_security import roles_required
 
 from app.network import bp_api_admin
 from app.tools import convert_datatables_args
+
+@bp_api_admin.route('/builder/<action>')
+@roles_required('admin')
+def get_network_builder_status(action):
+    valid_actions = {'start', 'stop', 'status'}
+    if action not in valid_actions:
+        return jsonify({'status': 'invalid action'})
+    try:
+        query = '&'.join([f'{k}={v}' for k,v in request.args.items()])
+        response = requests.get(
+            f"{current_app.config['NETWORK_MANAGER_URL']}/api/v1/builder/{action}?{query}",
+            headers={'Content-type': 'application/json'})
+        data = json.loads(response.content.decode('utf-8'))
+    except Exception as e:
+        logging.exception(e)
+        data = {'status': 'unknown'}
+    return jsonify(data)
 
 @bp_api_admin.route('')
 @roles_required('admin')

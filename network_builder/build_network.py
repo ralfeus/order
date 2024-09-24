@@ -2,7 +2,7 @@ from enum import Enum
 from calendar import monthrange
 import cProfile
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 import utils.logging as logging
 import os, os.path
 import re
@@ -52,9 +52,10 @@ config.DATABASE_URL = 'bolt://neo4j:1@localhost:7687'
 logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
 lock = threading.Lock()
+updated_nodes = 0
 
 def build_network(user, password, root_id='S5832131', cont=False, active=True, 
-                  threads=10, profile=False, **_kwargs):
+                  threads=10, profile=False, nodes=0, **_kwargs):
     logger = logging.getLogger('build_network')
     if not root_id:
         root_id = 'S5832131'
@@ -67,10 +68,12 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
     global token
-    token = [{'Cookie': atomy_login2(user, password, 'localhost:9050')}]
+    token = [{'Cookie': atomy_login2(user, password, 'localhost:9050')}] # 
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
-    while True:
+    while nodes == 0 or updated_nodes < nodes:
+        if nodes > 0:
+            logger.info("%s of %s nodes are updated", updated_nodes, nodes)
         while len([t for t in tasks if t.is_alive()]) >= threads:
             sleep(1)
         try:
@@ -280,6 +283,9 @@ def _init_network(root_node_id, cont=False, active=True):
     return leafs
 
 def _get_node(element: dict[str, Any], parent_id, is_left, logger: logging.Logger):
+    with lock:
+        global updated_nodes
+        updated_nodes += 1
     atomy_id = element['cust_no']
     try:
         signup_date = datetime.strptime(element['join_dt'], '%Y-%m-%d')
@@ -301,7 +307,7 @@ def _get_node(element: dict[str, Any], parent_id, is_left, logger: logging.Logge
     return node
         
 def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetime, 
-                    last_purchase_date: datetime) -> AtomyPerson:
+                    last_purchase_date: Optional[datetime]) -> AtomyPerson:
     result, _ = db.cypher_query('''
         MERGE (node:AtomyPerson {atomy_id: $atomy_id})
         ON CREATE SET
@@ -340,7 +346,7 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
     return AtomyPerson.inflate(result[0][0])
 
 def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool, 
-                     signup_date: datetime, last_purchase_date: datetime
+                     signup_date: datetime, last_purchase_date: Optional[datetime]
                      ) -> AtomyPerson:
     result, _ = db.cypher_query(f'''
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})
@@ -404,6 +410,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('-v', '--verbose', action='count', help='Increase verbosity')
     arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
+    arg_parser.add_argument('--nodes', help="Update first nodes", type=int, default=0)
 
     if os.environ.get('TERM_PROGRAM') == 'vscode':
         # Means we run in VSCode debugger

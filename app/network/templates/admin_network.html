@@ -8,6 +8,14 @@
 {% block content %}
 {{ super() }}
 <div class="container-fluid">
+    <div class="input-group">
+        <input id="nodes" type="text" class="form-control" placeholder="Nodes" aria-label="Nodes to update" aria-describedby="basic-addon2">
+        <button id="build" class="btn btn-outline-secondary" type="button">Update</button>
+        <span id="builder-status" class="input-group-text">
+            <img id="red-circle" style="display: none;" src="/static/images/circle_red.png" />
+            <img id="green-circle" style="display: none;" src="/static/images/circle_green.png" />        
+        </span>
+      </div>
     <table id="network" class="table">
         <thead>
             <tr>

@@ -1,12 +1,71 @@
 '''Network manager'''
 import logging
 from multiprocessing import Process, active_children
+from os import getcwd
+from random import random
+import subprocess
+from time import sleep
+import psutil
 
 from flask import Response, abort, jsonify, request
 from neomodel import db
 
-from app import app
+from netman_app import app
 from model import AtomyPerson
+
+PROCESS_NAME = 'build_network.py'
+
+def _get_builder_process():
+    processes = psutil.process_iter(['pid', 'cmdline'])
+    for p in processes:
+        p_dict = p.as_dict()
+        if p_dict is None:
+            continue
+        cmdline = p_dict.get('cmdline')
+        if cmdline is None:
+            continue
+        if 'build_network.py' in cmdline:
+            return p
+    return None
+
+@app.route('/api/v1/builder/status')
+def get_builder_status():
+    if _get_builder_process() is not None:
+        return jsonify({'status': 'running'})
+    else:
+        return jsonify({'status': 'not running'})
+
+@app.route('/api/v1/builder/start')
+def start_builder():
+    print("Wait for another request to start building")
+    sleep(random() * 5)
+    process = _get_builder_process()
+    if process is not None:
+        return jsonify({'status': 'already running'})
+    try:
+        cwd = getcwd()
+        params = ['python3', 'build_network.py', 
+                    '--threads', '1', '--user', 'S5832131', '--password',
+                    "mkk03020529!!", '--root', 'S5832131']
+        if request.args.get('nodes') is not None:
+            params += ['--nodes', request.args.get('nodes')]
+        p = subprocess.Popen(params,
+                       env={'PYTHONPATH':cwd[:cwd.rfind('/')]},
+                       start_new_session=True)
+        print("Started process", p.pid)
+        return jsonify({'status': 'started'})
+    except Exception as e:
+        logging.exception(e)
+        return jsonify({'status': "couldn't start"})
+
+@app.route('/api/v1/builder/stop')
+def stop_builder():
+    process = _get_builder_process()
+    if process is not None:
+        process.kill()
+        return jsonify({'status': 'stopped'})
+    return jsonify(
+        {'status': "didn't stop - not running"})
 
 @app.route('/api/v1/node', defaults={'node_id': None})
 @app.route('/api/v1/node/<node_id>')
