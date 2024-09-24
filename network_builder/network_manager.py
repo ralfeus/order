@@ -45,7 +45,7 @@ def start_builder():
     try:
         cwd = getcwd()
         params = ['python3', 'build_network.py', 
-                    '--threads', '1', '--user', 'S5832131', '--password',
+                    '--threads', '60', '--user', 'S5832131', '--password',
                     "mkk03020529!!", '--root', 'S5832131']
         if request.args.get('nodes') is not None:
             params += ['--nodes', request.args.get('nodes')]
