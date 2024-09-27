@@ -43,9 +43,7 @@ titles = {
 }
 
 ############# Neo4j connection ###################
-config.DATABASE_URL = 'bolt://neo4j:1@localhost:7687'
-
-
+config.DATABASE_URL = os.environ.get('NEO4J_URL') or 'bolt://neo4j:1@localhost:7687'
 
 ##################################################
 
@@ -55,7 +53,7 @@ lock = threading.Lock()
 updated_nodes = 0
 
 def build_network(user, password, root_id='S5832131', cont=False, active=True, 
-                  threads=10, profile=False, nodes=0, **_kwargs):
+                  threads=10, profile=False, nodes=0, socks5_proxy='', **_kwargs):
     logger = logging.getLogger('build_network')
     if not root_id:
         root_id = 'S5832131'
@@ -68,7 +66,7 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
     global token
-    token = [{'Cookie': atomy_login2(user, password, 'localhost:9050')}] # 
+    token = [{'Cookie': atomy_login2(user, password, socks5_proxy)}]
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
     while nodes == 0 or updated_nodes < nodes:
@@ -89,11 +87,14 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             if profile:
                 thread = threading.Thread(
                     target=_profile_thread,
-                    args=("Thread-" + node_id, _build_page_nodes, node_id, traversing_nodes_set, traversing_nodes_list),
+                    args=("Thread-" + node_id, _build_page_nodes, node_id, 
+                          traversing_nodes_set, traversing_nodes_list, socks5_proxy),
                     name="Thread-" + node_id)
             else:
                 thread = threading.Thread(
-                    target=_build_page_nodes, args=(node_id, traversing_nodes_set, traversing_nodes_list),
+                    target=_build_page_nodes, 
+                    args=(node_id, traversing_nodes_set, traversing_nodes_list,
+                          socks5_proxy),
                     name="Thread-" + node_id)
 
             thread.start()
@@ -143,13 +144,13 @@ def _profile_thread(thread_name, target, *args):
     profiler.disable()
     profiler.dump_stats("profiles/profile-" + thread_name + '-' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
-def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list):
+def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list, socks5_proxy):
     logger = logging.getLogger('_build_page_nodes()')
     try:
         page = get_json(TREE_URL + '?' + 
                         DATA_TEMPLATE.format(node_id, start_date), headers=token,
                         retries=3,
-                        socks5_proxy='localhost:9050')
+                        socks5_proxy=socks5_proxy)
         if page['result'] != '200':
             raise Exception(page['resultMessage'])
     except Exception as ex:
@@ -411,10 +412,14 @@ if __name__ == '__main__':
     arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
     arg_parser.add_argument('--nodes', help="Update first nodes", type=int, default=0)
+    arg_parser.add_argument('--socks5_proxy', help="Address of SOCKS5 proxy server", default='')
 
     if os.environ.get('TERM_PROGRAM') == 'vscode':
         # Means we run in VSCode debugger
-        args = arg_parser.parse_args(['--user', 'S5832131', '--password', 'mkk03020529!!', '--threads', '1', '--root', '35467900', '-v'])
+        args = arg_parser.parse_args(['--user', 'S5832131', 
+                                      '--password', 'mkk03020529!!', 
+                                      '--threads', '1', '--root', '35467900', 
+                                      '--nodes', '4000', '-v'])
     else: 
         # Production run
         args = arg_parser.parse_args()

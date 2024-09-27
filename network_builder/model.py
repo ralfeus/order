@@ -1,5 +1,6 @@
 '''Models for network manager'''
 from datetime import date, datetime
+import logging
 import neo4j.time
 from neomodel import StructuredNode, RelationshipTo, db
 from neomodel.properties import BooleanProperty, DateProperty, IntegerProperty, \
@@ -91,12 +92,16 @@ class AtomyPerson(StructuredNode):
     def to_dict(self):
         '''Returns dict representation of the object'''
         mapping = {'atomy_id': 'id'}
-        return {
-            **{
-                mapping.get(attr[0]) or attr[0]: self.__getattribute__(attr[0])
-                for attr in self.__all_properties__
-            },
-            'parent_id': self.parent_id,
-            'right_id': self.right_id,
-            'left_id': self.left_id
-        }
+        try:
+            return {
+                **{
+                    mapping.get(attr[0]) or attr[0]: self.__getattribute__(attr[0])
+                    for attr in self.__all_properties__
+                },
+                'parent_id': self.parent_id,
+                'right_id': self.right_id,
+                'left_id': self.left_id
+            }
+        except Exception as e:
+            logging.exception(e)
+            raise e

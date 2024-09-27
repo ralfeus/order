@@ -49,6 +49,7 @@ function set_builder_active() {
     $('#green-circle').show();
     $('#red-circle').hide();
     $('#build').text('Stop');
+    $('#build').off('click');
     $('#build').on('click', stop_builder);
     $('#build').prop('disabled', false);
 }
@@ -57,6 +58,7 @@ function set_builder_inactive() {
     $('#green-circle').hide();
     $('#red-circle').show();
     $('#build').text('Update');
+    $('#build').off('click');
     $('#build').on('click', start_builder);
     $('#build').prop('disabled', false);
 }
@@ -64,17 +66,28 @@ function set_builder_inactive() {
 function set_builder_error() {
     $('#green-circle').hide();
     $('#red-circle').hide();
+    $('#build').text("Network Manager is unavailable");
     $('#build').prop('disabled', true);
 }
 
 function start_builder() {
     $.ajax({
-        url: `/api/v1/admin/network/builder/start?nodes=${$('#nodes').val()}`
+        url: `/api/v1/admin/network/builder/start?nodes=${$('#nodes').val()}`,
+        success: data => {
+            if (data.status === 'started') {
+                set_builder_active();
+            }
+        }
     });
 }
 
 function stop_builder() {
     $.ajax({
-        url: '/api/v1/admin/network/builder/stop'
+        url: '/api/v1/admin/network/builder/stop',
+        success: data => {
+            if (data.status === 'stopped') {
+                set_builder_inactive();
+            }
+        }
     })
 }

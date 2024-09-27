@@ -1,14 +1,16 @@
 '''Network manager'''
 import logging
 from multiprocessing import Process, active_children
-from os import getcwd
+from os import getcwd, environ
+import psutil
 from random import random
 import subprocess
+import sys
 from time import sleep
-import psutil
 
 from flask import Response, abort, jsonify, request
 from neomodel import db
+from werkzeug.exceptions import BadRequest
 
 from netman_app import app
 from model import AtomyPerson
@@ -24,10 +26,24 @@ def _get_builder_process():
         cmdline = p_dict.get('cmdline')
         if cmdline is None:
             continue
-        if 'build_network.py' in cmdline:
+        if PROCESS_NAME in cmdline:
             return p
     return None
 
+def _test_db_connection():
+    try:
+        db.cypher_query("MATCH () RETURN 1 LIMIT 1")
+        return True
+    except Exception:
+        return False
+
+@app.before_request
+def test_db_connection():
+    if not _test_db_connection():
+        response = jsonify(status="error", description="Neo4j isn't available")
+        response.status_code = 500
+        return response
+    
 @app.route('/api/v1/builder/status')
 def get_builder_status():
     if _get_builder_process() is not None:
@@ -37,22 +53,26 @@ def get_builder_status():
 
 @app.route('/api/v1/builder/start')
 def start_builder():
-    print("Wait for another request to start building")
+    logging.info("Wait for another request to start building")
     sleep(random() * 5)
     process = _get_builder_process()
     if process is not None:
         return jsonify({'status': 'already running'})
     try:
         cwd = getcwd()
-        params = ['python3', 'build_network.py', 
-                    '--threads', '60', '--user', 'S5832131', '--password',
-                    "mkk03020529!!", '--root', 'S5832131']
-        if request.args.get('nodes') is not None:
-            params += ['--nodes', request.args.get('nodes')]
+        params = [sys.executable, PROCESS_NAME, 
+                    '--threads', '60', '--user', 'S5832131',
+                    '--password', "mkk03020529!!", '--root', 'S5832131',
+                    '--nodes', request.args.get('nodes') or '0',
+                    '--socks5_proxy', environ.get('SOCKS5_PROXY') or '']
         p = subprocess.Popen(params,
-                       env={'PYTHONPATH':cwd[:cwd.rfind('/')]},
-                       start_new_session=True)
-        print("Started process", p.pid)
+                        env={
+                            'PYTHONPATH': cwd[:cwd.rfind('/')], 
+                            **environ
+                        },
+                        start_new_session=True,
+                        stderr=subprocess.STDOUT)
+        logging.info("Started process %s", p.pid)
         return jsonify({'status': 'started'})
     except Exception as e:
         logging.exception(e)
@@ -72,7 +92,12 @@ def stop_builder():
 def get_nodes(node_id):
     '''Gets node either by ID provided in URL or filter provided in JSON payload'''
     logger = logging.getLogger('network_manager.get_nodes()')
-    logger.info(request.get_json())
+    body = None
+    try:
+        body = request.get_json()
+    except BadRequest:
+        pass # No JSON body is mandatory
+    logger.info(body)
     if node_id is not None:
         query = 'MATCH (n {atomy_id: $atomy_id}) RETURN n'
         node = AtomyPerson.nodes.get_or_none(atomy_id=node_id)
@@ -80,8 +105,7 @@ def get_nodes(node_id):
             abort(404)
         return jsonify(node)
 
-    request_params = request.get_json()
-    logger.info(request_params)
+    request_params = body
     paging = {'start': '', 'limit': 'LIMIT 100'}
     query_filter = ''
     ############# Get tree root #####################
@@ -90,7 +114,7 @@ def get_nodes(node_id):
     else:
         query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
         root_id = db.cypher_query(query)[0][0][0]
-    query_params = {'root_id': root_id}
+    query_params = {'root_id': root_id, 'test': 'test'}
     #################################################
     # total = db.cypher_query(f'''
     #     MATCH (n:AtomyPerson)
@@ -105,7 +129,7 @@ def get_nodes(node_id):
         if request_params.get('filter') is not None:
             query_filter = _get_filter(request_params['filter'])
             # query_params.update(request_params['filter'])
-            query_params = request_params['filter']
+            query_params = {**query_params, **request_params['filter']}
             # filtered = db.cypher_query(f'''
             #     MATCH (n:AtomyPerson)
             #     {query_filter}
@@ -138,7 +162,7 @@ def get_nodes(node_id):
         RETURN n {paging["start"]} {paging["limit"]}
     '''
     logger.debug(query)
-    result, _ = db.cypher_query(query, params=query_params if query_filter else {})
+    result, _ = db.cypher_query(query, params=query_params)
     logger.info("Returning %s records", filtered)
     return jsonify({
         'records_total': total[0],
@@ -167,9 +191,11 @@ def update_node(node_id):
 
 @app.route('/api/v1/node/<node_id>', methods=['put'])
 def save_node(node_id):
-    payload = request.get_json()
-    if payload is None:
-        abort(400)
+    payload = {}
+    try:
+        payload = request.get_json()
+    except BadRequest:
+        abort(400, jsonify(description="No JSON body"))
     node:AtomyPerson = AtomyPerson.nodes.get_or_none(atomy_id=node_id)
     if node is None:
         node = AtomyPerson(atomy_id=node_id).save()
