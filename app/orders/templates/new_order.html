@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
-{% block scripts %}
+{% block styles %}
 {{ super() }}
 <link rel="stylesheet" href="static/css/new-order.css" />
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
 <script>
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
@@ -42,13 +46,19 @@
                 <div class="col-1" id="shipping-params" 
                     style="padding-left: 0px; padding-right: 0px; display: none;">
                     <button type="button" class="btn" onclick="edit_shipping_params()">
-                        <i class="fas fa-ellipsis-v"></i>
+                         <img src="/static/images/ellipsis-vertical.svg" 
+                            style="width: 100%; height: 100%;"/>
                     </button>
                 </div>
                 <div class="col-1" id="shipping-notification" 
                     style="padding-left: 0px; padding-right: 0px; display: none;">
                     <button type="button" class="btn" onclick="show_shipping_notification()">
-                        <i class='fas fa-exclamation' style="color: red;"></i>
+                        <div class="exclamation" style="
+                            background-color: red;
+                            -webkit-mask: url(/static/images/exclamation.svg) no-repeat center;
+                            mask: url(/static/images/exclamation.svg) no-repeat center;
+                            width: 6px;
+                            height: 24px;"></div>
                     </button>
                 </div>
             </div>
