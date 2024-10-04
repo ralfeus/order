@@ -84,10 +84,8 @@ class EMS(Shipping):
             rates = get_rates(country)
         except:
             rates = []
-        rates = sorted(
-            [rate for rate in rates if rate["weight"] >= weight],
-            key=itemgetter("weight"),
-        )
+        rates = [rate for rate in rates if weight is None or rate["weight"] >= weight]
+        
         rate_exists = len(rates) > 0
         if rate_exists:
             logger.debug(f"There is a rate to country {country}. Can ship")
