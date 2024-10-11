@@ -428,37 +428,33 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self, purchase_order, ordered_products: list[tuple[OrderProduct, str]]
     ):
         logger = self._logger.getChild("__set_local_shipment")
-        logger.debug("Set local shipment")
-        free_shipping_eligible_amount = reduce(
-            lambda acc, op: acc + (op[0].price * op[0].quantity)
-            if not op[0].product.separate_shipping
-            else 0,
-            ordered_products,
-            0,
-        )
-        local_shipment = (
-            free_shipping_eligible_amount
-            < self.__config["FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD"]
-        )
-        if local_shipment:
-            logger.debug("Setting combined shipment params")
-            if self.__update_cart(
-                {
-                    "command": "UPDATE_ASSORTED_PACKING",
-                    "payload": {
-                        "id": self.__get_delivery_info(),
-                        "assortedPacking": True,
-                    },
-                }
-            ):
-                logger.debug("Successfully set combined shipping")
-            else:
-                logger.warning("Couldn't set combined shipping")
-            # TODO: do we need it?
-            # self.__po_params['PackingMemo'] = purchase_order.contact_phone + \
-            #     '/' + purchase_order.address.zip
+        ### Set combined shipment always
+        # logger.debug("Set local shipment")
+        # free_shipping_eligible_amount = reduce(
+        #     lambda acc, op: acc + (op[0].price * op[0].quantity)
+        #     if not op[0].product.separate_shipping
+        #     else 0,
+        #     ordered_products,
+        #     0,
+        # )
+        # local_shipment = (
+        #     free_shipping_eligible_amount
+        #     < self.__config["FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD"]
+        # )
+        # if local_shipment:
+        logger.debug("Setting combined shipment params")
+        if self.__update_cart({
+                "command": "UPDATE_ASSORTED_PACKING",
+                "payload": {
+                    "id": self.__get_delivery_info(),
+                    "assortedPacking": True,
+                },
+            }):
+            logger.debug("Successfully set combined shipping")
         else:
-            logger.debug("No combined shipment is needed")
+            logger.warning("Couldn't set combined shipping")
+        # else:
+        #     logger.debug("No combined shipment is needed")
 
     def __get_delivery_info(self):
         res = get_json(
