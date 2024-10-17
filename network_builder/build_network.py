@@ -62,7 +62,8 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
 
     tasks = []
     traversing_nodes_set = _init_network(root_id, cont=cont, active=active)
-    traversing_nodes_list = sorted(list(traversing_nodes_set), key=lambda i: i.replace('S', '0'))
+    traversing_nodes_list = sorted([(i, '') for i in traversing_nodes_set], 
+                                   key=lambda i: i[0].replace('S', '0'))
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
     global token
@@ -76,10 +77,11 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             sleep(1)
         try:
             with lock:
-                while traversing_nodes_list[c] not in traversing_nodes_set:
-                    logger.debug("Node %s was already crawled. Skipping...", traversing_nodes_list[c])
+                while traversing_nodes_list[c][0] not in traversing_nodes_set:
+                    logger.debug("Node %s was already crawled. Skipping...", traversing_nodes_list[c][0])
                     c += 1
-            node_id = traversing_nodes_list[c]
+            node_id = traversing_nodes_list[c][0]
+            branch = traversing_nodes_list[c][1]
             c += 1
             logger.info("Processing %s (%s of %s). %s tasks are running",
                         node_id, c, len(traversing_nodes_list),
@@ -87,14 +89,15 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             if profile:
                 thread = threading.Thread(
                     target=_profile_thread,
-                    args=("Thread-" + node_id, _build_page_nodes, node_id, 
-                          traversing_nodes_set, traversing_nodes_list, socks5_proxy),
+                    args=("Thread-" + node_id, _build_page_nodes, node_id, branch,
+                          traversing_nodes_set, traversing_nodes_list, socks5_proxy, 
+                          root_id),
                     name="Thread-" + node_id)
             else:
                 thread = threading.Thread(
                     target=_build_page_nodes, 
-                    args=(node_id, traversing_nodes_set, traversing_nodes_list,
-                          socks5_proxy),
+                    args=(node_id, branch, traversing_nodes_set, traversing_nodes_list,
+                          socks5_proxy, root_id),
                     name="Thread-" + node_id)
 
             thread.start()
@@ -144,7 +147,9 @@ def _profile_thread(thread_name, target, *args):
     profiler.disable()
     profiler.dump_stats("profiles/profile-" + thread_name + '-' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
-def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list, socks5_proxy):
+def _build_page_nodes(node_id: str, branch: str, traversing_nodes_set: set[str], 
+                      traversing_nodes_list: list[tuple[str, str]], socks5_proxy: str,
+                      root_id: str):
     logger = logging.getLogger('_build_page_nodes()')
     try:
         page = get_json(TREE_URL + '?' + 
@@ -160,11 +165,11 @@ def _build_page_nodes(node_id, traversing_nodes_set, traversing_nodes_list, sock
     logger.debug("%s elements on the page to be processed", len(members))
     
     # Update or create root node
-    if node_id == args.root_id:
-        _get_node(members[0], None, False, logger)
+    if node_id == root_id:
+        _get_node(members[0], '', False, branch, logger)
     if members[0]['ptnr_yn'] == 'Y':
         _get_children(
-            node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
+            node_id, branch, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
             logger=logger
         )
     logger.debug("Done building node %s", node_id)
@@ -176,10 +181,12 @@ def get_child_id(parent_id, child_type):
     ''')
     return result[0][0] if len(result) > 0 else None
 
-def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: list, node_element,
+def _get_children(node_id: str, branch: str, traversing_nodes_set: set[str], 
+                  traversing_nodes_list: list[tuple[str, str]], node_element,
     elements, logger):
 
     left = right = left_element = right_element = None
+    left_branch = right_branch = ''
     logger.fine("Getting children for %s", node_id)
     children_elements = [e for e in elements 
                            if e['spnr_no'] == node_id ]
@@ -187,10 +194,12 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
         element_id = element['cust_no']
         if _is_left(element):
             logger.debug("%s is left to %s", element_id, node_id)
+            left_branch = 'L' if branch == '' else branch
             left_child_id = get_child_id(node_id, ChildType.LEFT)
             if left_child_id is None:
                 logger.debug("%s has no left child. Adding %s", node_id, element_id)
-                left = _get_node(element=element, parent_id=node_id, is_left=True, logger=logger)
+                left = _get_node(element=element, parent_id=node_id, 
+                                 is_left=True, branch=left_branch, logger=logger)
                 logger.debug("%s is added to DB as left child of %s", element_id, node_id)
                 left_element = element
             else:
@@ -202,15 +211,18 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                     logger.debug(
                         '%s already has %s as a left child. Updating data...',
                         node_id, element_id)
-                left = _get_node(element=element, parent_id=node_id, is_left=True, logger=logger)
+                left = _get_node(element=element, parent_id=node_id, 
+                                 is_left=True, branch=left_branch, logger=logger)
                 left_element = element
         else:
             logger.debug("%s is right to %s", element_id, node_id)
+            right_branch = 'R' if branch == '' else branch
             right_child_id = get_child_id(node_id, ChildType.RIGHT)
             if right_child_id is None:
                 logger.debug("%s has no right child. Adding %s", node_id, element_id)
                 if  left is not None:
-                    right = _get_node(element=element, parent_id=node_id, is_left=False, logger=logger)
+                    right = _get_node(element=element, parent_id=node_id, 
+                                      is_left=False, branch=right_branch, logger=logger)
                     logger.debug("%s is added to DB as right child of %s", element_id, node_id)
                     right_element = element
                 else:
@@ -225,14 +237,15 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                     logger.debug(
                         '%s already has %s as a right child. Updating data...',
                         node_id, element_id)
-                right = _get_node(element=element, parent_id=node_id, is_left=False, logger=logger)
+                right = _get_node(element=element, parent_id=node_id, 
+                                  is_left=False, branch=right_branch, logger=logger)
                 right_element = element
     if left is None and node_element['ptnr_yn'] == 'Y':
         # Means the element has children but they aren't found in this page
         # So the crawling will be done for this element
         if node_id not in traversing_nodes_set:
             traversing_nodes_set.add(node_id)
-            traversing_nodes_list.append(node_id)
+            traversing_nodes_list.append((node_id, branch))
     else:
         # Here node is set as built
         # Dynamic properties are updated either set during processing this node
@@ -245,13 +258,13 @@ def _get_children(node_id, traversing_nodes_set: set, traversing_nodes_list: lis
                 'atomy_id': node_id
             })
         if left is not None:
-            _get_children(left.atomy_id, traversing_nodes_set, traversing_nodes_list,
-                left_element, elements, 
-                logger=logger)
+            _get_children(str(left.atomy_id), left_branch, traversing_nodes_set, 
+                          traversing_nodes_list, left_element, elements, 
+                          logger=logger)
         if right is not None:
-            _get_children(right.atomy_id, traversing_nodes_set, traversing_nodes_list,
-                right_element, elements,
-                logger=logger)
+            _get_children(str(right.atomy_id), right_branch, traversing_nodes_set, 
+                          traversing_nodes_list, right_element, elements,
+                          logger=logger)
         with lock:
             logger.debug("%s is done. Removing from the crawling set", node_id)
             traversing_nodes_set.discard(node_id)
@@ -266,24 +279,25 @@ def _init_network(root_node_id, cont=False, active=True):
     if not cont:
         logger.debug("Resetting 'built_tree' attribute")
         db.cypher_query('MATCH (n:AtomyPerson {built_tree: true}) SET n.built_tree = false')
-    if cont or active:
-        _filter = ''
-        if active:
-            _filter += ' AND leaf.pv > 10'
-        if cont:
-            _filter += ' AND NOT leaf.built_tree'
-        result, _ = db.cypher_query(f'''
-            MATCH (root:AtomyPerson {{atomy_id:$root_id}})<-[:PARENT*0..]-(leaf:AtomyPerson)
-            WHERE {_filter[5:]}
-            RETURN leaf.atomy_id
-        ''', params={'root_id': root_node_id})
-        leafs = {item[0] for item in result}
-    else:
-        leafs = {root_node_id}
+    # if cont or active:
+    #     _filter = ''
+    #     if active:
+    #         _filter += ' AND leaf.pv > 10'
+    #     if cont:
+    #         _filter += ' AND NOT leaf.built_tree'
+    #     result, _ = db.cypher_query(f'''
+    #         MATCH (root:AtomyPerson {{atomy_id:$root_id}})<-[:PARENT*0..]-(leaf:AtomyPerson)
+    #         WHERE {_filter[5:]}
+    #         RETURN leaf.atomy_id
+    #     ''', params={'root_id': root_node_id})
+    #     leafs = {item[0] for item in result}
+    # else:
+    leafs = {root_node_id}
     logger.info('Done')
     return leafs
 
-def _get_node(element: dict[str, Any], parent_id, is_left, logger: logging.Logger):
+def _get_node(element: dict[str, Any], parent_id: str, is_left: bool, 
+              branch: str, logger: logging.Logger):
     with lock:
         global updated_nodes
         updated_nodes += 1
@@ -299,10 +313,10 @@ def _get_node(element: dict[str, Any], parent_id, is_left, logger: logging.Logge
     except Exception as ex:
         logger.exception("_get_node(): In %s the error has happened", atomy_id)
         raise ex
-    if parent_id is None:
+    if parent_id == '':
         node = _save_root_node(atomy_id, element, signup_date, last_purchase_date)
     else:
-        node = _save_child_node(atomy_id, parent_id, element, is_left, 
+        node = _save_child_node(atomy_id, parent_id, element, is_left, branch,
                                 signup_date, last_purchase_date)
     logger.debug('Saved node %s: {rank: %s}', atomy_id, node.rank)
     return node
@@ -347,14 +361,15 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
     return AtomyPerson.inflate(result[0][0])
 
 def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool, 
-                     signup_date: datetime, last_purchase_date: Optional[datetime]
-                     ) -> AtomyPerson:
+                     branch: str, signup_date: datetime, 
+                     last_purchase_date: Optional[datetime]) -> AtomyPerson:
     result, _ = db.cypher_query(f'''
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})
         MERGE (node:AtomyPerson {{atomy_id: $atomy_id}})
         ON CREATE SET
                 node.atomy_id_normalized = REPLACE($atomy_id, 'S', '0'),
                 node.name = $name,
+                node.branch = $branch,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.center = $center,
@@ -364,6 +379,7 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
                 node.when_updated = $now
         ON MATCH SET
                 node.name = $name,
+                node.branch = $branch,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.center = $center,
@@ -377,6 +393,7 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
         'atomy_id': atomy_id,
         'parent_id': parent_id,
         'name': element['cust_nm'],
+        'branch': branch,
         'rank': titles.get(element['cur_lvl_cd']),
         'highest_rank': titles.get(element['mlvl_cd']),
         'center': element.get('ectr_nm'),

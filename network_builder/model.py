@@ -27,6 +27,7 @@ class AtomyPerson(StructuredNode):
     atomy_id = StringProperty(unique_index=True, required=True)
     password = StringProperty()
     name = StringProperty()
+    branch = StringProperty()
     rank = StringProperty()
     highest_rank = StringProperty()
     center = StringProperty()

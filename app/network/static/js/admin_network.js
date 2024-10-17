@@ -5,6 +5,7 @@ $(document).ready(() => {
         columns: [
             {data: 'id'},
             {data: 'name'},
+            {data: 'branch'},
             {data: 'rank'},
             {data: 'highest_rank'},
             {data: 'parent_id'},
