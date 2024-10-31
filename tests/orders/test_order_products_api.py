@@ -31,7 +31,7 @@ class TestOrderProductsApi(BaseTestCase):
         self.try_add_entities([
             admin_role, self.user, self.admin,
             Currency(code='USD', rate=0.5),
-            Currency(code='RUR', rate=0.5)
+            Currency(code='EUR', rate=0.5)
         ])
 
     def test_cancel_order_product(self):

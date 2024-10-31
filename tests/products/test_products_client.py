@@ -21,7 +21,7 @@ class TestProductsClient(BaseTestCase):
         self.try_add_entities([
             self.user, self.admin, admin_role,
             Currency(code='USD', rate=0.5),
-            Currency(code='RUR', rate=0.5)
+            Currency(code='EUR', rate=0.5)
         ])
 
     # def try_admin_operation(self, operation):

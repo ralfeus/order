@@ -26,8 +26,8 @@ function init_order_drafts_table() {
             {data: 'id'},
             {data: 'customer_name'},
             {data: 'total_krw'},
-            {data: 'total_rur'},
-            {data: 'total_usd'},
+            {data: 'total_cur2'},
+            {data: 'total_cur1'},
             {data: 'when_created'},
             {data: 'when_changed'}
         ],

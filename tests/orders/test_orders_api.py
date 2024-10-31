@@ -37,7 +37,7 @@ class TestOrdersApi(BaseTestCase):
         self.try_add_entities([
             self.user, self.admin, admin_role,
             Currency(code='USD', rate=0.5),
-            Currency(code='RUR', rate=0.5),
+            Currency(code='EUR', rate=0.5),
             Currency(code='CZK', rate=1),
             Country(id='c1', name='country1'),
             Product(id='0000', name='Test product', price=10, weight=10),
@@ -565,8 +565,8 @@ class TestOrdersApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get(f'/api/v1/order/{gen_id}'))
         self.assertEqual(res.json['total'], 2600)
-        self.assertEqual(res.json['total_rur'], 1300.0)
-        self.assertEqual(res.json['total_usd'], 1300.0)
+        self.assertEqual(res.json['total_cur2'], 1300.0)
+        self.assertEqual(res.json['total_cur1'], 1300.0)
         self.assertEqual(res.json['user'], self.user.username)
         self.assertEqual(len(res.json['order_products']), 1)
         res = self.client.get('/api/v1/order')
