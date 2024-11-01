@@ -56,7 +56,7 @@ class TestTransactionApi(BaseTestCase):
         self.try_add_entities([
             Country(id='c1', name='country1'),
             Currency(code='USD', rate=0.5),
-            Currency(code='RUR', rate=0.5),
+            Currency(code='EUR', rate=0.5),
             Product(id='0000', name='Test product', price=10, weight=10),
             Shipping(id=1, name='Shipping1'),
             ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=100),

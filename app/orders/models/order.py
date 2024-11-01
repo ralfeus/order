@@ -93,14 +93,14 @@ class Order(db.Model, BaseModel): # type: ignore
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
     shipping: Shipping = relationship('Shipping', foreign_keys=[shipping_method_id])
     subtotal_krw = Column(Integer(), default=0)
-    subtotal_rur = Column(Numeric(10, 2), default=0)
-    subtotal_usd = Column(Numeric(10, 2), default=0)
+    subtotal_cur1 = Column(Numeric(10, 2), default=0)
+    subtotal_cur2 = Column(Numeric(10, 2), default=0)
     shipping_krw = Column(Integer(), default=0)
-    shipping_rur = Column(Numeric(10, 2), default=0)
-    shipping_usd = Column(Numeric(10, 2), default=0)
+    shipping_cur1 = Column(Numeric(10, 2), default=0)
+    shipping_cur2 = Column(Numeric(10, 2), default=0)
     total_krw = Column(Integer(), default=0)
-    total_rur = Column(Numeric(10, 2), default=0)
-    total_usd = Column(Numeric(10, 2), default=0)
+    total_cur1 = Column(Numeric(10, 2), default=0)
+    total_cur2 = Column(Numeric(10, 2), default=0)
     status = Column(Enum(OrderStatus), default='pending')
     tracking_id = Column(String(64))
     tracking_url = Column(String(256))
@@ -297,8 +297,8 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_shipping(self, currency: Optional[Currency]=None):
         ''' Returns shipping cost in currency provided '''
         return \
-            self.shipping_usd if currency and currency.code == 'USD' \
-            else self.shipping_rur if currency and currency.code == 'RUR' \
+            self.shipping_cur1 if currency and currency.code == 'USD' \
+            else self.shipping_cur2 if currency and currency.code == 'EUR' \
             else self.shipping_krw if currency and currency.code == 'KRW' \
             else round(self.shipping_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.shipping_krw
@@ -306,8 +306,8 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_subtotal(self, currency: Optional[Currency]=None):
         '''Returns subtotal of the order - sum of cost of all order products'''
         return \
-            self.subtotal_usd if currency and currency.code == 'USD' \
-            else self.subtotal_rur if currency and currency.code == 'RUR' \
+            self.subtotal_cur1 if currency and currency.code == 'USD' \
+            else self.subtotal_cur2 if currency and currency.code == 'EUR' \
             else self.subtotal_krw if currency and currency.code == 'KRW' \
             else round(self.subtotal_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.subtotal_krw
@@ -315,8 +315,8 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_total(self, currency: Optional[Currency]=None):
         '''Returns total of the order - subtotal plus shipping costs'''
         return \
-            self.total_usd if currency and currency.code == 'USD' \
-            else self.total_rur if currency and currency.code == 'RUR' \
+            self.total_cur1 if currency and currency.code == 'USD' \
+            else self.total_cur2 if currency and currency.code == 'EUR' \
             else self.total_krw if currency and currency.code == 'KRW' \
             else round(self.total_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.total_krw
@@ -362,13 +362,15 @@ class Order(db.Model, BaseModel): # type: ignore
             logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
-        # if not self.total_rur:
-        #     logger.debug("%s total RUR is undefined. Updating...", self.id)
-        #     self.total_rur = self.total_krw * Currency.query.get('RUR').rate
-        #     is_order_updated = True
-        if not self.total_usd:
+        if not self.total_cur1:
             logger.debug("%s total USD is undefined. Updating...", self.id)
-            self.total_usd = self.total_krw * Currency.query.get('USD').rate
+            self.total_cur1 = self.total_krw * Currency.query.get('USD').rate
+            is_order_updated = True
+        if not self.total_cur2:
+            logger.debug("%s total EUR is undefined. Updating...", self.id)
+            curr_eur = Currency.query.get('EUR')
+            rate = curr_eur.rate if curr_eur is not None else 0
+            self.total_cur2 = self.total_krw * rate
             is_order_updated = True
         if is_order_updated:
             db.session.commit()
@@ -404,8 +406,8 @@ class Order(db.Model, BaseModel): # type: ignore
             'shipping_krw': self.shipping_krw,
             'total': self.total_krw,
             'total_krw': self.total_krw,
-            'total_rur': float(self.total_rur),
-            'total_usd': float(self.total_usd),
+            'total_cur1': float(self.total_cur1),
+            'total_cur2': float(self.total_cur2),
             'country': self.country.to_dict() if self.country else None,
             'zip': self.zip,
             'shipping': self.shipping.to_dict() if self.shipping else None,
@@ -496,8 +498,8 @@ class Order(db.Model, BaseModel): # type: ignore
         curr_eur = Currency.query.get('EUR')
         rate_eur = curr_eur.rate if curr_eur is not None else 0
         logger.debug("Subtotal: %s", self.subtotal_krw)
-        self.subtotal_cur2 = self.subtotal_krw * float(Currency.query.get('EUR').rate)
-        self.subtotal_cur1 = self.subtotal_krw * float(rate_eur)
+        self.subtotal_cur2 = self.subtotal_krw * float(rate_eur)
+        self.subtotal_cur1 = self.subtotal_krw * float(Currency.query.get('USD').rate)
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None,
@@ -508,8 +510,8 @@ class Order(db.Model, BaseModel): # type: ignore
 
         self.total_krw = self.subtotal_krw + self.shipping_krw
         logger.debug("Total (KRW): %s", self.total_krw)
-        self.total_rur = self.subtotal_rur + self.shipping_rur
-        self.total_usd = self.subtotal_usd + self.shipping_usd
+        self.total_cur2 = self.subtotal_cur2 + self.shipping_cur2
+        self.total_cur1 = self.subtotal_cur1 + self.shipping_cur1
 
 
     def get_order_excel(self) -> _TemporaryFileWrapper:
@@ -533,7 +535,7 @@ class Order(db.Model, BaseModel): # type: ignore
         ws.cell(5, 2, str(self.address) + '\n' + str(self.zip))
         ws.cell(6, 2, self.phone)
         # Set currency rates
-        # ws.cell(8, 5, float(1 / Currency.query.get('RUR').rate))
+        ws.cell(8, 5, float(1 / Currency.query.get('EUR').rate))
         ws.cell(9, 5, float(1 / Currency.query.get('USD').rate))
 
         ws.cell(6, 6, self.subtotal_krw)

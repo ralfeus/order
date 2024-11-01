@@ -40,7 +40,7 @@ class TestWarehouseApi(BaseTestCase):
             Product(id='0001', name='Product 1', price=10, weight=10),
             Country(id='c1'),
             Currency(code='USD', rate=0.5),
-            Currency(code='RUR', rate=0.5)
+            Currency(code='EUR', rate=0.5)
         ]))
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending, country_id='c1')
         suborder = Suborder(order=order)

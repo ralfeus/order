@@ -124,12 +124,6 @@ class Suborder(db.Model, BaseModel): #type: ignore
         return PurchaseOrder.query.filter_by(suborder_id=self.id).first()
 
     def to_dict(self):
-#        if not self.total_krw:
-#            self.total_krw = reduce(lambda acc, op: acc + op.price * op.quantity, self.order_products, 0)
-#        if not self.total_rur:
-#            self.total_rur = self.total_krw * Currency.query.get('RUR').rate
-#        if not self.total_usd:
-#            self.total_usd = self.total_krw * Currency.query.get('USD').rate
         return {
             'id': self.id,
             'order_id': self.order_id,

@@ -16,7 +16,7 @@ class TestClientApi(BaseTestCase):
             entities = [ self.user,
                 Country(id='c1', name='country1'),
                 Currency(code='USD', name='US Dollar', rate=1),
-                Currency(code='RUR', name='Russian rouble', rate=1),
+                Currency(code='EUR', name='Euro', rate=1),
                 Country(id='c2', name='country2'),
                 Shipping(id=1, name='Shipping1'),
                 Shipping(id=2, name='Shipping2'),

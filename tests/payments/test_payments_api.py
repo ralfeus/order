@@ -37,7 +37,7 @@ class TestPaymentsApi(BaseTestCase):
                 self.admin,
                 admin_role,
                 Currency(code="USD", rate=0.5),
-                Currency(code="RUR", rate=0.5),
+                Currency(code="EUR", rate=0.5),
                 PaymentMethod(id=1),
             ]
         )
@@ -88,18 +88,18 @@ class TestPaymentsApi(BaseTestCase):
                 "payment_method": {"id": 1},
             },
         )
-        self.assertIsNotNone(res.json["error"]) # type: ignore
+        self.assertIsNotNone(res.json.get("error")) # type: ignore
         res = self.client.post(
             "/api/v1/payment",
             json={
                 "sender_name": "test",
                 "user_id": self.user.id,
-                "currency_code": "EUR",
+                "currency_code": "CZK",
                 "amount_sent_original": 100,
                 "payment_method": {"id": 1},
             },
         )
-        self.assertIsNotNone(res.json["error"]) # type: ignore
+        self.assertIsNotNone(res.json.get("error")) # type: ignore
 
     def test_reject_after_approved(self):
         currency = Currency.query.get('USD')
