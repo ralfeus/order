@@ -98,7 +98,7 @@ class Shipping(db.Model, BaseModel): #type: ignore
     def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
         return None, None #type: ignore
 
-    def get_shipping_cost(self, destination: str, weight: int) -> int:
+    def get_shipping_cost(self, destination: str, weight: int, address: Address) -> int:
         '''
         Returns shipping cost in KRW to provided destination for provided weight
 

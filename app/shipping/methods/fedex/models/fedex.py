@@ -9,7 +9,7 @@ from typing import Any
 from flask import current_app, url_for
 
 from app import cache
-from app.models import Country
+from app.models.address import Address
 import app.orders.models as o
 from app.shipping.models import Shipping
 from app.tools import first_or_default, get_json, invoke_curl
@@ -23,17 +23,23 @@ class Fedex(Shipping):
 
     __mapper_args__ = {"polymorphic_identity": "fedex"}  # type: ignore
 
-    name = "Fedex"
-    type = "Fedex"
+    name = "FedEx"
+    type = "FedEx"
+
+    def __init__(self, test_mode=False):
+        if test_mode:
+            self.base_url = 'https://apis-sandbox.fedex.com'
+        else:
+            self.base_url = 'https://apis.fedex.com'
 
     def __invoke_curl(self, *args, **kwargs) -> tuple[str, str]:
-        logger = logging.getLogger("Fedex::__invoke_curl()")
+        logger = logging.getLogger("FedEx::__invoke_curl()")
         kwargs["headers"] = [self.__login()]
         kwargs['ignore_ssl_check'] = True
         for _ in range(0, 3):
             stdout, stderr = invoke_curl(*args, **kwargs)
             if re.search("HTTP.*? 401", stderr):
-                logger.warning("Fedex authentication error. Retrying...")
+                logger.warning("FedEx authentication error. Retrying...")
                 kwargs["headers"] = [self.__login(force=True)]
             else:
                 return stdout, stderr
@@ -44,7 +50,7 @@ class Fedex(Shipping):
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
-        logger = logging.getLogger("EMS::can_ship()")
+        logger = logging.getLogger("FedEx::can_ship()")
         if not self._are_all_products_shippable(products):
             logger.debug(f"Not all products are shippable to {country}")
             return False
@@ -68,17 +74,17 @@ class Fedex(Shipping):
         return rate_exists
 
     def consign(self, order, config={}):
-        logger = logging.getLogger("EMS::consign()")
+        logger = logging.getLogger("FedEx::consign()")
         try:
             if order is None:
                 return
             if isinstance(config, dict) and \
-            not (config.get('ems') is None or 
-                    config['ems'].get('login') is None or 
-                    config['ems'].get('password') is None):
-                self.__username = config['ems']['login']
-                self.__password = config['ems']['password']
-                self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
+            not (config.get('fedex') is None or 
+                    config['fedex'].get('login') is None or 
+                    config['fedex'].get('password') is None):
+                self.__username = config['fedex']['login']
+                self.__password = config['fedex']['password']
+                self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:fedex_user') != self.__username)
             consignment_id = self.__create_new_consignment()
             self.__save_consignment(consignment_id, order)
             self.__submit_consignment(consignment_id)
@@ -88,9 +94,9 @@ class Fedex(Shipping):
                 next_step_message="Finalize shipping order and print label",
                 next_step_url=f'{self._get_print_label_url()}?order_id={order.id}'
                     if order else '')
-        except EMSItemsException as e:
+        except FedexItemsException as e:
             logger.warning(str(e))
-            raise OrderError("Couldn't get EMS items description from the order")
+            raise OrderError("Couldn't get FedEx items description from the order")
     
     def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
         '''Prints shipping label to be applied too the parcel
@@ -103,13 +109,13 @@ class Fedex(Shipping):
         if order.tracking_id is None:
             raise AttributeError(f'Order {order.id} has no consignment created')
         if isinstance(config, dict) and \
-           not (config.get('ems') is None or 
-                config['ems'].get('login') is None or 
-                config['ems'].get('password') is None):
-            self.__username = config['ems']['login']
-            self.__password = config['ems']['password']
-            self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
-        logger = logging.getLogger("EMS::print()")
+           not (config.get('fedex') is None or 
+                config['fedex'].get('login') is None or 
+                config['fedex'].get('password') is None):
+            self.__username = config['fedex']['login']
+            self.__password = config['fedex']['password']
+            self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:fedex_user') != self.__username)
+        logger = logging.getLogger("FedEx::print()")
         logger.info("Getting consignment %s", order.tracking_id)
         try:
             code = self.__get_consignment_code(order.tracking_id)
@@ -123,13 +129,15 @@ class Fedex(Shipping):
             raise e
     
     def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
+        #TODO: complete
         return get_json(
             url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}',
             get_data=self.__invoke_curl
         )
     
     def __get_consignments(self, url:str) -> list[dict[str, Any]]:
-        logger = logging.getLogger('EMS::__get_consignments()')
+        #TODO: complete
+        logger = logging.getLogger('FedEx::__get_consignments()')
         consignments = get_json(url=url, get_data=self.__invoke_curl)
         if len(consignments) != 2:
             logger.warning("Couldn't get consignment")
@@ -138,6 +146,7 @@ class Fedex(Shipping):
         return consignments[1] #type: ignore
 
     def __get_consignment_code(self, consignment_id: str) -> str:
+        #TODO: complete
         consignments = \
             self.__get_consignments(
                 url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0') + \
@@ -153,14 +162,16 @@ class Fedex(Shipping):
         '''Submits request to print label. This makes the consignment obligatory 
         to be picked up and paid for
         :param consignment str: an internal code of a consignment to be printed'''
-        logger = logging.getLogger("EMS::__get_print_label()")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__get_print_label()")
         output, _ = self.__invoke_curl(
             f'https://myems.co.kr/b2b/order_print.php?type=declaration&codes={consignment}')
         # logger.debug(output)
         # logger.debug(_)
 
     def __create_new_consignment(self) -> str:
-        logger = logging.getLogger("EMS::__create_new_consignment()")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__create_new_consignment()")
         result, _ = self.__invoke_curl(
             url="https://myems.co.kr/api/v1/order/temp_orders/new", method="PUT"
         )
@@ -168,16 +179,17 @@ class Fedex(Shipping):
         return result[1:-1]
 
     def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
+        #TODO: complete
         def verify_consignment_items(items):
             for item in items:
                 try:
                     int(item['quantity'])
                     float(item['price'])
                     if len(item['hscode']) != 10:
-                        raise EMSItemsException({'hscode': item['hscode']})
+                        raise FedexItemsException({'hscode': item['hscode']})
                 except Exception as e:
                     raise EMSItemsException(e, items)
-        logger = logging.getLogger("EMS::__get_consignment_items()")
+        logger = logging.getLogger("FedEx::__get_consignment_items()")
         result: list[dict] = []
         try:
             items: list[str] = (
@@ -213,7 +225,8 @@ class Fedex(Shipping):
         return result
 
     def __save_consignment(self, consignment_id: str, order: o.Order):
-        logger = logging.getLogger("EMS::__save_consignment()")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__save_consignment()")
         logger.info("Saving a consignment %s", consignment_id)
         payee = order.get_payee()
         if payee is None:
@@ -294,7 +307,8 @@ class Fedex(Shipping):
         # logger.debug(stderr)
 
     def __submit_consignment(self, consignment_id):
-        logger = logging.getLogger("EMS::__submit_consignment")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__submit_consignment")
         logger.info("Submitting consignment %s", consignment_id)
         stdout, stderr = self.__invoke_curl(
             url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]'
@@ -302,40 +316,60 @@ class Fedex(Shipping):
         # logger.debug(stdout)
         # logger.debug(stderr)
 
-    def get_shipping_cost(self, destination, weight):
-        logger = logging.getLogger("EMS::get_shipping_cost()")
-        result = self.__get_rate(destination.upper(), weight)
+    def get_shipping_cost(self, country, weight, address: Address):
+        logger = logging.getLogger("FedEx::get_shipping_cost()")
+        if address is None:
+            zip = self.__get_zip(country)
+        else:
+            zip = address.zip
+            country = address.country_id
         try:
-            rate = int(result["post_price"]) + int(result.get("extra_shipping_charge") or 0)
-
-            logger.debug(
-                "Shipping rate for %skg parcel to %s is %s",
-                weight / 1000,
-                destination,
-                rate,
-            )
-            return rate
-        except Exception:
-            logger.info("Couldn't get rate for %skg parcel to %s", 
-                        weight / 1000, destination)
-            logger.info(result)
-            raise NoShippingRateError()
-
-    def __get_rate(self, country: str, weight: int) -> dict[str, Any]:
-        """Return raw price structure from EMS"""
-        logger = logging.getLogger("EMS::__get_rate()")
-        id = self.__get_shipping_order()
-        try:
-            result = get_json(
-                f"https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N",
-                get_data=self.__invoke_curl,
-            )
-            return result
+            result = get_json(url=self.base_url + '/rate/v1/rates/quotes', 
+                headers={
+                    'Content-Type': "application/json",
+                    'X-locale': "en_US",
+                    'Authorization': f"Bearer {self.token}"
+                },
+                raw_data=json.dumps({
+                    'accountNumber': {
+                        'value': ''
+                    },
+                    'requestedShipment': {
+                        'shipper': {
+                            'address': {
+                                'postalCode': self.__zip,
+                                'countryCode': 'KR'
+                            }
+                        }, 
+                        'recipient': {
+                            'address': {
+                                'postalCode': zip,
+                                'countryCode': country,
+                            }
+                        },
+                        'pickupType': 'USE_SCHEDULED_PICKUP',
+                        'requestedPackageLineItems': [
+                            { 
+                                'weight': {
+                                    'units': 'KG',
+                                    'value': weight / 1000
+                                } 
+                            }
+                        ]
+                    }
+                }),
+                retry=False, ignore_ssl_check=True)
+            rate: list[dict] = result["output"]
+            weight_limit = int(result["country_info"]["weight_limit"]) * 1000
+            return [
+                {"weight": int(rate["code_name2"]), "rate": int(rate["charge"])}
+            ]
         except:
-            raise NoShippingRateError()
+            raise NoShippingRateError
 
     def __get_shipping_order(self, force=False, attempts=3):
-        logger = logging.getLogger("EMS::__get_shipping_order()")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__get_shipping_order()")
         if cache.get("ems_shipping_order") is None or force:
             result: list[list] = get_json(
                 "https://myems.co.kr/api/v1/order/temp_orders",
@@ -351,7 +385,8 @@ class Fedex(Shipping):
         return cache.get("ems_shipping_order")
 
     def __login(self, force=False):
-        logger = logging.getLogger("EMS::__login()")
+        #TODO: complete
+        logger = logging.getLogger("FedEx::__login()")
         if cache.get("ems_login_in_progress"):
             logger.info("Another login process is running. Will wait till the end")
             logger.info("and use newly generated token")
@@ -372,7 +407,7 @@ class Fedex(Shipping):
         logger.debug("%s, %s, %s", self.__username, 
                      cache.get(f"ems_auth:{self.__username}"), force)
         if cache.get(f"ems_auth:{self.__username}") is None or force:
-            logger.info("Logging in to EMS as %s", self.__username)
+            logger.info("Logging in to FedEx as %s", self.__username)
             cache.set("ems_login_in_progress", True)
             result: list[dict] = get_json(
                 url="https://myems.co.kr/api/v1/login",
@@ -387,39 +422,3 @@ class Fedex(Shipping):
                          cache.get(f"ems_auth:{self.__username}"))
             cache.delete("ems_login_in_progress")
         return {"Authorization": cache.get(f"ems_auth:{self.__username}")}
-
-
-def __get_rates(country, url: str) -> list[dict]:
-    if isinstance(country, Country):
-        country_code = country.id.upper()
-    elif isinstance(country, str):
-        country_code = country.upper()
-    else:
-        raise NoShippingRateError("Unknown country")
-    #TODO: Remove when MyEMS supports Lithuania
-    if country_code == 'LT':
-        country_code = 'PL'
-    try:
-        result = get_json(url=url.format(country_code), retry=False, ignore_ssl_check=True)
-        rates: list[dict] = result["charge_info"]
-        weight_limit = int(result["country_info"]["weight_limit"]) * 1000
-        return [
-            {"weight": int(rate["code_name2"]), "rate": int(rate["charge"])}
-            for rate in rates
-            if int(rate["code_name2"]) <= weight_limit
-        ]
-    except:
-        raise NoShippingRateError
-
-
-def get_rates(country):
-    return __get_rates(
-        country, "https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{}"
-    )
-
-
-def get_premium_rates(country):
-    return __get_rates(
-        country,
-        "https://myems.co.kr/api/v1/common/emsChargeList/type/PREMIUM/country/{}",
-    )

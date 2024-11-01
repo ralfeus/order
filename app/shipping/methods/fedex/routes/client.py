@@ -1,7 +1,7 @@
 '''Client routes for EMS shipping'''
 import json
 from flask import Response, abort, current_app, render_template, request
-from flask_security import roles_required
+from flask_security import roles_required #type: ignore
 
 from app import db
 from app.orders.models.order import Order
