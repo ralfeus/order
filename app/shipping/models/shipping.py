@@ -13,7 +13,8 @@ from sqlalchemy.orm import relationship #type: ignore
 from sqlalchemy.sql.schema import ForeignKey #type: ignore
 
 from app import db
-from app.models import Country
+from app.models.address import Address
+from app.models.country import Country
 from app.models.base import BaseModel
 import app.orders.models as o
 from exceptions import NoShippingRateError
@@ -77,8 +78,15 @@ class Shipping(db.Model, BaseModel): #type: ignore
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
         
-    def consign(self, order: 'o.Order', config:dict[str, Any]={}) -> ConsignResult:
+    def consign(self, order: 'o.Order', config:dict[str, Any]={},
+                sender: Optional[Address]=None, sender_contact: Optional[dict]=None,
+                recipient: Optional[Address]=None, rcpt_contact: Optional[dict]=None,
+                items: Optional[list]=None
+                ) -> ConsignResult:
         '''Creates consignment at shipping provider.
+        :param Address sender: sender's address
+        :param Address recipient: recipient's address
+        :param list items: items to be shipped
         :param Order order: order, for which consignment is to be created
         :param dic[str, Any] config: configuration to be used for shipping provider
         :raises: :class:`NotImplementedError`: In case the consignment functionality
@@ -88,17 +96,17 @@ class Shipping(db.Model, BaseModel): #type: ignore
     
     def get_edit_url(self) -> str:
         '''Returns URL for editing the shipping method'''
-        return None
+        return ''
     
     def _get_print_label_url(self) -> str:
         '''Returns URL of printing label for the shipping method.
         URL should accept `order_id` parameter'''
-        return None
+        return ''
 
     def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
         return None, None #type: ignore
 
-    def get_shipping_cost(self, destination: str, weight: int, address: Address) -> int:
+    def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''
         Returns shipping cost in KRW to provided destination for provided weight
 

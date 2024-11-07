@@ -194,9 +194,9 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         '/usr/bin/curl',
         url,
         '-X', method,
-        # '--socks5', 'localhost:9050',
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        '--compressed' # need this for cases that response is zipped
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     try:
         output = subprocess.run(run_params,
@@ -232,7 +232,7 @@ def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str=''
 
     raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
 
-def get_json(url, raw_data=None, headers=[], method='GET', retry=True, 
+def get_json(url, raw_data=None, headers: list=[], method='GET', retry=True, 
              get_data: Callable=invoke_curl, ignore_ssl_check=False
              ) -> dict[str, Any]:
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
