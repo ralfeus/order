@@ -75,3 +75,7 @@ stubs
 _resources
 .scannerwork
 upload
+app/static/invoices/
+cache/
+tenants/
+tools/

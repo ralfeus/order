@@ -29,11 +29,17 @@ services:
   network-manager:
     depends_on:
       - neo4j
-    image: ralfeus/network-manager
+    image: ralfeus/network-manager:stable
     ports:
       - 5001:5001
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - /var/www/order/network_builder/config.json:/app/config.json
+    environment: 
+      - NEO4J_URL=bolt://neo4j:1@neo4j:7687
+      - SOCKS5_PROXY=host.docker.internal:9050
+    privileged: true
 
   rabbitmq:
     image: rabbitmq:3-management
