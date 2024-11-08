@@ -459,7 +459,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         res = get_json(
             url=f"{URL_BASE}/cart/getBuynowCart"
             + f"?cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}"
-            + "&options=%5B%22DELIVERY_INFOS%22%5D&channel=WEB&_siteId=kr&_deviceType=pc"
+            + "&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22PAYMENT_TYPE%22%2C%22DELIVERY_INFOS%22%5D&channel=WEB&_siteId=kr&_deviceType=pc"
             + "&locale=en-KR",
             headers=self.__get_session_headers(),
         )
@@ -635,7 +635,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         result = get_json(
             url=f"{URL_BASE}/cart/getBuynowCart"
             + f"?cartType=BUYNOW&salesApplication=QUICK_ORDER&cart={self.__cart}"
-            + "&options=%5B%22PAYMENT_TYPE%22%5D&channel=WEB&_siteId=kr"
+            + "&options=%5B%22PROMOTION%22%2C%22SALES_RULE%22%2C%22ENTRIES%22%2C%22PAYMENT_TYPE%22%2C%22DELIVERY_INFOS%22%5D&channel=WEB&_siteId=kr"
             + "&_deviceType=pc&locale=en-KR",
             headers=self.__get_session_headers(),
         )
