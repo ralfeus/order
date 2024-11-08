@@ -27,5 +27,6 @@
         "connectionId": "local",
         "projectKey": "order"
     },
-    "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    "python.defaultInterpreterPath": "python"
 }

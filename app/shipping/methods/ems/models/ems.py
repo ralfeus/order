@@ -49,6 +49,7 @@ class EMS(Shipping):
     name = "EMS"
     type = "EMS"
 
+    _consign_implemented = True
     __username = "sub1079"
     __password = "2045"
 
@@ -118,7 +119,7 @@ class EMS(Shipping):
             logger.warning(str(e))
             raise OrderError("Couldn't get EMS items description from the order")
     
-    def print(self, order: o.Order, config: dict[str, Any]={}) -> dict[str, Any]:
+    def print(self, order: 'o.Order', config: dict[str, Any]={}) -> dict[str, Any]:
         '''Prints shipping label to be applied too the parcel
         :param Order order: order, for which label is to be printed
         :param dic[str, Any] config: configuration to be used for 
@@ -193,7 +194,7 @@ class EMS(Shipping):
         logger.info("The new consignment ID is: %s", result)
         return result[1:-1]
 
-    def __get_consignment_items(self, order: o.Order) -> list[dict[str, Any]]:
+    def __get_consignment_items(self, order: 'o.Order') -> list[dict[str, Any]]:
         def verify_consignment_items(items):
             for item in items:
                 try:
@@ -238,7 +239,7 @@ class EMS(Shipping):
         verify_consignment_items(result) 
         return result
 
-    def __save_consignment(self, consignment_id: str, order: o.Order):
+    def __save_consignment(self, consignment_id: str, order: 'o.Order'):
         logger = logging.getLogger("EMS::__save_consignment()")
         logger.info("Saving a consignment %s", consignment_id)
         payee = order.get_payee()

@@ -1,11 +1,11 @@
 '''
 Country model
 '''
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String # type: ignore
 
 from app import db
 
-class Country(db.Model):
+class Country(db.Model): # type: ignore
     '''
     Country model
     '''
@@ -13,6 +13,7 @@ class Country(db.Model):
 
     id = Column(String(2), primary_key=True)
     name = Column(String(64))
+    first_zip = Column(String(9))
     sort_order = Column(Integer, default=999)
     
     def to_dict(self):

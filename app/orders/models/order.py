@@ -495,15 +495,17 @@ class Order(db.Model, BaseModel): # type: ignore
         #                            self.order_products, 0)
         self.subtotal_krw = reduce(
             lambda acc, sub: acc + sub.get_subtotal() + sub.local_shipping, self.suborders, 0)
+        curr_eur = Currency.query.get('EUR')
+        rate_eur = curr_eur.rate if curr_eur is not None else 0
         logger.debug("Subtotal: %s", self.subtotal_krw)
-        self.subtotal_cur2 = self.subtotal_krw * float(Currency.query.get('EUR').rate)
+        self.subtotal_cur2 = self.subtotal_krw * float(rate_eur)
         self.subtotal_cur1 = self.subtotal_krw * float(Currency.query.get('USD').rate)
 
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None,
             self.total_weight + self.shipping_box_weight)))
         logger.debug("Shipping (KRW): %s", self.shipping_krw)
-        self.shipping_cur2 = self.shipping_krw * float(Currency.query.get('EUR').rate)
+        self.shipping_cur2 = self.shipping_krw * float(rate_eur)
         self.shipping_cur1 = self.shipping_krw * float(Currency.query.get('USD').rate)
 
         self.total_krw = self.subtotal_krw + self.shipping_krw
