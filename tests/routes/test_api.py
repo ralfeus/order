@@ -55,7 +55,7 @@ class TestClientApi(BaseTestCase):
                 'name': 'DHL',
                 'type': 'DHL',
                 'enabled': True,
-                'links': {'edit': '/admin/shipping/dhl/', 'print_label': None},
+                'links': {'edit': '/admin/shipping/dhl/', 'print_label': ''},
                 'is_consignable': False,
                 'notification': None,
                 'edit_url': '/admin/shipping/dhl/',
@@ -66,10 +66,10 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping1',
                 'type': '',
                 'enabled': True,
-                'links': {'edit': None, 'print_label': None},
+                'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,
                 'notification': None,
-                'edit_url': None,
+                'edit_url': '',
                 'params': []
             },
             {
@@ -77,10 +77,10 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping2',
                 'type': '',
                 'enabled': True,
-                'links': {'edit': None, 'print_label': None},
+                'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,
                 'notification': None,
-                'edit_url': None,
+                'edit_url': '',
                 'params': []
             },
             {
@@ -88,10 +88,10 @@ class TestClientApi(BaseTestCase):
                 'name': 'Shipping3',
                 'type': '',
                 'enabled': True,
-                'links': {'edit': None, 'print_label': None},
+                'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,
                 'notification': None,
-                'edit_url': None,
+                'edit_url': '',
                 'params': []
             }
         ])

@@ -30,7 +30,7 @@ class TestShippingFedex(BaseTestCase):
     def test_get_rate(self):
         fedex = Fedex(test_mode=True)
         res = fedex.get_shipping_cost('CZ')
-        self.assertEqual(res, [{'weight': 4, 'rate': 101}])
+        self.assertEqual(res, 101)
 
     def test_create_shipment(self):
         fedex = Fedex(test_mode=True)
@@ -41,8 +41,8 @@ class TestShippingFedex(BaseTestCase):
                          city_eng='Prague', country_id='cz')
         recipient_contact = {'name': 'Test recipient', 'phone': '777 666 111'}
         items = [
-            ShippingItem('Item1', 1, 10),
-            ShippingItem('Item2', 2, 20)
+            ShippingItem('Item1', 1, 10, 10),
+            ShippingItem('Item2', 2, 20, 20)
         ]
         default_box.weight = 10
         try:

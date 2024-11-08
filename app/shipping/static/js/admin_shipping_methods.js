@@ -35,6 +35,7 @@ $(document).ready(() => {
                 type: 'select2',
                 options: [
                     {value: 'ems', label: 'EMS'},
+                    {value: 'fedex', label: 'FedEx'},
                     {value: 'weight_based', label: 'Weight based'}
                 ]
             },

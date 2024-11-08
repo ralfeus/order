@@ -7,7 +7,7 @@ import re
 import time
 from typing import Any
 
-from flask import current_app, url_for
+from flask import current_app
 
 from app import cache
 from app.models.address import Address
@@ -31,10 +31,15 @@ class Fedex(Shipping):
     name = "FedEx"
     type = "FedEx"
 
+    _consign_implemented = True
     __zip = '08584'
     __src_country = 'KR'
 
     def __init__(self, test_mode=False):
+        if test_mode:
+            self.__base_url = 'https://apis-sandbox.fedex.com'
+        else:
+            self.__base_url = 'https://apis.fedex.com'
         try:
             config = current_app.config['SHIPPING_AUTOMATION']['fedex']
             self.__client_id = config['client_id']
@@ -42,10 +47,6 @@ class Fedex(Shipping):
             self.__account = config['account']
             self.__service_type = config['service_type']
 
-            if test_mode:
-                self.__base_url = 'https://apis-sandbox.fedex.com'
-            else:
-                self.__base_url = 'https://apis.fedex.com'
         except Exception as e:
             raise FedexConfigurationException(e)
 
@@ -63,8 +64,7 @@ class Fedex(Shipping):
         raise HTTPError(401)
     
     def _get_print_label_url(self):
-        from .. import bp_client_admin
-        return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
+        return ''
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("FedEx::can_ship()")
@@ -118,6 +118,10 @@ class Fedex(Shipping):
             logger.warning(str(e))
             raise OrderError("Couldn't get FedEx items description from the order")
         
+    def is_consignable(self):
+        return super().is_consignable()
+        #TODO: add Fedex API availability (Rate API and Ship API)
+
     def __prepare_shipment_request_payload(self, sender, sender_contact, 
                                            recipient, rcpt_contact, 
                                            items: list[ShippingItem], boxes: list[Box]
@@ -155,7 +159,7 @@ class Fedex(Shipping):
                 'pickupType': 'USE_SCHEDULED_PICKUP',
                 'serviceType': self.__service_type,
                 'packagingType': 'YOUR_PACKAGING',
-                'totalWeight': reduce(lambda acc, i: acc + i.weight, boxes, 0), 
+                'totalWeight': reduce(lambda acc, i: acc + i.weight, boxes, 0.0), 
                 'shippingChargesPayment': {
                     'paymentType': 'SENDER'
                 }, 
@@ -166,7 +170,13 @@ class Fedex(Shipping):
                         'unitPrice': {
                             'amount': i.price,
                             'currency': 'WON'
-                        }
+                        },
+                        'numberOfPieces': i.quantity,
+                        'weight': {
+                            'units': 'KG',
+                            'value': i.weight / 1000
+                        },
+                        'additionalMeasures': [{'units': 'PCS'}]
                     } for i in items],
                     'dutiesPayment': {
                         'paymentType': 'SENDER'
@@ -256,7 +266,7 @@ class Fedex(Shipping):
 
     
     def __get_shipment_value(self, items: list[ShippingItem]):
-        value = reduce(lambda acc, i: acc + i.quantity * i.price, items, 0)
+        value = reduce(lambda acc, i: acc + i.quantity * i.price, items, 0.0)
         return {
             'amount': value,
             'currency': 'WON'
@@ -352,14 +362,8 @@ class Fedex(Shipping):
             rate: dict[str, Any] = [
                 r['ratedShipmentDetails'] for r in rates 
                 if r['serviceType'] == self.__service_type][0][0]
-            weight = rate['shipmentRateDetail']['totalBillingWeight']
-            return [{
-                "weight": int(weight['value']) * (
-                    1000 if weight['units'] == 'KG'
-                    else 0.4), 
-                 "rate": int(rate.get('totalNetChargeWithDutiesAndTaxes')
+            return int(rate.get('totalNetChargeWithDutiesAndTaxes')
                              or rate.get('totalNetFedExCharge')) #type: ignore
-            }]
         except Exception as e:
             logger.error("During getting rate to %s of %sg package the error has occurred",
                          country, weight)

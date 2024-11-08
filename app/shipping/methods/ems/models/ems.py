@@ -49,6 +49,7 @@ class EMS(Shipping):
     name = "EMS"
     type = "EMS"
 
+    _consign_implemented = True
     __username = "sub1079"
     __password = "2045"
 

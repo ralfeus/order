@@ -9,7 +9,7 @@ from typing import Any, Optional
 from flask import current_app
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
-from sqlalchemy.orm import relationship #type: ignore
+from sqlalchemy.orm import relationship, reconstructor #type: ignore
 from sqlalchemy.sql.schema import ForeignKey #type: ignore
 
 from app import db
@@ -46,6 +46,11 @@ class Shipping(db.Model, BaseModel): #type: ignore
     params = relationship('ShippingParam', lazy='dynamic')
 
     __mapper_args__ = {'polymorphic_on': discriminator}
+    _consign_implemented = False
+
+    @reconstructor
+    def init_on_load(self):
+        self.__init__()
 
     def _are_all_products_shippable(self, products: list[str]):
         from app.products.models.product import Product
@@ -129,12 +134,8 @@ class Shipping(db.Model, BaseModel): #type: ignore
         if not (current_app.config.get("SHIPPING_AUTOMATION") and
                 current_app.config['SHIPPING_AUTOMATION']['enabled']):
             return False
-        try:
-            self.consign(None)
-            return True
-        except NotImplementedError:
-            return False
-
+        return self._consign_implemented
+    
     def to_dict(self):
         return {
             'id': self.id,
