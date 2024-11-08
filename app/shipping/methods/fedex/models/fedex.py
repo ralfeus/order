@@ -101,7 +101,7 @@ class Fedex(Shipping):
                     {'X-locale': "en_US"},
                     self.__login()
                 ],
-                raw_data=json.dumps(payload)
+                raw_data=json.dumps(payload), get_data=self.__invoke_curl
             )
             if result.get('output') is None:
                 raise ShippingException(result.get('alerts') or result.get('errors'))
@@ -357,7 +357,7 @@ class Fedex(Shipping):
                         ]
                     }
                 }),
-                retry=False, ignore_ssl_check=True)
+                retry=False, ignore_ssl_check=True, get_data=self.__invoke_curl)
             rates = result["output"]["rateReplyDetails"]
             rate: dict[str, Any] = [
                 r['ratedShipmentDetails'] for r in rates 
@@ -392,6 +392,11 @@ class Fedex(Shipping):
         if country is None:
             raise ShippingException(f"<{country_id}> is not a valid country")
         return country.first_zip
+    
+    def __invoke_curl(self, url: str, raw_data: str='', headers: list[dict[str, str]]=[],
+                method='GET', retries=2, ignore_ssl_check=False) -> tuple[str, str]:
+        return invoke_curl(url, raw_data, headers, method, False, retries, ignore_ssl_check)
+    
 
     def __login(self, force=False) -> dict[str, str]:
         logger = logging.getLogger("FedEx::__login()")
@@ -419,7 +424,7 @@ class Fedex(Shipping):
             result: dict = get_json(
                 url=f"{self.__base_url}/oauth/token",
                 raw_data=f'grant_type=client_credentials&client_id={self.__client_id}&client_secret={self.__client_secret}',
-                method="POST", ignore_ssl_check=True
+                method="POST", ignore_ssl_check=True, get_data=self.__invoke_curl
             ) #type: ignore
             cache.set("fedex_auth", result["access_token"], 
                       timeout=result['expires_in'])
