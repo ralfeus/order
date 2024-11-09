@@ -406,13 +406,14 @@ class Fedex(Shipping):
                 r['ratedShipmentDetails'] for r in rates 
                 if r['serviceType'] == self.__service_type]
             if len(rate_objects) == 0:
-                raise NoShippingRateError("There are rates but no %s", self.__service_type)
+                raise NoShippingRateError(f"There are rates but no {self.__service_type}")
             rate = rate_objects[0][0]
             return int(rate.get('totalNetChargeWithDutiesAndTaxes')
                              or rate.get('totalNetFedExCharge')) #type: ignore
         except NoShippingRateError as e:
             logger.warning("There is no rate to %s of %sg package", country, weight)
             logger.warning(e)
+            raise e
         except Exception as e:
             logger.error("During getting rate to %s of %sg package the error has occurred",
                          country, weight)
