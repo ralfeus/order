@@ -24,13 +24,15 @@ class TestShippingFedex(BaseTestCase):
             # self.user, self.admin, admin_role,
             Country(id='ua', name='Ukraine', sort_order=0),
             Country(id='cz', name='Czech Republic', first_zip='10 000'),
-            Country(id='de', name='Germany')
+            Country(id='de', name='Germany', first_zip='1067')
         ])
 
     def test_get_rate(self):
         fedex = Fedex(test_mode=True)
         res = fedex.get_shipping_cost('CZ')
         self.assertEqual(res, 101)
+        res = fedex.get_shipping_cost('DE')
+        self.assertIsNotNone(res)
 
     def test_create_shipment(self):
         fedex = Fedex(test_mode=True)

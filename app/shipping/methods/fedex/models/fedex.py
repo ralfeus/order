@@ -50,19 +50,62 @@ class Fedex(Shipping):
         except Exception as e:
             raise FedexConfigurationException(e)
 
-    def __invoke_curl(self, *args, **kwargs) -> tuple[str, str]:
-        logger = logging.getLogger("FedEx::__invoke_curl()")
-        kwargs["headers"] = [self.__login()]
-        kwargs['ignore_ssl_check'] = True
-        for _ in range(0, 3):
-            stdout, stderr = invoke_curl(*args, **kwargs)
-            if re.search("HTTP.*? 401", stderr):
-                logger.warning("FedEx authentication error. Retrying...")
-                kwargs["headers"] = [self.__login(force=True)]
-            else:
-                return stdout, stderr
-        raise HTTPError(401)
+    def __get_json(self, url, raw_data=None, headers: list=[], method='GET', 
+                   retry=True, ignore_ssl_check=False) -> dict[str, Any]:
+        logger = logging.getLogger("FedEx::__get_json()")
+        
+        def __invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
+                    method='GET', retries=2, ignore_ssl_check=False) -> tuple[str, str]:
+            token = [self.__login()]
+            for _ in range(0, 3):
+                stdout, stderr = invoke_curl(url, raw_data, headers + token, method, 
+                                            False, retries, ignore_ssl_check)
+                if re.search("HTTP.*? 401", stderr):
+                    logger.warning("FedEx authentication error. Retrying...")
+                    token = [self.__login(force=True)]
+                else:
+                    return stdout, stderr
+            raise HTTPError(401)
+        
+        return get_json(url, raw_data, headers, method, retry, 
+                        get_data=__invoke_curl, ignore_ssl_check=ignore_ssl_check)
     
+    def __login(self, force=False) -> dict[str, str]:
+        logger = logging.getLogger("FedEx::__login()")
+        if cache.get("fedex_login_in_progress"):
+            logger.info("Another login process is running. Will wait till the end")
+            logger.info("and use newly generated token")
+            timeout = 20
+            while cache.get("fedex_login_in_progress") and not timeout:
+                time.sleep(1)
+                timeout -= 1
+            if cache.get("fedex_login_in_progress"):
+                logger.warning(
+                    "Waiting for another login process to complete has timed out"
+                )
+                logger.warning("will clear login semaphore and exit")
+                cache.delete("fedex_login_in_progress")
+                raise FedexLoginException
+            logger.info("Another login process has finished. Will use existing token")
+            logger.info(cache.get("fedex_auth"))
+            force = False
+        # logger.debug("%s, %s", cache.get("fedex_auth"), force)
+        if cache.get("fedex_auth") is None or force:
+            logger.info("Logging in to FedEx")
+            cache.set("fedex_login_in_progress", True)
+            result: dict = get_json(
+                url=f"{self.__base_url}/oauth/token",
+                get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: 
+                    invoke_curl(url, 
+                        raw_data=f'grant_type=client_credentials&client_id={self.__client_id}&client_secret={self.__client_secret}', 
+                        ignore_ssl_check=True)
+            ) #type: ignore
+            cache.set("fedex_auth", result["access_token"], 
+                      timeout=result['expires_in'])
+            logger.debug("Auth result: %s", cache.get("fedex_auth"))
+            cache.delete("fedex_login_in_progress")
+        return {"Authorization": f"Bearer {cache.get('fedex_auth')}"}
+
     def _get_print_label_url(self):
         return ''
 
@@ -94,14 +137,13 @@ class Fedex(Shipping):
                 return
             payload = self.__prepare_shipment_request_payload(
                     sender, sender_contact, recipient, rcpt_contact, items, boxes)
-            result = get_json(
+            result = self.__get_json(
                 url=f"{self.__base_url}/ship/v1/shipments",
                 headers=[
                     {'Content-Type': "application/json"},
-                    {'X-locale': "en_US"},
-                    self.__login()
+                    {'X-locale': "en_US"}
                 ],
-                raw_data=json.dumps(payload), get_data=self.__invoke_curl
+                raw_data=json.dumps(payload)
             )
             if result.get('output') is None:
                 raise ShippingException(result.get('alerts') or result.get('errors'))
@@ -225,15 +267,14 @@ class Fedex(Shipping):
     
     def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
         #TODO: complete
-        return get_json(
-            url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}',
-            get_data=self.__invoke_curl
+        return self.__get_json(
+            url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}'
         )
     
     def __get_consignments(self, url:str) -> list[dict[str, Any]]:
         #TODO: complete
         logger = logging.getLogger('FedEx::__get_consignments()')
-        consignments = get_json(url=url, get_data=self.__invoke_curl)
+        consignments = self.__get_json(url=url)
         if len(consignments) != 2:
             logger.warning("Couldn't get consignment")
             logger.warning(consignments)
@@ -321,11 +362,10 @@ class Fedex(Shipping):
     def get_shipping_cost(self, country, weight=1):
         logger = logging.getLogger("FedEx::get_shipping_cost()")
         try:
-            result = get_json(url=self.__base_url + '/rate/v1/rates/quotes', 
+            result = self.__get_json(url=f'{self.__base_url}/rate/v1/rates/quotes', 
                 headers=[
                     {'Content-Type': "application/json"},
-                    {'X-locale': "en_US"},
-                    self.__login()
+                    {'X-locale': "en_US"}
                 ],
                 raw_data=json.dumps({
                     'accountNumber': {
@@ -357,7 +397,9 @@ class Fedex(Shipping):
                         ]
                     }
                 }),
-                retry=False, ignore_ssl_check=True, get_data=self.__invoke_curl)
+                retry=False, ignore_ssl_check=True)
+            if result.get('output') is None:
+                raise NoShippingRateError(result.get('errors'))
             rates = result["output"]["rateReplyDetails"]
             rate: dict[str, Any] = [
                 r['ratedShipmentDetails'] for r in rates 
@@ -374,9 +416,8 @@ class Fedex(Shipping):
         #TODO: complete
         logger = logging.getLogger("FedEx::__get_shipping_order()")
         if cache.get("ems_shipping_order") is None or force:
-            result: list[list] = get_json(
-                "https://myems.co.kr/api/v1/order/temp_orders",
-                get_data=self.__invoke_curl,
+            result: list[list] = self.__get_json(
+                "https://myems.co.kr/api/v1/order/temp_orders"
             ) #type: ignore
             if result[0][0]["cnt"] == "0":
                 id, _ = self.__invoke_curl(
@@ -391,43 +432,4 @@ class Fedex(Shipping):
         country = Country.query.get(country_id.lower())
         if country is None:
             raise ShippingException(f"<{country_id}> is not a valid country")
-        return country.first_zip
-    
-    def __invoke_curl(self, url: str, raw_data: str='', headers: list[dict[str, str]]=[],
-                method='GET', retries=2, ignore_ssl_check=False) -> tuple[str, str]:
-        return invoke_curl(url, raw_data, headers, method, False, retries, ignore_ssl_check)
-    
-
-    def __login(self, force=False) -> dict[str, str]:
-        logger = logging.getLogger("FedEx::__login()")
-        if cache.get("fedex_login_in_progress"):
-            logger.info("Another login process is running. Will wait till the end")
-            logger.info("and use newly generated token")
-            timeout = 20
-            while cache.get("fedex_login_in_progress") and not timeout:
-                time.sleep(1)
-                timeout -= 1
-            if cache.get("fedex_login_in_progress"):
-                logger.warning(
-                    "Waiting for another login process to complete has timed out"
-                )
-                logger.warning("will clear login semaphore and exit")
-                cache.delete("fedex_login_in_progress")
-                raise FedexLoginException
-            logger.info("Another login process has finished. Will use existing token")
-            logger.info(cache.get("fedex_auth"))
-            force = False
-        logger.debug("%s, %s", cache.get("fedex_auth"), force)
-        if cache.get("fedex_auth") is None or force:
-            logger.info("Logging in to FedEx")
-            cache.set("fedex_login_in_progress", True)
-            result: dict = get_json(
-                url=f"{self.__base_url}/oauth/token",
-                raw_data=f'grant_type=client_credentials&client_id={self.__client_id}&client_secret={self.__client_secret}',
-                method="POST", ignore_ssl_check=True, get_data=self.__invoke_curl
-            ) #type: ignore
-            cache.set("fedex_auth", result["access_token"], 
-                      timeout=result['expires_in'])
-            logger.debug("Auth result: %s", cache.get("fedex_auth"))
-            cache.delete("fedex_login_in_progress")
-        return {"Authorization": f"Bearer {cache.get('fedex_auth')}"}
+        return country.first_zip    
