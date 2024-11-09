@@ -59,7 +59,8 @@ class Fedex(Shipping):
             token = [self.__login()]
             for _ in range(0, 3):
                 stdout, stderr = invoke_curl(url, raw_data, headers + token, method, 
-                                            False, retries, ignore_ssl_check)
+                                            use_proxy=False, retries=retries, 
+                                            ignore_ssl_check=ignore_ssl_check)
                 if re.search("HTTP.*? 401", stderr):
                     logger.warning("FedEx authentication error. Retrying...")
                     token = [self.__login(force=True)]
@@ -98,7 +99,7 @@ class Fedex(Shipping):
                 get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: 
                     invoke_curl(url, 
                         raw_data=f'grant_type=client_credentials&client_id={self.__client_id}&client_secret={self.__client_secret}', 
-                        ignore_ssl_check=True)
+                        ignore_ssl_check=True, use_proxy=False)
             ) #type: ignore
             cache.set("fedex_auth", result["access_token"], 
                       timeout=result['expires_in'])
