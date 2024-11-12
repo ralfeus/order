@@ -16,7 +16,7 @@ def get_network_builder_status(action):
     if action not in valid_actions:
         return jsonify({'status': 'invalid action'})
     try:
-        query = '&'.join([f'{k}={v}' for k,v in request.args.items()])
+        query = '&'.join([f'{k}={v}' for k,v in request.args.items() if v != ''])
         response = requests.get(
             f"{current_app.config['NETWORK_MANAGER_URL']}/api/v1/builder/{action}?{query}",
             headers={'Content-type': 'application/json'})

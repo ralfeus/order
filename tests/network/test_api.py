@@ -2,6 +2,7 @@
 Tests of network builder manager
 '''
 from subprocess import Popen
+from time import sleep
 from tests import BaseTestCase, db
 from app.users.models.role import Role
 from app.users.models.user import User
@@ -22,6 +23,10 @@ class TestNetworkManager(BaseTestCase):
             self.user, self.admin, admin_role
         ])
 
+    def tearDown(self):
+        self.client.get('/api/v1/admin/network/builder/stop')
+        return super().tearDown()        
+
     def test_get_network_builder_status(self):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/network/builder/status'))
@@ -31,4 +36,11 @@ class TestNetworkManager(BaseTestCase):
         res = self.client.get('/api/v1/admin/network/builder/status')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json['status'], 'running') #type: ignore
-        self.client.get('/api/v1/admin/network/builder/stop')
+
+    def test_start_with_emtpy_nodes(self):
+        self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/network/builder/start?nodes='))
+        sleep(5)
+        res = self.client.get('/api/v1/admin/network/builder/status')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['status'], 'running') #type: ignore
