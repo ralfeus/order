@@ -67,6 +67,7 @@ class TestOrdersClient(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",

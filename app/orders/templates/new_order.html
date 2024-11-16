@@ -32,13 +32,14 @@
         <div class="col-3 width-adjusted">
             <input class="form-control" id="address" placeholder="Address" />
             <div class="row">
+                <div class="col-8">                
+                    <input class="form-control" id="city_eng" placeholder="City" />
+                </div>
                 <div class="col-4">
                     <input class="form-control" id="zip" placeholder="Zip code"/>
                 </div>
-                <div class="col-8">
-                    <select class="form-control" id="country" onchange="country_changed()"></select>
-                </div>
             </div>
+            <select class="form-control" id="country" onchange="country_changed()"></select>
             <div class="row">
                 <div class="col-12" id="shipping-method">
                     <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
