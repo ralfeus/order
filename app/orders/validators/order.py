@@ -10,21 +10,22 @@ from app.shipping.models.shipping import Shipping, NoShipping, PostponeShipping
 from app.shipping.methods.dhl.models import DHL
 
 def _are_suborders_valid(_form, field):
-    if field.data:
-        for suborder in field.raw_data:
-            if suborder.get('subcustomer') is None or suborder['subcustomer'] == '':
-                raise ValidationError('suborder.subcustomer:Field is required')
-            if suborder.get('items') is None or len(suborder['items']) == 0:
-                raise ValidationError("suborder.order_product:Field is required")
-            for op in suborder['items']:
-                if op.get('item_code') is not None:
-                    try:
-                        int(op['quantity'])
-                    except (KeyError, ValueError):
-                        raise ValidationError(
-                            f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
-                else:
-                    raise ValidationError("suborder.order_product.item_code:Empty product code")
+    if not field.data:
+        return
+    for suborder in field.raw_data:
+        if suborder.get('subcustomer') is None or suborder['subcustomer'] == '':
+            raise ValidationError('suborder.subcustomer:Field is required')
+        if suborder.get('items') is None or len(suborder['items']) == 0:
+            raise ValidationError("suborder.order_product:Field is required")
+        for op in suborder['items']:
+            if op.get('item_code') is not None:
+                try:
+                    int(op['quantity'])
+                except (KeyError, ValueError):
+                    raise ValidationError(
+                        f"suborder.order_product.quantity:<{op['quantity']}> is not an integer")
+            else:
+                raise ValidationError("suborder.order_product.item_code:Empty product code")
 
 def _is_dhl_compliant(form, field):
     shipping = Shipping.query.get(form.data['shipping'])
@@ -59,6 +60,7 @@ class OrderValidator(Inputs):
     '''Validator for order input'''
     json = {
         'address': [_is_valid_string_field],
+        'city_eng': [DataRequired("city_eng:Field is required")],
         'country': [_is_valid_country],
         'customer_name': [_is_valid_string_field],
         'phone': [_is_valid_string_field],

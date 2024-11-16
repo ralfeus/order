@@ -41,6 +41,7 @@ async function populate_order(order_data) {
     $('#name').val(order_data.customer_name);
     $('#comment').val(order_data.comment);
     $('#address').val(order_data.address);
+    $('#city_eng').val(order_data.city_eng);
     $('#phone').val(order_data.phone);
     $('#zip').val(order_data.zip);
     $('#country').val(order_data.country.id);

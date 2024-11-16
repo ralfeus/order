@@ -203,6 +203,7 @@ def user_create_order():
             user=current_user,
             customer_name=payload['customer_name'],
             address=payload['address'],
+            city_eng=payload['city_eng'],
             country_id=payload['country'],
             country=country,
             zip=payload['zip'],
@@ -410,11 +411,13 @@ def user_save_order(order_id):
         }
     return jsonify(result)
 
-def _update_order(order, payload):
+def _update_order(order: Order, payload):
     if payload.get('customer_name') and order.customer_name != payload['customer_name']:
         order.customer_name = payload['customer_name']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
+    if payload.get('city_eng') and order.city_eng != payload['city_eng']:
+        order.city_eng = payload['city_eng']
     if payload.get('country') and order.country_id != payload['country']:
         order.country_id = payload['country']
     if payload.get('zip') and order.zip != payload['zip']:

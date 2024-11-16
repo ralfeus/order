@@ -522,6 +522,7 @@ function submit_order(_sender, draft=false) {
         data: JSON.stringify({
             customer_name: $('#name').val(),
             address: $('#address').val(),
+            city_eng: $('#city_eng').val(),
             country: $('#country').val(),
             zip: $('#zip').val(),
             shipping: $('#shipping').val(),

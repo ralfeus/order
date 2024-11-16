@@ -55,6 +55,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng": "City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -116,6 +117,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng": "City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -200,12 +202,20 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1"
+        })
+        self.assertEqual(res.status_code, 409)
+        res = self.client.post('/api/v1/order', json={
+            "customer_name":"User1",
+            "address":"Address1",
+            "city_eng":"City1",
             "country":"c1"
         })
         self.assertEqual(res.status_code, 409)
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000'
         })
@@ -213,6 +223,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000',
             "shipping":"1"
@@ -221,6 +232,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000',
             "shipping":"1",
@@ -231,6 +243,7 @@ class TestOrdersApi(BaseTestCase):
             "customer_name":"User1",
             "address":"Address1",
             "country":"c1",
+            "city_eng":"City1",
             'zip': '00001111222233334444',
             "shipping":"1",
             "phone":"1",
@@ -249,6 +262,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000',
             "shipping":"1",
@@ -271,6 +285,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -300,6 +315,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -319,6 +335,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -352,6 +369,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '00000',
                 "shipping":"1",
@@ -372,6 +390,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000',
             "shipping":"1",
@@ -425,6 +444,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.try_admin_operation(admin_only=True,
             operation=lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
                 'address': 'Address1',
+                "city_eng":"City1",
                 'country': 'c1',
                 'customer_name': "Customer1",
                 'phone': '1',
@@ -449,6 +469,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.try_admin_operation(admin_only=True,
             operation=lambda: self.client.post(f'/api/v1/order/{gen_id}', json={
                 'address': 'Address1',
+                "city_eng":"City1",
                 'country': 'c1',
                 'customer_name': "Customer1",
                 'phone': '1',
@@ -480,6 +501,7 @@ class TestOrdersApi(BaseTestCase):
         self.try_user_operation(
             operation=lambda: self.client.post(f'/api/v1/order/{order.id}', json={
                 'address': 'Address1',
+                "city_eng":"City1",
                 'country': 'c1',
                 'customer_name': "Customer1",
                 'phone': '1',
@@ -515,6 +537,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.try_admin_operation(admin_only=True,
             operation=lambda: self.client.post(f'/api/v1/order/{order.id}', json={
                 'address': 'Address1',
+                "city_eng":"City1",
                 'country': 'c1',
                 'customer_name': "Customer1",
                 'phone': '1',
@@ -700,6 +723,7 @@ class TestOrdersApi(BaseTestCase):
             operation=lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -723,6 +747,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(order.total_krw, 3700)
         self.client.post(f'/api/v1/order/{order.id}', json={
             'address': 'Address1',
+            "city_eng":"City1",
             'country': 'c1',
             'customer_name': "User1",
             'phone': '1',
@@ -768,6 +793,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -796,6 +822,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
             "customer_name":"User1",
             "address":"Address1",
+            "city_eng":"City1",
             "country":"c1",
             'zip': '0000',
             "shipping":"1",
@@ -966,6 +993,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -990,6 +1018,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -1014,6 +1043,7 @@ class TestOrdersApi(BaseTestCase):
         res = self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -1050,6 +1080,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",
@@ -1081,6 +1112,7 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.post('/api/v1/order', json={
                 "customer_name":"User1",
                 "address":"Address1",
+                "city_eng":"City1",
                 "country":"c1",
                 'zip': '0000',
                 "shipping":"1",

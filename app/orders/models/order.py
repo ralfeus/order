@@ -81,6 +81,7 @@ class Order(db.Model, BaseModel): # type: ignore
     invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id])
     customer_name = Column(String(64))
     address = Column(String(256))
+    city_eng: str = Column(String(128))
     country_id: str = Column(String(2), ForeignKey('countries.id'))
     country: Country = relationship(Country, foreign_keys=[country_id])
     zip = Column(String(15))
@@ -396,6 +397,9 @@ class Order(db.Model, BaseModel): # type: ignore
             'user': self.user.username if self.user else None,
             'customer_name': self.customer_name,
             'address': self.address,
+            'city_eng': self.city_eng,
+            'country': self.country.to_dict() if self.country else None,
+            'zip': self.zip,
             'phone': self.phone,
             'comment': self.comment,
             'invoice_id': self.invoice_id,
@@ -408,8 +412,6 @@ class Order(db.Model, BaseModel): # type: ignore
             'total_krw': self.total_krw,
             'total_cur1': float(self.total_cur1),
             'total_cur2': float(self.total_cur2),
-            'country': self.country.to_dict() if self.country else None,
-            'zip': self.zip,
             'shipping': self.shipping.to_dict() if self.shipping else None,
             'boxes': [box.to_dict() for box in self.boxes],
             'status': self.status.name if self.status else None,
@@ -532,7 +534,7 @@ class Order(db.Model, BaseModel): # type: ignore
         ws.cell(2, 2, "\n".join([self.id] + [ao.id for ao in self.attached_orders]))
         ws.cell(2, 3, self.when_created.strftime('%Y-%m-%d'))
         ws.cell(4, 2, self.customer_name)
-        ws.cell(5, 2, str(self.address) + '\n' + str(self.zip))
+        ws.cell(5, 2, str(self.address) + '\n' + str(self.city_eng) + '\n' + str(self.zip))
         ws.cell(6, 2, self.phone)
         # Set currency rates
         ws.cell(8, 5, float(1 / Currency.query.get('EUR').rate))
