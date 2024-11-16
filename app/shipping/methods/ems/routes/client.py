@@ -12,19 +12,21 @@ from .. import bp_client_admin
 
 @bp_client_admin.route('/label')
 @roles_required('admin')
-def admin_print_label() -> str:
-    order_id = request.args.get('order_id')
-    order:Order = Order.query.get(order_id)
-    if order is None:
+def admin_print_label():
+    tracking_id = request.args.get('tracking_id')
+    order:Order
+    try:
+        order = Order.query.filter_by(tracking_id=tracking_id).first()
+    except:
         abort(status=404)
     shipping: EMS = order.shipping
     if not isinstance(shipping, EMS):
-        abort(Response(f"The order {order_id} is not shipped by EMS", status=400))
+        abort(Response(f"The order {order.id} is not shipped by EMS", status=400))
     export_id = ''
     if order.invoice is not None and order.invoice.export_id is not None:
         export_id = order.invoice.export_id
     try:
-        consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION"))
+        consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION")) #type: ignore
         order.status = OrderStatus.shipped
         db.session.commit()
         return render_template('label.html', consignment=consignment, export_id=export_id)

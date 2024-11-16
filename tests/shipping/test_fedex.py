@@ -3,6 +3,7 @@ from app.models.address import Address
 from app.models.country import Country
 from app.shipping.methods.fedex.models.fedex import Fedex
 from app.shipping.models.box import default_box
+from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
 from exceptions import ShippingException
 
@@ -38,19 +39,32 @@ class TestShippingFedex(BaseTestCase):
         fedex = Fedex(test_mode=True)
         sender = Address(name='Home', zip='01000', address_1_eng='Test', 
                          city_eng='Seoul', country_id='kr')
-        sender_contact = {'name': 'Test name', 'phone': '010-1111-2222'}
+        sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
         recipient = Address(name='Dest', zip='10000', address_1_eng='Test', 
                          city_eng='Prague', country_id='cz')
-        recipient_contact = {'name': 'Test recipient', 'phone': '777 666 111'}
+        recipient_contact = ShippingContact(name='Test recipient', phone='777 666 111')
         items = [
             ShippingItem('Item1', 1, 10, 10),
             ShippingItem('Item2', 2, 20, 20)
         ]
         default_box.weight = 10
-        try:
-            res = fedex.consign(sender, sender_contact, recipient, recipient_contact, 
-                                items, [default_box])
-            self.assertIsNotNone(res.consignment_id)
-        except ShippingException as e:
-            print(e.message)
-            self.assertTrue(False)
+        res = fedex.consign(sender, sender_contact, recipient, recipient_contact, 
+                            items, [default_box])
+        self.assertIsNotNone(res.tracking_id)
+
+    def test_create_shipment_no_city(self):
+        fedex = Fedex(test_mode=True)
+        sender = Address(name='Home', zip='01000', address_1_eng='Test', 
+                         country_id='kr')
+        sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
+        recipient = Address(name='Dest', zip='10000', address_1_eng='Test', 
+                        country_id='cz')
+        recipient_contact = ShippingContact(name='Test recipient', phone='777 666 111')
+        items = [
+            ShippingItem('Item1', 1, 10, 10),
+            ShippingItem('Item2', 2, 20, 20)
+        ]
+        default_box.weight = 10
+        res = fedex.consign(sender, sender_contact, recipient, recipient_contact, 
+                            items, [default_box])
+        self.assertIsNotNone(res.tracking_id)
