@@ -19,6 +19,7 @@
     "SHIPPING_AUTOMATION": {
         "enabled": true,
         "fedex": {
+            "base_url": "https://apis-sandbox.fedex.com",
             "client_id": "l76719d5814cdf46e4a780617201a0bd8c",
             "client_secret": "f0d7348ce5d9484a936a7aab6517de2a",
             "account": "740561073",

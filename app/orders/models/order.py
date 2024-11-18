@@ -626,7 +626,6 @@ class Order(db.Model, BaseModel): # type: ignore
                     round(self.shipping_krw / self.total_krw *
                         op.price * op.quantity)
 
-
 class OrderParam(db.Model, BaseModel): # type: ignore
     '''Additional Order parameter'''
     __tablename__ = 'order_params'

@@ -177,14 +177,20 @@ def consign_order(order_id: str):
         if payee is None:
             raise OrderError("Order is not paid. Can't send")
         sender = payee.address
+        sender.country_id = 'kr'
         sender_contact = ShippingContact(name=payee.contact_person, 
                                          phone=payee.phone)
-        recipient = Address(address_1_eng=order.address, country_id=order.country_id, 
-                            zip=order.zip)
+        recipient = Address(address_1_eng=order.address, city_eng=order.city_eng, 
+                            country_id=order.country_id, zip=order.zip)
         rcpt_contact = ShippingContact(name=order.customer_name, phone=order.phone)
-        items = order.shipping.get_shipping_items(
-            order.params["shipping.items"].replace("|", "/").splitlines()
-        )        
+        raw_items = []
+        try:
+            raw_items = order.params["shipping.items"]\
+                .replace("|", "/").splitlines()
+        except:
+            raw_items = [f"{op.product.name}/{op.quantity}/{op.price}" 
+                         for op in order.order_products]
+        items = order.shipping.get_shipping_items(raw_items)        
         boxes = [default_box]
         boxes[0].weight = order.total_weight + order.shipping_box_weight
         result = order.shipping.consign(

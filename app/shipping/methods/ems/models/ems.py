@@ -13,8 +13,8 @@ from app import cache
 from app.models import Country
 from app.models.address import Address
 import app.orders.models as o
-from app.shipping.models import Shipping
 from app.shipping.models.box import Box
+from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
 from app.tools import first_or_default, get_json, invoke_curl

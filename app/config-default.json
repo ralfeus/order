@@ -21,9 +21,10 @@
             "password": "1111"
         }, 
         "fedex": {
-            "client_id": "l71bf316d333c248f48bab559b69c3d1d6",
-            "client_secret": "ce06b1a6-ee8b-4026-acdc-695d2daf26b6",
-            "account": "203849041",
+            "base_url": "https://apis-sandbox.fedex.com",
+            "client_id": "l76719d5814cdf46e4a780617201a0bd8c",
+            "client_secret": "f0d7348ce5d9484a936a7aab6517de2a",
+            "account": "740561073",
             "service_type": "INTERNATIONAL_ECONOMY"
         }
     },

@@ -14,7 +14,7 @@ from app import db
 from app.models.base import BaseModel
 from app.orders.signals import order_product_model_preparing
 from app.products.models.product import Product
-from app.shipping.models import PostponeShipping
+from app.shipping.models.shipping import PostponeShipping
 
 from .order_status import OrderStatus
 

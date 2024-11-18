@@ -15,7 +15,7 @@ from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.modules.warehouse.models import OrderProductWarehouse, Warehouse, \
     WarehouseProduct
-from app.shipping.models import Shipping, ShippingRate
+from app.shipping.models.shipping import Shipping, ShippingRate
 
 class TestWarehouseApi(BaseTestCase):
     def setUp(self):

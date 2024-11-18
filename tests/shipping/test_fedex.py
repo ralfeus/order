@@ -1,4 +1,5 @@
 from tests import BaseTestCase, db
+from app.currencies.models.currency import Currency
 from app.models.address import Address
 from app.models.country import Country
 from app.shipping.methods.fedex.models.fedex import Fedex
@@ -24,47 +25,37 @@ class TestShippingFedex(BaseTestCase):
         self.try_add_entities([
             # self.user, self.admin, admin_role,
             Country(id='ua', name='Ukraine', sort_order=0),
-            Country(id='cz', name='Czech Republic', first_zip='10 000'),
-            Country(id='de', name='Germany', first_zip='1067')
+            Country(id='cz', name='Czech Republic', first_zip='100 00', capital="Prague"),
+            Country(id='de', name='Germany', capital='Berlin', first_zip='01067'),
+            Currency(code='USD', rate=1)
         ])
 
     def test_get_rate(self):
-        fedex = Fedex(test_mode=True)
-        res = fedex.get_shipping_cost('CZ')
-        self.assertEqual(res, 101)
-        res = fedex.get_shipping_cost('DE')
+        fedex = Fedex()
+        res = fedex.get_shipping_cost('cz')
+        self.assertEqual(res, 189)
+        res = fedex.get_shipping_cost('de')
         self.assertIsNotNone(res)
 
     def test_create_shipment(self):
-        fedex = Fedex(test_mode=True)
+        fedex = Fedex()
         sender = Address(name='Home', zip='01000', address_1_eng='Test', 
                          city_eng='Seoul', country_id='kr')
         sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
-        recipient = Address(name='Dest', zip='10000', address_1_eng='Test', 
+        recipient = Address(name='Dest', zip='100 00', address_1_eng='Test', 
                          city_eng='Prague', country_id='cz')
         recipient_contact = ShippingContact(name='Test recipient', phone='777 666 111')
         items = [
             ShippingItem('Item1', 1, 10, 10),
             ShippingItem('Item2', 2, 20, 20)
         ]
-        default_box.weight = 10
+        default_box.weight = 1500
         res = fedex.consign(sender, sender_contact, recipient, recipient_contact, 
                             items, [default_box])
         self.assertIsNotNone(res.tracking_id)
 
-    def test_create_shipment_no_city(self):
-        fedex = Fedex(test_mode=True)
-        sender = Address(name='Home', zip='01000', address_1_eng='Test', 
-                         country_id='kr')
-        sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
-        recipient = Address(name='Dest', zip='10000', address_1_eng='Test', 
-                        country_id='cz')
-        recipient_contact = ShippingContact(name='Test recipient', phone='777 666 111')
-        items = [
-            ShippingItem('Item1', 1, 10, 10),
-            ShippingItem('Item2', 2, 20, 20)
-        ]
-        default_box.weight = 10
-        res = fedex.consign(sender, sender_contact, recipient, recipient_contact, 
-                            items, [default_box])
-        self.assertIsNotNone(res.tracking_id)
+    def test_is_shippable(self):
+        fedex = Fedex()
+        germany = Country.query.get('de')
+        res = fedex.can_ship(germany, 1, [])
+        assert res

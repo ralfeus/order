@@ -2,6 +2,7 @@ from __future__ import annotations
 from functools import reduce
 import json
 import logging
+import math
 import re
 import time
 from typing import Any
@@ -9,19 +10,19 @@ from typing import Any
 from flask import current_app
 
 from app import cache
+from app.currencies.models.currency import Currency
 from app.models.address import Address
 from app.models.country import Country
 from app.orders.models.order import Order
-from app.shipping.models import Shipping
 from app.shipping.models.box import Box
+from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
 from app.tools import get_json, invoke_curl
-from exceptions import HTTPError, NoShippingRateError, OrderError, ShippingException
+from exceptions import HTTPError, NoShippingRateError, ShippingException
 
 from app.shipping.models.consign_result import ConsignResult
-from ..exceptions import FedexConfigurationException, FedexItemsException, \
-    FedexLoginException
+from ..exceptions import FedexConfigurationException, FedexLoginException
 
 class Fedex(Shipping):
     """Fedex shipping"""
@@ -35,13 +36,10 @@ class Fedex(Shipping):
     __zip = '08584'
     __src_country = 'KR'
 
-    def __init__(self, test_mode=False):
-        if test_mode:
-            self.__base_url = 'https://apis-sandbox.fedex.com'
-        else:
-            self.__base_url = 'https://apis.fedex.com'
+    def __init__(self):
         try:
             config = current_app.config['SHIPPING_AUTOMATION']['fedex']
+            self.__base_url = config['base_url']
             self.__client_id = config['client_id']
             self.__client_secret = config['client_secret']
             self.__account = config['account']
@@ -75,6 +73,86 @@ class Fedex(Shipping):
                         method=method, retry=retry, 
                         get_data=__invoke_curl, ignore_ssl_check=ignore_ssl_check)
     
+    def __get_service_availability(self, country_id: str) -> list[str]:
+        '''Returns list of services available for the given country
+        :param str country_id: ID of the country
+        :returns list[str]: list of available services'''
+        country = Country.query.get(country_id)
+        if country is None:
+            return []
+        payload = json.dumps({
+            "requestedShipment": {
+                "pickupType": "USE_SCHEDULED_PICKUP",
+                "packagingType": "YOUR_PACKAGING",
+                "shipper": {
+                    "address": {
+                        "streetLines": [
+                            "SENDER ADDRESS LINE 1"
+                        ],
+                        "city": "Seoul",
+                        "postalCode": "01000",
+                        "countryCode": "KR"
+                    }
+                },
+                "recipients": [
+                    {
+                        "address": {
+                            "streetLines": [
+                            ],
+                            "city": country.capital,
+                            "postalCode": country.first_zip,
+                            "countryCode": country_id.upper()
+                        }
+                    }
+                ],
+                "customsClearanceDetail": {
+                    "dutiesPayment": {
+                        "paymentType": "SENDER"
+                    },
+                    "totalCustomsValue": {
+                        "amount": "10",
+                        "currency": "EUR"
+                    },
+                    "commodities": [
+                        {
+                            "description": "COMMODITY DESCRIPTION 1",
+                            "countryOfManufacture": "KR",
+                            "weight": {
+                                "units": "KG",
+                                "value": "1"
+                            },
+                            "quantity": 1,
+                            "quantityUnits": "PCS",
+                            "numberOfPieces": 1,
+                            "unitPrice": {
+                                "amount": "10",
+                                "currency": "EUR"
+                            },
+                            "customsValue": {
+                                "amount": "10",
+                                "currency": "EUR"
+                            }
+                        }
+                    ]
+                },
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "KG",
+                            "value": "1"
+                        }
+                    }
+                ]
+            },
+            "carrierCodes": ["FDXE"]
+        })
+        result = self.__get_json(url=f"{self.__base_url}/availability/v1/transittimes",
+                                 raw_data=payload)
+        if result.get('output') is None:
+            return []
+        return [s['serviceType'] 
+                for s in result['output']['transitTimes'][0]['transitTimeDetails']]
+
     def __login(self, force=False) -> dict[str, str]:
         logger = logging.getLogger("FedEx::__login()")
         if cache.get("fedex_login_in_progress"):
@@ -125,12 +203,12 @@ class Fedex(Shipping):
         if country is None:
             return True
 
-        try:
-            self.get_shipping_cost(country.id, 1)
-            logger.debug(f"There is a rate to country {country}. Can ship")
+        services = self.__get_service_availability(country.id)
+        if self.__service_type in services:
+            logger.debug(f"Can ship to country {country}. ")
             return True
-        except NoShippingRateError:
-            logger.debug(f"There is no rate to country {country}. Can't ship")
+        else:
+            logger.debug(f"Can't ship to country {country}.")
             return False
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
@@ -140,11 +218,10 @@ class Fedex(Shipping):
         logger = logging.getLogger("FedEx::consign()")
         try:
             if sender is None or recipient is None or items is None:
-                return
-            sender = self.__validate_address(sender)
-            recipient = self.__validate_address(recipient)
+                raise ShippingException("No sender or recipient or shipping items defined")
             payload = self.__prepare_shipment_request_payload(
                     sender, sender_contact, recipient, rcpt_contact, items, boxes)
+            logger.debug(payload)
             result = self.__get_json(
                 url=f"{self.__base_url}/ship/v1/shipments",
                 raw_data=json.dumps(payload)
@@ -152,27 +229,23 @@ class Fedex(Shipping):
             if result.get('output') is None:
                 raise ShippingException(result.get('alerts') or result.get('errors'))
             logger.info("The new consignment ID is: %s", result)
-            shipmentObject = result['output']['transactionShipments'][0]
+            shipment_object = result['output']['transactionShipments'][0]
             return ConsignResult(
-                tracking_id=shipmentObject['masterTrackingNumber'], 
+                tracking_id=shipment_object['masterTrackingNumber'], 
                 next_step_message="Print label",
-                next_step_url=shipmentObject['pieceResponses'][0]['packageDocuments'][0]['url']
+                next_step_url=shipment_object['pieceResponses'][0]['packageDocuments'][0]['url']
             )
         except FedexLoginException:
             logger.warning("Can't log in to Fedex")
             raise
-        except FedexItemsException as e:
-            logger.warning(str(e))
-            raise OrderError("Couldn't get FedEx items description from the order")
         
     def is_consignable(self):
         return super().is_consignable()
         #TODO: add Fedex API availability (Rate API and Ship API)
 
-    def __prepare_shipment_request_payload(self, sender, sender_contact, 
-                                           recipient, rcpt_contact, 
-                                           items: list[ShippingItem], boxes: list[Box]
-                                           ) -> dict[str, Any]:
+    def __prepare_shipment_request_payload(
+        self, sender, sender_contact, recipient, rcpt_contact, 
+        items: list[ShippingItem], boxes: list[Box]) -> dict[str, Any]:
         total_value = self.__get_shipment_value(items)
         return {
             "labelResponseOptions": "URL_ONLY",
@@ -181,9 +254,10 @@ class Fedex(Shipping):
                 "pickupType": "USE_SCHEDULED_PICKUP",
                 'serviceType': self.__service_type,
                 "packagingType": "YOUR_PACKAGING",
-                "labelSpecification": {
-                    "imageType": "PDF",
-                    "labelStockType": "PAPER_4X6"
+                "labelSpecification": { 
+                    "labelFormatType": "COMMON2D", 
+                    "labelStockType": "PAPER_85X11_TOP_HALF_LABEL", 
+                    "imageType": "PDF"
                 },
                 "shipper": {
                     "address": {
@@ -243,7 +317,7 @@ class Fedex(Shipping):
                     {
                         "weight": {
                             "units": "KG",
-                            'value': box.weight
+                            'value': box.weight / 1000
                         },
                         "dimensions": {
                             "length": box.length,
@@ -256,15 +330,16 @@ class Fedex(Shipping):
                 ]
             }
         } 
-    
-    def __get_city_by_address(self, address: Address):
-        result = self.__get_json(url=f"{self.__base_url}/caddress/v1/addresses/resolve", 
+        
+    def __validate_address(self, address: Address):
+        result = self.__get_json(url=f"{self.__base_url}/address/v1/addresses/resolve", 
             raw_data=json.dumps({
                 "addressesToValidate": [{
                     "address": {
                         "streetLines": [
                             address.address_1_eng, address.address_2_eng
                         ],
+                        "city": address.city_eng,
                         "postalCode": address.zip,
                         "countryCode": address.country_id
                     }
@@ -272,11 +347,12 @@ class Fedex(Shipping):
             }))
         if result.get('output') is None:
             raise ShippingException(f"Can't resolve the address: {address}")
-        return result['output']['resolvedAddresses'][0]['city']
-    
-    def __validate_address(self, address: Address):
-        if address.city_eng is None:
-            address.city_eng = self.__get_city_by_address(address)
+        resolved_address = result['output']['resolvedAddresses'][0]
+        address.address_1_eng = resolved_address['streetLinesToken'][0]
+        address.address_2_eng = resolved_address['streetLinesToken'][1] \
+            if len(resolved_address['streetLinesToken']) > 1 else ""
+        address.city_eng = resolved_address['city']
+        address.zip = resolved_address['postalCode']
         return address
     
     def print(self, order: Order) -> dict[str, Any]:
@@ -345,11 +421,13 @@ class Fedex(Shipping):
             )]
         return result
 
-    def get_shipping_cost(self, country, weight=1):
+    def get_shipping_cost(self, country_id, weight=250):
         logger = logging.getLogger("FedEx::get_shipping_cost()")
         try:
-            result = self.__get_json(url=f'{self.__base_url}/rate/v1/rates/quotes', 
-                raw_data=json.dumps({
+            country: Country = Country.query.get(country_id)
+            if country is None:
+                raise NoShippingRateError()
+            payload = {
                     'accountNumber': {
                         'value': self.__account
                     },
@@ -363,8 +441,9 @@ class Fedex(Shipping):
                         }, 
                         'recipient': {
                             'address': {
-                                'postalCode': self.__get_zip(country),
-                                'countryCode': country,
+                                'postalCode': country.first_zip,
+                                'city': country.capital,
+                                'countryCode': country.id.upper(),
                             }
                         },
                         # 'serviceType': self.__service_type,
@@ -378,7 +457,9 @@ class Fedex(Shipping):
                             }
                         ]
                     }
-                }),
+                }
+            result = self.__get_json(url=f'{self.__base_url}/rate/v1/rates/quotes', 
+                raw_data=json.dumps(payload),
                 retry=False, ignore_ssl_check=True)
             if result.get('output') is None:
                 raise NoShippingRateError(result.get('errors'))
@@ -388,21 +469,26 @@ class Fedex(Shipping):
                 if r['serviceType'] == self.__service_type]
             if len(rate_objects) == 0:
                 raise NoShippingRateError(f"There are rates but no {self.__service_type}")
-            rate = rate_objects[0][0]
-            return int(rate.get('totalNetChargeWithDutiesAndTaxes')
-                             or rate.get('totalNetFedExCharge')) #type: ignore
+            rate_dict = rate_objects[0][0]
+            rate = float(rate_dict.get('totalNetChargeWithDutiesAndTaxes')
+                             or rate_dict.get('totalNetFedExCharge'))
+            currency = Currency.query.get(rate_dict['currency'])
+            if currency is None:
+                raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
+            rate = int(round(rate / float(currency.rate)))
+            logger.debug(
+                "Shipping rate for %skg parcel to %s is %s",
+                weight / 1000,
+                country_id,
+                rate,
+            )
+            return rate
         except NoShippingRateError as e:
-            logger.warning("There is no rate to %s of %sg package", country, weight)
+            logger.warning("There is no rate to %s of %sg package", country_id, weight)
             logger.warning(e)
             raise e
         except Exception as e:
             logger.error("During getting rate to %s of %sg package the error has occurred",
-                         country, weight)
+                         country_id, weight)
             logger.exception(e)
             raise NoShippingRateError
-
-    def __get_zip(self, country_id: str) -> str:
-        country = Country.query.get(country_id.lower())
-        if country is None:
-            raise ShippingException(f"<{country_id}> is not a valid country")
-        return country.first_zip    

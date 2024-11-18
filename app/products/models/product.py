@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from app import db
 from app.models.base import BaseModel
 from app.models.file import File
-from app.shipping.models import Shipping
+from app.shipping.models.shipping import Shipping
 
 _products_shipping = db.Table('products_shipping',
     Column('product_id', String(16), ForeignKey('products.id')),
