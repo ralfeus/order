@@ -60,8 +60,8 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
         nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
-    product_id: str = Column(String(16), ForeignKey('products.id'))
-    product: Product = relationship('Product')
+    product_id = Column(String(16), ForeignKey('products.id'))
+    product: relationship[Product] = relationship('Product')
     price = Column(Integer)
     quantity = Column(Integer)
     private_comment = Column(String(256))

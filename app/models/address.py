@@ -6,20 +6,20 @@ from app import db
 from app.models.base import BaseModel
 from app.models.country import Country
 
-class Address(db.Model, BaseModel):
+class Address(db.Model, BaseModel):  # type: ignore
     __tablename__ = 'addresses'
     
-    name = Column(String(32))
-    zip = Column(String(5))
-    address_1 = Column(String(64))
-    address_2 = Column(String(64))
-    address_1_eng = Column(String(65))
-    address_2_eng = Column(String(65))
-    city_eng = Column(String(65))
-    country_id = Column(String(2), ForeignKey('countries.id'))
-    country = relationship(Country, foreign_keys=[country_id])
-    delivery_comment = Column(Text)
-    user_created = Column(Boolean, default=False)
+    name: str = Column(String(32)) # type: ignore
+    zip: str = Column(String(5)) # type: ignore
+    address_1: str = Column(String(64)) # type: ignore
+    address_2: str = Column(String(64)) # type: ignore
+    address_1_eng: str = Column(String(65)) # type: ignore
+    address_2_eng: str = Column(String(65)) # type: ignore
+    city_eng: str = Column(String(65)) # type: ignore
+    country_id: str = Column(String(2), ForeignKey('countries.id')) # type: ignore
+    country: Country = relationship(Country, foreign_keys=[country_id]) # type: ignore
+    delivery_comment: str = Column(Text) # type: ignore
+    user_created: bool = Column(Boolean, default=False) # type: ignore
 
     def __repr__(self):
         return f"<Address {self.id}: {self.name}>"

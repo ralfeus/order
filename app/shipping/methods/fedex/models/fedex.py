@@ -3,11 +3,12 @@ from functools import reduce
 import json
 import logging
 import math
+import os
 import re
 import time
 from typing import Any
 
-from flask import current_app
+from flask import current_app, url_for
 
 from app import cache
 from app.currencies.models.currency import Currency
@@ -190,7 +191,8 @@ class Fedex(Shipping):
         return {"Authorization": f"Bearer {cache.get('fedex_auth')}"}
 
     def _get_print_label_url(self):
-        return ''
+        from .. import bp_client_admin
+        return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("FedEx::can_ship()")
@@ -230,6 +232,8 @@ class Fedex(Shipping):
                 raise ShippingException(result.get('alerts') or result.get('errors'))
             logger.info("The new consignment ID is: %s", result)
             shipment_object = result['output']['transactionShipments'][0]
+            self.__save_label(shipment_object['masterTrackingNumber'],
+                shipment_object['pieceResponses'][0]['packageDocuments'][0]['url'])
             return ConsignResult(
                 tracking_id=shipment_object['masterTrackingNumber'], 
                 next_step_message="Print label",
@@ -331,6 +335,16 @@ class Fedex(Shipping):
             }
         } 
         
+    def __save_label(self, tracking_id, url):
+        stdout, _ = invoke_curl(url=url)
+        fedex_upload_dir = os.path.join(
+            os.getcwd(), 
+            current_app.config['UPLOAD_PATH'], 
+            'fedex')
+        os.makedirs(fedex_upload_dir, exist_ok=True)
+        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'x') as f:
+            f.write(stdout)
+
     def __validate_address(self, address: Address):
         result = self.__get_json(url=f"{self.__base_url}/address/v1/addresses/resolve", 
             raw_data=json.dumps({
@@ -356,7 +370,7 @@ class Fedex(Shipping):
         return address
     
     def print(self, order: Order) -> dict[str, Any]:
-        '''Prints shipping label to be applied too the parcel
+        '''Prints shipping label to be applied to the parcel
         :param Order order: order, for which label is to be printed
         :param dic[str, Any] config: configuration to be used for 
         shipping provider
@@ -378,19 +392,7 @@ class Fedex(Shipping):
         except Exception as e:
             logger.warning(f"Couldn't print label for order {order.id}")
             raise e
-        
-    def __print_label(self, consignment: str):
-        '''Submits request to print label. This makes the consignment obligatory 
-        to be picked up and paid for
-        :param consignment str: an internal code of a consignment to be printed'''
-        #TODO: complete
-        logger = logging.getLogger("FedEx::__get_print_label()")
-        output, _ = self.__invoke_curl(
-            f'https://myems.co.kr/b2b/order_print.php?type=declaration&codes={consignment}')
-        # logger.debug(output)
-        # logger.debug(_)
 
-    
     def __get_shipment_value(self, items: list[ShippingItem]):
         value = reduce(lambda acc, i: acc + i.quantity * i.price, items, 0.0)
         return {
@@ -492,3 +494,13 @@ class Fedex(Shipping):
                          country_id, weight)
             logger.exception(e)
             raise NoShippingRateError
+
+def get_label(tracking_id: str) -> str:
+    label_file_path = os.path.join(
+                        os.getcwd(), 
+                        current_app.config['UPLOAD_PATH'], 
+                        f'fedex/label-{tracking_id}.pdf')
+    if os.path.exists(label_file_path):
+        return label_file_path
+    else:
+        raise FileNotFoundError(tracking_id)

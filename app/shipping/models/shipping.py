@@ -8,9 +8,9 @@ from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from flask import current_app
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
-from sqlalchemy.orm import relationship, reconstructor #type: ignore
-from sqlalchemy.sql.schema import ForeignKey #type: ignore
+from sqlalchemy import Boolean, Column, Integer, String, Text, or_ 
+from sqlalchemy.orm import relationship, reconstructor 
+from sqlalchemy.sql.schema import ForeignKey 
 
 from app import db
 from app.models.address import Address
@@ -33,13 +33,13 @@ box_weights = {
     2000: 250
 }
 
-class Shipping(db.Model, BaseModel): #type: ignore
+class Shipping(db.Model, BaseModel):  # type: ignore
     '''
     Shipping method model
     '''
     __tablename__ = 'shipping'
 
-    name = Column(String(32))
+    name: str = Column(String(32)) # type: ignore
     type = ''
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))

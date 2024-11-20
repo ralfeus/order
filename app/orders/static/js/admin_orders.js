@@ -1,9 +1,9 @@
-var g_filter_sources;
-var g_countries;
-var g_order_statuses;
-var g_orders_table;
-var g_payment_methods;
-var g_shipping_methods;
+let g_filter_sources;
+let g_countries;
+let g_order_statuses;
+let g_orders_table;
+let g_payment_methods;
+let g_shipping_methods;
 // var g_boxes;
 
 $(document).ready(function () {
@@ -11,8 +11,8 @@ $(document).ready(function () {
     get_dictionaries()
         .then(init_orders_table);
     $('#orders tbody').on('click', 'td.details-control', function () {
-        var tr = $(this).closest('tr');
-        var row = g_orders_table.row(tr);
+        const tr = $(this).closest('tr');
+        const row = g_orders_table.row(tr);
 
         if (row.child.isShown()) {
             // This row is already open - close it
@@ -121,14 +121,14 @@ async function get_dictionaries() {
 }
 
 async function print_label(target) {
-    var order = target.row(target).data();
-    var shipping = g_shipping_methods.find(sm => sm.id === order.shipping.id);
+    const order = target.row(target).data();
+    const shipping = g_shipping_methods.find(sm => sm.id === order.shipping.id);
     window.open(`${shipping.links.print_label}?order_id=${order.id}`);
 }
 
 function save_order(target, row) {
-    var order_node = $(target).closest('.order-details');
-    var new_status = $('#status', order_node).val();
+    const order_node = $(target).closest('.order-details');
+    const new_status = $('#status', order_node).val();
     if (row.data().status != new_status) {
         modal(
             "Order status change",
@@ -145,7 +145,7 @@ function save_order(target, row) {
 }
 
 function save_order_action(order_node, row) {
-    var update = {
+    const update = {
         id: row.data().id,
         status: $('#status', order_node).val(),
         tracking_id: $('#tracking-id', order_node).val(),
@@ -176,7 +176,7 @@ function save_order_action(order_node, row) {
  * @param {object} data - data object for the row
  */
 async function format(row, data) {
-    var order_details = $('.order-details')
+    const order_details = $('.order-details')
         .clone()
         .show();
     row.child(order_details).show();
@@ -246,7 +246,7 @@ async function format(row, data) {
 
 function create_invoice(rows) {
     $('.wait').show();
-    var orders = rows.data().map(row => row.id).toArray();
+    const orders = rows.data().map(row => row.id).toArray();
     $.ajax({
         url: '/api/v1/admin/invoice/new/' + $('#usd-rate').first().text(),
         method: 'post',
@@ -269,18 +269,18 @@ function create_invoice(rows) {
 }
 
 function edit_shipment(sender) {
-    var editor = new $.fn.dataTable.Editor({
+    const editor = new $.fn.dataTable.Editor({
         ajax: {
             edit: {
                 url: '/api/v1/admin/order/_id_',
                 contentType: 'application/json',
                 data: data => {
-                    var obj = Object.entries(data.data)[0][1];
+                    const obj = Object.entries(data.data)[0][1];
                     return JSON.stringify({
                         total_weight: obj.total_weight,
                         boxes: Object.entries(obj.boxes.split('\n'))
                             .map(e => {
-                                var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
+                                const match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(e);
                                 return {
                                     quantity: match[1],
                                     weight: match[2],
@@ -323,10 +323,10 @@ function edit_shipment(sender) {
             }
         ]
     });
-    var order_row = g_orders_table.row($(sender).closest('tr'));
+    const order_row = g_orders_table.row($(sender).closest('tr'));
     editor.on('preSubmit', function (e, data, action) {
-        for (var entry of Object.entries(data.data)[0][1].boxes.split('\n')) {
-            var match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(entry);
+        for (let entry of Object.entries(data.data)[0][1].boxes.split('\n')) {
+            const match = /(\d+):(\d+):(\d+)x(\d+)x(\d+)/.exec(entry);
             if (match === null) {
                 this.error(`Box information '${entry}' doesn't match format Qty:Wght:LxWxH`);
                 return false;
@@ -527,7 +527,7 @@ function init_orders_table() {
             }
         },
         initComplete: function () {
-            var table = this;
+            const table = this;
             this.api().buttons().container().appendTo('#orders_wrapper .col-sm-12:eq(0)');
             init_search(table, g_filter_sources)
                 .then(() => init_table_filter(table));
@@ -548,14 +548,14 @@ function open_order(target) {
 }
 
 function open_order_customs_label(target) {
-    for (var i = 0; i < target.count(); i++) {
+    for (let i = 0; i < target.count(); i++) {
         window.open(target.data()[i].id + '/customs_label');
     }
 }
 
 function open_order_invoice(target) {
-    var error = '';
-    for (var i = 0; i < target.count(); i++) {
+    let error = '';
+    for (let i = 0; i < target.count(); i++) {
         if (target.data()[i].status == 'shipped') {
             window.open('/orders/' + target.data()[i].id + '/excel');
         } else {
@@ -578,8 +578,8 @@ function set_status(target, new_status) {
             .then(result => {
                 if (result == 'yes') {
                     $('.wait').show();
-                    var orders_left = target.count();
-                    for (var i = 0; i < target.count(); i++) {
+                    let orders_left = target.count();
+                    for (let i = 0; i < target.count(); i++) {
                         $.post({
                             url: '/api/v1/admin/order/' + target.data()[i].id,
                             dataType: 'json',

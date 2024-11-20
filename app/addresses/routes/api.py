@@ -37,6 +37,7 @@ def save_address(address_id):
     address = None
     if address_id is None:
         address = Address(
+            country_id='kr', # we assume all addresses are in Korea
             user_created=True,
             when_created=datetime.now())
         db.session.add(address)
