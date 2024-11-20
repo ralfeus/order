@@ -20,7 +20,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
-from app.shipping.models import Shipping, PostponeShipping
+from app.shipping.models.shipping import Shipping, PostponeShipping
 from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
 
 from ..models.order import Order

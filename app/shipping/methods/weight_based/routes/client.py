@@ -2,7 +2,7 @@
 from flask import render_template
 from flask_security import roles_required
 
-from app.shipping.models import Shipping
+from app.shipping.models.shipping import Shipping
 
 from .. import bp_client_admin
 

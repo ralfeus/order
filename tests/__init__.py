@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 from unittest import TestCase
 # import unittest
 #unittest.TestCase.run = lambda self,*args,**kw: unittest.TestCase.debug(self)
@@ -6,13 +7,14 @@ from app import db, create_app
 
 from app.orders.models.subcustomer import Subcustomer
 from app.orders.models.suborder import Suborder
+from app.users.models.user import User
 
 app = create_app("../tests/config-test.json")
 app.app_context().push()
 
 class BaseTestCase(TestCase):
-    user = None
-    admin = None
+    user:Optional[User] = None
+    admin:Optional[User] = None
 
     @classmethod
     def setUpClass(cls):
@@ -31,8 +33,8 @@ class BaseTestCase(TestCase):
         db.drop_all()
 
     def try_admin_operation(self, operation, 
-                            user_name=None, user_password='1',
-                            admin_name=None, admin_password='1', admin_only=False):
+                            user_name:Optional[str]=None, user_password='1',
+                            admin_name:Optional[str]=None, admin_password='1', admin_only=False):
         '''
         Attempt an admin operation
         @param operation: function - a function to execute

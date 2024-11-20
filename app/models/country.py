@@ -13,6 +13,7 @@ class Country(db.Model): # type: ignore
 
     id = Column(String(2), primary_key=True)
     name = Column(String(64))
+    capital: str = Column(String(64))
     first_zip = Column(String(9))
     sort_order = Column(Integer, default=999)
     
@@ -20,5 +21,7 @@ class Country(db.Model): # type: ignore
         return {
             'id': self.id,
             'name': self.name,
+            'capital': self.capital,
+            'first_zip': self.first_zip,
             'sort_order': self.sort_order
         }

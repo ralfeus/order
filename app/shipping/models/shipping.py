@@ -8,18 +8,20 @@ from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from flask import current_app
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, or_ #type: ignore
-from sqlalchemy.orm import relationship, reconstructor #type: ignore
-from sqlalchemy.sql.schema import ForeignKey #type: ignore
+from sqlalchemy import Boolean, Column, Integer, String, Text, or_ 
+from sqlalchemy.orm import relationship, reconstructor 
+from sqlalchemy.sql.schema import ForeignKey 
 
 from app import db
 from app.models.address import Address
 from app.models.country import Country
 from app.models.base import BaseModel
-import app.orders.models as o
 from exceptions import NoShippingRateError
 
+from .box import Box
 from .consign_result import ConsignResult
+from .shipping_contact import ShippingContact
+from .shipping_item import ShippingItem
 from .shipping_rate import ShippingRate
 
 box_weights = {
@@ -31,13 +33,13 @@ box_weights = {
     2000: 250
 }
 
-class Shipping(db.Model, BaseModel): #type: ignore
+class Shipping(db.Model, BaseModel):  # type: ignore
     '''
     Shipping method model
     '''
     __tablename__ = 'shipping'
 
-    name = Column(String(32))
+    name: str = Column(String(32)) # type: ignore
     type = ''
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
@@ -83,20 +85,27 @@ class Shipping(db.Model, BaseModel): #type: ignore
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
             return False
         
-    def consign(self, order: 'o.Order', config:dict[str, Any]={},
-                sender: Optional[Address]=None, sender_contact: Optional[dict]=None,
-                recipient: Optional[Address]=None, rcpt_contact: Optional[dict]=None,
-                items: Optional[list]=None
+    def consign(self, sender: Address, sender_contact: ShippingContact, 
+                recipient: Address, rcpt_contact: ShippingContact,
+                items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]
                 ) -> ConsignResult:
         '''Creates consignment at shipping provider.
         :param Address sender: sender's address
+        :param ShippingContact sender_contact: contact information of the sender
         :param Address recipient: recipient's address
-        :param list items: items to be shipped
-        :param Order order: order, for which consignment is to be created
-        :param dic[str, Any] config: configuration to be used for shipping provider
+        :param ShippingContact rcpt_contact: contact information of the recipient
+        :param list[ShippingItem] items: items to be shipped
+        :param list[Box] boxes: boxes to be shipped
+        :param dict[str, Any] config: configuration to be used for shipping provider
         :raises: :class:`NotImplementedError`: In case the consignment functionality
         is not implemented by a shipping provider
         :returns str: consignment ID'''
+        raise NotImplementedError()
+    
+    def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
+        '''Build shipping items list out of explicitly provided manifest
+        :param list[str] items: list of items in "/" separated strings
+        :returns list[ShippingItem]: list of ShippingItem objects'''
         raise NotImplementedError()
     
     def get_edit_url(self) -> str:

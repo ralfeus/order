@@ -4,9 +4,9 @@ from tests import BaseTestCase, db
 from app.models import Country
 from app.orders.models.order import Order
 from app.orders.models.order_status import OrderStatus
-import app.shipping.models as s
-from app.users.models import Role, User
 from app.shipping.methods.ems.models import EMS
+from app.shipping.models.shipping import Shipping
+from app.users.models import Role, User
 
 class TestShippingEMS(BaseTestCase):
     def setUp(self):
@@ -41,7 +41,7 @@ class TestShippingEMS(BaseTestCase):
         self.try_add_entity(EMS())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
-        order.shipping = s.Shipping.query.get(1)
+        order.shipping = Shipping.query.get(1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))
@@ -52,10 +52,10 @@ class TestShippingEMS(BaseTestCase):
     @patch('app.shipping.methods.ems.models.ems:EMS.print')
     def test_print_label_non_ems(self, po_mock):
         po_mock.return_value = {}
-        self.try_add_entity(s.Shipping())
+        self.try_add_entity(Shipping())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
-        order.shipping = s.Shipping.query.get(1)
+        order.shipping = Shipping.query.get(1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))

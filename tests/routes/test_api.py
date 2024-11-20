@@ -2,7 +2,8 @@ from tests import BaseTestCase, db
 
 from app.models import Country
 from app.currencies.models import Currency
-from app.shipping.models import DHL, Shipping, ShippingRate
+from app.shipping.models.shipping import Shipping, ShippingRate
+from app.shipping.methods.dhl.models.dhl import DHL
 from app.users.models.user import User
 
 class TestClientApi(BaseTestCase):
@@ -14,10 +15,10 @@ class TestClientApi(BaseTestCase):
             enabled=True)
         try:
             entities = [ self.user,
-                Country(id='c1', name='country1'),
+                Country(id='c1', name='country1', capital='c1', first_zip='0'),
                 Currency(code='USD', name='US Dollar', rate=1),
                 Currency(code='EUR', name='Euro', rate=1),
-                Country(id='c2', name='country2'),
+                Country(id='c2', name='country2', capital='c2', first_zip='1'),
                 Shipping(id=1, name='Shipping1'),
                 Shipping(id=2, name='Shipping2'),
                 Shipping(id=3, name='Shipping3'),
@@ -42,8 +43,8 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/country'))
         self.assertEqual(res.json, [
-            {'id': 'c1', 'name': 'country1', 'sort_order': 999},
-            {'id': 'c2', 'name': 'country2', 'sort_order': 999}
+            {'id': 'c1', 'name': 'country1', 'sort_order': 999, 'capital': 'c1', 'first_zip': '0'},
+            {'id': 'c2', 'name': 'country2', 'sort_order': 999, 'capital': 'c2', 'first_zip': '1'}
         ])
 
     def test_get_shipping(self):

@@ -2,26 +2,28 @@ from __future__ import annotations
 from functools import reduce
 import json
 import logging
-from operator import itemgetter
+import math
+import os
 import re
 import time
 from typing import Any
 
-from flask import current_app
+from flask import current_app, url_for
 
 from app import cache
+from app.currencies.models.currency import Currency
 from app.models.address import Address
 from app.models.country import Country
 from app.orders.models.order import Order
-from app.shipping.models import Shipping
 from app.shipping.models.box import Box
+from app.shipping.models.shipping import Shipping
+from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
-from app.tools import first_or_default, get_json, invoke_curl
-from exceptions import HTTPError, NoShippingRateError, OrderError, ShippingException
+from app.tools import get_json, invoke_curl
+from exceptions import HTTPError, NoShippingRateError, ShippingException
 
 from app.shipping.models.consign_result import ConsignResult
-from ..exceptions import FedexConfigurationException, FedexItemsException, \
-    FedexLoginException
+from ..exceptions import FedexConfigurationException, FedexLoginException
 
 class Fedex(Shipping):
     """Fedex shipping"""
@@ -35,13 +37,10 @@ class Fedex(Shipping):
     __zip = '08584'
     __src_country = 'KR'
 
-    def __init__(self, test_mode=False):
-        if test_mode:
-            self.__base_url = 'https://apis-sandbox.fedex.com'
-        else:
-            self.__base_url = 'https://apis.fedex.com'
+    def __init__(self):
         try:
             config = current_app.config['SHIPPING_AUTOMATION']['fedex']
+            self.__base_url = config['base_url']
             self.__client_id = config['client_id']
             self.__client_secret = config['client_secret']
             self.__account = config['account']
@@ -68,9 +67,93 @@ class Fedex(Shipping):
                     return stdout, stderr
             raise HTTPError(401)
         
-        return get_json(url, raw_data, headers, method, retry, 
+        return get_json(url, raw_data, 
+                        headers=headers + [
+                            {'Content-Type': "application/json"},
+                            {'X-locale': "en_US"}], 
+                        method=method, retry=retry, 
                         get_data=__invoke_curl, ignore_ssl_check=ignore_ssl_check)
     
+    def __get_service_availability(self, country_id: str) -> list[str]:
+        '''Returns list of services available for the given country
+        :param str country_id: ID of the country
+        :returns list[str]: list of available services'''
+        country = Country.query.get(country_id)
+        if country is None:
+            return []
+        payload = json.dumps({
+            "requestedShipment": {
+                "pickupType": "USE_SCHEDULED_PICKUP",
+                "packagingType": "YOUR_PACKAGING",
+                "shipper": {
+                    "address": {
+                        "streetLines": [
+                            "SENDER ADDRESS LINE 1"
+                        ],
+                        "city": "Seoul",
+                        "postalCode": "01000",
+                        "countryCode": "KR"
+                    }
+                },
+                "recipients": [
+                    {
+                        "address": {
+                            "streetLines": [
+                            ],
+                            "city": country.capital,
+                            "postalCode": country.first_zip,
+                            "countryCode": country_id.upper()
+                        }
+                    }
+                ],
+                "customsClearanceDetail": {
+                    "dutiesPayment": {
+                        "paymentType": "SENDER"
+                    },
+                    "totalCustomsValue": {
+                        "amount": "10",
+                        "currency": "EUR"
+                    },
+                    "commodities": [
+                        {
+                            "description": "COMMODITY DESCRIPTION 1",
+                            "countryOfManufacture": "KR",
+                            "weight": {
+                                "units": "KG",
+                                "value": "1"
+                            },
+                            "quantity": 1,
+                            "quantityUnits": "PCS",
+                            "numberOfPieces": 1,
+                            "unitPrice": {
+                                "amount": "10",
+                                "currency": "EUR"
+                            },
+                            "customsValue": {
+                                "amount": "10",
+                                "currency": "EUR"
+                            }
+                        }
+                    ]
+                },
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "KG",
+                            "value": "1"
+                        }
+                    }
+                ]
+            },
+            "carrierCodes": ["FDXE"]
+        })
+        result = self.__get_json(url=f"{self.__base_url}/availability/v1/transittimes",
+                                 raw_data=payload)
+        if result.get('output') is None:
+            return []
+        return [s['serviceType'] 
+                for s in result['output']['transitTimes'][0]['transitTimeDetails']]
+
     def __login(self, force=False) -> dict[str, str]:
         logger = logging.getLogger("FedEx::__login()")
         if cache.get("fedex_login_in_progress"):
@@ -108,7 +191,8 @@ class Fedex(Shipping):
         return {"Authorization": f"Bearer {cache.get('fedex_auth')}"}
 
     def _get_print_label_url(self):
-        return ''
+        from .. import bp_client_admin
+        return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("FedEx::can_ship()")
@@ -121,69 +205,75 @@ class Fedex(Shipping):
         if country is None:
             return True
 
-        try:
-            self.get_shipping_cost(country.id, 1)
-            logger.debug(f"There is a rate to country {country}. Can ship")
+        services = self.__get_service_availability(country.id)
+        if self.__service_type in services:
+            logger.debug(f"Can ship to country {country}. ")
             return True
-        except NoShippingRateError:
-            logger.debug(f"There is no rate to country {country}. Can't ship")
+        else:
+            logger.debug(f"Can't ship to country {country}.")
             return False
 
-    def consign(self, sender: Address, sender_contact: dict[str, str], 
-                recipient: Address, rcpt_contact: dict[str, str],
-                items: list[ShippingItem], boxes: list[Box]):
+    def consign(self, sender: Address, sender_contact: ShippingContact, 
+                recipient: Address, rcpt_contact: ShippingContact,
+                items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]={}
+                ) -> ConsignResult:
         logger = logging.getLogger("FedEx::consign()")
         try:
             if sender is None or recipient is None or items is None:
-                return
+                raise ShippingException("No sender or recipient or shipping items defined")
             payload = self.__prepare_shipment_request_payload(
                     sender, sender_contact, recipient, rcpt_contact, items, boxes)
+            logger.debug(payload)
             result = self.__get_json(
                 url=f"{self.__base_url}/ship/v1/shipments",
-                headers=[
-                    {'Content-Type': "application/json"},
-                    {'X-locale': "en_US"}
-                ],
                 raw_data=json.dumps(payload)
             )
             if result.get('output') is None:
                 raise ShippingException(result.get('alerts') or result.get('errors'))
             logger.info("The new consignment ID is: %s", result)
+            shipment_object = result['output']['transactionShipments'][0]
+            self.__save_label(shipment_object['masterTrackingNumber'],
+                shipment_object['pieceResponses'][0]['packageDocuments'][0]['url'])
             return ConsignResult(
-                consignment_id=result['output']['jobId'], 
+                tracking_id=shipment_object['masterTrackingNumber'], 
                 next_step_message="Print label",
-                next_step_url=f"{self._get_print_label_url()}?job_id={result['output']['jobId']}"
+                next_step_url=shipment_object['pieceResponses'][0]['packageDocuments'][0]['url']
             )
         except FedexLoginException:
             logger.warning("Can't log in to Fedex")
             raise
-        except FedexItemsException as e:
-            logger.warning(str(e))
-            raise OrderError("Couldn't get FedEx items description from the order")
         
     def is_consignable(self):
         return super().is_consignable()
         #TODO: add Fedex API availability (Rate API and Ship API)
 
-    def __prepare_shipment_request_payload(self, sender, sender_contact, 
-                                           recipient, rcpt_contact, 
-                                           items: list[ShippingItem], boxes: list[Box]
-                                           ) -> dict[str, Any]:
+    def __prepare_shipment_request_payload(
+        self, sender, sender_contact, recipient, rcpt_contact, 
+        items: list[ShippingItem], boxes: list[Box]) -> dict[str, Any]:
         total_value = self.__get_shipment_value(items)
         return {
-            'requestedShipment': {
-                'totalDeclaredValue': total_value,
-                'shipper': {
-                    'address': {
+            "labelResponseOptions": "URL_ONLY",
+            'accountNumber': { 'value': self.__account },
+            "requestedShipment": {
+                "pickupType": "USE_SCHEDULED_PICKUP",
+                'serviceType': self.__service_type,
+                "packagingType": "YOUR_PACKAGING",
+                "labelSpecification": { 
+                    "labelFormatType": "COMMON2D", 
+                    "labelStockType": "PAPER_85X11_TOP_HALF_LABEL", 
+                    "imageType": "PDF"
+                },
+                "shipper": {
+                    "address": {
                         'streetLines': [sender.address_1_eng] if sender.address_2_eng is None
                             else [sender.address_1_eng, sender.address_2_eng],
                         'city': sender.city_eng,
                         'postalCode': sender.zip,
                         'countryCode': sender.country_id
                     },
-                    'contact': {
-                        'personName': sender_contact['name'],
-                        'phoneNumber': sender_contact['phone']
+                    "contact": {
+                        'personName': sender_contact.name,
+                        'phoneNumber': sender_contact.phone
                     }
                 },
                 'recipients': [{
@@ -195,55 +285,92 @@ class Fedex(Shipping):
                         'countryCode': recipient.country_id
                     },
                     'contact': {
-                        'personName': rcpt_contact['name'],
-                        'phoneNumber': rcpt_contact['phone']
+                        'personName': rcpt_contact.name,
+                        'phoneNumber': rcpt_contact.phone
                     }
                 }],
-                'pickupType': 'USE_SCHEDULED_PICKUP',
-                'serviceType': self.__service_type,
-                'packagingType': 'YOUR_PACKAGING',
-                'totalWeight': reduce(lambda acc, i: acc + i.weight, boxes, 0.0), 
-                'shippingChargesPayment': {
-                    'paymentType': 'SENDER'
-                }, 
-                'customsClearanceDetail': {
-                    'commodities': [{
-                        'countryOfManufacture': 'KR',
-                        'description': i.name,
-                        'unitPrice': {
-                            'amount': i.price,
-                            'currency': 'WON'
-                        },
-                        'numberOfPieces': i.quantity,
+                "shippingChargesPayment": {
+                    "paymentType": "SENDER"
+                },
+                "customsClearanceDetail": {
+                    "dutiesPayment": {
+                        "paymentType": "SENDER"
+                    },
+                    'totalCustomsValue': total_value,
+                    "commodities": [{
+                        "description": i.name,
+                        "countryOfManufacture": "KR",
                         'weight': {
                             'units': 'KG',
                             'value': i.weight / 1000
                         },
-                        'additionalMeasures': [{'units': 'PCS'}]
-                    } for i in items],
-                    'dutiesPayment': {
-                        'paymentType': 'SENDER'
-                    },
-                    'totalCustomsValue': total_value,
+                        "quantity": i.quantity,
+                        "quantityUnits": "PCS",
+                        'unitPrice': {
+                            'amount': i.price,
+                            'currency': 'WON'
+                        },
+                        "customsValue": {
+                            "amount": i.price * i.quantity,
+                            "currency": "WON"
+                        }
+                    }  for i in items]
                 },
-                'labelSpecification': {
-                    'labelStockType': 'PAPER_4X6',
-                    'imageType': 'PDF'
-                },
-                'requestedPackageLineItems': [{
-                    'weight': {
-                        'units': 'KG',
-                        'value': box.weight
+                "totalPackageCount": "1",
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "KG",
+                            'value': box.weight / 1000
+                        },
+                        "dimensions": {
+                            "length": box.length,
+                            "width": box.width,
+                            "height": box.height,
+                            "units": "CM"
+                        }
                     }
                     for box in boxes
-                }],
-            },
-            'labelResponseOptions': 'LABEL',
-            'accountNumber': { 'value': self.__account }
-        }
+                ]
+            }
+        } 
+        
+    def __save_label(self, tracking_id, url):
+        stdout, _ = invoke_curl(url=url)
+        fedex_upload_dir = os.path.join(
+            os.getcwd(), 
+            current_app.config['UPLOAD_PATH'], 
+            'fedex')
+        os.makedirs(fedex_upload_dir, exist_ok=True)
+        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'x') as f:
+            f.write(stdout)
+
+    def __validate_address(self, address: Address):
+        result = self.__get_json(url=f"{self.__base_url}/address/v1/addresses/resolve", 
+            raw_data=json.dumps({
+                "addressesToValidate": [{
+                    "address": {
+                        "streetLines": [
+                            address.address_1_eng, address.address_2_eng
+                        ],
+                        "city": address.city_eng,
+                        "postalCode": address.zip,
+                        "countryCode": address.country_id
+                    }
+                }]
+            }))
+        if result.get('output') is None:
+            raise ShippingException(f"Can't resolve the address: {address}")
+        resolved_address = result['output']['resolvedAddresses'][0]
+        address.address_1_eng = resolved_address['streetLinesToken'][0]
+        address.address_2_eng = resolved_address['streetLinesToken'][1] \
+            if len(resolved_address['streetLinesToken']) > 1 else ""
+        address.city_eng = resolved_address['city']
+        address.zip = resolved_address['postalCode']
+        return address
     
     def print(self, order: Order) -> dict[str, Any]:
-        '''Prints shipping label to be applied too the parcel
+        '''Prints shipping label to be applied to the parcel
         :param Order order: order, for which label is to be printed
         :param dic[str, Any] config: configuration to be used for 
         shipping provider
@@ -265,48 +392,7 @@ class Fedex(Shipping):
         except Exception as e:
             logger.warning(f"Couldn't print label for order {order.id}")
             raise e
-    
-    def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
-        #TODO: complete
-        return self.__get_json(
-            url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}'
-        )
-    
-    def __get_consignments(self, url:str) -> list[dict[str, Any]]:
-        #TODO: complete
-        logger = logging.getLogger('FedEx::__get_consignments()')
-        consignments = self.__get_json(url=url)
-        if len(consignments) != 2:
-            logger.warning("Couldn't get consignment")
-            logger.warning(consignments)
-            return []
-        return consignments[1] #type: ignore
 
-    def __get_consignment_code(self, consignment_id: str) -> str:
-        #TODO: complete
-        consignments = \
-            self.__get_consignments(
-                url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0') + \
-            self.__get_consignments(
-                url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0')
-        for consignment in consignments:
-            if isinstance(consignment, dict) and \
-                consignment.get('ems_code') == consignment_id:
-                return consignment['code']
-        raise Exception(f"No consignment {consignment_id} was found")
-    
-    def __print_label(self, consignment: str):
-        '''Submits request to print label. This makes the consignment obligatory 
-        to be picked up and paid for
-        :param consignment str: an internal code of a consignment to be printed'''
-        #TODO: complete
-        logger = logging.getLogger("FedEx::__get_print_label()")
-        output, _ = self.__invoke_curl(
-            f'https://myems.co.kr/b2b/order_print.php?type=declaration&codes={consignment}')
-        # logger.debug(output)
-        # logger.debug(_)
-
-    
     def __get_shipment_value(self, items: list[ShippingItem]):
         value = reduce(lambda acc, i: acc + i.quantity * i.price, items, 0.0)
         return {
@@ -314,61 +400,36 @@ class Fedex(Shipping):
             'currency': 'WON'
         }
 
-    def __get_consignment_items(self, order: Order) -> list[dict[str, Any]]:
-        #TODO: complete
-        def verify_consignment_items(items):
-            for item in items:
-                try:
-                    int(item['quantity'])
-                    float(item['price'])
-                    if len(item['hscode']) != 10:
-                        raise FedexItemsException({'hscode': item['hscode']})
-                except Exception as e:
-                    raise FedexItemsException(e, items)
-        logger = logging.getLogger("FedEx::__get_consignment_items()")
-        result: list[dict] = []
+    def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
+        logger = logging.getLogger("FedEx::get_shipping_items()")
+        result = []
         try:
-            items: list[str] = (
-                order.params["shipping.items"].replace("|", "/").splitlines()
-            )
-            result = [
-                {
-                    "name": item.split("/")[0].strip(),
-                    "quantity": item.split("/")[1].strip(),
-                    "price": item.split("/")[2].strip(),
-                    "hscode": hs_codes[
-                        first_or_default(
-                            list(hs_codes.keys()),
-                            lambda i, ii=item: re.search(i, ii, re.I) is not None,
-                            "_default_",
-                        )
-                    ],
-                }
+            result = [ShippingItem(
+                    name=item.split("/")[0].strip(),
+                    quantity=int(item.split("/")[1].strip()),
+                    price=float(item.split("/")[2].strip()),
+                    weight=0
+                )
                 for item in items
             ]
         except (KeyError, IndexError):
             logger.warning("Couldn't get items from:")
-            logger.warning(order.params.get("shipping.items"))
-            result = [
-                {
-                    "name": "Cosmetics",
-                    "quantity": 1,
-                    "price": order.total_usd / 10,
-                    "hscode": "3304991000",
-                }
-            ]
-        verify_consignment_items(result) 
+            logger.warning(items)
+            result = [ShippingItem(
+                    name="Cosmetics",
+                    quantity=1,
+                    price=0,
+                    weight=0
+            )]
         return result
 
-    def get_shipping_cost(self, country, weight=1):
+    def get_shipping_cost(self, country_id, weight=250):
         logger = logging.getLogger("FedEx::get_shipping_cost()")
         try:
-            result = self.__get_json(url=f'{self.__base_url}/rate/v1/rates/quotes', 
-                headers=[
-                    {'Content-Type': "application/json"},
-                    {'X-locale': "en_US"}
-                ],
-                raw_data=json.dumps({
+            country: Country = Country.query.get(country_id)
+            if country is None:
+                raise NoShippingRateError()
+            payload = {
                     'accountNumber': {
                         'value': self.__account
                     },
@@ -382,8 +443,9 @@ class Fedex(Shipping):
                         }, 
                         'recipient': {
                             'address': {
-                                'postalCode': self.__get_zip(country),
-                                'countryCode': country,
+                                'postalCode': country.first_zip,
+                                'city': country.capital,
+                                'countryCode': country.id.upper(),
                             }
                         },
                         # 'serviceType': self.__service_type,
@@ -397,7 +459,9 @@ class Fedex(Shipping):
                             }
                         ]
                     }
-                }),
+                }
+            result = self.__get_json(url=f'{self.__base_url}/rate/v1/rates/quotes', 
+                raw_data=json.dumps(payload),
                 retry=False, ignore_ssl_check=True)
             if result.get('output') is None:
                 raise NoShippingRateError(result.get('errors'))
@@ -407,37 +471,36 @@ class Fedex(Shipping):
                 if r['serviceType'] == self.__service_type]
             if len(rate_objects) == 0:
                 raise NoShippingRateError(f"There are rates but no {self.__service_type}")
-            rate = rate_objects[0][0]
-            return int(rate.get('totalNetChargeWithDutiesAndTaxes')
-                             or rate.get('totalNetFedExCharge')) #type: ignore
+            rate_dict = rate_objects[0][0]
+            rate = float(rate_dict.get('totalNetChargeWithDutiesAndTaxes')
+                             or rate_dict.get('totalNetFedExCharge'))
+            currency = Currency.query.get(rate_dict['currency'])
+            if currency is None:
+                raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
+            rate = int(round(rate / float(currency.rate)))
+            logger.debug(
+                "Shipping rate for %skg parcel to %s is %s",
+                weight / 1000,
+                country_id,
+                rate,
+            )
+            return rate
         except NoShippingRateError as e:
-            logger.warning("There is no rate to %s of %sg package", country, weight)
+            logger.warning("There is no rate to %s of %sg package", country_id, weight)
             logger.warning(e)
             raise e
         except Exception as e:
             logger.error("During getting rate to %s of %sg package the error has occurred",
-                         country, weight)
+                         country_id, weight)
             logger.exception(e)
             raise NoShippingRateError
 
-    def __get_shipping_order(self, force=False, attempts=3):
-        #TODO: complete
-        logger = logging.getLogger("FedEx::__get_shipping_order()")
-        if cache.get("ems_shipping_order") is None or force:
-            result: list[list] = self.__get_json(
-                "https://myems.co.kr/api/v1/order/temp_orders"
-            ) #type: ignore
-            if result[0][0]["cnt"] == "0":
-                id, _ = self.__invoke_curl(
-                    "https://myems.co.kr/api/v1/order/temp_orders/new"
-                )
-            else:
-                id = result[1][0]["ems_code"]
-            cache.set("ems_shipping_order", id, timeout=28800)
-        return cache.get("ems_shipping_order")
-
-    def __get_zip(self, country_id: str) -> str:
-        country = Country.query.get(country_id.lower())
-        if country is None:
-            raise ShippingException(f"<{country_id}> is not a valid country")
-        return country.first_zip    
+def get_label(tracking_id: str) -> str:
+    label_file_path = os.path.join(
+                        os.getcwd(), 
+                        current_app.config['UPLOAD_PATH'], 
+                        f'fedex/label-{tracking_id}.pdf')
+    if os.path.exists(label_file_path):
+        return label_file_path
+    else:
+        raise FileNotFoundError(tracking_id)

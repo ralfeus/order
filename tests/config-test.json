@@ -11,7 +11,7 @@
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
 
-    "UPLOAD_PATH": "upload",
+    "UPLOAD_PATH": "tests/upload",
     "INVOICE_TEMPLATES_PATH": "tests/invoices/tenant_templates",
     "PRODUCT_IMPORT_PERIOD": 300,
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 30000,
@@ -19,10 +19,11 @@
     "SHIPPING_AUTOMATION": {
         "enabled": true,
         "fedex": {
+            "base_url": "https://apis-sandbox.fedex.com",
             "client_id": "l76719d5814cdf46e4a780617201a0bd8c",
             "client_secret": "f0d7348ce5d9484a936a7aab6517de2a",
             "account": "740561073",
-            "service_type": "FIRST_OVERNIGHT"
+            "service_type": "INTERNATIONAL_ECONOMY"
         }
     },
     "PROFILER": true,

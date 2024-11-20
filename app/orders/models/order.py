@@ -78,21 +78,21 @@ class Order(db.Model, BaseModel): # type: ignore
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship(User, foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
-    invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id])
+    invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id]) # type: ignore
     customer_name = Column(String(64))
     address = Column(String(256))
-    city_eng: str = Column(String(128))
-    country_id: str = Column(String(2), ForeignKey('countries.id'))
-    country: Country = relationship(Country, foreign_keys=[country_id])
+    city_eng: str = Column(String(128)) # type: ignore
+    country_id: str = Column(String(2), ForeignKey('countries.id')) # type: ignore
+    country: Country = relationship(Country, foreign_keys=[country_id]) # type: ignore
     zip = Column(String(15))
     phone = Column(String(64))
     comment = Column(String(65536))
-    boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan")
-    shipping_box_weight: int = Column(Integer())
+    boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan") # type: ignore
+    shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
-    shipping: Shipping = relationship('Shipping', foreign_keys=[shipping_method_id])
+    shipping: Shipping = relationship('Shipping', foreign_keys=[shipping_method_id]) # type: ignore
     subtotal_krw = Column(Integer(), default=0)
     subtotal_cur1 = Column(Numeric(10, 2), default=0)
     subtotal_cur2 = Column(Numeric(10, 2), default=0)
@@ -104,20 +104,20 @@ class Order(db.Model, BaseModel): # type: ignore
     total_cur2 = Column(Numeric(10, 2), default=0)
     status = Column(Enum(OrderStatus), default='pending')
     tracking_id = Column(String(64))
-    tracking_url = Column(String(256))
+    tracking_url:str = Column(String(256)) # type: ignore
     when_created = Column(DateTime)
     when_changed = Column(DateTime)
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders:list[so.Suborder] = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan')
+    suborders:list[so.Suborder] = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan') # type: ignore
     __order_products = relationship('OrderProduct', lazy='dynamic')
     attached_order_id = Column(String(16), ForeignKey(ORDER_ID))
     attached_order = relationship('Order', remote_side=[id])
     attached_orders = relationship('Order',
         foreign_keys=[attached_order_id], lazy='dynamic')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
-    payment_method: pm.PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id])
+    payment_method: pm.PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id]) # type: ignore
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
     transaction = relationship('Transaction', foreign_keys=[transaction_id])
     params:dict[str, str] = association_proxy('order_params', 'value',
@@ -583,7 +583,7 @@ class Order(db.Model, BaseModel): # type: ignore
                 ws.cell(row, 6, op.price * op.quantity)
                 ws.cell(row, 7, op.product.weight * op.quantity)
                 ws.cell(row, 8, op_shipping[row])
-                ws.cell(row, 9, ws.cell(row, 6).value + ws.cell(row, 8).value)
+                ws.cell(row, 9, ws.cell(row, 6).value + ws.cell(row, 8).value) # type: ignore
                 ws.cell(row, 10, f'=I{row} / $E$8')
                 ws.cell(row, 11, f'=I{row} / $E$9')
                 ws.cell(row, 12, op.product.points)
@@ -625,7 +625,6 @@ class Order(db.Model, BaseModel): # type: ignore
                 if self.total_weight > 0 else \
                     round(self.shipping_krw / self.total_krw *
                         op.price * op.quantity)
-
 
 class OrderParam(db.Model, BaseModel): # type: ignore
     '''Additional Order parameter'''

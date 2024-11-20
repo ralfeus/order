@@ -8,12 +8,15 @@ from flask import Response, abort, current_app, jsonify, request
 from flask_security import login_required, roles_required  # type: ignore
 
 from app import db, cache
-from app.tools import modify_object
-from exceptions import NoShippingRateError
 from app.models import Country
+from app.models.address import Address
 import app.orders.models.order as o
 from app.shipping import bp_api_admin, bp_api_user
+from app.shipping.models.box import default_box
 from app.shipping.models.shipping import Shipping
+from app.shipping.models.shipping_contact import ShippingContact
+from app.tools import modify_object
+from exceptions import NoShippingRateError
 
 from exceptions import OrderError
 
@@ -78,7 +81,7 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
         weight - package weight in grams
     Returns JSON
     """
-    logger = logging.getLogger("EMS::get_shipping_rate()")
+    logger = logging.getLogger("get_shipping_rate()")
     logger.info("Calculating shipping rates to %s of weight %s", country, weight)
     shipping_methods = Shipping.query
     if shipping_method_id:
@@ -170,15 +173,35 @@ def consign_order(order_id: str):
     if order is None:
         abort(Response("Couldn't find an order {order_id}", 404))
     try:
+        payee = order.get_payee()
+        if payee is None:
+            raise OrderError("Order is not paid. Can't send")
+        sender = payee.address
+        sender_contact = ShippingContact(name=payee.contact_person, 
+                                         phone=payee.phone)
+        recipient = Address(address_1_eng=order.address, city_eng=order.city_eng, 
+                            country_id=order.country_id, zip=order.zip)
+        rcpt_contact = ShippingContact(name=order.customer_name, phone=order.phone)
+        raw_items = []
+        try:
+            raw_items = order.params["shipping.items"]\
+                .replace("|", "/").splitlines()
+        except:
+            raw_items = [f"{op.product.name_english}/{op.quantity}/{int(op.price / 3)}" 
+                         for op in order.order_products]
+        items = order.shipping.get_shipping_items(raw_items)        
+        boxes = [default_box]
+        boxes[0].weight = order.total_weight + order.shipping_box_weight
         result = order.shipping.consign(
-            order, config=current_app.config.get("SHIPPING_AUTOMATION") #type: ignore
+            sender, sender_contact, recipient, rcpt_contact, items, boxes, 
+            config=current_app.config.get("SHIPPING_AUTOMATION") #type: ignore
         )
-        order.tracking_id = result.consignment_id
-        order.tracking_url = f'https://t.17track.net/en#nums={result.consignment_id}'
+        order.tracking_id = result.tracking_id
+        order.tracking_url = f'https://t.17track.net/en#nums={result.tracking_id}'
         db.session.commit()
         return jsonify({
             "status": "next_step_available" if result.next_step_url else "success", 
-            "consignment_id": result.consignment_id,
+            "consignment_id": result.tracking_id,
             "next_step_message": result.next_step_message,
             "next_step_url": result.next_step_url
         })

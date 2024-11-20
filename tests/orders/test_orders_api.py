@@ -18,7 +18,7 @@ from app.orders.models.suborder import Suborder
 from app.products.models import Product
 from app.purchase.models import Company, PurchaseOrder
 from app.settings.models import Setting
-from app.shipping.models import PostponeShipping, Shipping, ShippingRate
+from app.shipping.models.shipping import PostponeShipping, Shipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
 

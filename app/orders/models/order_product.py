@@ -14,7 +14,7 @@ from app import db
 from app.models.base import BaseModel
 from app.orders.signals import order_product_model_preparing
 from app.products.models.product import Product
-from app.shipping.models import PostponeShipping
+from app.shipping.models.shipping import PostponeShipping
 
 from .order_status import OrderStatus
 
@@ -60,8 +60,8 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
         nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
-    product_id: str = Column(String(16), ForeignKey('products.id'))
-    product: Product = relationship('Product')
+    product_id = Column(String(16), ForeignKey('products.id'))
+    product: relationship[Product] = relationship('Product')
     price = Column(Integer)
     quantity = Column(Integer)
     private_comment = Column(String(256))

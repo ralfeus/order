@@ -115,7 +115,11 @@ def import_models(flask_app):
     import app.products.models
     import app.purchase.models
     import app.settings.models
-    import app.shipping.models
+    import app.shipping.methods.cargo.models.cargo
+    import app.shipping.methods.dhl.models.dhl
+    import app.shipping.methods.ems.models.ems
+    import app.shipping.methods.fedex.models.fedex
+    import app.shipping.methods.weight_based.models.weight_based
     import app.users.models
     with flask_app.app_context():
         db.create_all()

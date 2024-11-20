@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 
 from app.models import Country
 from exceptions import NoShippingRateError
-from app.shipping.models import Shipping
+from app.shipping.models.shipping import Shipping
 from .weight_based_rate import WeightBasedRate
 
 class WeightBased(Shipping):

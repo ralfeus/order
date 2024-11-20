@@ -13,7 +13,7 @@ from app.orders.models.order_product import OrderProduct, OrderProductStatus, \
 from app.orders.models.subcustomer import Subcustomer
 from app.orders.models.suborder import Suborder
 from app.products.models import Product
-from app.shipping.models import PostponeShipping, Shipping, ShippingRate
+from app.shipping.models.shipping import PostponeShipping, Shipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
 
