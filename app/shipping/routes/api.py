@@ -190,8 +190,12 @@ def consign_order(order_id: str):
             raw_items = [f"{op.product.name_english}/{op.quantity}/{int(op.price / 3)}" 
                          for op in order.order_products]
         items = order.shipping.get_shipping_items(raw_items)        
-        boxes = [default_box]
-        boxes[0].weight = order.total_weight + order.shipping_box_weight
+        if order.boxes.count() > 0:
+            boxes = [o for o in order.boxes]
+        else:
+            boxes = [default_box]
+        if not boxes[0].weight:
+            boxes[0].weight = order.total_weight + order.shipping_box_weight
         result = order.shipping.consign(
             sender, sender_contact, recipient, rcpt_contact, items, boxes, 
             config=current_app.config.get("SHIPPING_AUTOMATION") #type: ignore
