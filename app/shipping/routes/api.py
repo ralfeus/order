@@ -179,7 +179,8 @@ def consign_order(order_id: str):
         sender = payee.address
         sender_contact = ShippingContact(name=payee.contact_person, 
                                          phone=payee.phone)
-        recipient = Address(address_1_eng=order.address, city_eng=order.city_eng, 
+        recipient = Address(address_1_eng=order.address, address_2_eng='', 
+                            city_eng=order.city_eng, 
                             country_id=order.country_id, zip=order.zip)
         rcpt_contact = ShippingContact(name=order.customer_name, phone=order.phone)
         raw_items = []
