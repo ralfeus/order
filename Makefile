@@ -8,6 +8,7 @@ upgrade:
 	git pull
 	pip3 install -r requirements.txt
 	tools/clear-cloudflare-cache.fish
+	tools/clear-flask-cache.fish
 	tools/upgrade_db.fish
 	sudo systemctl reload order.*
 	sudo supervisorctl restart all
