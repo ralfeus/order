@@ -477,7 +477,8 @@ class Fedex(Shipping):
             currency = Currency.query.get(rate_dict['currency'])
             if currency is None:
                 raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
-            rate = int(round(rate / float(currency.rate)))
+            # Add 5% to cover future cost change
+            rate = int(round(rate / float(currency.rate) * 1.05))
             logger.debug(
                 "Shipping rate for %skg parcel to %s is %s",
                 weight / 1000,

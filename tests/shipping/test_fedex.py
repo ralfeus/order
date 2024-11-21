@@ -36,7 +36,7 @@ class TestShippingFedex(BaseTestCase):
     def test_get_rate(self):
         fedex = Fedex()
         res = fedex.get_shipping_cost('cz')
-        self.assertEqual(res, 189)
+        self.assertEqual(res, 198)
         res = fedex.get_shipping_cost('de')
         self.assertIsNotNone(res)
 
