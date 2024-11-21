@@ -3,7 +3,7 @@ from flask import jsonify, request
 from flask_security import roles_required
 from sqlalchemy import or_
 
-from app import db
+from app import cache, db
 from app.tools import modify_object, prepare_datatables_query
 
 from ..models import WeightBased, WeightBasedRate
@@ -98,6 +98,7 @@ def admin_save_rate(shipping_id, destination):
         'cost_per_kg'])
     try:
         db.session.commit()
+        cache.clear()
         return {'data': [rate.to_dict()]}, 200
     except Exception as ex:
         db.session.rollback()
@@ -116,4 +117,5 @@ def admin_delete_rate(shipping_id, destination):
         return {'error': f'No shipping rate for destination {destination} found'}, 404
     db.session.delete(rate)
     db.session.commit()
+    cache.clear()
     return {'status': 'success'}, 200

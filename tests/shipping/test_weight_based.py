@@ -58,3 +58,15 @@ class TestShippingWeightBased(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         self.assertEqual(WeightBasedRate.query.count(), 2)
+
+    def test_cache_clear(self):
+        res = self.try_user_operation(lambda: self.client.get('/api/v1/shipping/rate/ua/900'))
+        assert res.json['1'] == 1000
+        self.try_admin_operation(lambda: self.client.post('/api/v1/admin/shipping/weight_based/1/rate/-ua', json={
+                'minimum_weight': 1000,
+                'maximum_weight': 10000,
+                'weight_step': 1,
+                'cost_per_kg': 1
+            }))
+        res = self.client.get('/api/v1/shipping/rate/ua/900')
+        assert res.json['1'] == 1
