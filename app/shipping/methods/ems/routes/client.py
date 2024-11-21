@@ -16,7 +16,7 @@ def admin_print_label():
     order_id = request.args.get('order_id')
     order:Order
     try:
-        order = Order.query.filter_by(order_id=order_id).first()
+        order = Order.query.filter_by(id=order_id).first()
     except:
         abort(status=404)
     shipping: EMS = order.shipping
