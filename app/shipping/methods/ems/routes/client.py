@@ -13,10 +13,10 @@ from .. import bp_client_admin
 @bp_client_admin.route('/label')
 @roles_required('admin')
 def admin_print_label():
-    tracking_id = request.args.get('tracking_id')
+    order_id = request.args.get('order_id')
     order:Order
     try:
-        order = Order.query.filter_by(tracking_id=tracking_id).first()
+        order = Order.query.filter_by(order_id=order_id).first()
     except:
         abort(status=404)
     shipping: EMS = order.shipping
@@ -26,7 +26,9 @@ def admin_print_label():
     if order.invoice is not None and order.invoice.export_id is not None:
         export_id = order.invoice.export_id
     try:
-        consignment = shipping.print(order, current_app.config.get("SHIPPING_AUTOMATION")) #type: ignore
+        consignment = shipping.print(
+            order.tracking_id, 
+            current_app.config.get("SHIPPING_AUTOMATION")) #type: ignore
         order.status = OrderStatus.shipped
         db.session.commit()
         return render_template('label.html', consignment=consignment, export_id=export_id)
