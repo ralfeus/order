@@ -749,15 +749,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "isNonCustomer": "true",
                 }
         logger.debug(payload)
-        result = get_json(
-            url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
-            headers=self.__get_session_headers(),
-            raw_data=urlencode(
-                payload
-            ),
-        )
-        logger.debug(result)
-        return result["item"]["id"], True
+        try:
+            result = get_json(
+                url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
+                headers=self.__get_session_headers(),
+                raw_data=urlencode(
+                    payload
+                ),
+            )
+            logger.debug(result)
+            return result["item"]["id"], True
+        except Exception as e:
+            logger.warning(e)
+            raise PurchaseOrderError(self.__purchase_order, self, 
+                                     result.get('resultMessage'))
 
     def __submit_order(self):
         def update_cart_part(command):
