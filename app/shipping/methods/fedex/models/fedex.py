@@ -1,4 +1,5 @@
 from __future__ import annotations
+import base64
 from functools import reduce
 import json
 import logging
@@ -233,11 +234,13 @@ class Fedex(Shipping):
             logger.info("The new consignment ID is: %s", result)
             shipment_object = result['output']['transactionShipments'][0]
             self.__save_label(shipment_object['masterTrackingNumber'],
-                shipment_object['pieceResponses'][0]['packageDocuments'][0]['url'])
+                # shipment_object['pieceResponses'][0]['packageDocuments'][0]['url'])
+                shipment_object['pieceResponses'][0]['packageDocuments'][0]['encodedLabel'])
             return ConsignResult(
                 tracking_id=shipment_object['masterTrackingNumber'], 
                 next_step_message="Print label",
-                next_step_url=shipment_object['pieceResponses'][0]['packageDocuments'][0]['url']
+                next_step_url=f"{self._get_print_label_url()}?tracking_id={shipment_object['masterTrackingNumber']}"
+                # next_step_url=shipment_object['pieceResponses'][0]['packageDocuments'][0]['url']
             )
         except FedexLoginException:
             logger.warning("Can't log in to Fedex")
@@ -252,7 +255,7 @@ class Fedex(Shipping):
         items: list[ShippingItem], boxes: list[Box]) -> dict[str, Any]:
         total_value = self.__get_shipment_value(items)
         return {
-            "labelResponseOptions": "URL_ONLY",
+            "labelResponseOptions": "LABEL",
             'accountNumber': { 'value': self.__account },
             "requestedShipment": {
                 "pickupType": "USE_SCHEDULED_PICKUP",
@@ -335,15 +338,17 @@ class Fedex(Shipping):
             }
         } 
         
-    def __save_label(self, tracking_id, url):
-        stdout, _ = invoke_curl(url=url)
+    def __save_label(self, tracking_id, encoded_label):
+    # def __save_label(self, tracking_id, url):
+        # stdout, _ = invoke_curl(url=url)
+        label = base64.b64decode(encoded_label)
         fedex_upload_dir = os.path.join(
             os.getcwd(), 
             current_app.config['UPLOAD_PATH'], 
             'fedex')
         os.makedirs(fedex_upload_dir, exist_ok=True)
-        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'x') as f:
-            f.write(stdout)
+        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'xb') as f:
+            f.write(label)
 
     def __validate_address(self, address: Address):
         result = self.__get_json(url=f"{self.__base_url}/address/v1/addresses/resolve", 
