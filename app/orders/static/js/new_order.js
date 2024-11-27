@@ -52,7 +52,7 @@ $(document).ready(function() {
     $(document).on("click", "[id^=add_userItems]", (event) => add_product_row(event.target.id));
     $('#add_user').on('click', add_subcustomer_node);
     $('#import_order').on('click', () => {$('#excel').trigger('click')});
-    $('#submit').on('click', submit_order);
+    $('#submit').on('click', submit_changes);
     $('#save_draft').on('click', save_order_draft);
     $('.common-purchase-date')
         .datepicker({
@@ -336,20 +336,17 @@ function get_shipping_cost(shipping_method, weight) {
 }
 
 function update_shipping_methods(country, weight) {
+    $('.wait').show();
     var promise = $.Deferred();
-    // var shipping_options, selected_shipping_method_name;
-    // if ($('#shipping').val()) {
-    //     g_selected_shipping_method = $('#shipping').val();
-    //     shipping_options = $('#shipping')[0].options;
-    //     selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
-    // }
-    // $('#shipping').html('');
     $.ajax({
-        url: '/api/v1/shipping/' + country + '/' + weight,
+        url: `/api/v1/shipping/${country}/${weight}`,
         data: 'products=' +
             Object.entries(g_cart)
                 .map(e => e[1].product_id ? e[1].product_id : e[1].id)
                 .filter((value, index, self) => self.indexOf(value) === index),
+        complete: () => {
+            $('.wait').hide();
+        },
         success: (data, _status, xhr) => {
             g_shipping_methods = data;
             var shipping_options, selected_shipping_method_name;
@@ -369,9 +366,11 @@ function update_shipping_methods(country, weight) {
                 );
             }
             shipping_changed();
+            $('.wait').show();
             $.ajax({
                 url: '/api/v1/shipping/rate/' + country + '/' + weight,
                 complete: () => {
+                    $('.wait').hide();
                     promise.resolve();
                 },
                 success: data => {
@@ -448,7 +447,7 @@ async function edit_shipping_params() {
 }
 
 function save_order_draft() {
-    submit_order(null, draft=true);
+    submit_changes(null, draft=true);
 }
 
 async function update_total_weight(products) {
@@ -510,7 +509,7 @@ function show_shipping_notification() {
     modal("Shipping", $('#shipping')[0].selectedOptions[0].dataset.notification);
 }
 
-function submit_order(_sender, draft=false) {
+function submit_changes(_sender, draft=false) {
     $('.wait').show();
     $.ajax({
         url: '/api/v1/order' + 

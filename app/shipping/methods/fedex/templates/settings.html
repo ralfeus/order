@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_settings.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>FedEx settings</h1>
+<div class="container row col-12">
+    <input type="hidden" id="shipping_id" value="{{ shipping_id }}">
+    <label for="service_type" class="form-label">Service type</label>
+    <select class="form-select" id="service_type" aria-label="Service type">
+        <option value="INTERNATIONAL_ECONOMY" 
+            {% if settings.service_type == 'INTERNATIONAL_ECONOMY' %}selected{% endif%}>
+            FedEx International Economy®</option>
+        <option value="FEDEX_INTERNATIONAL_PRIORITY"
+            {% if settings.service_type == 'FEDEX_INTERNATIONAL_PRIORITY' %}selected{% endif%}>
+            FedEx International Priority®</option>
+    </select>
+    <input type="button" class="btn btn-primary" id="submit" value="Submit" />
+</div>
+{% endblock %}

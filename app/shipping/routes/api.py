@@ -137,24 +137,24 @@ def admin_save_shipping_method(shipping_method_id):
     else:
         shipping_method = Shipping.query.get(shipping_method_id)
         if not shipping_method:
-            abort(
-                Response(
-                    f"No shipping_method <{shipping_method_id}> was found", status=400
-                )
-            )
+            abort(Response(
+                f"No shipping_method <{shipping_method_id}> was found", status=400
+            ))
     payload["discriminator"] = payload.get("type")
 
     modify_object(
         shipping_method, payload, ["name", "enabled", "notification", "discriminator"]
     )
-
+    shipping_id = shipping_method.id
     db.session.commit()
+    if shipping_id is not None:
+        shipping_method = Shipping.query.get(shipping_id)
     return jsonify({"data": [shipping_method.to_dict()]})
 
 
 @bp_api_admin.route("/<shipping_method_id>", methods=["DELETE"])
 @roles_required("admin")
-def delete_shipping_method(shipping_method_id):
+def admin_delete_shipping_method(shipping_method_id):
     """Deletes existing shipping method"""
     shipping_method = Shipping.query.get(shipping_method_id)
     if not shipping_method:
