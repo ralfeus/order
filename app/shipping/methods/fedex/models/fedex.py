@@ -3,19 +3,20 @@ import base64
 from functools import reduce
 import json
 import logging
-import math
 import os
 import re
 import time
 from typing import Any
 
 from flask import current_app, url_for
+from sqlalchemy.orm import relationship
 
-from app import cache
+from app import cache, db
 from app.currencies.models.currency import Currency
 from app.models.address import Address
 from app.models.country import Country
 from app.orders.models.order import Order
+from app.shipping.methods.fedex.models.fedex_setting import FedexSetting
 from app.shipping.models.box import Box
 from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
@@ -31,21 +32,24 @@ class Fedex(Shipping):
 
     __mapper_args__ = {"polymorphic_identity": "fedex"}  # type: ignore
 
-    name = "FedEx"
     type = "FedEx"
+    settings = relationship('FedexSetting', uselist=False, lazy='select')
 
     _consign_implemented = True
     __zip = '08584'
     __src_country = 'KR'
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.settings is None:
+            self.settings = FedexSetting(shipping_id=self.id)
+            db.session.add(self.settings)
         try:
             config = current_app.config['SHIPPING_AUTOMATION']['fedex']
             self.__base_url = config['base_url']
             self.__client_id = config['client_id']
             self.__client_secret = config['client_secret']
             self.__account = config['account']
-            self.__service_type = config['service_type']
 
         except Exception as e:
             raise FedexConfigurationException(e)
@@ -207,7 +211,7 @@ class Fedex(Shipping):
             return True
 
         services = self.__get_service_availability(country.id)
-        if self.__service_type in services:
+        if self.settings.service_type in services:
             logger.debug(f"Can ship to country {country}. ")
             return True
         else:
@@ -259,7 +263,7 @@ class Fedex(Shipping):
             'accountNumber': { 'value': self.__account },
             "requestedShipment": {
                 "pickupType": "USE_SCHEDULED_PICKUP",
-                'serviceType': self.__service_type,
+                'serviceType': self.settings.service_type,
                 "packagingType": "YOUR_PACKAGING",
                 "labelSpecification": { 
                     "labelFormatType": "COMMON2D", 
@@ -427,6 +431,10 @@ class Fedex(Shipping):
                     weight=0
             )]
         return result
+    
+    def get_edit_url(self):
+        from .. import bp_client_admin
+        return f"{bp_client_admin.url_prefix}/{self.id}"
 
     def get_shipping_cost(self, country_id, weight=250):
         logger = logging.getLogger("FedEx::get_shipping_cost()")
@@ -453,7 +461,6 @@ class Fedex(Shipping):
                                 'countryCode': country.id.upper(),
                             }
                         },
-                        # 'serviceType': self.__service_type,
                         'pickupType': 'USE_SCHEDULED_PICKUP',
                         'requestedPackageLineItems': [
                             { 
@@ -473,9 +480,9 @@ class Fedex(Shipping):
             rates = result["output"]["rateReplyDetails"]
             rate_objects = [
                 r['ratedShipmentDetails'] for r in rates 
-                if r['serviceType'] == self.__service_type]
+                if r['serviceType'] == self.settings.service_type]
             if len(rate_objects) == 0:
-                raise NoShippingRateError(f"There are rates but no {self.__service_type}")
+                raise NoShippingRateError(f"There are rates but no {self.settings.service_type}")
             rate_dict = rate_objects[0][0]
             rate = float(rate_dict.get('totalNetChargeWithDutiesAndTaxes')
                              or rate_dict.get('totalNetFedExCharge'))
@@ -485,9 +492,10 @@ class Fedex(Shipping):
             # Add 5% to cover future cost change
             rate = int(round(rate / float(currency.rate) * 1.05))
             logger.debug(
-                "Shipping rate for %skg parcel to %s is %s",
+                "Shipping rate for %skg parcel to %s (service type: %s) is %s",
                 weight / 1000,
                 country_id,
+                self.settings.service_type,
                 rate,
             )
             return rate
@@ -500,6 +508,12 @@ class Fedex(Shipping):
                          country_id, weight)
             logger.exception(e)
             raise NoShippingRateError
+        
+    def to_dict(self):
+        res = super().to_dict()
+        return { **res,
+            'service_type': self.settings.service_type
+        }
 
 def get_label(tracking_id: str) -> str:
     label_file_path = os.path.join(

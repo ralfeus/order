@@ -54,7 +54,7 @@ class TestClientApi(BaseTestCase):
             {
                 'id': 4,
                 'name': 'DHL',
-                'type': 'DHL',
+                'type': 'dhl',
                 'enabled': True,
                 'links': {'edit': '/admin/shipping/dhl/', 'print_label': ''},
                 'is_consignable': False,
@@ -65,7 +65,7 @@ class TestClientApi(BaseTestCase):
             {
                 'id': 1,
                 'name': 'Shipping1',
-                'type': '',
+                'type': 'default',
                 'enabled': True,
                 'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,
@@ -76,7 +76,7 @@ class TestClientApi(BaseTestCase):
             {
                 'id': 2,
                 'name': 'Shipping2',
-                'type': '',
+                'type': 'default',
                 'enabled': True,
                 'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,
@@ -87,7 +87,7 @@ class TestClientApi(BaseTestCase):
             {
                 'id': 3,
                 'name': 'Shipping3',
-                'type': '',
+                'type': 'default',
                 'enabled': True,
                 'links': {'edit': '', 'print_label': ''},
                 'is_consignable': False,

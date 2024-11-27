@@ -6,6 +6,7 @@ from app.users.models.role import Role
 from app.users.models.user import User
 from app.orders.models.order import Order
 from app.shipping.methods.fedex.models.fedex import Fedex
+from app.shipping.methods.fedex.models.fedex_setting import FedexSetting
 from app.shipping.models.box import default_box
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
@@ -35,6 +36,9 @@ class TestShippingFedex(BaseTestCase):
 
     def test_get_rate(self):
         fedex = Fedex()
+        self.try_add_entities([fedex])
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
+        db.session.commit()
         res = fedex.get_shipping_cost('cz')
         self.assertEqual(res, 198)
         res = fedex.get_shipping_cost('de')
@@ -42,6 +46,8 @@ class TestShippingFedex(BaseTestCase):
 
     def test_create_shipment(self):
         fedex = Fedex()
+        self.try_add_entities([fedex])
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
         sender = Address(name='Home', zip='01000', address_1_eng='Test', 
                          city_eng='Seoul', country_id='kr')
         sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
@@ -59,12 +65,16 @@ class TestShippingFedex(BaseTestCase):
 
     def test_is_shippable(self):
         fedex = Fedex()
+        self.try_add_entities([fedex])
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
         germany = Country.query.get('de')
         res = fedex.can_ship(germany, 1, [])
         assert res
 
     def test_print_label(self):
         fedex = Fedex()
+        self.try_add_entities([fedex])
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
         sender = Address(name='Home', zip='01000', address_1_eng='Test', 
                          city_eng='Seoul', country_id='kr')
         sender_contact = ShippingContact(name='Test name', phone='010-1111-2222')
@@ -85,3 +95,63 @@ class TestShippingFedex(BaseTestCase):
             lambda: self.client.get('/admin/shipping/fedex/label?order_id=1'),
             admin_only=True)
         assert res.status_code == 200
+
+class TestShippingFedexAPI(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+
+        db.create_all()
+        admin_role = Role(name='admin')
+        self.user = User(username='user1_test_fedex_api',
+            email='root_test_fedex_api@name.com',
+            password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
+            enabled=True)
+        self.admin = User(username='root_test_fedex_api',
+            email='root_test_fedex_api@name.com',
+            password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
+            enabled=True, roles=[admin_role])
+        self.try_add_entities([
+            self.user, self.admin, admin_role,
+            Country(id='ua', name='Ukraine', sort_order=0),
+            Country(id='cz', name='Czech Republic', first_zip='100 00', capital="Prague"),
+            Country(id='de', name='Germany', capital='Berlin', first_zip='01067'),
+            Currency(code='USD', rate=1)
+        ])
+
+    def test_get_fedex_shipment(self):
+        fedex = Fedex(id=1, name="FedEx 1")
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
+        self.try_add_entities([
+            fedex
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/shipping/fedex/1')
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json, {'data': {
+            "edit_url": "/admin/shipping/fedex/1", 
+            "enabled": True, 
+            "id": 1, 
+            "is_consignable": True, 
+            "links": {
+                "edit": "/admin/shipping/fedex/1", 
+                "print_label": "/admin/shipping/fedex/label"
+            }, 
+            "name": "FedEx 1", 
+            "notification": None, "params": [], 
+            "service_type": "INTERNATIONAL_ECONOMY", 
+            "type": "fedex"
+        }})
+
+    def test_edit_fedex_shipment(self):
+        fedex = Fedex(id=1, name="FedEx 1")
+        self.try_add_entities([
+            fedex
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post(f'/api/v1/admin/shipping/fedex/{fedex.id}', json={
+                'service_type': 'INTERNATIONAL_ECONOMY'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(fedex.settings.service_type, 'INTERNATIONAL_ECONOMY')

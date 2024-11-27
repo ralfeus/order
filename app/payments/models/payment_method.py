@@ -10,7 +10,10 @@ from app.models.base import BaseModel
 class PaymentMethod(db.Model, BaseModel): #type: ignore
     __tablename__ = 'payment_methods'
     discriminator = Column(String(50))
-    __mapper_args__ = {'polymorphic_on': discriminator}
+    __mapper_args__ = {
+        'polymorphic_on': discriminator, 
+        'polymorphic_identity': 'default'
+    }
 
     name = Column(String(32))
     payee_id = Column(Integer, ForeignKey('companies.id'))

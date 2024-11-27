@@ -47,7 +47,11 @@ class Shipping(db.Model, BaseModel):  # type: ignore
     rates = relationship('ShippingRate', lazy='dynamic')
     params = relationship('ShippingParam', lazy='dynamic')
 
-    __mapper_args__ = {'polymorphic_on': discriminator}
+    __mapper_args__ = {
+        'polymorphic_on': discriminator, 
+        'polymorphic_identity': 'default'
+    }    
+    
     _consign_implemented = False
 
     @reconstructor
@@ -149,7 +153,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.type,
+            'type': self.__mapper_args__['polymorphic_identity'],
             'enabled': self.enabled,
             'is_consignable': self.is_consignable(),
             'notification': self.notification,

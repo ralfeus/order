@@ -66,8 +66,8 @@ def create_app(config=None):
 
     register_components(app)
     # init_navbar(flask_app)
-    if app.config.get('DEBUG'):
-        init_debug(app)
+    # if app.config.get('DEBUG'):
+    #     init_debug(app)
    
     logging.info("The application is started")
     return app

@@ -20,7 +20,7 @@ from tests import BaseTestCase, db
 class FakeShipping(Shipping):
     __mapper_args__ = {"polymorphic_identity": "fake_shipping"}  # type: ignore
 
-    name = "FakeShipping"
+    # name = "FakeShipping"
     type = "Fake"
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
@@ -95,3 +95,27 @@ class TestShippingAPI(BaseTestCase):
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
 
+    def test_create_shipping(self):
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/shipping/null', json={
+                'type': 'fake_shipping',
+                'name': 'Shipping 2'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        shipping = Shipping.query.all()
+        self.assertEqual(len(shipping), 2)
+        self.assertEqual(shipping[1].type, 'Fake')
+        self.assertEqual(shipping[1].name, 'Shipping 2')
+
+    def test_change_shipping_type(self):
+        class FakeShipping2(Shipping):
+            __mapper_args__ = {"polymorphic_identity": "fake2"}
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/shipping/1', json={
+                'type': 'fake2'
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        shipping = Shipping.query.all()[0]
+        self.assertIsInstance(shipping, FakeShipping2)

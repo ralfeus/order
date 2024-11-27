@@ -10,7 +10,7 @@ from functools import reduce
 import os
 import os.path
 import re
-from typing import T, Any, Callable
+from typing import T, Any, Callable # type: ignore
 import lxml
 from time import sleep
 from werkzeug.datastructures import MultiDict
@@ -19,6 +19,7 @@ from flask import current_app
 
 from exceptions import FilterError, HTTPError
 
+from app.models.base import BaseModel
 
 # logging.basicConfig(level=logging.INFO)
 
@@ -142,11 +143,12 @@ def convert_datatables_args(raw_args):
     make_arrays(args)
     return args
 
-def modify_object(entity, payload, editable_attributes):
+def modify_object(entity: BaseModel, payload: dict[str, Any], 
+                  editable_attributes: list[str]) -> BaseModel:
     for attr in editable_attributes:
         if payload.get(attr) is not None:
             if isinstance(getattr(entity, attr), enum.Enum):
-                setattr(entity, attr, type(getattr(entity, attr))[payload[attr]])
+                setattr(entity, attr, type(getattr(entity, attr))[payload[attr]]) # type: ignore
             else:
                 try:
                     setattr(entity, attr, payload[attr])
