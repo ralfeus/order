@@ -31,6 +31,7 @@ class TestShippingFedex(BaseTestCase):
             Country(id='ua', name='Ukraine', sort_order=0),
             Country(id='cz', name='Czech Republic', first_zip='100 00', capital="Prague"),
             Country(id='de', name='Germany', capital='Berlin', first_zip='01067'),
+            Country(id='us', name='USA', capital='Washington', first_zip='00501'),
             Currency(code='USD', rate=1)
         ])
 
@@ -66,10 +67,10 @@ class TestShippingFedex(BaseTestCase):
     def test_is_shippable(self):
         fedex = Fedex()
         self.try_add_entities([fedex])
-        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
-        germany = Country.query.get('de')
+        fedex.settings.service_type = 'FEDEX_INTERNATIONAL_PRIORITY'
+        germany = Country.query.get('us')
         res = fedex.can_ship(germany, 1, [])
-        assert res
+        self.assertTrue(res)
 
     def test_print_label(self):
         fedex = Fedex()

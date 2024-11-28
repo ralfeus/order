@@ -83,6 +83,7 @@ class Fedex(Shipping):
         '''Returns list of services available for the given country
         :param str country_id: ID of the country
         :returns list[str]: list of available services'''
+        logger = logging.getLogger("FedEx::__get_service_availability()")
         country = Country.query.get(country_id)
         if country is None:
             return []
@@ -155,6 +156,7 @@ class Fedex(Shipping):
         result = self.__get_json(url=f"{self.__base_url}/availability/v1/transittimes",
                                  raw_data=payload)
         if result.get('output') is None:
+            logger.info(result.get('errors'))
             return []
         return [s['serviceType'] 
                 for s in result['output']['transitTimes'][0]['transitTimeDetails']]
