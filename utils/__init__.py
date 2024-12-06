@@ -65,7 +65,7 @@ def invoke_curl(url: str, raw_data: str='', headers=[],
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         if ('Could not resolve host' in output.stderr 
             or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
-            _logger.warning("Server side error occurred. Will try in 30 seconds", url)
+            _logger.warning("Server side error occurred. Will try in 30 seconds. (%s)", url)
             _logger.warning(output.stderr)
             sleep(30)
             return invoke_curl(url, raw_data, headers, method, retries=retries - 1)
