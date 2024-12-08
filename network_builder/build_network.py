@@ -1,17 +1,20 @@
 from enum import Enum
 from calendar import monthrange
 import cProfile
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Optional
 import utils.logging as logging
 import os, os.path
+from queue import Empty, Queue
 import re
 import threading
+from tqdm_loggable.auto import tqdm
+from tqdm_loggable.tqdm_logging import tqdm_logging
 from time import sleep
 
 from neomodel import db, config
 
-from exceptions import AtomyLoginError
+from nb_exceptions import BuildPageNodesException
 from utils import get_json
 from utils.atomy import atomy_login2
 
@@ -49,20 +52,42 @@ config.DATABASE_URL = os.environ.get('NEO4J_URL') or 'bolt://neo4j:1@localhost:7
 
 logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
+tqdm_logging.set_log_rate(timedelta(seconds=60))    
+
 lock = threading.Lock()
-updated_nodes = 0
+updated_nodes = set()
 
 def build_network(user, password, root_id='S5832131', cont=False, active=True, 
-                  threads=10, profile=False, nodes=0, socks5_proxy='', **_kwargs):
-    logger = logging.getLogger('build_network')
+                  threads=10, profile=False, nodes=0, socks5_proxy='', 
+                  last_updated:date=datetime.today(), **_kwargs):
+    '''Builds network of Atomy members
+    
+    :param str user: User name under which log in to Atomy
+    :param str password: Password for loging in to Atomy
+    :param str root_id: Atomy ID of the node from which start network building
+    :param bool cont: indicates whether to start building from the beginning or
+        continue previously interrupted operation
+    :param bool active: indicates whether update only active nodes. Node is
+        considered active if its PV is over 10
+    :param int threads: defines number of threads to use for network building
+    :param bool profile: defines whether to run performance profiling
+    :param int nodes: defines number of first nodes to run update upon. If value
+        is `0` all nodes are updated
+    :param str socks5_proxy: address of the SOCKS5 proxy server to overcome 
+        Atomy blocking some source IPs
+    :param date last_updated: All nodes updated before this date will be updated
+        default: today
+    :raises Exception: Any unexpected error'''
+    logger = logging.getLogger('build_network()')
     if not root_id:
         root_id = 'S5832131'
     if profile and not os.path.exists('profiles'):
         os.mkdir('profiles')
 
     tasks = []
-    traversing_nodes_set = _init_network(root_id, cont=cont, active=active)
-    traversing_nodes_list = sorted([(i, '') for i in traversing_nodes_set], 
+    exceptions = Queue()
+    traversing_nodes_set = _init_network(last_updated or datetime.today())
+    traversing_nodes_list = sorted([i for i in traversing_nodes_set], 
                                    key=lambda i: i[0].replace('S', '0'))
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
@@ -70,34 +95,40 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     token = [{'Cookie': atomy_login2(user, password, socks5_proxy)}]
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
-    while nodes == 0 or updated_nodes < nodes:
+    pbar = tqdm(traversing_nodes_list)
+    while nodes == 0 or len(updated_nodes) < nodes:
         if nodes > 0:
             logger.info("%s of %s nodes are updated", updated_nodes, nodes)
         while len([t for t in tasks if t.is_alive()]) >= threads:
             sleep(1)
         try:
+            try: # Get exception from the threads
+                raise exceptions.get(block=False)
+            except Empty:
+                pass
             with lock:
-                while traversing_nodes_list[c][0] not in traversing_nodes_set:
-                    logger.debug("Node %s was already crawled. Skipping...", traversing_nodes_list[c][0])
+                while traversing_nodes_list[c] not in traversing_nodes_set:
+                    logger.debug("Node %s was already crawled. Skipping...", traversing_nodes_list[c])
                     c += 1
-            node_id = traversing_nodes_list[c][0]
-            branch = traversing_nodes_list[c][1]
+            node_id = traversing_nodes_list[c]
             c += 1
-            logger.info("Processing %s (%s of %s). %s tasks are running",
-                        node_id, c, len(traversing_nodes_list),
-                        len([t for t in tasks if t.is_alive()]))
+            _update_progress(pbar, c, len(traversing_nodes_list), 
+                             len(traversing_nodes_set))
+            # logger.info("Processing %s (%s of %s). %s tasks are running",
+            #             node_id, c, len(traversing_nodes_list),
+            #             len([t for t in tasks if t.is_alive()]))
             if profile:
                 thread = threading.Thread(
                     target=_profile_thread,
-                    args=("Thread-" + node_id, _build_page_nodes, node_id, branch,
+                    args=("Thread-" + node_id, _build_page_nodes, node_id,
                           traversing_nodes_set, traversing_nodes_list, socks5_proxy, 
-                          root_id),
+                          root_id, exceptions),
                     name="Thread-" + node_id)
             else:
                 thread = threading.Thread(
                     target=_build_page_nodes, 
-                    args=(node_id, branch, traversing_nodes_set, traversing_nodes_list,
-                          socks5_proxy, root_id),
+                    args=(node_id, traversing_nodes_set, traversing_nodes_list,
+                          socks5_proxy, root_id, exceptions),
                     name="Thread-" + node_id)
 
             thread.start()
@@ -113,10 +144,24 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
         except KeyboardInterrupt:
             logger.info("Ctrl+C was pressed. Shutting down (running threads will be completed)...")
             break
+        except BuildPageNodesException as ex:
+            with lock:
+                traversing_nodes_set.discard(node_id)
+
+            if str(ex.ex) == '나의 하위회원 계보도만 조회 가능합니다.':
+                logger.info("The node %s is no longer in the network. Deleting...", 
+                            ex.node_id)
+                db.cypher_query('''
+                    MATCH (a:AtomyPerson{atomy_id: $id})-[r]-() DELETE r, a
+                ''', {'id': node_id})
+            else:
+                logger.warning(str(ex))
         except Exception as ex:
             logger.exception(node_id)
             raise ex
     logger.info("Done. Added %s new nodes", len(traversing_nodes_list) - initial_nodes_count)
+    _set_branches(root_id)
+
     ### PV update isn't needed anymore
     ### Consider removing in the next release
     # logger.info("Updating network PV for each node")
@@ -140,6 +185,45 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     # ''')
     # logger.info("Update result: %s", result)
 
+def cleanup_tree(last_update: date, user, password, socks5_proxy: str='', 
+                 threads=10):
+    '''Cleans up the tree - removes non-existing nodes and reruns update for
+    ones that where not updated in this network build cycle
+    
+    :param date last_update: date of the network last update
+    :param str user: user name to log in to Atomy
+    :param str password: password to log in to Atomy
+    :param str socks5_proxy: address of the SOCKS5 proxy. Needed because 
+        Atomy blocks some source IPs
+    :param int threads: number of threads to run network build
+    :raises Exception: for any unexpected error, which will be fatal'''
+    logger = logging.getLogger('cleanup_tree()')
+    logger.setLevel(logging.DEBUG)
+    logger.info("Cleaning up the tree")
+    logger.debug("Getting nodes with update date before this update start date")
+    result, _ = db.cypher_query('''
+        MATCH (n:AtomyPerson) WHERE date(n.when_updated) < $today 
+        RETURN n.atomy_id ORDER BY n.atomy_id_normalized
+    ''', {'today': last_update})
+    result = [node[0] for node in result]
+    logger.info("Got %s outdated nodes", len(result))
+    for node in (bar:=tqdm(result)):
+        bar.set_postfix_str(node)
+        if node in updated_nodes:
+            continue
+        try:
+            build_network(user, password, root_id=node, threads=threads,
+                          socks5_proxy=socks5_proxy)
+        except Exception as e:
+            if str(e) == '나의 하위회원 계보도만 조회 가능합니다.':
+                logger.info("The node %s is no longer in the network. Deleting...", node)
+                result, _ = db.cypher_query('''
+                    MATCH (a:AtomyPerson{atomy_id: $id})-[r]-() DELETE r, a
+                ''', {'id': node})
+            else:
+                raise e
+    logger.info("All nodes (%s in total) are updated", len(updated_nodes))
+
 def _profile_thread(thread_name, target, *args):
     profiler = cProfile.Profile()
     profiler.enable()
@@ -147,29 +231,44 @@ def _profile_thread(thread_name, target, *args):
     profiler.disable()
     profiler.dump_stats("profiles/profile-" + thread_name + '-' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
-def _build_page_nodes(node_id: str, branch: str, traversing_nodes_set: set[str], 
-                      traversing_nodes_list: list[tuple[str, str]], socks5_proxy: str,
-                      root_id: str):
+def _build_page_nodes(node_id: str, traversing_nodes_set: set[str], 
+                      traversing_nodes_list: list[str], socks5_proxy: str,
+                      root_id: str, exceptions: Queue):
+    """Gets page for a given node tree
+
+    :param str node_id: Atomy ID of the node
+    :param set[str] traversing_nodes_set: set of nodes used to identify whether
+        the node has to be added to the traversing list of not. Introduced due to
+        performance reasons - search at set is much faster than in the list
+    :param list[str] traversing_nodes_list: list of nodes to be
+        gone through
+    :param str socks5_proxy: address of the SOCKS5 proxy to use for Atomy calls
+     Used because Atomy server blocks some sources.
+    :param str root_id: Atomy ID of the tree root
+    :param Queue exceptions: 
+    :raises Exception: If anything bad happens"""
     logger = logging.getLogger('_build_page_nodes()')
-    try:
-        page = get_json(TREE_URL + '?' + 
-                        DATA_TEMPLATE.format(node_id, start_date), headers=token,
-                        retries=3,
-                        socks5_proxy=socks5_proxy)
-        if page['result'] != '200':
-            raise Exception(page['resultMessage'])
-    except Exception as ex:
-        logger.exception("Couldn't get tree page")
-        raise ex
+    for _ in range(3):
+        try:
+            page = get_json(TREE_URL + '?' + 
+                            DATA_TEMPLATE.format(node_id, start_date), headers=token,
+                            retries=3,
+                            socks5_proxy=socks5_proxy)
+            if page['result'] != '200':
+                raise Exception(page['resultMessage'])
+            break
+        except Exception as ex:
+            exceptions.put(BuildPageNodesException(node_id, ex)) # The exception is to be handled in the calling thread
+            return # I don't want to raise an unhandled exception
     members: list[dict[str, Any]] = page['items']['includeItems']
     logger.debug("%s elements on the page to be processed", len(members))
     
     # Update or create root node
-    if node_id == root_id:
-        _get_node(members[0], '', False, branch, logger)
+    # if node_id == root_id:
+    _get_node(members[0], '', False, logger)
     if members[0]['ptnr_yn'] == 'Y':
         _get_children(
-            node_id, branch, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
+            node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
             logger=logger
         )
     logger.debug("Done building node %s", node_id)
@@ -181,127 +280,144 @@ def get_child_id(parent_id, child_type):
     ''')
     return result[0][0] if len(result) > 0 else None
 
-def _get_children(node_id: str, branch: str, traversing_nodes_set: set[str], 
-                  traversing_nodes_list: list[tuple[str, str]], node_element,
+def _get_children(node_id: str, traversing_nodes_set: set[str], 
+                  traversing_nodes_list: list[str], node_element,
     elements, logger):
 
     left = right = left_element = right_element = None
-    left_branch = right_branch = ''
     logger.fine("Getting children for %s", node_id)
     children_elements = [e for e in elements 
                            if e['spnr_no'] == node_id ]
     for element in children_elements:
-        element_id = element['cust_no']
-        if _is_left(element):
-            logger.debug("%s is left to %s", element_id, node_id)
-            left_branch = 'L' if branch == '' else branch
-            left_child_id = get_child_id(node_id, ChildType.LEFT)
-            if left_child_id is None:
-                logger.debug("%s has no left child. Adding %s", node_id, element_id)
-                left = _get_node(element=element, parent_id=node_id, 
-                                 is_left=True, branch=left_branch, logger=logger)
-                logger.debug("%s is added to DB as left child of %s", element_id, node_id)
-                left_element = element
-            else:
-                if left_child_id != element_id:
-                    logger.warning(
-                        "%s has %s as a left child. Will be overwritten with %s.",
-                        node_id, left_child_id, element_id)
-                else:
-                    logger.debug(
-                        '%s already has %s as a left child. Updating data...',
-                        node_id, element_id)
-                left = _get_node(element=element, parent_id=node_id, 
-                                 is_left=True, branch=left_branch, logger=logger)
-                left_element = element
+        # element_id = element['cust_no']
+        if left is None:
+            left_element = element
+            left = _add_node(parent_id=node_id, element=element, is_left=True, 
+                         logger=logger)        
         else:
-            logger.debug("%s is right to %s", element_id, node_id)
-            right_branch = 'R' if branch == '' else branch
-            right_child_id = get_child_id(node_id, ChildType.RIGHT)
-            if right_child_id is None:
-                logger.debug("%s has no right child. Adding %s", node_id, element_id)
-                if  left is not None:
-                    right = _get_node(element=element, parent_id=node_id, 
-                                      is_left=False, branch=right_branch, logger=logger)
-                    logger.debug("%s is added to DB as right child of %s", element_id, node_id)
-                    right_element = element
-                else:
-                    logger.warning("No left child was found for %s before. I don't know what to do. Skipping %s",
-                                   node_id, element_id)
-            else:
-                if right_child_id != element_id:
-                    logger.warning(
-                        "%s has %s as a right child. Will be overwritten with %s.",
-                        node_id, right_child_id, element_id)
-                else:
-                    logger.debug(
-                        '%s already has %s as a right child. Updating data...',
-                        node_id, element_id)
-                right = _get_node(element=element, parent_id=node_id, 
-                                  is_left=False, branch=right_branch, logger=logger)
-                right_element = element
+            right_element = element
+            right = _add_node(parent_id=node_id, element=element, is_left=True, 
+                         logger=logger)    
+        # if left is None:
+        #     logger.debug("%s is left to %s", element_id, node_id)
+        #     left_child_id = get_child_id(node_id, ChildType.LEFT)
+        #     if left_child_id is None:
+        #         logger.debug("%s has no left child. Adding %s", node_id, element_id)
+        #         left = _get_node(element=element, parent_id=node_id, 
+        #                          is_left=True, logger=logger)
+        #         logger.debug("%s is added to DB as left child of %s", element_id, node_id)
+        #         left_element = element
+        #     else:
+        #         if left_child_id != element_id:
+        #             logger.warning(
+        #                 "%s has %s as a left child. Will be overwritten with %s.",
+        #                 node_id, left_child_id, element_id)
+        #         else:
+        #             logger.debug(
+        #                 '%s already has %s as a left child. Updating data...',
+        #                 node_id, element_id)
+        #         left = _get_node(element=element, parent_id=node_id, 
+        #                          is_left=True, logger=logger)
+        #         left_element = element
+        # else:
+        #     logger.debug("%s is right to %s", element_id, node_id)
+        #     right_child_id = get_child_id(node_id, ChildType.RIGHT)
+        #     if right_child_id is None:
+        #         logger.debug("%s has no right child. Adding %s", node_id, element_id)
+        #         right = _get_node(element=element, parent_id=node_id, 
+        #                             is_left=False, logger=logger)
+        #         logger.debug("%s is added to DB as right child of %s", element_id, node_id)
+        #         right_element = element
+        #     else:
+        #         if right_child_id != element_id:
+        #             logger.warning(
+        #                 "%s has %s as a right child. Will be overwritten with %s.",
+        #                 node_id, right_child_id, element_id)
+        #         else:
+        #             logger.debug(
+        #                 '%s already has %s as a right child. Updating data...',
+        #                 node_id, element_id)
+        #         right = _get_node(element=element, parent_id=node_id, 
+        #                           is_left=False, logger=logger)
+        #         right_element = element
     if left is None and node_element['ptnr_yn'] == 'Y':
         # Means the element has children but they aren't found in this page
         # So the crawling will be done for this element
         if node_id not in traversing_nodes_set:
             traversing_nodes_set.add(node_id)
-            traversing_nodes_list.append((node_id, branch))
-    else:
-        # Here node is set as built
-        # Dynamic properties are updated either set during processing this node
-        # as child one or for root node at the very beginning of the process
-        db.cypher_query('''
-            MATCH (node:AtomyPerson {atomy_id: $atomy_id}) 
-            SET
-                node.built_tree = true
-            ''', params={
-                'atomy_id': node_id
-            })
-        if left is not None:
-            _get_children(str(left.atomy_id), left_branch, traversing_nodes_set, 
-                          traversing_nodes_list, left_element, elements, 
-                          logger=logger)
-        if right is not None:
-            _get_children(str(right.atomy_id), right_branch, traversing_nodes_set, 
-                          traversing_nodes_list, right_element, elements,
-                          logger=logger)
-        with lock:
-            logger.debug("%s is done. Removing from the crawling set", node_id)
-            traversing_nodes_set.discard(node_id)
-
-def _init_network(root_node_id, cont=False, active=True):
-    logger = logging.getLogger("_init_network")
-    neo4j_root = AtomyPerson.nodes.get_or_none(atomy_id=root_node_id, lazy=False)
-    if neo4j_root is None:
-        neo4j_root = AtomyPerson(atomy_id=root_node_id).save()
-
-    logger.info('Getting leafs to crawl')
-    if not cont:
-        logger.debug("Resetting 'built_tree' attribute")
-        db.cypher_query('MATCH (n:AtomyPerson {built_tree: true}) SET n.built_tree = false')
-    # if cont or active:
-    #     _filter = ''
-    #     if active:
-    #         _filter += ' AND leaf.pv > 10'
-    #     if cont:
-    #         _filter += ' AND NOT leaf.built_tree'
-    #     result, _ = db.cypher_query(f'''
-    #         MATCH (root:AtomyPerson {{atomy_id:$root_id}})<-[:PARENT*0..]-(leaf:AtomyPerson)
-    #         WHERE {_filter[5:]}
-    #         RETURN leaf.atomy_id
-    #     ''', params={'root_id': root_node_id})
-    #     leafs = {item[0] for item in result}
+            traversing_nodes_list.append(node_id)
     # else:
-    leafs = {root_node_id}
-    logger.info('Done')
-    return leafs
+    #     # Here node is set as built
+    #     # Dynamic properties are updated either set during processing this node
+    #     # as child one or for root node at the very beginning of the process
+    #     db.cypher_query('''
+    #         MATCH (node:AtomyPerson {atomy_id: $atomy_id}) 
+    #         SET
+    #             node.built_tree = true
+    #         ''', params={
+    #             'atomy_id': node_id
+    #         })
+    if left is not None:
+        _get_children(str(left.atomy_id), traversing_nodes_set, 
+                        traversing_nodes_list, left_element, elements, 
+                        logger=logger)
+    if right is not None:
+        _get_children(str(right.atomy_id), traversing_nodes_set, 
+                        traversing_nodes_list, right_element, elements,
+                        logger=logger)
+    with lock:
+        logger.debug("%s is done. Removing from the crawling set", node_id)
+        traversing_nodes_set.discard(node_id)
+
+def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
+    element_id = element['cust_no']
+    if is_left:
+        child_type = ChildType.LEFT
+        child_type_name = 'left'
+    else:
+        child_type = ChildType.RIGHT
+        child_type_name = 'right'
+    logger.debug("%s is left to %s", element_id, parent_id)
+    if logger.getEffectiveLevel() == logging.DEBUG:
+        child_id = get_child_id(parent_id, child_type)
+        if child_id is None:
+            logger.debug("%s has no %s child. Adding %s as a left child", 
+                         parent_id, child_type_name, element_id)
+        else:
+            if child_id != element_id:
+                logger.warning(
+                    "%s has %s as a %s child. Will be overwritten with %s.",
+                    parent_id, child_id, child_type_name, element_id)
+            else:
+                logger.debug(
+                    '%s already has %s as a %s child. Updating data...',
+                    parent_id, element_id, child_type_name)
+    return _get_node(element=element, parent_id=parent_id, is_left=is_left, 
+                     logger=logger)
+
+
+def _init_network(last_update: date) -> set[str]:
+    '''Returns all nodes updated before `last_update`
+
+    :param date last_update: Date of node last update that has to be updated
+    :returns set[tuple[str, str]]: set of tuples of Atomy ID and branch the node
+        belongs to'''
+    logger = logging.getLogger("_init_network")
+    logger.info("Getting all nodes updated before %s", last_update)
+    result, _ = db.cypher_query('''
+        MATCH (n:AtomyPerson) WHERE date(n.when_updated) < date($today)
+        RETURN n.atomy_id ORDER BY n.atomy_id_normalized
+    ''', {'today': last_update})
+    result = [node[0] for node in result]
+    logger.info("Got %s outdated nodes", len(result))
+    return set(result)
 
 def _get_node(element: dict[str, Any], parent_id: str, is_left: bool, 
-              branch: str, logger: logging.Logger):
+              logger: logging.Logger):
+    atomy_id = element['cust_no']
     with lock:
         global updated_nodes
-        updated_nodes += 1
-    atomy_id = element['cust_no']
+        updated_nodes.add(atomy_id)
     try:
         signup_date = datetime.strptime(element['join_dt'], '%Y-%m-%d')
         last_purchase_date = datetime.strptime(element['fnl_svol_dt'], '%Y-%m-%d') \
@@ -316,13 +432,22 @@ def _get_node(element: dict[str, Any], parent_id: str, is_left: bool,
     if parent_id == '':
         node = _save_root_node(atomy_id, element, signup_date, last_purchase_date)
     else:
-        node = _save_child_node(atomy_id, parent_id, element, is_left, branch,
+        node = _save_child_node(atomy_id, parent_id, element, is_left,
                                 signup_date, last_purchase_date)
     logger.debug('Saved node %s: {rank: %s}', atomy_id, node.rank)
     return node
         
 def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetime, 
                     last_purchase_date: Optional[datetime]) -> AtomyPerson:
+    '''Saves root node to the database
+    
+    :param str atomy_id: Atomy ID of the node to be saved
+    :param dict[str, Any] element: JSON element obtained from Atomy and serving
+        as a source of data for the database
+    :param datetime signup_date: time of the node signing up to Atomy
+    :param Optional[datetime] last_purchase_date: date when last purchase to
+        Atomy was done
+    :returns AtomyPerson: an object of node in the database'''
     result, _ = db.cypher_query('''
         MERGE (node:AtomyPerson {atomy_id: $atomy_id})
         ON CREATE SET
@@ -361,15 +486,27 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
     return AtomyPerson.inflate(result[0][0])
 
 def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool, 
-                     branch: str, signup_date: datetime, 
+                     signup_date: datetime, 
                      last_purchase_date: Optional[datetime]) -> AtomyPerson:
+    '''Saves a child node to the database
+    
+    :param str atomy_id: Atomy ID of the node to be saved
+    :param str parent_id: Atomy ID of the node's parent in the hierarchy
+    :param dict[str, Any] element: JSON element obtained from Atomy and serving
+        as a source of data for the database
+    :param bool is_left: identifies whether the child is left leaf of the parent
+    :param str branch: identifies branch of the root node where the node is.
+        Possible values are: 'L', 'R'
+    :param datetime signup_date: time of the node signing up to Atomy
+    :param Optional[datetime] last_purchase_date: date when last purchase to
+        Atomy was done
+    :returns AtomyPerson: an object of node in the database'''
     result, _ = db.cypher_query(f'''
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})
         MERGE (node:AtomyPerson {{atomy_id: $atomy_id}})
         ON CREATE SET
                 node.atomy_id_normalized = REPLACE($atomy_id, 'S', '0'),
                 node.name = $name,
-                node.branch = $branch,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.center = $center,
@@ -379,7 +516,6 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
                 node.when_updated = $now
         ON MATCH SET
                 node.name = $name,
-                node.branch = $branch,
                 node.rank = $rank,
                 node.highest_rank = $highest_rank,
                 node.center = $center,
@@ -393,7 +529,6 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
         'atomy_id': atomy_id,
         'parent_id': parent_id,
         'name': element['cust_nm'],
-        'branch': branch,
         'rank': titles.get(element['cur_lvl_cd']),
         'highest_rank': titles.get(element['mlvl_cd']),
         'center': element.get('ectr_nm'),
@@ -413,6 +548,25 @@ def _is_left(element):
 def _is_right(element):
     return element['trct_loc_cd'] == 'R'
 
+def _set_branches(root_id):
+    children, _ = db.cypher_query('''
+        MATCH (root:AtomyPerson{atomy_id:'S5832131'})-[:LEFT_CHILD]->(l:AtomyPerson)
+        MATCH (root)-[:RIGHT_CHILD]->(r:AtomyPerson)
+        RETURN l.atomy_id, r.atomy_id
+    ''', {'root_id': root_id})
+    db.cypher_query('''
+        MATCH (:AtomyPerson{atomy_id: $id})<-[:PARENT*]-(a:AtomyPerson) SET a.branch = "L"
+    ''', {'id': children[0][0]})
+    db.cypher_query('''
+        MATCH (:AtomyPerson{atomy_id: $id})<-[:PARENT*]-(a:AtomyPerson) SET a.branch = "R"
+    ''', {'id': children[0][1]})
+
+def _update_progress(pbar: tqdm, progress: int, total: int, left_to_crawl: int) -> None:
+    pbar.total = total
+    pbar.n = progress
+    pbar.set_description(f"{left_to_crawl} left to crawl")
+    pbar.refresh()
+
 if __name__ == '__main__':
     import argparse
 
@@ -429,6 +583,9 @@ if __name__ == '__main__':
     arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
     arg_parser.add_argument('--nodes', help="Update first nodes", type=int, default=0)
+    arg_parser.add_argument('--last-updated', help="Include only nodes that were last time updated before provided date. Format: YYYY-MM-DD", 
+                            type=lambda s: datetime.strptime(s, '%Y-%m-%d'),
+                            default=date.today())
     arg_parser.add_argument('--socks5_proxy', help="Address of SOCKS5 proxy server", default='')
 
     if os.environ.get('TERM_PROGRAM') == 'vscode':

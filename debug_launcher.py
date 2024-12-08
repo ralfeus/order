@@ -1,15 +1,13 @@
 import cProfile
-from datetime import datetime
+from datetime import date, datetime
 import random
 import sys
 
 from app import db, create_app
 from app.purchase.models import PurchaseOrder
 from app.products.models import *
-import logging
 from app.import_products import get_atomy_products
 
-logging.basicConfig(level=logging.DEBUG)
 from app.jobs import *
 from app.purchase.jobs import *
 from app.tools import invoke_curl
@@ -31,9 +29,11 @@ with create_app().app_context():
     # print(po.to_dict())
 
     sys.path.append('./network_builder')
-    from network_builder.build_network import build_network
+    from network_builder.build_network import build_network, cleanup_tree
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    build_network(user='S5832131', password='mkk03020529!!', threads=1)
+    build_network(user='S5832131', password='mkk03020529!!', threads=50, 
+                  last_updated=date(2024, 12, 4))
     # copy_subtree(root_id='S9945812')
+    # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
 
     # get_atomy_products()

@@ -1,4 +1,5 @@
 '''Network manager'''
+from datetime import date, timedelta
 import logging
 from multiprocessing import Process, active_children
 from os import getcwd, environ
@@ -58,12 +59,16 @@ def start_builder():
     process = _get_builder_process()
     if process is not None:
         return jsonify({'status': 'already running'})
+    days = int(request.args.get('days') or 0)
+    threads = request.args.get('threads') or '60'
+    last_updated = date.today() - timedelta(days=days)
     try:
         cwd = getcwd()
         params = [sys.executable, PROCESS_NAME, 
-                    '--threads', '60', '--user', 'S5832131',
+                    '--threads', threads, '--user', 'S5832131',
                     '--password', "mkk03020529!!", '--root', 'S5832131',
                     '--nodes', request.args.get('nodes') or '0',
+                    '--last-updated', last_updated.strftime('%Y-%m-%d'),
                     '--socks5_proxy', environ.get('SOCKS5_PROXY') or '']
         p = subprocess.Popen(params,
                         env={

@@ -5,7 +5,7 @@ RUN pip install setuptools
 RUN pip install werkzeug==2.0.3
 RUN pip install flask==2.1.2
 RUN pip install neomodel==4.0.7
-RUN pip install psutil requests
+RUN pip install psutil requests tqdm-loggable
 COPY ./utils /app/utils
 COPY ./network_builder /app
 COPY ./exceptions.py /app
