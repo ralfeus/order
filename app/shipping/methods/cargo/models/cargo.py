@@ -14,7 +14,10 @@ class Cargo(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'cargo'} #type: ignore
 
     def get_customs_label(self, order: 'o.Order') -> tuple[_TemporaryFileWrapper, str]:
-        '''Generates an invoice in excel format. Returns a temporary file object'''
+        '''Generates an invoice in excel format. 
+        
+        :returns tuple[_TemporaryFileWrapper, str]: a temporary file object 
+            and file extension (xlsx)'''
         logger = logging.getLogger('Cargo.get_customs_label')
         if len(order.order_products) == 0:
             raise OrderError("The order has no products")

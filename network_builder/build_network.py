@@ -18,8 +18,6 @@ from nb_exceptions import BuildPageNodesException
 from utils import get_json
 from utils.atomy import atomy_login2
 
-from model import AtomyPerson
-
 class ChildType(Enum):
     LEFT = 0
     RIGHT = 1
@@ -55,7 +53,7 @@ logging.basicConfig(level=logging.INFO, force=True,
 tqdm_logging.set_log_rate(timedelta(seconds=60))    
 
 lock = threading.Lock()
-updated_nodes = set()
+updated_nodes = 0
 
 def build_network(user, password, root_id='S5832131', cont=False, active=True, 
                   threads=10, profile=False, nodes=0, socks5_proxy='', 
@@ -84,7 +82,6 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     if profile and not os.path.exists('profiles'):
         os.mkdir('profiles')
 
-    tasks = []
     exceptions = Queue()
     traversing_nodes_set = _init_network(last_updated or datetime.today())
     traversing_nodes_list = sorted([i for i in traversing_nodes_set], 
@@ -96,10 +93,10 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
     pbar = tqdm(traversing_nodes_list)
-    while nodes == 0 or len(updated_nodes) < nodes:
+    while nodes == 0 or updated_nodes < nodes:
         if nodes > 0:
             logger.info("%s of %s nodes are updated", updated_nodes, nodes)
-        while len([t for t in tasks if t.is_alive()]) >= threads:
+        while threading.active_count() - 2 >= threads:
             sleep(1)
         try:
             try: # Get exception from the threads
@@ -132,9 +129,8 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                     name="Thread-" + node_id)
 
             thread.start()
-            tasks.append(thread)
         except IndexError:
-            running_tasks = len([t for t in tasks if t.is_alive()])
+            running_tasks = threading.active_count() - 2
             if running_tasks == 0:
                 logger.info('No nodes left to check. Finishing')
                 break
@@ -152,10 +148,18 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                 logger.info("The node %s is no longer in the network. Deleting...", 
                             ex.node_id)
                 db.cypher_query('''
-                    MATCH (a:AtomyPerson{atomy_id: $id})-[r]-() DELETE r, a
-                ''', {'id': node_id})
+                    MATCH (a:AtomyPerson{atomy_id: $id}) DETACH DELETE a
+                ''', {'id': ex.node_id})
             else:
                 logger.warning(str(ex))
+        except RuntimeError as ex:
+            logger.warning("Couldn't start a new thread. "
+                           "Trying again and reducing amount of maximum threads")
+            logger.exception(ex)
+            sleep(5)
+            c -= 1
+            if threads >= 10:
+                threads -= 5
         except Exception as ex:
             logger.exception(node_id)
             raise ex
@@ -184,45 +188,6 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     #     RETURN COUNT(*)
     # ''')
     # logger.info("Update result: %s", result)
-
-def cleanup_tree(last_update: date, user, password, socks5_proxy: str='', 
-                 threads=10):
-    '''Cleans up the tree - removes non-existing nodes and reruns update for
-    ones that where not updated in this network build cycle
-    
-    :param date last_update: date of the network last update
-    :param str user: user name to log in to Atomy
-    :param str password: password to log in to Atomy
-    :param str socks5_proxy: address of the SOCKS5 proxy. Needed because 
-        Atomy blocks some source IPs
-    :param int threads: number of threads to run network build
-    :raises Exception: for any unexpected error, which will be fatal'''
-    logger = logging.getLogger('cleanup_tree()')
-    logger.setLevel(logging.DEBUG)
-    logger.info("Cleaning up the tree")
-    logger.debug("Getting nodes with update date before this update start date")
-    result, _ = db.cypher_query('''
-        MATCH (n:AtomyPerson) WHERE date(n.when_updated) < $today 
-        RETURN n.atomy_id ORDER BY n.atomy_id_normalized
-    ''', {'today': last_update})
-    result = [node[0] for node in result]
-    logger.info("Got %s outdated nodes", len(result))
-    for node in (bar:=tqdm(result)):
-        bar.set_postfix_str(node)
-        if node in updated_nodes:
-            continue
-        try:
-            build_network(user, password, root_id=node, threads=threads,
-                          socks5_proxy=socks5_proxy)
-        except Exception as e:
-            if str(e) == '나의 하위회원 계보도만 조회 가능합니다.':
-                logger.info("The node %s is no longer in the network. Deleting...", node)
-                result, _ = db.cypher_query('''
-                    MATCH (a:AtomyPerson{atomy_id: $id})-[r]-() DELETE r, a
-                ''', {'id': node})
-            else:
-                raise e
-    logger.info("All nodes (%s in total) are updated", len(updated_nodes))
 
 def _profile_thread(thread_name, target, *args):
     profiler = cProfile.Profile()
@@ -265,14 +230,18 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     
     # Update or create root node
     # if node_id == root_id:
-    _get_node(members[0], '', False, logger)
-    if members[0]['ptnr_yn'] == 'Y':
-        _get_children(
-            node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
-            logger=logger
-        )
-    logger.debug("Done building node %s", node_id)
-
+    try:
+        _save_node(members[0], '', False, logger)
+        if members[0]['ptnr_yn'] == 'Y':
+            _get_children(
+                node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
+                logger=logger
+            )
+        logger.debug("Done building node %s", node_id)
+    except MemoryError as ex:
+        exceptions.put(BuildPageNodesException(node_id, ex))
+        return
+    
 def get_child_id(parent_id, child_type):
     result, _ = db.cypher_query(f'''
         MATCH (p:AtomyPerson {{atomy_id: '{parent_id}'}})-[:{child_type.name}_CHILD]->(c:AtomyPerson)
@@ -358,11 +327,11 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
     #             'atomy_id': node_id
     #         })
     if left is not None:
-        _get_children(str(left.atomy_id), traversing_nodes_set, 
+        _get_children(left, traversing_nodes_set, 
                         traversing_nodes_list, left_element, elements, 
                         logger=logger)
     if right is not None:
-        _get_children(str(right.atomy_id), traversing_nodes_set, 
+        _get_children(right, traversing_nodes_set, 
                         traversing_nodes_list, right_element, elements,
                         logger=logger)
     with lock:
@@ -392,7 +361,7 @@ def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
                 logger.debug(
                     '%s already has %s as a %s child. Updating data...',
                     parent_id, element_id, child_type_name)
-    return _get_node(element=element, parent_id=parent_id, is_left=is_left, 
+    return _save_node(element=element, parent_id=parent_id, is_left=is_left, 
                      logger=logger)
 
 
@@ -412,12 +381,19 @@ def _init_network(last_update: date) -> set[str]:
     logger.info("Got %s outdated nodes", len(result))
     return set(result)
 
-def _get_node(element: dict[str, Any], parent_id: str, is_left: bool, 
-              logger: logging.Logger):
+def _save_node(element: dict[str, Any], parent_id: str, is_left: bool, 
+              logger: logging.Logger) -> str:
+    '''Saves node in the database
+    
+    :param dict[str, Any] element: JSON representation of the element to be saved
+    :param str parent_id: Atomy ID of the parent of the node to be saved
+    :param bool is_left: specifies whether node is a left child of the parent
+    :param logging.Logger logger: logger object
+    :returns str: Atomy ID of the node'''
     atomy_id = element['cust_no']
     with lock:
         global updated_nodes
-        updated_nodes.add(atomy_id)
+        updated_nodes += 1
     try:
         signup_date = datetime.strptime(element['join_dt'], '%Y-%m-%d')
         last_purchase_date = datetime.strptime(element['fnl_svol_dt'], '%Y-%m-%d') \
@@ -430,15 +406,16 @@ def _get_node(element: dict[str, Any], parent_id: str, is_left: bool,
         logger.exception("_get_node(): In %s the error has happened", atomy_id)
         raise ex
     if parent_id == '':
-        node = _save_root_node(atomy_id, element, signup_date, last_purchase_date)
+        _save_root_node(atomy_id, element, signup_date, last_purchase_date)
     else:
-        node = _save_child_node(atomy_id, parent_id, element, is_left,
+        _save_child_node(atomy_id, parent_id, element, is_left,
                                 signup_date, last_purchase_date)
-    logger.debug('Saved node %s: {rank: %s}', atomy_id, node.rank)
-    return node
+    logger.debug('Saved node %s: {rank: %s}', atomy_id, 
+                 titles.get(element['cur_lvl_cd']))
+    return atomy_id
         
 def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetime, 
-                    last_purchase_date: Optional[datetime]) -> AtomyPerson:
+                    last_purchase_date: Optional[datetime]) -> str:
     '''Saves root node to the database
     
     :param str atomy_id: Atomy ID of the node to be saved
@@ -447,8 +424,8 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
     :param datetime signup_date: time of the node signing up to Atomy
     :param Optional[datetime] last_purchase_date: date when last purchase to
         Atomy was done
-    :returns AtomyPerson: an object of node in the database'''
-    result, _ = db.cypher_query('''
+    :returns str: an Atomy ID of the node in the database'''
+    db.cypher_query('''
         MERGE (node:AtomyPerson {atomy_id: $atomy_id})
         ON CREATE SET
                 node.atomy_id_normalized = REPLACE($atomy_id, 'S', '0'),
@@ -468,7 +445,7 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
                 node.country = $country,
                 node.last_purchase_date = $last_purchase_date,
                 node.when_updated = $now
-        RETURN node
+        RETURN node.atomy_id
     ''', params={
         'atomy_id': atomy_id,
         'name': element['cust_nm'],
@@ -483,11 +460,11 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
         # 'network_pv': network_pv,
         'now': datetime.now()
     })
-    return AtomyPerson.inflate(result[0][0])
+    return atomy_id
 
 def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool, 
                      signup_date: datetime, 
-                     last_purchase_date: Optional[datetime]) -> AtomyPerson:
+                     last_purchase_date: Optional[datetime]) -> str:
     '''Saves a child node to the database
     
     :param str atomy_id: Atomy ID of the node to be saved
@@ -500,8 +477,8 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
     :param datetime signup_date: time of the node signing up to Atomy
     :param Optional[datetime] last_purchase_date: date when last purchase to
         Atomy was done
-    :returns AtomyPerson: an object of node in the database'''
-    result, _ = db.cypher_query(f'''
+    :returns str: an Atomy ID of the node in the database'''
+    db.cypher_query(f'''
         MATCH (parent:AtomyPerson {{atomy_id: $parent_id}})
         MERGE (node:AtomyPerson {{atomy_id: $atomy_id}})
         ON CREATE SET
@@ -524,7 +501,7 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
                 node.when_updated = $now
         MERGE (node)-[:PARENT]->(parent)
         MERGE (parent)-[:{"LEFT" if is_left else "RIGHT"}_CHILD]->(node)
-        RETURN node
+        RETURN node.atomy_id
     ''', params={
         'atomy_id': atomy_id,
         'parent_id': parent_id,
@@ -540,7 +517,7 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
         # 'network_pv': network_pv,
         'now': datetime.now()
     })
-    return AtomyPerson.inflate(result[0][0])
+    return atomy_id
 
 def _is_left(element):
     return element['trct_loc_cd'] == 'L'

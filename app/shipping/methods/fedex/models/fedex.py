@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+from tempfile import _TemporaryFileWrapper
 import time
 from typing import Any
 
@@ -410,6 +411,10 @@ class Fedex(Shipping):
             'amount': value,
             'currency': 'WON'
         }
+    
+    def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
+        #TODO
+        return super().get_customs_label(order)
 
     def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
         logger = logging.getLogger("FedEx::get_shipping_items()")

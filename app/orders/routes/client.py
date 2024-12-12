@@ -174,18 +174,20 @@ def admin_get_customs_label(order_id):
     '''
     Generates a label for a destination customs for an order
     '''
-    order = Order.query.get(order_id)
+    order: Order = Order.query.get(order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     try:
         file, ext = order.get_customs_label()
-        if file is None:
-            raise OrderError("There is no customs label template for this order")
         file.seek(0)
         return current_app.response_class(stream_and_close(file), headers={
             'Content-Disposition': f'attachment; filename="{order_id}_customs_label.{ext}"',
             'Content-Type': file_types[ext]
         })
+    except NotImplementedError:
+        abort(Response(
+            "Couldn't generate customs label due to following error: "
+            "There is no customs label template for this order"))
     except OrderError as ex:
         abort(Response(
             f"Couldn't generate customs label due to following error: {';'.join(ex.args)}"))

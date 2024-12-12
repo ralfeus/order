@@ -612,7 +612,10 @@ class Order(db.Model, BaseModel): # type: ignore
         return file
 
     def get_customs_label(self) -> tuple[_TemporaryFileWrapper, str]:
-        '''Generates a customs label. Returns a temporary file object'''
+        '''Generates a customs label. Returns a temporary file object
+        
+        :returns tuple[_TemporaryFileWrapper, str]: tuple of label file 
+            and file extension'''
         return self.shipping.get_customs_label(self)
 
     def _get_shipping_per_product(self, op):

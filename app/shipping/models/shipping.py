@@ -94,6 +94,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
                 items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]
                 ) -> ConsignResult:
         '''Creates consignment at shipping provider.
+
         :param Address sender: sender's address
         :param ShippingContact sender_contact: contact information of the sender
         :param Address recipient: recipient's address
@@ -101,9 +102,9 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         :param list[ShippingItem] items: items to be shipped
         :param list[Box] boxes: boxes to be shipped
         :param dict[str, Any] config: configuration to be used for shipping provider
-        :raises: :class:`NotImplementedError`: In case the consignment functionality
-        is not implemented by a shipping provider
-        :returns str: consignment ID'''
+        :returns str: consignment ID
+        :raises NotImplementedError: In case the consignment functionality
+            is not implemented by a shipping provider'''
         raise NotImplementedError()
     
     def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
@@ -122,7 +123,14 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         return ''
 
     def get_customs_label(self, order) -> tuple[_TemporaryFileWrapper, str]:
-        return None, None #type: ignore
+        '''Generates a customs label. Returns a temporary file object
+        
+        :param Order order: Order object to generate customs label for
+        :returns tuple[_TemporaryFileWrapper, str]: tuple of temporary label file 
+            object and file extension
+        :raises NotImplementedError: In case the shipping method doesn't have
+            customs label generation implemented'''
+        raise NotImplementedError(f"{self.__class__} has no this method implemented")
 
     def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''
