@@ -69,157 +69,159 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     __session_cookies: list[str] = []
     __purchase_order: PurchaseOrder = None  # type: ignore
-    __mst = {
-        "seq": 5,
-        "clientNo": "ATOMY",
-        "siteNo": "KR",
-        "jisaCode": "01",
-        "saleDate": None,  # Set by `__set_purchase_date`
-        "buPlace": "7000",
-        "ordererNm": None,  # Set by `__set_receiver_address`
-        "cellNo": None,  # To be set by `__set_receiver_mobile`
-        "deliMethodCd": "3",
-        "deliCostDiviCd": "1",
-        "ordChnlCd": "10",
-        "ordChnlCdTemp": "10",
-        "cartGrpCd": "10",
-        "packingNo": None,
-        "packingYn": "N",
-        "mailRecvYn": "N",
-        "ordKindCd": "03",
-        "nomemOrdYn": "N",
-        "senderPrintYn": "Y",
-        "smsRecvYn": "Y",
-        "cashReceiptUseDiviCd": "1",  # TODO: Check if used for tax id
-        "cashReceiptIssueCd": "1",  # TODO: Check if used for tax id
-        "cashReceiptCertNo": "010-000-1234",  # Most likely to be set in `__set_tax_info`
-        "saleNo": None,  # To set provided from `mersList`
-    }
-    __dlvpList = [
-        {
-            "count": 0,
-            "deliFormCd": "10",
-            "mbrDlvpSeq": "0000001",
-            "dlvpDiviCd": "10",
-            "baseYn": "Y",
-            "dlvpNm": None,  # Set by `__set_order_id`
-            "recvrPostNo": None,  # Postal code is to be set by `__set_receiver_address`
-            "recvrBaseAddr": None,  # To be set by `__set_receiver_address`
-            "recvrDtlAddr": None,  # To be set by `__set_receiver_address`
+
+    def __init_payload(self):
+        self.__mst = {
+            "seq": 5,
+            "clientNo": "ATOMY",
+            "siteNo": "KR",
+            "jisaCode": "01",
+            "saleDate": None,  # Set by `__set_purchase_date`
+            "buPlace": "7000",
+            "ordererNm": None,  # Set by `__set_receiver_address`
             "cellNo": None,  # To be set by `__set_receiver_mobile`
-            "publicPlace": False,
-            "express": False,
-            "seq": 0,
-            "dlvpNo": "1",
-            "recvrNm": None,  # Set by `__set_receiver_address`
-            "buPlace": "",
-            "deliTypeCd": "3",
-            "packingMemo": None,
-            "deliCostTaxRate": 0,
-            "weekDeliveryPossYn": "N",
-            "saleAmtDispYn": "Y",
+            "deliMethodCd": "3",
+            "deliCostDiviCd": "1",
+            "ordChnlCd": "10",
+            "ordChnlCdTemp": "10",
+            "cartGrpCd": "10",
+            "packingNo": None,
+            "packingYn": "N",
+            "mailRecvYn": "N",
+            "ordKindCd": "03",
+            "nomemOrdYn": "N",
+            "senderPrintYn": "Y",
+            "smsRecvYn": "Y",
+            "cashReceiptUseDiviCd": "1",  # TODO: Check if used for tax id
+            "cashReceiptIssueCd": "1",  # TODO: Check if used for tax id
+            "cashReceiptCertNo": "010-000-1234",  # Most likely to be set in `__set_tax_info`
+            "saleNo": None,  # To set provided from `mersList`
         }
-    ]
-    __goodsList = [  ] # Propagated in `__add_products`
-    __beneList = [
-        {
-            "seq": 1,
-            "tempOrdSeq": "1",
-            "issueDiviCd": "10",
-            "costKindCd": "20",
-            "costKindDtlCd": "2010",
-            "relDiviCd": "10",
-            "deliCostAmt": 0,
-            "deliCostPoliNo": "KR00011",
-            "stAmt": 50000,
-            "costAmt": 0,
-            "taxAmt": 0,
-            "deliCostDiviCd": "0",
-            "oriDeliCostAmt": 0,
-            "deliTaxVal": "1.1",
-            "deliTaxTypeCd": "15",
-        }
-    ]
-    __po_params: dict[str, Any] = {
-        "maxSeq": 6,
-        "mst": __mst,
-        "payList": [
+        self.__dlvpList = [
             {
-                "seq": 4,
-                "payMean": "vbank",
-                "mersDiviCd": "101",
-                "payMeanCd": "1401",
-                "payAmt": None,  # Set by `__set_payment_params`
-                "payVat": None,  # Set by `__set_payment_params`
-                "bankCd": None,  # Set by `__set_payment_params`
-                "payerPhone": None,  # Set by `__set_payment_params`
-                "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                "registrationNumber": "0100001234",  # TODO: Needed?
-                "payNo": None,  # To be obtained from `mersList`
-                "vanData": {
-                    "data": {
-                        "bankCd": None,  # Set by `__set_payment_params`
-                        "dispGoodsNm": None,  # Set by `__set_payment_params`
-                        "ordererNm": None,  # Set by `__set_payment_params`
-                        "expiry": None,  # `__get_payment_deadline`
-                        "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                        "registrationNumber": "0100001234",  # TODO: Needed?
-                    },
-                    "vanCd": "50",
-                    "saleNo": None,  # To be obtained from `mersList`
-                    "payNo": None,  # To be obtained from `mersList`
-                    "payMeanCd": "1401",
+                "count": 0,
+                "deliFormCd": "10",
+                "mbrDlvpSeq": "0000001",
+                "dlvpDiviCd": "10",
+                "baseYn": "Y",
+                "dlvpNm": None,  # Set by `__set_order_id`
+                "recvrPostNo": None,  # Postal code is to be set by `__set_receiver_address`
+                "recvrBaseAddr": None,  # To be set by `__set_receiver_address`
+                "recvrDtlAddr": None,  # To be set by `__set_receiver_address`
+                "cellNo": None,  # To be set by `__set_receiver_mobile`
+                "publicPlace": False,
+                "express": False,
+                "seq": 0,
+                "dlvpNo": "1",
+                "recvrNm": None,  # Set by `__set_receiver_address`
+                "buPlace": "",
+                "deliTypeCd": "3",
+                "packingMemo": None,
+                "deliCostTaxRate": 0,
+                "weekDeliveryPossYn": "N",
+                "saleAmtDispYn": "Y",
+            }
+        ]
+        self.__goodsList = [  ] # Propagated in `__add_products`
+        self.__beneList = [
+            {
+                "seq": 1,
+                "tempOrdSeq": "1",
+                "issueDiviCd": "10",
+                "costKindCd": "20",
+                "costKindDtlCd": "2010",
+                "relDiviCd": "10",
+                "deliCostAmt": 0,
+                "deliCostPoliNo": "KR00011",
+                "stAmt": 50000,
+                "costAmt": 0,
+                "taxAmt": 0,
+                "deliCostDiviCd": "0",
+                "oriDeliCostAmt": 0,
+                "deliTaxVal": "1.1",
+                "deliTaxTypeCd": "15",
+            }
+        ]
+        self.__po_params: dict[str, Any] = {
+            "maxSeq": 6,
+            "mst": self.__mst,
+            "payList": [
+                {
+                    "seq": 4,
                     "payMean": "vbank",
                     "mersDiviCd": "101",
+                    "payMeanCd": "1401",
                     "payAmt": None,  # Set by `__set_payment_params`
-                    "timezone": "Asia/Seoul",
+                    "payVat": None,  # Set by `__set_payment_params`
+                    "bankCd": None,  # Set by `__set_payment_params`
+                    "payerPhone": None,  # Set by `__set_payment_params`
+                    "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
+                    "registrationNumber": "0100001234",  # TODO: Needed?
+                    "payNo": None,  # To be obtained from `mersList`
+                    "vanData": {
+                        "data": {
+                            "bankCd": None,  # Set by `__set_payment_params`
+                            "dispGoodsNm": None,  # Set by `__set_payment_params`
+                            "ordererNm": None,  # Set by `__set_payment_params`
+                            "expiry": None,  # `__get_payment_deadline`
+                            "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
+                            "registrationNumber": "0100001234",  # TODO: Needed?
+                        },
+                        "vanCd": "50",
+                        "saleNo": None,  # To be obtained from `mersList`
+                        "payNo": None,  # To be obtained from `mersList`
+                        "payMeanCd": "1401",
+                        "payMean": "vbank",
+                        "mersDiviCd": "101",
+                        "payAmt": None,  # Set by `__set_payment_params`
+                        "timezone": "Asia/Seoul",
+                        "paySiteNo": "KR",
+                        "payJisaCode": "01",
+                        "payClientNo": "ATOMY",
+                        "payChnlCd": "10",
+                    },
+                    "webhook": False,
+                }
+            ],
+            "dlvpList": self.__dlvpList,
+            "goodsList": self.__goodsList,  # To be set by `__add_products`
+            "beneList": self.__beneList,
+            "saveYn": "N",
+        }
+        self.__payment_payload: dict[str, Any] = {
+            "ordData": {
+                "maxSeq": 6,
+                "mst": self.__mst,
+                "payList": [
+                    {
+                        "mersDiviCd": "101",
+                        "bankCd": None,  # Set in `__set_payment_params`
+                        "expiry": None,  # Set in `__get_payment_deadline`
+                    }
+                ],
+                "dlvpList": self.__dlvpList,
+                "goodsList": self.__goodsList,
+                "beneList": self.__beneList,
+                "saveYn": "N",
+            },
+            "payData": {
+                "entry": {
                     "paySiteNo": "KR",
                     "payJisaCode": "01",
                     "payClientNo": "ATOMY",
                     "payChnlCd": "10",
+                    "origin": "https://kr.atomy.com",
                 },
-                "webhook": False,
-            }
-        ],
-        "dlvpList": __dlvpList,
-        "goodsList": __goodsList,  # To be set by `__add_products`
-        "beneList": __beneList,
-        "saveYn": "N",
-    }
-    __payment_payload: dict[str, Any] = {
-        "ordData": {
-            "maxSeq": 6,
-            "mst": __mst,
-            "payList": [
-                {
-                    "mersDiviCd": "101",
-                    "bankCd": None,  # Set in `__set_payment_params`
-                    "expiry": None,  # Set in `__get_payment_deadline`
-                }
-            ],
-            "dlvpList": __dlvpList,
-            "goodsList": __goodsList,
-            "beneList": __beneList,
-            "saveYn": "N",
-        },
-        "payData": {
-            "entry": {
-                "paySiteNo": "KR",
-                "payJisaCode": "01",
-                "payClientNo": "ATOMY",
-                "payChnlCd": "10",
-                "origin": "https://kr.atomy.com",
+                "payLocale": {
+                    "payCountry": "KR",
+                    "timezone": "Asia/Seoul",
+                    "payLanguage": "ko",
+                    "currency": {"name": "KRW", "code": "410"},
+                },
+                "returnUrl": "https://kr.atomy.com/order/regist",
+                "completeUrl": "https://kr.atomy.com/order/finish",
             },
-            "payLocale": {
-                "payCountry": "KR",
-                "timezone": "Asia/Seoul",
-                "payLanguage": "ko",
-                "currency": {"name": "KRW", "code": "410"},
-            },
-            "returnUrl": "https://kr.atomy.com/order/regist",
-            "completeUrl": "https://kr.atomy.com/order/finish",
-        },
-    }
+        }
 
     def __init__(
         self,
@@ -372,6 +374,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __init_quick_order(self):
         '''Initializes the quick order. Doesn't return anything but essential
         for order creation'''
+        self.__init_payload()
         get_json(
             url=f"{URL_BASE}/cart/registCart/30",
             headers=self.__get_session_headers(),
