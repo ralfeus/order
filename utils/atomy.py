@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from flask import current_app
 
-from . import invoke_curl
+from . import get_json, invoke_curl
 from exceptions import AtomyLoginError, HTTPError
 
 logging.basicConfig(level=logging.DEBUG)
@@ -97,21 +97,22 @@ def atomy_login2(username, password, socks5_proxy=""):
     :param password: password
      param socks5_proxy: address for socks5 proxy if needed
     :returns: JWT token'''
-    URL_BASE = 'https://shop-api.atomy.com/svc'
-    jwt = __get_token(socks5_proxy)
+    URL_BASE = 'https://kr.atomy.com'
+    # jwt = __get_token(socks5_proxy)
     stdout, stderr = invoke_curl(
-        url=f'{URL_BASE}/signIn?_siteId=kr',
-        headers=[{'Cookie': jwt}],
-        raw_data=urlencode({
-            'id': username, 
-            'password': password
-        }),
-        socks5_proxy=socks5_proxy
+        url=f'{URL_BASE}/login/doLogin',
+        headers=[{"content-type": "application/json"}],
+        raw_data=json.dumps({
+            "mbrLoginId": username,
+            "pwd": password,
+            "saveId": False,
+            "autoLogin": False,
+            "recaptcha": "",
+        })
     )
-    result = json.loads(stdout)
-    if result['result'] == '200':
+    if re.search('HTTP.*200', stderr) is not None:
         logger.info(f"Logged in successfully as {username}")
-        jwt = re.search('set-cookie: (atomySvcJWT=.*?);', stderr).group(1)
+        jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1)
         return jwt
     else:
         raise AtomyLoginError(username)
