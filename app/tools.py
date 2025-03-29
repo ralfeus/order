@@ -205,7 +205,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         if ('Could not resolve host' in output.stderr 
             or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
-            _logger.warning("Server side error occurred. Will try in 30 seconds", url)
+            _logger.warning("Server side error occurred. Will try in 30 seconds (%s)", url)
             _logger.warning(output.stderr)
             sleep(30)
             return invoke_curl(url, raw_data, headers, method, retries=retries - 1)
@@ -216,27 +216,28 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
 
 def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str='',
         encoding: str='utf-8', resolve: str=''):
-    headers_list = list(itertools.chain.from_iterable([ #type: ignore
-        ['-H', f"{k}: {v}"] for pair in headers.items() for k,v in pair #type: ignore
-    ]))
-    raw_data_param: list[str] = ['--data-raw', raw_data] if raw_data != '' else []
-    resolve_param: list[str] = ['--resolve', resolve] if resolve != '' else []
-    output = subprocess.run([ 
-        '/usr/bin/curl',
-        url,
-        '-v'
-        ] + headers_list + resolve_param + raw_data_param,
-        encoding=encoding, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    stdout, stderr = invoke_curl(url, raw_data, [{k: v} for k, v in headers.items()])
 
-    if re.search('HTTP.*? 200', output.stderr) and len(output.stdout) > 0:
-        doc = lxml.html.fromstring(output.stdout) #type: ignore
+    if re.search('HTTP.*? 200', stderr) and len(stdout) > 0:
+        doc = lxml.html.fromstring(stdout) #type: ignore
         return doc
 
-    raise HTTPError(f"Couldn't get page {url}: {output.stderr}")
+    raise HTTPError(f"Couldn't get page {url}: {stderr}")
+
+def get_html(url, raw_data: str='', headers: list=[], method='GET', retry=True, 
+             get_data: Callable=invoke_curl, ignore_ssl_check=False
+             ) -> lxml.etree.Element:
+    stdout, stderr = get_data(url, raw_data, headers)
+    if re.search('HTTP.*? 200', stderr) and len(stdout) > 0:
+        doc = lxml.html.fromstring(stdout) #type: ignore
+        return doc
+
+    raise HTTPError(f"Couldn't get page {url}: {stderr}")
 
 def get_json(url, raw_data=None, headers: list=[], method='GET', retry=True, 
              get_data: Callable=invoke_curl, ignore_ssl_check=False
              ) -> dict[str, Any]:
+    headers.append({'Content-Type': 'application/json'})
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
         headers=headers, retries=3 if retry else 0, 
         ignore_ssl_check=ignore_ssl_check)

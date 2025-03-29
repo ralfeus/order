@@ -43,7 +43,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     payment_account = Column(String(32))
     status = Column(Enum(PurchaseOrderStatus))
     address_id = Column(Integer, ForeignKey('addresses.id'))
-    address = relationship(Address, foreign_keys=[address_id])
+    address: Address = relationship(Address, foreign_keys=[address_id])
     zip = Column(String(5))
     address_1 = Column(String(64))
     address_2 = Column(String(64))
