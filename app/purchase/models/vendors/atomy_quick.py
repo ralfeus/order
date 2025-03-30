@@ -826,13 +826,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if purchase_order.company.tax_id != ("", "", ""):  # Company is taxable
             if purchase_order.company.tax_simplified:
                 self.__mst["cashReceiptIssueCd"] = "2"
-                self.__mst["cashReceiptCertNo"] = "000%s-%s%s".format(
+                self.__mst["cashReceiptCertNo"] = "000{}-{}{}".format(
                     purchase_order.company.tax_id[0],
                     purchase_order.company.tax_id[1],
                     purchase_order.company.tax_id[2],
                 )
                 self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = (
-                    "000%s%s%s".format(
+                    "000{}{}{}".format(
                         purchase_order.company.tax_id[0],
                         purchase_order.company.tax_id[1],
                         purchase_order.company.tax_id[2],
@@ -847,7 +847,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             else:
                 self.__mst["cashReceiptUseDiviCd"] = "3"
                 del self.__mst["cashReceiptIssueCd"]
-                self.__mst["cashReceiptCertNo"] = "%s-%s-%s".format(
+                self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
                     purchase_order.company.tax_id[0],
                     purchase_order.company.tax_id[1],
                     purchase_order.company.tax_id[2],
@@ -861,7 +861,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "type": "new",
             "bizNm": company.name,
             "taxMbrNm": company.contact_person,
-            "bizNo": "%s%s%s".format(company.tax_id[0], company.tax_id[1], company.tax_id[2]),
+            "bizNo": "{}{}{}".format(company.tax_id[0], company.tax_id[1], company.tax_id[2]),
             "industry": company.business_type,
             "bunic": company.business_category,
             "category": company.business_category,
