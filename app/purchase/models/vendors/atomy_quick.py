@@ -509,7 +509,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except Exception:
                 logger.exception("Couldn't add product %s", op.product_id)
         # self.__add_to_cart(cart)
-        if len(order_products) == 0:
+        if len(ordered_products) == 0:
             raise PurchaseOrderError(
                 self.__purchase_order,
                 self,
