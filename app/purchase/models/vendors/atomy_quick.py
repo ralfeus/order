@@ -156,7 +156,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "bankCd": None,  # Set by `__set_payment_params`
                     "payerPhone": None,  # Set by `__set_payment_params`
                     "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                    "registrationNumber": "0100001234",  # TODO: Needed?
+                    "registrationNumber": "0100001234",  # Set by `__set_tax_info`
                     "payNo": None,  # To be obtained from `mersList`
                     "vanData": {
                         "data": {
@@ -165,7 +165,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             "ordererNm": None,  # Set by `__set_payment_params`
                             "expiry": None,  # `__get_payment_deadline`
                             "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                            "registrationNumber": "0100001234",  # TODO: Needed?
+                            "registrationNumber": "0100001234",  # Set by `__set_tax_info`
                         },
                         "vanCd": "50",
                         "saleNo": None,  # To be obtained from `mersList`
@@ -835,9 +835,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 # self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = (
                 #     self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
                 # )
-                self.__po_params["payList"][0]["registrationNumber"] = (
+                self.__po_params["payList"][0]["registrationNumber"] = \
                     self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
-                )
+                self.__po_params['payList'][0]['vanData']['data']["registrationNumber"] = \
+                    self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
             else:
                 self.__mst["cashReceiptUseDiviCd"] = "3"
                 del self.__mst["cashReceiptIssueCd"]
