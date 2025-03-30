@@ -471,15 +471,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 product_id = op.product_id.zfill(6)
                 product, option = self.__get_product_by_id(product_id)
                 if not product:
-                    logger.info(
-                        "Couldn't find product %s. Attempting to get it via vendor product ID",
-                        product_id,
-                    )
-                    product_id = op.product.vendor_id
-                    product, option = self.__get_product_by_vendor_id(product_id)
-                    if not product:
-                        raise ProductNotAvailableError(product_id)
-
+                    raise ProductNotAvailableError(product_id)
+                if product.get('stockExistYn') == 'N':
+                    raise ProductNotAvailableError(product_id)
                 op.product.separate_shipping = bool(int(
                     product.get("isIndividualDelivery") or 0
                 ))
