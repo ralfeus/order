@@ -2,7 +2,7 @@
 Tests of sale order functionality API
 '''
 from app.shipping.models.shipping import NoShipping
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from unittest.mock import patch
 from tests import BaseTestCase, db
@@ -572,6 +572,23 @@ class TestOrdersApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/order'))
         self.assertEqual(res.json[0]['total'], 2700)
+
+    def test_get_orders_by_age(self):
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        o1 = Order(id=gen_id, user=self.user, country_id='c1', shipping_method_id=1)
+        o2 = Order(id=gen_id + '2', user=self.user, country_id='c1', shipping_method_id=1, 
+                   when_created=datetime.now() - timedelta(days=2))
+        so1 = Suborder(order=o1)
+        so2 = Suborder(order=o2)
+        self.try_add_entities([
+            o1, o2, so1, so2,
+            OrderProduct(id=10, suborder=so1, product_id='0000', price=10, quantity=10),
+            OrderProduct(id=20, suborder=so2, product_id='0000', price=10, quantity=20)
+        ])
+        
+        res = self.try_admin_operation(
+            lambda: self.client.get('/api/v1/admin/order?days=1'))
+        self.assertEqual(len(res.json), 1)
 
     def test_get_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

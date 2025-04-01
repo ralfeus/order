@@ -18,3 +18,7 @@ analyze:
 	coverage xml
 	/Users/ralfeus/temp/sonar-scanner-5.0.1.3006-macosx/bin/sonar-scanner
 	rm coverage.xml
+
+network-manager-docker:
+	docker login -u ralfeus
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:stable . -f network_builder/Dockerfile

@@ -96,7 +96,7 @@ function get_orders_to_purchase(recreate=false) {
     var promise = $.Deferred();
     $('.wait').show();
     $.ajax({
-        url: '/api/v1/admin/order?status=can_be_paid&status=paid' + (recreate ? '&status=po_created' : ''),
+        url: '/api/v1/admin/order?status=can_be_paid&status=paid' + (recreate ? '&status=po_created&days=30' : ''),
         success: data => {
             $('.wait').hide();
             g_create_editor.field('order_id').update(data.map(o => o.id));

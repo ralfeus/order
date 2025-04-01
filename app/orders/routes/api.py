@@ -1,5 +1,5 @@
 '''API endpoints for sale order management'''
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 from more_itertools import map_reduce
@@ -117,11 +117,15 @@ def admin_get_orders(order_id):
     if request.values.get('status'):
         orders = orders.filter(
             Order.status.in_(request.values.getlist('status'))) # type: ignore
+    if request.values.get('days'):
+        orders = orders.filter(
+            Order.when_created >= datetime.now() - timedelta(days=int(request.values['days'])))
     if request.values.get('user_id'):
         orders = orders.filter_by(user_id=request.values['user_id'])
+
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_orders(orders, request.values)
-
+    
     # if orders.count() == 0:
     #     abort(Response("No orders were found", status=404))
     else:

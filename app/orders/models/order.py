@@ -194,6 +194,7 @@ class Order(db.Model, BaseModel): # type: ignore
 
         self.total_weight = 0
         self.total_krw = 0
+        self.when_created = datetime.now()
 
         attributes = [a[0] for a in type(self).__dict__.items()
                            if isinstance(a[1], InstrumentedAttribute)]
