@@ -132,3 +132,32 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         po = p.PurchaseOrder.query.get(po.id)
         with self.assertRaises(PurchaseOrderError):
             AtomyQuick(config=current_app.config).post_purchase_order(po)
+
+    @patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
+            MagicMock(side_effect=invoke_curl))
+    @patch("app.purchase.models.vendors.atomy_quick.get_html",
+            MagicMock(side_effect=get_html))
+    @patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
+            MagicMock(return_value=["JSESSIONID=token"]))
+    @patch("app.purchase.models.vendors.atomy_quick.get_json",
+            MagicMock(side_effect=get_json))    
+    def test_post_purchase_order_exempted_product(self):
+        self.try_add_entities([
+            pr.Product(id="000001", name="Test product 1", price=10, weight=10, purchase=False)])
+        subcustomer = Subcustomer(username="s1", password="p1")
+        order = Order()
+        so = Suborder(order)
+        op = OrderProduct(suborder=so, product_id="000000", quantity=10)
+        op1 = OrderProduct(suborder=so, product_id="000001", quantity=10)
+        company = p.Company(bank_id="32")
+        po = p.PurchaseOrder(
+            so,
+            customer=subcustomer,
+            company=company,
+            contact_phone="010-1234-1234",
+            payment_phone="010-1234-1234",
+            address=Address(address_1="", address_2=""),
+        )
+        self.try_add_entities([order, so, op, op1, po, company])
+        po = p.PurchaseOrder.query.get(po.id)
+        AtomyQuick(config=current_app.config).post_purchase_order(po)

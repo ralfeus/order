@@ -61,7 +61,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
         nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id])
     product_id = Column(String(16), ForeignKey('products.id'))
-    product: relationship[Product] = relationship('Product')
+    product: Product = relationship('Product')
     price = Column(Integer)
     quantity = Column(Integer)
     private_comment = Column(String(256))

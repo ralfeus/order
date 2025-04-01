@@ -68,8 +68,8 @@ def post_purchase_orders(po_id=None):
                         po.set_status(PurchaseOrderStatus.partially_posted)
                         po.when_changed = po.when_posted = datetime.now()
                         failed_products = failed_products or \
-                            [{'id': po.product_id, 'reason': ''} for po in po.order_products
-                                if po.status != OrderProductStatus.purchased]
+                            {po.product_id: '' for po in po.order_products
+                                if po.status != OrderProductStatus.purchased}
                         po.status_details = "Not posted products:\n" + \
                             '\n'.join([f"{id}: {reason}"
                                 for id, reason in failed_products.items()])

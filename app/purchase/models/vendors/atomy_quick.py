@@ -3,13 +3,13 @@ using quick order"""
 
 from functools import reduce
 from typing import Any, Optional
-from urllib.parse import urlencode, unquote
+from urllib.parse import urlencode
 
 from app.models.address import Address
 from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
-from app.tools import get_html, get_json, invoke_curl, merge, try_perform
-from datetime import date, datetime, timedelta
+from app.tools import get_html, get_json, invoke_curl, try_perform
+from datetime import datetime, timedelta
 import json
 import logging
 from pytz import timezone
@@ -33,25 +33,6 @@ URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_FOREIGN_ACCOUNT = "해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
 
-# BANKS = {
-#     "32": "BUSANBANK",
-#     "31": "DAEGUBANK",
-#     "34": "GWANGJUBANK",
-#     "81": "HANA",
-#     "03": "IBK",
-#     "37": "JEONBUKBANK",
-#     "89": "KBANK",
-#     "04": "KOOKMIN",
-#     "06": "KOOKMIN",
-#     "39": "KYONGNAMBANK",
-#     "11": "NONGHYEOP",
-#     "71": "POST",
-#     "45": "SAEMAUL",
-#     "26": "SHINHAN",
-#     "88": "SHINHAN",
-#     "07": "SUHYEOP",
-#     "20": "WOORI",
-# }
 
 ORDER_STATUSES = {
     "PAYMENT_INITIATED": PurchaseOrderStatus.posted,
@@ -62,7 +43,6 @@ ORDER_STATUSES = {
     "CANCELLED": PurchaseOrderStatus.cancelled,
     "COMPLETED": PurchaseOrderStatus.delivered,
 }
-
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
@@ -280,7 +260,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 purchase_order.order_products
             )
             self.__set_purchase_date(purchase_order.purchase_date)
-            # self.__set_purchase_order_id(purchase_order.id[10:]) # Receiver name
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(
                 purchase_order.address,
@@ -288,11 +267,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__get_order_id(purchase_order),
             )
             self.__set_local_shipment(purchase_order, ordered_products)
-            # self.__set_payment_method()
             self.__set_payment_params(purchase_order, ordered_products)
-            # self.__set_payment_mobile(purchase_order.payment_phone)
             self.__set_tax_info(purchase_order)
-            # self.__set_mobile_consent()
             po_params = self.__submit_order()
             self._logger.info("Created order %s", po_params[0])
             purchase_order.vendor_po_id = po_params[0]
@@ -313,27 +289,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 return self.post_purchase_order(purchase_order)
             raise ex
         except Exception as ex:
-            # Saving page for investigation
-            # with open(f'order_complete-{purchase_order.id}.html', 'w') as f:
-            #     f.write(self.__browser.page_source)
             self._logger.exception("Failed to post an order %s", purchase_order.id)
             raise ex
-
-    def __update_cart(self, params: dict[str, Any]) -> bool:
-        logger = self._logger.getChild("__update_cart")
-        result = get_json(
-            url=f"{URL_BASE}/cart/updateCart?_siteId=kr",
-            headers=self.__get_session_headers(),
-            raw_data="cartType=BUYNOW&salesApplication=QUICK_ORDER&channel=WEB"
-            + f"&cart={self.__cart}&"
-            + "&".join(
-                [
-                    "%s=%s" % (n, json.dumps(v) if isinstance(v, dict) else v)
-                    for n, v in params.items()
-                ]
-            ),
-        )
-        return result.get("result") == "200"
 
     def __login(self, purchase_order):
         _, stderr = invoke_curl(
@@ -625,12 +582,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_address(self, address: Address, phone, order_id):
         logger = self._logger.getChild("__set_receiver_address")
         logger.debug("Setting shipment address")
-        # addresses = [a for a in self.__get_addresses() if a["defaultAddress"]]
-        # atomy_address = (
-        #     self.__update_address(addresses[0], address, phone, order_id)
-        #         if len(addresses) > 0
-        #         else self.__create_address(address, phone, order_id)
-        # )
         self.__mst['ordererNm'] = order_id
         self.__dlvpList[0] = {
             "count": 0,
@@ -697,9 +648,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         purchase_order.company.tax_id[2],
                     )
                 )
-                # self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = (
-                #     self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
-                # )
                 self.__po_params["payList"][0]["registrationNumber"] = \
                     self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
                 self.__po_params['payList'][0]['vanData']['data']["registrationNumber"] = \
@@ -734,40 +682,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "saveYn": "N"
         }
     
-    def __create_atomy_company(self, company: Company):
-        logger = self._logger.getChild("__create_atomy_company")
-        logger.info("Creating new company object")
-        payload = {
-            "companyName": company.name,
-            "businessNumber": "%s%s%s" % company.tax_id,
-            "ceoName": company.contact_person,
-            "address": company.address.address_1,
-            "addressDetail": company.tax_address.address_2,
-            "zipCode": company.tax_address.zip,
-            "industry": company.business_category,
-            "category": company.business_type,
-            "mobileNumber": company.tax_phone,
-            "contactName": company.contact_person,
-            "email": company.email,
-            "isNew": "true",
-            "saveAsCustomer": "false",
-            "isNonCustomer": "true",
-        }
-        logger.debug(payload)
-        try:
-            result = get_json(
-                url=f"{URL_BASE}/businessTaxbill/createBusinessTaxbill?{URL_SUFFIX}",
-                headers=self.__get_session_headers(),
-                raw_data=urlencode(payload),
-            )
-            logger.debug(result)
-            return result["item"]["id"], True
-        except Exception as e:
-            logger.warning(e)
-            raise PurchaseOrderError(
-                self.__purchase_order, self, result.get("resultMessage")
-            )
-
     def __submit_order(self):
         logger = self._logger.getChild("__submit_order")
         logger.info("Submitting the order")
