@@ -629,7 +629,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         ] = self.__get_payment_deadline()
 
     def __get_payment_deadline(self) -> str:
-        return (datetime.now() + timedelta(days=1)).strftime("%Y%m%d%H0000")
+        return (datetime.now() + timedelta(hours=47)).strftime("%Y%m%d%H0000")
 
     def __set_tax_info(self, purchase_order: PurchaseOrder):
         self._logger.debug("Setting counteragent tax information")
