@@ -9,7 +9,8 @@ import subprocess
 from tqdm import tqdm
 
 from app.tools import get_json
-from app.utils.atomy import URL_BASE, URL_SUFFIX, atomy_login2
+
+from utils.atomy import URL_BASE, URL_SUFFIX, atomy_login2
 
 sel_item = CSSSelector("td.line_C_r input[name=chk]")
 sel_item_code = CSSSelector("td.line_C_r:nth-child(2)")

@@ -89,6 +89,7 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) ->
     if last_exception:
         raise last_exception
 
+URL_BASE = 'https://kr.atomy.com'
 URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
 def atomy_login2(username, password, socks5_proxy="") -> str:
     '''Logs in to Atomy using new authentication interface
@@ -96,7 +97,6 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
     :param password: password
      param socks5_proxy: address for socks5 proxy if needed
     :returns: JWT token'''
-    URL_BASE = 'https://kr.atomy.com'
     # jwt = __get_token(socks5_proxy)
     stdout, stderr = invoke_curl(
         url=f'{URL_BASE}/login/doLogin',

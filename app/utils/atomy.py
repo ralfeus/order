@@ -5,7 +5,6 @@ import re
 import subprocess
 import threading
 from time import sleep
-from urllib.parse import urlencode
 
 import lxml.html
 from flask import current_app
