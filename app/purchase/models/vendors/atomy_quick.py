@@ -37,8 +37,9 @@ ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불�
 ORDER_STATUSES = {
     "Order Placed": PurchaseOrderStatus.posted,
     "Unpaid Deadline": PurchaseOrderStatus.payment_past_due,
-    "Shipping": PurchaseOrderStatus.shipped,
-    "Shipped": PurchaseOrderStatus.delivered,
+    "Shipping": PurchaseOrderStatus.paid,
+    "Shipped": PurchaseOrderStatus.shipped,
+    "Order Completed": PurchaseOrderStatus.delivered,
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
