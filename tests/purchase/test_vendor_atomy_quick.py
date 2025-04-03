@@ -37,10 +37,17 @@ def get_json(url, **kwargs):
 def invoke_curl(url, **kwargs) -> tuple[str, str]:
     url_parts = {
         '/goods/goodsResult': '''
-        <html>
-            <input id="goodsInfo_0" data-goodsinfo="{&quot;goodsNo&quot;: &quot;000000&quot;}" />
-        </html>''',
-        '/order/finish': 'saleNum: 000, ipgumAccountNo: 456, ipgumAmt: 000'
+            <html>
+                <input id="goodsInfo_0" data-goodsinfo="{&quot;goodsNo&quot;: &quot;000000&quot;}" />
+            </html>''',
+        '/order/finish': 'saleNum: 000, ipgumAccountNo: 456, ipgumAmt: 000',
+        '/mypage/orderList': '''
+            <div class="my_odr_gds">
+                <li>
+                    <input type="hidden" name="hSaleNum" value="7012504030031927"/>
+                    <span class="m-stat">Shipping</span>
+                </li>
+            </div>'''
     }
 
     for url_part, response in url_parts.items():
@@ -51,6 +58,10 @@ def invoke_curl(url, **kwargs) -> tuple[str, str]:
 def get_html(url, **kwargs):
     return fromstring(invoke_curl(url)[0])
         
+@patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
+        MagicMock(side_effect=invoke_curl))
+@patch("app.purchase.models.vendors.atomy_quick.get_html",
+        MagicMock(side_effect=get_html))
 class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -79,10 +90,6 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
             ]
         )
 
-    @patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
-            MagicMock(side_effect=invoke_curl))
-    @patch("app.purchase.models.vendors.atomy_quick.get_html",
-            MagicMock(side_effect=get_html))
     @patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
             MagicMock(return_value=["JSESSIONID=token"]))
     @patch("app.purchase.models.vendors.atomy_quick.get_json",
@@ -106,8 +113,6 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         res = AtomyQuick(config=current_app.config).post_purchase_order(po)
         self.assertEqual(res[0].payment_account, "456")
 
-    @patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
-            MagicMock(side_effect=invoke_curl))
     @patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
             MagicMock(return_value=["JSESSIONID=token"]))
     @patch("app.purchase.models.vendors.atomy_quick.get_json",
@@ -133,10 +138,6 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         with self.assertRaises(PurchaseOrderError):
             AtomyQuick(config=current_app.config).post_purchase_order(po)
 
-    @patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
-            MagicMock(side_effect=invoke_curl))
-    @patch("app.purchase.models.vendors.atomy_quick.get_html",
-            MagicMock(side_effect=get_html))
     @patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
             MagicMock(return_value=["JSESSIONID=token"]))
     @patch("app.purchase.models.vendors.atomy_quick.get_json",
@@ -161,3 +162,10 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         self.try_add_entities([order, so, op, op1, po, company])
         po = p.PurchaseOrder.query.get(po.id)
         AtomyQuick(config=current_app.config).post_purchase_order(po)
+
+    def test_get_po_status(self):
+        subcustomer = Subcustomer(username="40697460", password="Magnit135!")
+        suborder = Suborder(order=Order())
+        po = p.PurchaseOrder(suborder=suborder, vendor_po_id='7012504030031927', customer=subcustomer)
+        self.try_add_entities([subcustomer, suborder, po])
+        AtomyQuick(config=current_app.config).update_purchase_order_status(po)

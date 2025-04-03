@@ -9,6 +9,7 @@ from app.models.address import Address
 from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
 from app.tools import get_html, get_json, invoke_curl, try_perform
+from utils.atomy import atomy_login2
 from datetime import datetime, timedelta
 import json
 import logging
@@ -34,13 +35,11 @@ ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불�
 
 
 ORDER_STATUSES = {
-    "PAYMENT_INITIATED": PurchaseOrderStatus.posted,
-    "PAYMENT_NOTPAID": PurchaseOrderStatus.payment_past_due,
-    "SHIPMENT_DELIVERING": PurchaseOrderStatus.shipped,
-    "SHIPMENT_READY": PurchaseOrderStatus.shipped,
-    "SHIPMENT_COMPLETED": PurchaseOrderStatus.delivered,
-    "CANCELLED": PurchaseOrderStatus.cancelled,
-    "COMPLETED": PurchaseOrderStatus.delivered,
+    "Order Placed": PurchaseOrderStatus.posted,
+    "Unpaid Deadline": PurchaseOrderStatus.payment_past_due,
+    "Shipping": PurchaseOrderStatus.shipped,
+    "Shipped": PurchaseOrderStatus.delivered,
+    "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
 class AtomyQuick(PurchaseOrderVendorBase):
@@ -292,29 +291,32 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ex
 
     def __login(self, purchase_order):
-        _, stderr = invoke_curl(
-            url=f"{URL_BASE}/login/doLogin",
-            headers=[{"content-type": "application/json"}],
-            raw_data=json.dumps(
-                {
-                    "mbrLoginId": purchase_order.customer.username,
-                    "pwd": purchase_order.customer.password,
-                    "saveId": False,
-                    "autoLogin": False,
-                    "recaptcha": "",
-                }
-            ),
-        )
-        if re.search("HTTP.*200", stderr) is not None:
-            self._logger.info(
-                f"Logged in successfully as {purchase_order.customer.username}"
-            )
-            # It's confirmed JSESSIONID is sufficient
-            jwt = re.search("set-cookie: (JSESSIONID=.*?);", stderr).group(1)  # type: ignore
-            self.__session_cookies = [jwt]
-            return [jwt]
-        else:
-            raise AtomyLoginError(purchase_order.customer.username)
+        # _, stderr = invoke_curl(
+        #     url=f"{URL_BASE}/login/doLogin",
+        #     headers=[{"content-type": "application/json"}],
+        #     raw_data=json.dumps(
+        #         {
+        #             "mbrLoginId": purchase_order.customer.username,
+        #             "pwd": purchase_order.customer.password,
+        #             "saveId": False,
+        #             "autoLogin": False,
+        #             "recaptcha": "",
+        #         }
+        #     ),
+        # )
+        # if re.search("HTTP.*200", stderr) is not None:
+        #     self._logger.info(
+        #         f"Logged in successfully as {purchase_order.customer.username}"
+        #     )
+        #     # It's confirmed JSESSIONID is sufficient
+        #     jwt = re.search("set-cookie: (JSESSIONID=.*?);", stderr).group(1)  # type: ignore
+        #     self.__session_cookies = [jwt]
+        #     return [jwt]
+        # else:
+        #     raise AtomyLoginError(purchase_order.customer.username)
+        self.__session_cookies = [atomy_login2(
+            purchase_order.customer.username, purchase_order.customer.password)]
+        return self.__session_cookies
 
     def __get_session_headers(self):
         return [{"Cookie": c} for c in self.__session_cookies]
@@ -426,14 +428,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     product.get("isIndividualDelivery") or 0
                 ))
                 
-                # added_product = self.__add_to_cart(product, option, op)
-                # if added_product["success"]:
-                #     ordered_products.append((op, added_product["entryId"]))
-                logger.info("Added product %s", op.product_id)
-                # else:
-                #     raise ProductNotAvailableError(
-                #         product_id, added_product["statusCode"]
-                # )
                 ordered_products.append((op,))
                 self.__goodsList.append({
                     'seq': len(self.__goodsList),
@@ -447,6 +441,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "dlvpSeq": 0,
                     "beneSeqList": [1]
                 })
+                logger.info("Added product %s", op.product_id)
             except ProductNotAvailableError as ex:
                 logger.warning(
                     "Product %s is not available: %s", ex.product_id, ex.message
@@ -570,7 +565,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return (
             order_id_parts[2][1:] + "ㅡ" + order_id_parts[1] + "ㅡ" + order_id_parts[0]
         )
-        # return purchase_order.id[8:].replace("-", "ㅡ")
 
     def __set_receiver_mobile(self, phone="     "):
         logger = self._logger.getChild("__set_receiver_mobile")
@@ -705,7 +699,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         for o in vendor_purchase_orders:
             # logger.debug(str(o))
             if o["id"] == purchase_order.vendor_po_id:
-                purchase_order.set_status(ORDER_STATUSES[o["orderStatus"]["value"]])
+                purchase_order.set_status(ORDER_STATUSES[o["status"]])
                 return purchase_order
 
         raise NoPurchaseOrderError(
@@ -723,14 +717,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             # logger.debug(str(o))
-            if ORDER_STATUSES[o["orderStatus"]["value"]] == PurchaseOrderStatus.posted:
+            if ORDER_STATUSES[o["status"]] == PurchaseOrderStatus.posted:
                 logger.debug("Skipping PO %s", o["id"])
                 continue
             filtered_po = [
                 po for po in purchase_orders if po and po.vendor_po_id == o["id"]
             ]
             try:
-                filtered_po[0].set_status(ORDER_STATUSES[o["orderStatus"]["value"]])
+                filtered_po[0].set_status(ORDER_STATUSES[o["status"]])
             except IndexError:
                 logger.warning(
                     "No corresponding purchase order for Atomy PO <%s> was found",
@@ -740,14 +734,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_purchase_orders(self):
         logger = self._logger.getChild("__get_purchase_orders")
         logger.debug("Getting purchase orders")
-        res = get_json(
-            url=f"{URL_BASE}/order/getOrderList?"
-            + "period=MONTH&orderStatus=&salesApplication=&page=1&pageSize=100"
-            + f"&fromDate=&toDate=&{URL_SUFFIX}",
-            headers=self.__get_session_headers(),
+        res = get_html(
+            url=f"{URL_BASE}/mypage/orderList?"
+            + "psearchMonth=12&startDate=&endDate=&orderStatus=all&pageIdx=2&rowsPerPage=100",
+            headers=self.__get_session_headers() + [{"Cookie": "KR_language=en"}],
         )
 
-        if res["result"] == "200":
-            return res["items"]
-        else:
-            raise PurchaseOrderError()
+        orders = [
+            {
+                'id': element.cssselect("input[name='hSaleNum']")[0].attrib['value'],
+                'status': element.cssselect("span.m-stat")[0].text.strip()
+            }
+            for element in res.cssselect("div.my_odr_gds li")
+        ]
+        return orders

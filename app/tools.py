@@ -229,7 +229,7 @@ def get_html(url, raw_data: str='', headers: list=[], method='GET', retry=True,
              ) -> lxml.etree.Element:
     stdout, stderr = get_data(url, raw_data, headers)
     if re.search('HTTP.*? 200', stderr) and len(stdout) > 0:
-        doc = lxml.html.fromstring(stdout) #type: ignore
+        doc = lxml.etree.fromstring(stdout, parser=lxml.etree.HTMLParser()) #type: ignore
         return doc
 
     raise HTTPError(f"Couldn't get page {url}: {stderr}")
