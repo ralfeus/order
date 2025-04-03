@@ -89,9 +89,8 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) ->
     if last_exception:
         raise last_exception
 
-URL_BASE = 'https://shop-api.atomy.com/svc'
 URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
-def atomy_login2(username, password, socks5_proxy=""):
+def atomy_login2(username, password, socks5_proxy="") -> str:
     '''Logs in to Atomy using new authentication interface
     :param username: user name
     :param password: password
@@ -110,20 +109,12 @@ def atomy_login2(username, password, socks5_proxy=""):
             "recaptcha": "",
         })
     )
-    if re.search('HTTP.*200', stderr) is not None:
-        logger.info(f"Logged in successfully as {username}")
-        jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1)
-        return jwt
-    else:
+    if re.search('HTTP.*200', stderr) is  None:
         raise AtomyLoginError(username)
-
-def __get_token(socks5_proxy=""):
-    _, stderr = invoke_curl(
-        url='https://shop-api.atomy.com/auth/svc/jwt?_siteId=kr',
-        socks5_proxy=socks5_proxy
-    )
-    token_match = re.search("set-cookie: (atomySvcJWT=.*?);", stderr)
-    if token_match is not None:
-        return token_match.group(1)
-    else:
-        raise Exception("Could not get token. The problem is at Atomy side")
+    result = json.loads(stdout)
+    if result.get('code') != '0000':
+        raise AtomyLoginError(username, result.get('message'))
+    
+    logger.info(f"Logged in successfully as {username}")
+    jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1)
+    return jwt

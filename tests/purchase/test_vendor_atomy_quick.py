@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-import lxml
+from lxml.etree import fromstring
 from tests import BaseTestCase
 from flask import current_app
 
@@ -49,7 +49,7 @@ def invoke_curl(url, **kwargs) -> tuple[str, str]:
     return "", "HTTP/2 200 OK"
 
 def get_html(url, **kwargs):
-    return lxml.html.fromstring(invoke_curl(url)[0])
+    return fromstring(invoke_curl(url)[0])
         
 class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
     def setUp(self):

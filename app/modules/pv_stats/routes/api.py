@@ -2,6 +2,7 @@
 from calendar import monthrange
 from datetime import datetime
 import json
+from typing import Any
 import requests
 
 from flask import Response, abort, current_app, jsonify, request
@@ -11,7 +12,7 @@ from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
 from exceptions import AtomyLoginError, HTTPError
-from app.utils.atomy import SessionManager
+from utils.atomy import atomy_login2, get_json
 
 from .. import bp_api_admin, bp_api_user
 from ..models import PVStat
@@ -31,7 +32,7 @@ def _filter_nodes(nodes, filter_params):
 @bp_api_user.route('', methods=['POST'])
 @login_required
 def user_create_pv_stat_node():
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() # type:ignore
     if payload.get('node_id') is None:
         abort(400)
     node = PVStat(
@@ -131,9 +132,10 @@ def user_get_node_stats(node_id):
         node_obj.is_being_updated = True
         db.session.commit()
         return {'status': 'update is in progress'}, 202
-            
+
+    token = None    
     try:
-        session = SessionManager(username=node_id, password=node['password'])
+        token = atomy_login2(username=node_id, password=node['password'])
     except AtomyLoginError:
         abort(Response("Node's password is wrong", status=409))
     node.update(nodes_query.first().to_dict())
@@ -143,9 +145,10 @@ def user_get_node_stats(node_id):
     month_range = monthrange(today.year, today.month)
     start_date = today.strftime('%Y-%m-01' if today.day < 16 else '%Y-%m-16')
     end_date = today.strftime(f'%Y-%m-{15 if today.day < 16 else month_range[1]:02d}')
-    stats = session.get_json(
+    stats = get_json(
         "https://www.atomy.kr/v2/Home/MyAtomy/GetSponsorBenefitOccurList",
         method='POST',
+        headers = [token],
         raw_data=json.dumps({
             "CurrentPageNo": 1,
             "StartDt": start_date,

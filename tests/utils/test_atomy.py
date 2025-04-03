@@ -1,6 +1,6 @@
 from tests import BaseTestCase
 from exceptions import AtomyLoginError
-from app.utils.atomy import atomy_login2
+from utils.atomy import atomy_login2
 
 class AtomyTest(BaseTestCase):
     def test_login2(self):

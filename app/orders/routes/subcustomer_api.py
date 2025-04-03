@@ -7,7 +7,7 @@ from flask_security import login_required, roles_required
 
 from sqlalchemy import or_
 
-from app.utils.atomy import atomy_login2
+from utils.atomy import atomy_login2
 from exceptions import AtomyLoginError, HTTPError, SubcustomerParseError
 
 from app import db
