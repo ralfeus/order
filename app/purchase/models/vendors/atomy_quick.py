@@ -38,6 +38,7 @@ ORDER_STATUSES = {
     "Order Placed": PurchaseOrderStatus.posted,
     "Unpaid Deadline": PurchaseOrderStatus.payment_past_due,
     "Shipping": PurchaseOrderStatus.paid,
+    "Processing order": PurchaseOrderStatus.paid,
     "Shipped": PurchaseOrderStatus.shipped,
     "Order Completed": PurchaseOrderStatus.delivered,
     "Cancel Order": PurchaseOrderStatus.cancelled,
