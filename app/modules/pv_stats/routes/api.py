@@ -12,7 +12,8 @@ from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
 from exceptions import AtomyLoginError, HTTPError
-from utils.atomy import atomy_login2, get_json
+from utils.atomy import atomy_login2
+from utils import get_json
 
 from .. import bp_api_admin, bp_api_user
 from ..models import PVStat

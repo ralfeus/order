@@ -501,11 +501,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
             headers=self.__get_session_headers() + [{"content-type": "application/x-www-form-urlencoded"}],
             raw_data=urlencode({'goodsNo': product, 'goodsTypeCd': '101'})
         )
-        return [
+        option = [
             o
             for o in result.values()
             if o["materialCode"] == option_id
-        ][0]["itemNo"]
+        ][0]
+        if option['goodsStatNm'] == 'goods.word.outofstock':
+            raise ProductNotAvailableError(product)
+        return option['itemNo']
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone("Asia/Seoul")

@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from flask import current_app
 
-from . import get_json, invoke_curl
+from . import invoke_curl
 from exceptions import AtomyLoginError, HTTPError
 
 logging.basicConfig(level=logging.DEBUG)
