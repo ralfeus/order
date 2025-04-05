@@ -85,7 +85,7 @@ def copy_password_to_graph():
     def test_login(username, password):
         global threads
         try:
-            atomy_login2(username, password)
+            atomy_login2(username, password, socks5_proxy='localhost:9050')
             result, _ = db.cypher_query("""
                 MATCH (n:AtomyPerson {atomy_id: $username}) 
                 SET n.username = $username, n.password = $password
