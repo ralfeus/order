@@ -107,8 +107,8 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
             "saveId": False,
             "autoLogin": False,
             "recaptcha": "",
-        },
-        socks5_proxy=socks5_proxy)
+        }),
+        socks5_proxy=socks5_proxy
     )
     if re.search('HTTP.*200', stderr) is  None:
         raise AtomyLoginError(username)
