@@ -13,30 +13,34 @@ from app.purchase.jobs import *
 from app.tools import invoke_curl
 import threading
 import time
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logging.root.setLevel(logging.DEBUG)
 
-def debug():
-    po_id = "PO-2024-06-0001-001"
-    po = PurchaseOrder.query.get(po_id)
-    # po.status = PurchaseOrderStatus.pending
-    # po.vendor = 'AtomyQuick'
-    # po.company_id = 7
-    # po.customer.username = 'S5832131'
-    # po.customer.password = 'mkk03020529!!'
-    # po.purchase_date = datetime.now()
-    # db.session.flush()
-    # post_purchase_orders(po_id=po_id)
-    # db.session.rollback()
-    # print(po.to_dict())
+def build_network():
 
     sys.path.append('./network_builder')
     from network_builder.build_network import build_network
     # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    build_network(user='S5832131', password='mkk03020529!!', threads=60)
+    build_network(root_id='26298372', user='S5832131', password='mkk03020529!!', threads=30, last_updated=date(2030, 1, 4))
     # copy_subtree(root_id='S9945812')
     # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
 
     # get_atomy_products()
 
+def post_po():
+    po_id = "PO-2025-03-0451-001"
+    po = PurchaseOrder.query.get(po_id)
+    po.status = PurchaseOrderStatus.pending
+    # po.vendor = 'AtomyQuick'
+    # po.company_id = 4
+    po.customer.username = '23426444'
+    po.customer.password = 'atomy#01'
+    po.purchase_date = datetime.now()
+    db.session.flush()
+    post_purchase_orders(po_id=po_id)
+    db.session.rollback()
+    # print(po.to_dict())
 
 def test_multiple_login():
 
@@ -68,30 +72,57 @@ def test_multiple_login():
             else:
                 print(page)
 
+def test_login():
+    from utils.atomy import atomy_login2
+    atomy_login2('23426444', 'atomy#01')
+    atomy_login2('44315585', 'Magnit135!') 
+
+threads = 0
 def copy_password_to_graph():
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger('neo4j').setLevel(logging.INFO)
+    logging.getLogger('utils.atomy').setLevel(logging.WARNING)
     def test_login(username, password):
+        global threads
         try:
-            atomy_login2(username, password, socks5_proxy='127.0.0.1:9050')
+            atomy_login2(username, password)
             result, _ = db.cypher_query("""
                 MATCH (n:AtomyPerson {atomy_id: $username}) 
-                SET n.password = $password
+                SET n.username = $username, n.password = $password
                 """, {'username': username, 'password': password})
         except AtomyLoginError:
             pass
+        with lock:
+            threads -= 1
     import os
     from app.orders.models.subcustomer import Subcustomer
     from neomodel import db, config
     from utils.atomy import atomy_login2
     config.DATABASE_URL = os.environ.get('NEO4J_URL') or 'bolt://neo4j:1@localhost:7687'
     subcustomers = Subcustomer.query.all()
+    lock = threading.Lock()
+    global threads
     for subcustomer in tqdm(subcustomers):
-        while threading.active_count() - 2 >= 100:
+        while threads >= 50:
             time.sleep(1)
-        threading.Thread(target=test_login, 
+        with lock:
+            threads += 1
+        threading.Thread(target=test_login,
                          args=[subcustomer.username, subcustomer.password]) \
             .start()
+
+def multiple_request():
+    from utils.atomy import atomy_login2
+    from utils import get_json
+    token = atomy_login2('23426444', 'atomy#01')
+    TREE_URL = 'https://kr.atomy.com/myoffice/genealogy/tree'
+    DATA_TEMPLATE = "level=100&dropYn=Y&otherCustNo=23426444"
+    for i in range(20):
+        res = get_json(url=TREE_URL + '?' + DATA_TEMPLATE,
+                headers=[{'Cookie': token}, {'Cookie': 'KR_language=en'}])
+        print(len(res.keys()) if type(res) == dict else len(res))
+        time.sleep(.8)
 ############################# Entry point #####################################
 
 with create_app().app_context():
-    copy_password_to_graph()
+    build_network()

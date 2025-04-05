@@ -424,7 +424,7 @@ def __get_rates(country, url: str) -> list[dict]:
         return [
             {"weight": int(rate["code_name2"]), "rate": int(rate["charge"])}
             for rate in rates
-            if int(rate["code_name2"]) <= weight_limit
+            if int(rate["code_name2"]) <= weight_limit or weight_limit == 0
         ]
     except:
         raise NoShippingRateError

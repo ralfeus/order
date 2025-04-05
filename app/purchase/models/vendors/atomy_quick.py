@@ -507,7 +507,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if o["materialCode"] == option_id
         ][0]
         if option['goodsStatNm'] == 'goods.word.outofstock':
-            raise ProductNotAvailableError(product)
+            raise ProductNotAvailableError(product, 'Option out of stock')
         return option['itemNo']
 
     def __is_purchase_date_valid(self, purchase_date):

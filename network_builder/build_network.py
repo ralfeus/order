@@ -25,12 +25,14 @@ class ChildType(Enum):
 # Build selection range
 today = datetime.today()
 month_range = monthrange(today.year, today.month)
-start_date = today.strftime('%Y-%m-01' if today.day < 16 else '%Y-%m-16')
-end_date = today.strftime(f'%Y-%m-{15 if today.day < 16 else month_range[1]:02d}')
+start_date = today.strftime('%Y%m01' if today.day < 16 else '%Y%m16')
+end_date = today.strftime(f'%Y%m{15 if today.day < 16 else month_range[1]:02d}')
 ######
-TREE_URL = 'https://shop-api-ga.atomy.com/svc/genealogyTree/getGenealogyTree'
-DATA_TEMPLATE = "custNo={}&standardDate={}&level=100&dataType=include&_siteId=kr&_deviceType=pc&locale=ko-KR"
-token = None
+TREE_URL = 'https://kr.atomy.com/myoffice/genealogy/tree'
+DATA_TEMPLATE = "level=100&dropYn=Y&otherCustNo={}"
+COOLDOWN = timedelta(seconds=.8)
+EMERGENCY_COOLDOWN = timedelta(seconds=4)
+tokens = {}
 ''' Atomy JWT token '''
 titles = {
     '01':	'판매원',
@@ -50,9 +52,12 @@ config.DATABASE_URL = os.environ.get('NEO4J_URL') or 'bolt://neo4j:1@localhost:7
 
 logging.basicConfig(level=logging.INFO, force=True,
     format="%(asctime)s\t%(levelname)s\t%(threadName)s\t%(name)s\t%(message)s")
+logging.getLogger('neo4j').setLevel(logging.INFO)
 tqdm_logging.set_log_rate(timedelta(seconds=60))    
 
 lock = threading.Lock()
+atomy_lock = threading.Lock()
+token_locks = {}
 updated_nodes = 0
 
 def build_network(user, password, root_id='S5832131', cont=False, active=True, 
@@ -83,13 +88,21 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
         os.mkdir('profiles')
 
     exceptions = Queue()
-    traversing_nodes_set = _init_network(last_updated or datetime.today())
-    traversing_nodes_list = sorted([i for i in traversing_nodes_set], 
-                                   key=lambda i: i[0].replace('S', '0'))
+    traversing_nodes_list = [(node[0], (node[1], node[2])) 
+                             for node in sorted(
+                                 _init_network(last_updated or datetime.today(), root_id),
+                                 key=lambda i: i[0].replace('S', '0'))]
+    traversing_nodes_set = {node[0] for node in traversing_nodes_list}
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
-    global token
-    token = [{'Cookie': atomy_login2(user, password, socks5_proxy)}]
+    global tokens
+    tokens[user] = {
+        'id': user,
+        'token': atomy_login2(user, password, socks5_proxy), 
+        'last_used': datetime.now() - COOLDOWN, 
+        'ancestor': None,
+        'usage_count': 0
+    }
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
     pbar = tqdm(traversing_nodes_list)
@@ -104,10 +117,10 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             except Empty:
                 pass
             with lock:
-                while traversing_nodes_list[c] not in traversing_nodes_set:
+                while traversing_nodes_list[c][0] not in traversing_nodes_set:
                     logger.debug("Node %s was already crawled. Skipping...", traversing_nodes_list[c])
                     c += 1
-            node_id = traversing_nodes_list[c]
+            node_id, auth = traversing_nodes_list[c]
             c += 1
             _update_progress(pbar, c, len(traversing_nodes_list), 
                              len(traversing_nodes_set))
@@ -119,13 +132,13 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                     target=_profile_thread,
                     args=("Thread-" + node_id, _build_page_nodes, node_id,
                           traversing_nodes_set, traversing_nodes_list, socks5_proxy, 
-                          root_id, exceptions),
+                          auth, exceptions),
                     name="Thread-" + node_id)
             else:
                 thread = threading.Thread(
                     target=_build_page_nodes, 
                     args=(node_id, traversing_nodes_set, traversing_nodes_list,
-                          socks5_proxy, root_id, exceptions),
+                          socks5_proxy, auth, exceptions),
                     name="Thread-" + node_id)
 
             thread.start()
@@ -197,8 +210,8 @@ def _profile_thread(thread_name, target, *args):
     profiler.dump_stats("profiles/profile-" + thread_name + '-' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
 def _build_page_nodes(node_id: str, traversing_nodes_set: set[str], 
-                      traversing_nodes_list: list[str], socks5_proxy: str,
-                      root_id: str, exceptions: Queue):
+                      traversing_nodes_list: list[tuple[str, tuple[str, str]]], 
+                      socks5_proxy: str, auth: tuple[str, str], exceptions: Queue):
     """Gets page for a given node tree
 
     :param str node_id: Atomy ID of the node
@@ -209,39 +222,92 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         gone through
     :param str socks5_proxy: address of the SOCKS5 proxy to use for Atomy calls
      Used because Atomy server blocks some sources.
-    :param str root_id: Atomy ID of the tree root
+    :param tuple[str, str] auth: Credentials to be used for Atomy API calls
     :param Queue exceptions: 
     :raises Exception: If anything bad happens"""
+    # logging.root.setLevel(logging.DEBUG)
     logger = logging.getLogger('_build_page_nodes()')
     for _ in range(3):
         try:
+            # with atomy_lock:
+            token = __get_token(auth, socks5_proxy)
             page = get_json(TREE_URL + '?' + 
-                            DATA_TEMPLATE.format(node_id, start_date), headers=token,
-                            retries=3,
+                            DATA_TEMPLATE.format(node_id), 
+                            headers=token + [{'Cookie': 'KR_language=en'}],
                             socks5_proxy=socks5_proxy)
-            if page['result'] != '200':
-                raise Exception(page['resultMessage'])
+                # sleep(0.75)
+            if type(page) == dict and page.get('errorMessage') is not None:
+                logger.debug("Account %s needs to cool down", auth[0])
+                __set_token_cooldown(auth[0])
+                continue
             break
+        except BuildPageNodesException as ex:
+            exceptions.put(ex) # The exception is to be handled in the calling thread
         except Exception as ex:
             exceptions.put(BuildPageNodesException(node_id, ex)) # The exception is to be handled in the calling thread
             return # I don't want to raise an unhandled exception
-    members: list[dict[str, Any]] = page['items']['includeItems']
+    members: list[dict[str, Any]] = page
     logger.debug("%s elements on the page to be processed", len(members))
     
     # Update or create root node
     # if node_id == root_id:
     try:
         _save_node(members[0], '', False, logger)
-        if members[0]['ptnr_yn'] == 'Y':
+        if members[0]['ptnrYn'] == 'Y':
             _get_children(
                 node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
-                logger=logger
+                logger=logger, auth=auth
             )
         logger.debug("Done building node %s", node_id)
     except MemoryError as ex:
         exceptions.put(BuildPageNodesException(node_id, ex))
         return
     
+def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
+    '''Returns token to be used in the headers for the Atomy API calls
+    First tries to find the token of the node in the global token list
+    If not found tries to authenticate as current user.
+    When token is used, the cooldown timer is reset. Token with cooldown time less then allowed
+    is not used and considered not found
+
+    :param tuple[str, str] auth: tuple of Atomy ID and password
+    :param str socks5_proxy: address of the SOCKS5 proxy to use for Atomy calls
+    
+    :return list[dict[str, str]]: List of headers to be supplied as session token'''
+    global tokens
+    logger = logging.getLogger('_get_token()')
+    # logger.setLevel(logging.DEBUG)
+    if auth[0] not in token_locks:
+        token_locks[auth[0]] = threading.Lock()
+    with token_locks[auth[0]]:
+        if tokens.get(auth[0]) is None:
+            t = atomy_login2(auth[0], auth[1], socks5_proxy)
+            tokens[auth[0]] = {
+                'id': auth[0],
+                'usage_count': 0,
+                'token': t,
+                'last_used': datetime.now() - COOLDOWN
+            }
+        token = tokens[auth[0]]
+        logger.debug("The token for %s was last used at %s", 
+                     auth[0], token['last_used'])
+        cooldown = COOLDOWN + timedelta(seconds=0.2 * token['usage_count'])
+        allowed_usage = token['last_used'] + cooldown
+        if allowed_usage > datetime.now():
+            logger.debug("The token for %s needs to cool down. Waiting for %s seconds", 
+                auth[0], 
+                (allowed_usage - datetime.now()).total_seconds())
+            sleep(max((allowed_usage - datetime.now()).total_seconds(), 0))
+        logger.debug("Releasing the token for %s at %s", auth[0], datetime.now())
+        token['last_used'] = datetime.now()
+        token['usage_count'] += 1
+    return [{'Cookie': token['token']}]
+
+def __set_token_cooldown(username: str) -> None:
+    global tokens
+    with token_locks[username]:
+        tokens[username]['last_used'] = datetime.now() + EMERGENCY_COOLDOWN
+
 def get_child_id(parent_id, child_type):
     result, _ = db.cypher_query(f'''
         MATCH (p:AtomyPerson {{atomy_id: '{parent_id}'}})-[:{child_type.name}_CHILD]->(c:AtomyPerson)
@@ -250,13 +316,13 @@ def get_child_id(parent_id, child_type):
     return result[0][0] if len(result) > 0 else None
 
 def _get_children(node_id: str, traversing_nodes_set: set[str], 
-                  traversing_nodes_list: list[str], node_element,
-    elements, logger):
+                  traversing_nodes_list: list[tuple[str, tuple[str, str]]], 
+                  node_element, elements, logger, auth: tuple[str, str]):
 
     left = right = left_element = right_element = None
     logger.fine("Getting children for %s", node_id)
     children_elements = [e for e in elements 
-                           if e['spnr_no'] == node_id ]
+                           if e['spnrNo'] == node_id ]
     for element in children_elements:
         # element_id = element['cust_no']
         if left is None:
@@ -309,12 +375,12 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
         #         right = _get_node(element=element, parent_id=node_id, 
         #                           is_left=False, logger=logger)
         #         right_element = element
-    if left is None and node_element['ptnr_yn'] == 'Y':
+    if left is None and node_element['ptnrYn'] == 'Y':
         # Means the element has children but they aren't found in this page
         # So the crawling will be done for this element
         if node_id not in traversing_nodes_set:
             traversing_nodes_set.add(node_id)
-            traversing_nodes_list.append(node_id)
+            traversing_nodes_list.append((node_id, auth))
     # else:
     #     # Here node is set as built
     #     # Dynamic properties are updated either set during processing this node
@@ -329,17 +395,17 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
     if left is not None:
         _get_children(left, traversing_nodes_set, 
                         traversing_nodes_list, left_element, elements, 
-                        logger=logger)
+                        logger=logger, auth=auth)
     if right is not None:
         _get_children(right, traversing_nodes_set, 
                         traversing_nodes_list, right_element, elements,
-                        logger=logger)
+                        logger=logger, auth=auth)
     with lock:
         logger.debug("%s is done. Removing from the crawling set", node_id)
         traversing_nodes_set.discard(node_id)
 
 def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
-    element_id = element['cust_no']
+    element_id = element['custNo']
     if is_left:
         child_type = ChildType.LEFT
         child_type_name = 'left'
@@ -365,21 +431,23 @@ def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
                      logger=logger)
 
 
-def _init_network(last_update: date) -> set[str]:
+def _init_network(last_update: date, root_id: str) -> list[list[str]]:
     '''Returns all nodes updated before `last_update`
 
     :param date last_update: Date of node last update that has to be updated
-    :returns set[tuple[str, str]]: set of tuples of Atomy ID and branch the node
+    :param str root_id: Atomy ID of the root node whose tree is to update
+    :returns list[list[str]]]: set of tuples of Atomy ID and branch the node
         belongs to'''
     logger = logging.getLogger("_init_network")
-    logger.info("Getting all nodes updated before %s", last_update)
+    logger.info("Getting all nodes under %s updated before %s", root_id, last_update)
     result, _ = db.cypher_query('''
-        MATCH (n:AtomyPerson) WHERE date(n.when_updated) < date($today)
-        RETURN n.atomy_id ORDER BY n.atomy_id_normalized
-    ''', {'today': last_update})
-    result = [node[0] for node in result]
+        MATCH (:AtomyPerson{atomy_id:$root})<-[:PARENT*0..]-(n:AtomyPerson) 
+        WHERE date(n.when_updated) < date($today)
+        RETURN n.atomy_id, n.username, n.password ORDER BY n.atomy_id_normalized
+    ''', {'root': root_id, 'today': last_update})
+    # result = [node for node in result]
     logger.info("Got %s outdated nodes", len(result))
-    return set(result)
+    return result
 
 def _save_node(element: dict[str, Any], parent_id: str, is_left: bool, 
               logger: logging.Logger) -> str:
@@ -390,14 +458,14 @@ def _save_node(element: dict[str, Any], parent_id: str, is_left: bool,
     :param bool is_left: specifies whether node is a left child of the parent
     :param logging.Logger logger: logger object
     :returns str: Atomy ID of the node'''
-    atomy_id = element['cust_no']
+    atomy_id = element['custNo']
     with lock:
         global updated_nodes
         updated_nodes += 1
     try:
-        signup_date = datetime.strptime(element['join_dt'], '%Y-%m-%d')
-        last_purchase_date = datetime.strptime(element['fnl_svol_dt'], '%Y-%m-%d') \
-                                if element.get('fnl_svol_dt') is not None \
+        signup_date = datetime.strptime(element['joinDt'], '%Y-%m-%d')
+        last_purchase_date = datetime.strptime(element['fnlSvolDt'], '%Y-%m-%d') \
+                                if element.get('fnlSvolDt') is not None \
                                 else None
         # pv = element['macc_pv']
         # total_pv = 0 #int(re.search('\\d+', sel_total_pv(element)).group()) # type: ignore
@@ -411,7 +479,7 @@ def _save_node(element: dict[str, Any], parent_id: str, is_left: bool,
         _save_child_node(atomy_id, parent_id, element, is_left,
                                 signup_date, last_purchase_date)
     logger.debug('Saved node %s: {rank: %s}', atomy_id, 
-                 titles.get(element['cur_lvl_cd']))
+                 titles.get(element['curLvlCd']))
     return atomy_id
         
 def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetime, 
@@ -448,11 +516,11 @@ def _save_root_node(atomy_id: str, element: dict[str, Any], signup_date: datetim
         RETURN node.atomy_id
     ''', params={
         'atomy_id': atomy_id,
-        'name': element['cust_nm'],
-        'rank': titles.get(element['cur_lvl_cd']),
-        'highest_rank': titles.get(element['mlvl_cd']),
-        'center': element.get('ectr_nm'),
-        'country': element['corp_nm'],
+        'name': element['custNm'],
+        'rank': titles.get(element['curLvlCd']),
+        'highest_rank': titles.get(element['mlvlCd']),
+        'center': element.get('ectrNm'),
+        'country': element['corpNm'],
         'signup_date': signup_date,
         'last_purchase_date': last_purchase_date,
         # 'pv': pv,
@@ -490,6 +558,8 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
                 node.country = $country,
                 node.signup_date = $signup_date,
                 node.last_purchase_date = $last_purchase_date,
+                node.username = parent.username,
+                node.password = parent.password,
                 node.when_updated = $now
         ON MATCH SET
                 node.name = $name,
@@ -505,11 +575,11 @@ def _save_child_node(atomy_id: str, parent_id: str, element, is_left: bool,
     ''', params={
         'atomy_id': atomy_id,
         'parent_id': parent_id,
-        'name': element['cust_nm'],
-        'rank': titles.get(element['cur_lvl_cd']),
-        'highest_rank': titles.get(element['mlvl_cd']),
-        'center': element.get('ectr_nm'),
-        'country': element['corp_nm'],
+        'name': element['custNm'],
+        'rank': titles.get(element['curLvlCd']),
+        'highest_rank': titles.get(element['mlvlCd']),
+        'center': element.get('ectrNm'),
+        'country': element['corpNm'],
         'signup_date': signup_date,
         'last_purchase_date': last_purchase_date,
         # 'pv': pv,
