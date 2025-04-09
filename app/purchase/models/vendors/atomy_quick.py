@@ -633,23 +633,27 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting counteragent tax information")
         if purchase_order.company.tax_id != ("", "", ""):  # Company is taxable
             if purchase_order.company.tax_simplified:
-                self.__mst["cashReceiptIssueCd"] = "2"
-                self.__mst["cashReceiptCertNo"] = "000{}-{}{}".format(
+                self.__mst["cashReceiptIssueCd"] = "3"
+                self.__mst["cashReceiptUseDiviCd"] = "2"
+                self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
                     purchase_order.company.tax_id[0],
                     purchase_order.company.tax_id[1],
                     purchase_order.company.tax_id[2],
                 )
-                self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = (
-                    "000{}{}{}".format(
+                self.__po_params["payList"][0]["cashReceiptType"] = "PROOF"
+                self.__po_params["payList"][0]["registrationNumber"] = (
+                    "{}{}{}".format(
                         purchase_order.company.tax_id[0],
                         purchase_order.company.tax_id[1],
                         purchase_order.company.tax_id[2],
                     )
                 )
-                self.__po_params["payList"][0]["registrationNumber"] = \
-                    self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
                 self.__po_params['payList'][0]['vanData']['data']["registrationNumber"] = \
-                    self.__payment_payload['ordData']["payList"][0]["registrationNumber"]
+                    self.__po_params["payList"][0]["registrationNumber"]      
+                
+                self.__payment_payload["ordData"]["payList"][0]["cashReceiptType"] = "PROOF"
+                self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = \
+                    self.__po_params["payList"][0]["registrationNumber"]
             else:
                 self.__mst["cashReceiptUseDiviCd"] = "3"
                 del self.__mst["cashReceiptIssueCd"]
