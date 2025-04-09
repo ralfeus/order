@@ -75,7 +75,7 @@ class EMS(Shipping):
         from .. import bp_client_admin
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
-    def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
+    def can_ship(self, country: str, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("EMS::can_ship()")
         if not self._are_all_products_shippable(products):
             logger.debug(f"Not all products are shippable to {country}")
