@@ -21,7 +21,8 @@ from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
 from app.shipping.models.shipping import Shipping, PostponeShipping
-from app.tools import cleanse_payload, prepare_datatables_query, modify_object, stream_and_close
+from app.tools import cleanse_payload, prepare_datatables_query, modify_object, \
+    try_perform
 
 from ..models.order import Order
 from ..models.order_product import OrderProduct, OrderProductStatus
@@ -291,7 +292,7 @@ def add_suborders(order, suborders, errors):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
                 _add_suborder(order, suborder_data_subset, errors)
-                db.session.flush()
+                try_perform(lambda: db.session.flush())
                 suborders_count += 1
             except EmptySuborderError as ex:
                 errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")

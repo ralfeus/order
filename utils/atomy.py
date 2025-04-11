@@ -74,6 +74,7 @@ def atomy_login(username, password, browser=None, run_browser=False) -> list[str
         return try_perform(lambda: _atomy_login_curl(username, password))
     raise NotImplementedError("Browser login is not implemented")
 
+#TODO: remove and replace with app.tools.try_perform
 def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) -> Any:
     last_exception = None
     for _attempt in range(attempts):

@@ -134,6 +134,7 @@ def get_document_from_url(url, headers=None, raw_data=None):
 #         _logger.exception(run_params)
 #         return '', ''
 
+#TODO: remove and replace with app.tools.try_perform
 def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)):
     last_exception = None
     for _attempt in range(attempts):
