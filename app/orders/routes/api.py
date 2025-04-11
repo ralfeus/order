@@ -292,7 +292,7 @@ def add_suborders(order, suborders, errors):
             suborder_data_subset['items'] = suborder_data['items'][index:index + 10]
             try:
                 _add_suborder(order, suborder_data_subset, errors)
-                try_perform(lambda: db.session.flush())
+                try_perform(db.session.flush)
                 suborders_count += 1
             except EmptySuborderError as ex:
                 errors.append(f"Suborder for <{ex.args[0]}> is empty. Skipped")
@@ -321,7 +321,7 @@ def _add_suborder(order, suborder_data, errors):
         current_app.logger.debug('Created instance of Suborder %s', suborder)
         # db.session.add(suborder)
         order.suborders.append(suborder)
-        db.session.flush()
+        try_perform(db.session.flush)
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
                         doesn't allow to create new one. Please provide
