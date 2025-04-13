@@ -364,6 +364,7 @@ def user_save_order(order_id):
                 current_user, payload)
     if not payload.get('draft') and order.status == OrderStatus.draft:
         order.delete()
+        db.session.flush()
         # db.session.delete(order)
         return user_create_order()
 
