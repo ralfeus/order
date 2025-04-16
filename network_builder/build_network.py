@@ -442,7 +442,7 @@ def _init_network(last_update: date, root_id: str) -> list[list[str]]:
     logger.info("Getting all nodes under %s updated before %s", root_id, last_update)
     result, _ = db.cypher_query('''
         MATCH (:AtomyPerson{atomy_id:$root})<-[:PARENT*0..]-(n:AtomyPerson) 
-        WHERE date(n.when_updated) < date($today)
+        WHERE date(datetime(n.when_updated)) < date($today)
         RETURN n.atomy_id, n.username, n.password ORDER BY n.atomy_id_normalized
     ''', {'root': root_id, 'today': last_update})
     # result = [node for node in result]
