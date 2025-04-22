@@ -134,6 +134,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "payAmt": None,  # Set by `__set_payment_params`
                     "payVat": None,  # Set by `__set_payment_params`
                     "bankCd": None,  # Set by `__set_payment_params`
+                    "expiry": None,  # Set by `__get_payment_deadline`
                     "payerPhone": None,  # Set by `__set_payment_params`
                     "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
                     "registrationNumber": "0100001234",  # Set by `__set_tax_info`
@@ -146,6 +147,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             "expiry": None,  # `__get_payment_deadline`
                             "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
                             "registrationNumber": "0100001234",  # Set by `__set_tax_info`
+                            "customerMobilePhone": None,  # Set by `__set_receiver_mobile`
                         },
                         "vanCd": "50",
                         "saleNo": None,  # To be obtained from `mersList`
@@ -615,11 +617,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl["payAmt"] = total_krw
         pl["payVat"] = int(total_krw / 11)
         pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
+        pl['expiry'] = self.__get_payment_deadline()
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
         pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name
         pl["vanData"]["data"]["ordererNm"] = po.customer.name
         pl["vanData"]["data"]["expiry"] = self.__get_payment_deadline()
+        pl['vanData']["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
         pl["vanData"]["payAmt"] = total_krw
         self.__payment_payload["ordData"]["payList"][0]["bankCd"] = pl["bankCd"]
         self.__payment_payload["ordData"]["payList"][0][
@@ -648,6 +652,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         purchase_order.company.tax_id[2],
                     )
                 )
+                self.__po_params["payList"][0]["vanData"]["data"]['cashReceiptType'] = "PROOF"
                 self.__po_params['payList'][0]['vanData']['data']["registrationNumber"] = \
                     self.__po_params["payList"][0]["registrationNumber"]      
                 
