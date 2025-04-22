@@ -1,6 +1,4 @@
-import cProfile
 from datetime import date, datetime
-import random
 import sys
 
 from app import db, create_app
@@ -18,11 +16,10 @@ logging.basicConfig(level=logging.DEBUG)
 logging.root.setLevel(logging.DEBUG)
 
 def build_network():
-
     sys.path.append('./network_builder')
     from network_builder.build_network import build_network
-    # cProfile.run('build_network(root_id="S7882533", incremental=True)', filename='build_network.stat')
-    build_network(root_id='26298372', user='S5832131', password='mkk03020529!!', threads=30, last_updated=date(2030, 1, 4))
+    build_network(root_id='S5832131', user='S5832131', password='mkk03020529!!', threads=50, 
+                  last_updated=date(2030, 1, 4), profile=False)
     # copy_subtree(root_id='S9945812')
     # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
 

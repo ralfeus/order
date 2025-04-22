@@ -85,15 +85,16 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
     try:
         return json.loads(stdout)
     except json.JSONDecodeError:
-        if re.search('HTTP.*? 401', stderr):
-            raise HTTPError(401)
+        status = re.search(r'HTTP.*? (\d+)', stderr).groups()[0]
+        if status != '200':
+            raise HTTPError(status)
         if retries > 0:
             logging.warning("Couldn't get json from URL %s. Will retry %s more time%s",
                             url, retries, 's' if retries > 1 else '')
             return get_json(url, raw_data, headers, method, retries - 1, get_data,
                             ignore_ssl_check)
-        logging.exception("Couldn't get JSON out of response")
-        logging.error("STDOUT: %s", stdout)
-        logging.error("STDERR: %s", stderr)
-        raise Exception("Unknown error")
+        # logging.exception("Couldn't get JSON out of response")
+        # logging.error("STDOUT: %s", stdout)
+        # logging.error("STDERR: %s", stderr)
+        raise Exception("Uknown error", stdout, stderr)
 

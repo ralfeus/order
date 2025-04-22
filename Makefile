@@ -20,5 +20,5 @@ analyze:
 	rm coverage.xml
 
 network-manager-docker:
-	docker login -u ralfeus
+	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
 	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:stable . -f network_builder/Dockerfile

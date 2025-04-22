@@ -14,6 +14,7 @@ from time import sleep
 
 from neomodel import db, config
 
+from exceptions import HTTPError
 from nb_exceptions import BuildPageNodesException
 from utils import get_json
 from utils.atomy import atomy_login2
@@ -55,6 +56,7 @@ logging.basicConfig(level=logging.INFO, force=True,
 logging.getLogger('neo4j').setLevel(logging.INFO)
 tqdm_logging.set_log_rate(timedelta(seconds=60))    
 
+processing_threads = 0
 lock = threading.Lock()
 atomy_lock = threading.Lock()
 token_locks = {}
@@ -90,26 +92,20 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
     exceptions = Queue()
     traversing_nodes_list = [(node[0], (node[1], node[2])) 
                              for node in sorted(
-                                 _init_network(last_updated or datetime.today(), root_id),
+                                 _init_network(root_id, last_updated or datetime.today()),
                                  key=lambda i: i[0].replace('S', '0'))]
     traversing_nodes_set = {node[0] for node in traversing_nodes_list}
     logger.debug(traversing_nodes_list)
     logger.info("Logging in to Atomy")
-    global tokens
-    tokens[user] = {
-        'id': user,
-        'token': atomy_login2(user, password, socks5_proxy), 
-        'last_used': datetime.now() - COOLDOWN, 
-        'ancestor': None,
-        'usage_count': 0
-    }
+    __set_token(user, password, locked=True)
     c = 0
     initial_nodes_count = len(traversing_nodes_list)
     pbar = tqdm(traversing_nodes_list)
+    global processing_threads
     while nodes == 0 or updated_nodes < nodes:
         if nodes > 0:
             logger.info("%s of %s nodes are updated", updated_nodes, nodes)
-        while threading.active_count() - 2 >= threads:
+        while processing_threads >= threads:
             sleep(1)
         try:
             try: # Get exception from the threads
@@ -142,13 +138,14 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                     name="Thread-" + node_id)
 
             thread.start()
+            with lock:
+                processing_threads += 1
         except IndexError:
-            running_tasks = threading.active_count() - 2
-            if running_tasks == 0:
+            if processing_threads == 0:
                 logger.info('No nodes left to check. Finishing')
                 break
             logger.info('%s nodes checking is in progress. Waiting for completion',
-                running_tasks)
+                processing_threads)
             sleep(5)
         except KeyboardInterrupt:
             logger.info("Ctrl+C was pressed. Shutting down (running threads will be completed)...")
@@ -225,7 +222,8 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     :param tuple[str, str] auth: Credentials to be used for Atomy API calls
     :param Queue exceptions: 
     :raises Exception: If anything bad happens"""
-    # logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(logging.DEBUG)
+    global processing_threads
     logger = logging.getLogger('_build_page_nodes()')
     for _ in range(3):
         try:
@@ -241,10 +239,16 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                 __set_token_cooldown(auth[0])
                 continue
             break
+        except HTTPError as ex:
+            if ex.status == '302':
+                logger.debug("The token for %s seems to be expired. Trying to re-login", auth[0])
+                token = __set_token(auth[0], auth[1], locked=False)
         except BuildPageNodesException as ex:
             exceptions.put(ex) # The exception is to be handled in the calling thread
         except Exception as ex:
             exceptions.put(BuildPageNodesException(node_id, ex)) # The exception is to be handled in the calling thread
+            with lock:
+                processing_threads -= 1
             return # I don't want to raise an unhandled exception
     members: list[dict[str, Any]] = page
     logger.debug("%s elements on the page to be processed", len(members))
@@ -261,7 +265,12 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         logger.debug("Done building node %s", node_id)
     except MemoryError as ex:
         exceptions.put(BuildPageNodesException(node_id, ex))
+        with lock:
+            processing_threads -= 1
         return
+    with lock:
+        processing_threads -= 1
+
     
 def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
     '''Returns token to be used in the headers for the Atomy API calls
@@ -281,18 +290,12 @@ def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]
         token_locks[auth[0]] = threading.Lock()
     with token_locks[auth[0]]:
         if tokens.get(auth[0]) is None:
-            t = atomy_login2(auth[0], auth[1], socks5_proxy)
-            tokens[auth[0]] = {
-                'id': auth[0],
-                'usage_count': 0,
-                'token': t,
-                'last_used': datetime.now() - COOLDOWN
-            }
+            token = __set_token(auth[0], auth[1], locked=True)
         token = tokens[auth[0]]
         logger.debug("The token for %s was last used at %s", 
                      auth[0], token['last_used'])
-        cooldown = COOLDOWN + timedelta(seconds=0.2 * token['usage_count'])
-        allowed_usage = token['last_used'] + cooldown
+        # cooldown = COOLDOWN + timedelta(seconds=0.2 * token['usage_count'])
+        allowed_usage = token['last_used'] + COOLDOWN
         if allowed_usage > datetime.now():
             logger.debug("The token for %s needs to cool down. Waiting for %s seconds", 
                 auth[0], 
@@ -302,6 +305,22 @@ def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]
         token['last_used'] = datetime.now()
         token['usage_count'] += 1
     return [{'Cookie': token['token']}]
+
+def __set_token(username, password, locked:bool=False) -> dict[str, str]:
+    global tokens
+    if not locked:
+        token_locks[username].acquire()
+    tokens[username] = {
+        'id': username,
+        'token': atomy_login2(username, password), 
+        'last_used': datetime.now() - COOLDOWN, 
+        'usage_count': 0
+    }
+    logger = logging.getLogger('__set_token()')
+    logger.debug("The token for %s was set", username)
+    if not locked:
+        token_locks[username].release()
+    return tokens[username]
 
 def __set_token_cooldown(username: str) -> None:
     global tokens
@@ -375,12 +394,6 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
         #         right = _get_node(element=element, parent_id=node_id, 
         #                           is_left=False, logger=logger)
         #         right_element = element
-    if left is None and node_element['ptnrYn'] == 'Y':
-        # Means the element has children but they aren't found in this page
-        # So the crawling will be done for this element
-        if node_id not in traversing_nodes_set:
-            traversing_nodes_set.add(node_id)
-            traversing_nodes_list.append((node_id, auth))
     # else:
     #     # Here node is set as built
     #     # Dynamic properties are updated either set during processing this node
@@ -401,8 +414,18 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
                         traversing_nodes_list, right_element, elements,
                         logger=logger, auth=auth)
     with lock:
-        logger.debug("%s is done. Removing from the crawling set", node_id)
-        traversing_nodes_set.discard(node_id)
+        if left is None and node_element['ptnrYn'] == 'Y':
+            # Means the element has children but they aren't found in this page
+            # So the crawling will be done for this element
+            if node_id not in traversing_nodes_set:
+                creds = _init_network(node_id)
+                if creds is not None:
+                    creds = (creds[0][1], creds[0][2])
+                traversing_nodes_set.add(node_id)
+                traversing_nodes_list.append((node_id, creds or auth))
+        else:
+            logger.debug("%s is done. Removing from the crawling set", node_id)
+            traversing_nodes_set.discard(node_id)
 
 def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
     element_id = element['custNo']
@@ -431,22 +454,23 @@ def _add_node(parent_id, element, is_left: bool, logger: logging.Logger):
                      logger=logger)
 
 
-def _init_network(last_update: date, root_id: str) -> list[list[str]]:
+def _init_network(root_id: str, last_update: date=datetime.now()) -> list[list[str]]:
     '''Returns all nodes updated before `last_update`
 
     :param date last_update: Date of node last update that has to be updated
     :param str root_id: Atomy ID of the root node whose tree is to update
     :returns list[list[str]]]: set of tuples of Atomy ID and branch the node
         belongs to'''
-    logger = logging.getLogger("_init_network")
-    logger.info("Getting all nodes under %s updated before %s", root_id, last_update)
+    # logger = logging.getLogger("_init_network")
+    # logger.info("Getting all nodes under %s updated before %s", root_id, last_update)
     result, _ = db.cypher_query('''
-        MATCH (:AtomyPerson{atomy_id:$root})<-[:PARENT*0..]-(n:AtomyPerson) 
-        WHERE date(datetime(n.when_updated)) < date($today)
+        // MATCH (:AtomyPerson{atomy_id:$root})<-[:PARENT*0..]-(n:AtomyPerson) 
+        // WHERE date(datetime(n.when_updated)) < date($today)
+        MATCH (n:AtomyPerson{atomy_id:$root})
         RETURN n.atomy_id, n.username, n.password ORDER BY n.atomy_id_normalized
     ''', {'root': root_id, 'today': last_update})
     # result = [node for node in result]
-    logger.info("Got %s outdated nodes", len(result))
+    # logger.info("Got %s outdated nodes", len(result))
     return result
 
 def _save_node(element: dict[str, Any], parent_id: str, is_left: bool, 
