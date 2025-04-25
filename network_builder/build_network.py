@@ -589,7 +589,7 @@ if __name__ == '__main__':
                     help='Continue tree building after being interrupted', action='store_true')
     arg_parser.add_argument('--active', help="Build only active branches", default=False, action="store_true")
     arg_parser.add_argument('-v', '--verbose', action='count', help='Increase verbosity')
-    arg_parser.add_argument('--threads', help="Number of threads to run", type=int, default=10)
+    arg_parser.add_argument('--max-threads', help="Number of threads to run", type=int, default=10)
     arg_parser.add_argument('--profile', help="Profile threads", default=False, action="store_true")
     arg_parser.add_argument('--nodes', help="Update first nodes", type=int, default=0)
     arg_parser.add_argument('--last-updated', help="Include only nodes that were last time updated before provided date. Format: YYYY-MM-DD", 
