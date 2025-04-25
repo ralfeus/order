@@ -17,6 +17,8 @@ class CustomDateProperty(DateProperty):
         if isinstance(value, neo4j.time.DateTime):
             return date(value.year, value.month, value.day)
         if isinstance(value, str):
+            if value == '':
+                return None
             if "T" in value:
                 value = value[:value.find('T')]
             return date(int(value[:4]), int(value[5:7]), int(value[8:10]))

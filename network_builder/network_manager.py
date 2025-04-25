@@ -222,7 +222,7 @@ def fetch_node_from_atomy(node_id):
 
 def _run_node_update(node_id):
     from build_network import build_network
-    build_network(user='S5832131', password='mkk03020529!!', threads=50, root_id=node_id)
+    build_network(user='S5832131', password='mkk03020529!!', max_threads=50, root_id=node_id)
 
 @app.route('/api/v1/node/<node_id>/update')
 def get_node_fetch_status(node_id):
