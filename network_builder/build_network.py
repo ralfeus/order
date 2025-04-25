@@ -610,6 +610,8 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.FINE)
     elif args.verbose == 2:
         logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
 
 
     logging.info('Building tree with following arguments: %s', args)
