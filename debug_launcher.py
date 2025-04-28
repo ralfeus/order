@@ -16,7 +16,7 @@ import time
 def build_network():
     sys.path.append('./network_builder')
     from network_builder.build_network import build_network
-    build_network(root_id='S5832131', user='S5832131', password='mkk03020529!!', max_threads=50, 
+    build_network(root_id='S7806538', user='S5832131', password='mkk03020529!!', max_threads=1, 
                   last_updated=date(2030, 1, 4), profile=False)
     # copy_subtree(root_id='S9945812')
     # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
@@ -120,5 +120,5 @@ def multiple_request():
 ############################# Entry point #####################################
 
 with create_app().app_context():
-    logging.root.setLevel(logging.INFO)
+    # logging.root.setLevel(logging.INFO)
     build_network()

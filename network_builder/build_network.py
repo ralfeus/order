@@ -2,7 +2,8 @@ from enum import Enum
 from calendar import monthrange
 import cProfile
 from datetime import date, datetime, timedelta
-from typing import Any, Optional
+import json
+from typing import Any, Callable, Optional
 import utils.logging as logging
 import os, os.path
 from queue import Empty, Queue
@@ -97,7 +98,10 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                                  _init_network(root_id, last_updated or datetime.today()),
                                  key=lambda i: i[0].replace('S', '0'))]
     traversing_nodes_set = {node[0] for node in traversing_nodes_list}
-    logger.debug(traversing_nodes_list)
+    stop_state_server = False
+    server_thread = _start_state_server(
+        lambda: stop_state_server, lambda: (traversing_nodes_set, ))
+    # logger.debug(traversing_nodes_list)
     c = 0
     pbar = tqdm(traversing_nodes_list)
     global threads
@@ -144,8 +148,8 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
                 threads)
             sleep(5)
         except KeyboardInterrupt:
-            logger.info("Ctrl+C was pressed. Shutting down (running threads will be completed)...")
-            break
+            logger.info("Ctrl+C was pressed. Shutting down...")
+            os._exit(0)
         except BuildPageNodesException as ex:
             with lock:
                 traversing_nodes_set.discard(node_id)
@@ -170,7 +174,11 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             logger.exception(node_id)
             raise ex
     logger.info("Done. Updated %s nodes", updated_nodes)
+    logger.info("Setting branches for each node")
     _set_branches(root_id)
+    logger.info("Done")
+    stop_state_server = True
+    server_thread.join()
 
     ### PV update isn't needed anymore
     ### Consider removing in the next release
@@ -224,7 +232,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     for _ in range(10):
         try:
             # with atomy_lock:
-            token = __get_token(auth, socks5_proxy)
+            token = _get_token(auth, socks5_proxy)
             members = get_json(TREE_URL + '?' + 
                             DATA_TEMPLATE.format(node_id), 
                             headers=token + [{'Cookie': 'KR_language=en'}],
@@ -232,13 +240,13 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                 # sleep(0.75)
             if type(members) == dict and members.get('errorMessage') is not None:
                 logger.debug("Account %s needs to cool down", auth[0])
-                __set_token_cooldown(auth[0])
+                _set_token_cooldown(auth[0])
                 continue
             break
         except HTTPError as ex:
             if ex.status == '302':
                 logger.debug("The token for %s seems to be expired. Trying to re-login", auth[0])
-                token = __set_token(auth[0], auth[1], locked=False)
+                token = _set_token(auth[0], auth[1], locked=False)
         except BuildPageNodesException as ex:
             exceptions.put(ex) # The exception is to be handled in the calling thread
         except Exception as ex:
@@ -267,7 +275,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         threads -= 1
 
     
-def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
+def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
     '''Returns token to be used in the headers for the Atomy API calls
     First tries to find the token of the node in the global token list
     If not found tries to authenticate as current user.
@@ -285,7 +293,7 @@ def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]
         token_locks[auth[0]] = threading.Lock()
     with token_locks[auth[0]]:
         if tokens.get(auth[0]) is None:
-            token = __set_token(auth[0], auth[1], locked=True)
+            token = _set_token(auth[0], auth[1], locked=True)
         token = tokens[auth[0]]
         logger.debug("The token for %s was last used at %s", 
                      auth[0], token['last_used'])
@@ -301,7 +309,7 @@ def __get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]
         token['usage_count'] += 1
     return [{'Cookie': token['token']}]
 
-def __set_token(username, password, locked:bool=False) -> dict[str, str]:
+def _set_token(username, password, locked:bool=False) -> dict[str, str]:
     global tokens
     if not locked:
         token_locks[username].acquire()
@@ -317,7 +325,7 @@ def __set_token(username, password, locked:bool=False) -> dict[str, str]:
         token_locks[username].release()
     return tokens[username]
 
-def __set_token_cooldown(username: str) -> None:
+def _set_token_cooldown(username: str) -> None:
     global tokens
     with token_locks[username]:
         tokens[username]['last_used'] = datetime.now() + EMERGENCY_COOLDOWN
@@ -331,7 +339,7 @@ def get_child_id(parent_id, child_type: ChildType):
 
 def _get_children(node_id: str, traversing_nodes_set: set[str], 
                   traversing_nodes_list: list[tuple[str, tuple[str, str]]], 
-                  node_element, elements, logger, auth: tuple[str, str]):
+                  node_element, elements, logger, auth: tuple[str, str]) -> bool:
     '''Recursively gets children of the node and adds them to the database
 
     :param str node_id: Atomy ID of the node, whose children are to be obtained
@@ -341,28 +349,44 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
     :param dict[str, Any] node_element: JSON representation of the node, obtained from the Atomy page
     :param list[dict[str, Any]] elements: JSON representation of all nodes on the page
     :param logging.Logger logger: logger object
-    :param tuple[str, str] auth: credentials to be used for Atomy API calls'''
+    :param tuple[str, str] auth: credentials to be used for Atomy API calls
+    :returns bool: True if the node has children on the page, False otherwise.
+        False means that the node has children but they are not found on the page.
+        Therefore the parent node has to be added to the traversing list'''
     logger.fine("Getting children for %s", node_id)
     children_elements = [e for e in elements 
                            if e['spnrNo'] == node_id ]
+    to_crawl = False
     for element in children_elements:
+        # if element['custNo'] == 'S9854104':
+        #     logger.warning("------------- FOUND S9854104 -------------")
+        #     logger.warning("------------- Parent: %s -----------------", node_id)
+        #     os._exit(0)
         child_id = _add_node(parent_id=node_id, element=element, logger=logger)        
-        _get_children(child_id, traversing_nodes_set, 
+        to_crawl |= _get_children(child_id, traversing_nodes_set, 
                     traversing_nodes_list, element, elements, 
                     logger=logger, auth=auth)
-    with lock:
-        if len(children_elements) ==0 and node_element['ptnrYn'] == 'Y':
-            # Means the element has children but they aren't found in this page
-            # So the crawling will be done for this element
+    # Determine if the node has to be added to the traversing list
+    if to_crawl:
+        logger.debug("The node %s has children but they are not found in this page. Adding to the traversing list", node_id)
+        with lock:
             if node_id not in traversing_nodes_set:
                 creds = _init_network(node_id)
                 if creds is not None:
                     creds = (creds[0][1], creds[0][2])
                 traversing_nodes_set.add(node_id)
                 traversing_nodes_list.append((node_id, creds or auth))
+    else:
+        # Determine if might have children. If the node has children, the parent
+        # node has to be added to the traversing list
+        if len(children_elements) == 0 and node_element['ptnrYn'] == 'Y':
+            # Means the element has children but they aren't found in this page
+            # So the crawling will be done for this element
+            return True
         else:
             logger.debug("%s is done. Removing from the crawling set", node_id)
             traversing_nodes_set.discard(node_id)
+    return False
 
 def _add_node(parent_id, element, logger: logging.OrderLogger):
     _logger:logging.OrderLogger = logging.getLogger('_add_node()') #type:ignore
@@ -550,12 +574,6 @@ def _save_child_node(atomy_id: str, parent_id: str, element, child_type: str,
     })
     return atomy_id
 
-def _is_left(element):
-    return element['trct_loc_cd'] == 'L'
-
-def _is_right(element):
-    return element['trct_loc_cd'] == 'R'
-
 def _set_branches(root_id):
     children, _ = db.cypher_query('''
         MATCH (root:AtomyPerson{atomy_id:'S5832131'})-[:LEFT_CHILD]->(l:AtomyPerson)
@@ -575,6 +593,39 @@ def _update_progress(pbar: tqdm, progress: int, total: int, updated: int) -> Non
     pbar.n = progress
     pbar.set_description(f"{updated} nodes are updated. {threads} threads are running")
     pbar.refresh()
+    
+def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
+    def _state_server(stop: Callable, get_data) -> None:
+        import socket
+        logger = logging.getLogger('_state_server()')
+        with socket.socket() as s:
+            s.bind(('localhost', 0))
+            port = s.getsockname()[1]
+            os.environ['STATE_SERVER_PORT'] = str(port)
+            logger.info("State server is running on port %s", port)
+            s.listen(1)
+            s.settimeout(1)
+            while not stop():
+                try:
+                    conn, addr = s.accept()
+                    logger.info("Connection from %s", addr)
+                    data = get_data()
+                    response = {
+                        'threads': [t.name for t in threading.enumerate()],
+                        'to_crawl': len(data[0]),
+                    }
+                    conn.sendall(json.dumps(response).encode('utf-8'))
+                    conn.close()
+                except socket.timeout:
+                    continue
+                except KeyboardInterrupt:
+                    logger.info("Ctrl+C was pressed. Shutting down...")
+                    break
+        logger.info("State server is shutting down")
+    server_thread = threading.Thread(target=_state_server, name='StateServer', 
+                                     args=(stop, get_data))
+    server_thread.start()
+    return server_thread
 
 if __name__ == '__main__':
     import argparse
