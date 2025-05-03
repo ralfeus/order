@@ -65,7 +65,7 @@ atomy_lock = threading.Lock()
 token_locks = {}
 updated_nodes = 0
 
-def build_network(user, password, root_id='S5832131', cont=False, active=True, 
+def build_network(user, password, root_id='S5832131', roots_file=None, cont=False, active=True, 
                   max_threads=10, profile=False, nodes=0, socks5_proxy='', 
                   last_updated:date=datetime.today(), **_kwargs):
     '''Builds network of Atomy members
@@ -93,7 +93,16 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
         os.mkdir('profiles')
 
     exceptions = Queue()
-    traversing_nodes_list = [(node[0], (node[1], node[2])) 
+    if roots_file is not None:
+        traversing_nodes_list = []
+        traversing_nodes_set = set()
+        with open(roots_file) as file:
+            for root in file:
+                node = _init_network(root.strip(), last_updated or datetime.today())[0]
+                print(node)
+                traversing_nodes_list.append((node[0], (node[1], node[2])))
+    else:
+        traversing_nodes_list = [(node[0], (node[1], node[2])) 
                              for node in sorted(
                                  _init_network(root_id, last_updated or datetime.today()),
                                  key=lambda i: i[0].replace('S', '0'))]
@@ -174,8 +183,8 @@ def build_network(user, password, root_id='S5832131', cont=False, active=True,
             logger.exception(node_id)
             raise ex
     logger.info("Done. Updated %s nodes", updated_nodes)
-    logger.info("Setting branches for each node")
-    _set_branches(root_id)
+    #logger.info("Setting branches for each node")
+    #_set_branches(root_id)
     logger.info("Done")
     stop_state_server = True
     server_thread.join()
@@ -636,6 +645,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--password', help="Password to log on to Atomy", default='mkk03020529!!')
     # mode.add_argument('--update', help='Update data of existing nodes', action='store_true')
     mode.add_argument('--root', dest='root_id', metavar='ROOT_ID', help="ID of the tree or subtree root for full network scan")
+    mode.add_argument('--roots-file')
     mode.add_argument('--continue', dest='cont',
                     help='Continue tree building after being interrupted', action='store_true')
     arg_parser.add_argument('--active', help="Build only active branches", default=False, action="store_true")
