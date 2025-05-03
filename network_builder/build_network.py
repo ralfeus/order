@@ -109,7 +109,7 @@ def build_network(user, password, root_id='S5832131', roots_file=None, cont=Fals
     traversing_nodes_set = {node[0] for node in traversing_nodes_list}
     stop_state_server = False
     server_thread = _start_state_server(
-        lambda: stop_state_server, lambda: (traversing_nodes_set, ))
+        lambda: stop_state_server, lambda: (traversing_nodes_set, updated_nodes))
     # logger.debug(traversing_nodes_list)
     c = 0
     pbar = tqdm(traversing_nodes_list)
@@ -617,11 +617,12 @@ def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
             while not stop():
                 try:
                     conn, addr = s.accept()
-                    logger.info("Connection from %s", addr)
+                    logger.debug("Connection from %s", addr)
                     data = get_data()
                     response = {
                         'threads': [t.name for t in threading.enumerate()],
                         'to_crawl': len(data[0]),
+                        'updated': data[1],
                     }
                     conn.sendall(json.dumps(response).encode('utf-8'))
                     conn.close()
