@@ -15,7 +15,7 @@ from time import sleep
 from neomodel import db, config
 
 from exceptions import HTTPError, AtomyLoginError
-from nb_exceptions import BuildPageNodesException
+from nb_exceptions import BuildPageNodesException, NoParentException
 from utils import get_json
 from utils.atomy import atomy_login2
 
@@ -261,15 +261,27 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
             break
         except HTTPError as ex:
             if ex.status == '302':
-                logger.debug("The token for %s seems to be expired. Trying to re-login", auth[0])
+                logger.debug("The token for %s seems to be expired. Trying to re-login", 
+                             auth[0])
                 token = _set_token(auth[0], auth[1], locked=False)
         except BuildPageNodesException as ex:
             exceptions.put(ex) # The exception is to be handled in the calling thread
+        except NoParentException as ex:
+            logger.fine("The node %s wasn't found in the root's tree. Skipping...", 
+                         node_id)
+            break
         except Exception as ex:
             exceptions.put(BuildPageNodesException(node_id, ex)) # The exception is to be handled in the calling thread
-            with lock:
-                threads -= 1
-            return # I don't want to raise an unhandled exception
+            # with lock:
+            #     threads -= 1
+            break # I don't want to raise an unhandled exception
+
+    if not isinstance(members, list) or len(members) == 0:
+        logger.debug("No members found on the page for %s", node_id)
+        with lock:
+            threads -= 1
+        return
+    
     logger.debug("%s elements on the page to be processed", len(members))
     
     # Update or create root node
@@ -284,9 +296,6 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         logger.debug("Done building node %s", node_id)
     except Exception as ex:
         exceptions.put(BuildPageNodesException(node_id, ex))
-        with lock:
-            threads -= 1
-        return
     with lock:
         threads -= 1
 
@@ -298,6 +307,8 @@ def _get_parent_auth(node_id: str) -> tuple[str, str]:
     result, _ = db.cypher_query('''
         MATCH (:AtomyPerson {atomy_id: $node_id})-[:PARENT]->(p:AtomyPerson)
         RETURN p.username, p.password''', {'node_id': node_id})
+    if len(result) == 0:
+        raise NoParentException(node_id)
     return result[0][0], result[0][1]
     
 def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:

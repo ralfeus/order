@@ -7,9 +7,7 @@ from time import sleep
 from typing import Any, Callable
 from xml.etree.ElementTree import fromstring
 
-from requests import HTTPError
-
-from exceptions import AtomyLoginError
+from exceptions import AtomyLoginError, HTTPError
 
 def get_document_from_url(url, headers=[], raw_data: str=''):
     logger = logging.getLogger('utils.get_document_from_url')
