@@ -14,7 +14,7 @@ from time import sleep
 
 from neomodel import db, config
 
-from exceptions import HTTPError
+from exceptions import HTTPError, AtomyLoginError
 from nb_exceptions import BuildPageNodesException
 from utils import get_json
 from utils.atomy import atomy_login2
@@ -65,7 +65,7 @@ atomy_lock = threading.Lock()
 token_locks = {}
 updated_nodes = 0
 
-def build_network(user, password, root_id='S5832131', roots_file=None, cont=False, active=True, 
+def build_network(user, password, root_id='S5832131', roots_file=None, active=True, 
                   max_threads=10, profile=False, nodes=0, socks5_proxy='', 
                   last_updated:date=datetime.today(), **_kwargs):
     '''Builds network of Atomy members
@@ -73,6 +73,8 @@ def build_network(user, password, root_id='S5832131', roots_file=None, cont=Fals
     :param str user: User name under which log in to Atomy
     :param str password: Password for loging in to Atomy
     :param str root_id: Atomy ID of the node from which start network building
+    :param str roots_file: file with list of Atomy IDs to be used as roots for 
+        network building
     :param bool cont: indicates whether to start building from the beginning or
         continue previously interrupted operation
     :param bool active: indicates whether update only active nodes. Node is
@@ -183,8 +185,8 @@ def build_network(user, password, root_id='S5832131', roots_file=None, cont=Fals
             logger.exception(node_id)
             raise ex
     logger.info("Done. Updated %s nodes", updated_nodes)
-    #logger.info("Setting branches for each node")
-    #_set_branches(root_id)
+    logger.info("Setting branches for each node")
+    _set_branches(root_id)
     logger.info("Done")
     stop_state_server = True
     server_thread.join()
@@ -238,7 +240,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     global threads
     logger = logging.getLogger('_build_page_nodes()')
     members = []
-    for _ in range(10):
+    while True:
         try:
             # with atomy_lock:
             token = _get_token(auth, socks5_proxy)
@@ -275,7 +277,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                 logger=logger, auth=auth
             )
         logger.debug("Done building node %s", node_id)
-    except MemoryError as ex:
+    except Exception as ex:
         exceptions.put(BuildPageNodesException(node_id, ex))
         with lock:
             threads -= 1
@@ -283,6 +285,15 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     with lock:
         threads -= 1
 
+def _get_parent_auth(node_id: str) -> tuple[str, str]:
+    '''Returns credentials of the parent node
+
+    :param str node_id: Atomy ID of the node whose parent credentials are to be obtained
+    :returns tuple[str, str]: tuple of Atomy ID and password'''
+    result, _ = db.cypher_query('''
+        MATCH (:AtomyPerson {atomy_id: $node_id})-[:PARENT]->(p:AtomyPerson)
+        RETURN p.username, p.password''', {'node_id': node_id})
+    return result[0][0], result[0][1]
     
 def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
     '''Returns token to be used in the headers for the Atomy API calls
@@ -300,22 +311,27 @@ def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]
     # logger.setLevel(logging.DEBUG)
     if auth[0] not in token_locks:
         token_locks[auth[0]] = threading.Lock()
-    with token_locks[auth[0]]:
-        if tokens.get(auth[0]) is None:
-            token = _set_token(auth[0], auth[1], locked=True)
-        token = tokens[auth[0]]
-        logger.debug("The token for %s was last used at %s", 
-                     auth[0], token['last_used'])
-        # cooldown = COOLDOWN + timedelta(seconds=0.2 * token['usage_count'])
-        allowed_usage = token['last_used'] + COOLDOWN
-        if allowed_usage > datetime.now():
-            logger.debug("The token for %s needs to cool down. Waiting for %s seconds", 
-                auth[0], 
-                (allowed_usage - datetime.now()).total_seconds())
-            sleep(max((allowed_usage - datetime.now()).total_seconds(), 0))
-        logger.debug("Releasing the token for %s at %s", auth[0], datetime.now())
-        token['last_used'] = datetime.now()
-        token['usage_count'] += 1
+    try:
+        with token_locks[auth[0]]:
+            if tokens.get(auth[0]) is None:
+                token = _set_token(auth[0], auth[1], locked=True)
+            token = tokens[auth[0]]
+            logger.debug("The token for %s was last used at %s", 
+                        auth[0], token['last_used'])
+            # cooldown = COOLDOWN + timedelta(seconds=0.2 * token['usage_count'])
+            allowed_usage = token['last_used'] + COOLDOWN
+            if allowed_usage > datetime.now():
+                logger.debug("The token for %s needs to cool down. Waiting for %s seconds", 
+                    auth[0], 
+                    (allowed_usage - datetime.now()).total_seconds())
+                sleep(max((allowed_usage - datetime.now()).total_seconds(), 0))
+            logger.debug("Releasing the token for %s at %s", auth[0], datetime.now())
+            token['last_used'] = datetime.now()
+            token['usage_count'] += 1
+    except AtomyLoginError:
+        logger.debug("Couldn't log in as %s. Trying ancestor's username", auth[0])
+        auth = _get_parent_auth(auth[0])
+        return _get_token(auth, socks5_proxy)
     return [{'Cookie': token['token']}]
 
 def _set_token(username, password, locked:bool=False) -> dict[str, str]:
@@ -646,9 +662,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--password', help="Password to log on to Atomy", default='mkk03020529!!')
     # mode.add_argument('--update', help='Update data of existing nodes', action='store_true')
     mode.add_argument('--root', dest='root_id', metavar='ROOT_ID', help="ID of the tree or subtree root for full network scan")
-    mode.add_argument('--roots-file')
-    mode.add_argument('--continue', dest='cont',
-                    help='Continue tree building after being interrupted', action='store_true')
+    mode.add_argument('--roots-file', help="File with list of roots to be used for network building")
     arg_parser.add_argument('--active', help="Build only active branches", default=False, action="store_true")
     arg_parser.add_argument('-v', '--verbose', action='count', help='Increase verbosity')
     arg_parser.add_argument('--max-threads', help="Number of threads to run", type=int, default=10)
