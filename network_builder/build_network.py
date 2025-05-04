@@ -250,8 +250,13 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                             socks5_proxy=socks5_proxy)
                 # sleep(0.75)
             if type(members) == dict and members.get('errorMessage') is not None:
-                logger.debug("Account %s needs to cool down", auth[0])
-                _set_token_cooldown(auth[0])
+                if members['errorMessage'] == 'Not a downline member':
+                    logger.debug("Couldn't find the node %s in the network of %s", node_id, auth[0])
+                    logger.debug("Trying parent's creds")
+                    auth = _get_parent_auth(auth[0])
+                else:
+                    logger.debug("Account %s needs to cool down", auth[0])
+                    _set_token_cooldown(auth[0])
                 continue
             break
         except HTTPError as ex:
