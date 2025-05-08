@@ -71,6 +71,22 @@ def user_new_order():
         order_id=request.args.get('from_order'),
         make_copy=request.args.get('from_order') is not None)
 
+@bp_client_user.route('/new-new')
+@login_required
+def user_new_order_new():
+    '''New order form'''
+    from ..signals import user_create_sale_order_rendering
+    extensions = user_create_sale_order_rendering.send()
+    return render_template('new_order-new.html',
+        load_excel=request.args.get('upload') is not None,
+        can_create_po=current_user.has_role('allow_create_po'),
+        check_subcustomers=Setting.get('order.new.check_subcustomers'),
+        free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
+        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
+        extensions="\n".join([e[1] for e in extensions]),
+        order_id=request.args.get('from_order'),
+        make_copy=request.args.get('from_order') is not None)
+
 @bp_client_user.route('/<order_id>')
 @login_required
 def user_get_order(order_id):

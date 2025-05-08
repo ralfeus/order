@@ -102,7 +102,7 @@ async function add_product(current_node, item, product_id, quantity) {
     }
     var item_code_node = $('.item-code', current_node).last();
     item_code_node.val(product_id);
-    $('.item-quantity', current_node).last().val(quantity);
+    $('#item-quantity', current_node).last().val(quantity);
     order_product_number++;
     await get_product(item_code_node[0], true);
 

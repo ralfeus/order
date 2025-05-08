@@ -11,6 +11,47 @@
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
 </script>
+<script>
+    // Add responsive handling for mobile
+    document.addEventListener('DOMContentLoaded', function() {
+        function adjustTableForMobile() {
+            const width = window.innerWidth;
+            const table = document.querySelector('#userItems0 table');
+            
+            if (table) {
+                if (width <= 992) {
+                    table.classList.add('table-responsive-custom');
+                } else {
+                    table.classList.remove('table-responsive-custom');
+                }
+            }
+        }
+
+        function toggleStickyHeader() {
+            const header = document.querySelector('.main-header');
+            if (!header) return;
+
+            const headerHeight = header.offsetHeight;
+            const screenHeight = window.innerHeight;
+
+            if (headerHeight <= screenHeight / 2) {
+                header.classList.add('is-sticky');
+            } else {
+                header.classList.remove('is-sticky');
+            }
+        }
+        
+        // Initial adjustments
+        adjustTableForMobile();
+        toggleStickyHeader();
+        
+        // Adjust on resize
+        window.addEventListener('resize', function() {
+            adjustTableForMobile();
+            toggleStickyHeader();
+        });
+    });
+</script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
 <script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
@@ -23,13 +64,13 @@
 {% block content %}
 {{ super() }}
     <!-- <form method='post'> -->
-    <div class="row" style="position: sticky; top: 0px; z-index: 9; background: white;">
-        <div class="col-3 width-adjusted">
+    <div class="row main-header">
+        <div class="col-md-6 col-lg-3 width-adjusted">
             <input class="form-control" id="name" placeholder="Customer name"/>
             <textarea id="comment" class="form-control" placeholder="Additional comments" 
                 maxlength="128" rows="4"></textarea>
         </div>
-        <div class="col-3 width-adjusted">
+        <div class="col-md-6 col-lg-3 width-adjusted">
             <input class="form-control" id="address" placeholder="Address" />
             <div class="row">
                 <div class="col-8">                
@@ -40,20 +81,18 @@
                 </div>
             </div>
             <select class="form-control" id="country" onchange="country_changed()"></select>
-            <div class="row">
-                <div class="col-12" id="shipping-method">
+            <div class="d-flex flex-nowrap align-items-center w-100 overflow-hidden">
+                <div class="flex-grow-1" id="shipping-method">
                     <select class="form-control" id="shipping" onchange="shipping_changed()"></select>
                 </div>
-                <div class="col-1" id="shipping-params" 
-                    style="padding-left: 0px; padding-right: 0px; display: none;">
-                    <button type="button" class="btn" onclick="edit_shipping_params()">
+                <div id="shipping-params" style="padding: 0; display: none; margin-left: 0.5rem; width: 30px;">
+                    <button type="button" class="btn p-0" onclick="edit_shipping_params()">
                          <img src="/static/images/ellipsis-vertical.svg" 
-                            style="width: 100%; height: 100%;"/>
+                            style="width: 24px; height: 24px;"/>
                     </button>
                 </div>
-                <div class="col-1" id="shipping-notification" 
-                    style="padding-left: 0px; padding-right: 0px; display: none;">
-                    <button type="button" class="btn" onclick="show_shipping_notification()">
+                <div id="shipping-notification" style="padding: 0; display: none; margin-left: 0.5rem; width: 30px;">
+                    <button type="button" class="btn p-0" onclick="show_shipping_notification()">
                         <div class="exclamation" style="
                             background-color: red;
                             -webkit-mask: url(/static/images/exclamation.svg) no-repeat center;
@@ -65,11 +104,9 @@
             </div>
             <input class="form-control" id="phone" placeholder="+(country code) phone" />
         </div>
-        <div class="col-3">
-            <!-- <div style="font-size: 94%;"> -->
-                <select class="form-control" id="attached_orders" style="font-size: 94%;"
-                    data-placeholder="Attach postponed orders" multiple></select>
-            <!-- </div> -->
+        <div class="col-md-6 col-lg-3 width-adjusted">
+            <select class="form-control w-100" id="attached_orders" style="font-size: 94%; width: 100%;"
+                data-placeholder="Attach postponed orders" multiple></select>
             {% if can_create_po %}
             <div id="create-po-control" class="custom-control custom-switch">
                 <input id="create-po" class="custom-control-input" type="checkbox" />
@@ -78,61 +115,63 @@
             {% endif %}
             {{ extensions|safe }}
         </div>
-        <div class="col-3 cart">
-            <table class="table-sm table-bordered table-light table-striped table-condensed" style="width:100%;">
-                <thead>
-                    <th></th>
-                    <th>Subtotal</th>
-                    <th>Weight</th>
-                    <th>Shipping</th>
-                    <th>Total</th>
-                </thead>
-                <colgroup>
-                    <col style="background-color: rgb(240, 240, 240);" />
-                    <col />
-                    <col />
-                    <col />
-                    <col />
-                </colgroup>
-                <tbody>
-                    <tr>
-                        <td>KRW</td>
-                        <td id="totalItemsCostKRW"></td>
-                        <td class="total-weight"></td>
-                        <td id="totalShippingCostKRW"></td>
-                        <td id="totalGrandTotalKRW"></td>
-                    </tr>
-                    <tr>
-                        <td>EUR</td>
-                        <td id="totalItemsCostEUR"></td>
-                        <td class="total-weight"></td>
-                        <td id="totalShippingCostEUR"></td>
-                        <td id="totalGrandTotalEUR"></td>
-                    </tr>
-                    <tr>
-                        <td>USD</td>
-                        <td id="totalItemsCostUSD"></td>
-                        <td class="total-weight"></td>
-                        <td id="totalShippingCostUSD"></td>
-                        <td id="totalGrandTotalUSD"></td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="col-md-6 col-lg-3 cart">
+            <div class="table-responsive">
+                <table class="table-sm table-bordered table-light table-striped table-condensed" style="width:100%;">
+                    <thead>
+                        <th></th>
+                        <th>Subtotal</th>
+                        <th class="hide-on-small">Weight</th>
+                        <th>Shipping</th>
+                        <th>Total</th>
+                    </thead>
+                    <colgroup>
+                        <col style="background-color: rgb(240, 240, 240);" />
+                        <col />
+                        <col class="hide-on-small" />
+                        <col />
+                        <col />
+                    </colgroup>
+                    <tbody>
+                        <tr>
+                            <td>KRW</td>
+                            <td id="totalItemsCostKRW"></td>
+                            <td class="total-weight hide-on-small"></td>
+                            <td id="totalShippingCostKRW"></td>
+                            <td id="totalGrandTotalKRW"></td>
+                        </tr>
+                        <tr>
+                            <td>EUR</td>
+                            <td id="totalItemsCostEUR"></td>
+                            <td class="total-weight hide-on-small"></td>
+                            <td id="totalShippingCostEUR"></td>
+                            <td id="totalGrandTotalEUR"></td>
+                        </tr>
+                        <tr>
+                            <td>USD</td>
+                            <td id="totalItemsCostUSD"></td>
+                            <td class="total-weight hide-on-small"></td>
+                            <td id="totalShippingCostUSD"></td>
+                            <td id="totalGrandTotalUSD"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
             <input type="hidden" id="order_id" value="{{ order_id }}"/>
             <input type="hidden" id="make_copy" value="{{ make_copy }}"/>
             <input type="hidden" id="check_subcustomers" value="{{ check_subcustomers }}" />
-            <input type="button" class="btn btn-primary" id="submit" value="Submit" />
+            <input type="button" class="btn btn-primary mobile-full-width" id="submit" value="Submit" />
         </div> 
     </div>
     <div class="container-fluid row">&nbsp;</div>
     <div class="container-fluid">
         <div class="card card-header">
-            <div class="row input-group">
-                <div class="col-9">            
-                    <input class="btn btn-secondary" type="button" value="Clear form" onclick="clear_form()" />
-                    <input class="btn btn-secondary" type="button" id="save_draft" value="Save draft" />
+            <div class="row input-group mobile-stack">
+                <div class="col-md-9 col-12">            
+                    <input class="btn btn-secondary mr-2 mb-2" type="button" value="Clear form" onclick="clear_form()" />
+                    <input class="btn btn-secondary mb-2" type="button" id="save_draft" value="Save draft" />
                 </div>    
-                <div class="col-2 width-adjusted">
+                <div class="col-md-2 col-12 width-adjusted">
                     <input class="form-control common-purchase-date" type="text" placeholder="Common purchase date" />
                 </div>  
             </div>
@@ -147,91 +186,97 @@
     <!-- Subcustomer card -->   
     <div id="accordion" class="container-fluid">
         <div class="card subcustomer-card">
-            <div class="input-group card-header" id="userItemsHeader0">
-                <div class="is-loading">
-                    <input class="form-control subcustomer-identity col-9" 
+            <div class="input-group card-header mobile-stack" id="userItemsHeader0">
+                <div class="is-loading col-md-9 col-12 px-0 mb-2">
+                    <input class="form-control subcustomer-identity w-100" 
                         placeholder="Number, name, password" 
                         onchange="validate_subcustomer(this)"/>
                     <div class="spinner-border spinner-border-sm" style="display: none;"></div>
                 </div>
-                <input class="form-control subcustomer-buyout-date col-2" type="text" placeholder="Purchase date" />
+                <div class="col-md-2 col-8 px-0 mb-2">
+                    <input class="form-control subcustomer-buyout-date w-100" type="text" placeholder="Purchase date" />
+                </div>
                 <input class="subcustomer-seq-num" type="hidden" />
-                <button class="btn btn-primary" type="button" 
-                    data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
-                    aria-controls="userItems0">Toggle</button>
-                <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
+                <div class="col-md-1 col-4 px-0 mb-2 d-flex">
+                    <button class="btn btn-primary mr-1" type="button" 
+                        data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
+                        aria-controls="userItems0">Toggle</button>
+                    <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
+                </div>
             </div>
             <div class="collapse show" id="userItems0" aria-labelledby="userItemsHeader0">
-                <table class="table table-sm table-bordered table-hover col-12">
-                    <thead>
-                        <tr>
-                            <th scope="col" style="width: 1rem;"></th>
-                            <th scope="col" style="width: 7rem;">Item code</th>
-                            <th scope="col" style="width: 25rem">Item name</th>
-                            <th scope="col" style="width: 5em;">Quantity</th>
-                            <th scope="col">Price</th>
-                            <th scope="col" style="width: 10em;">Items cost</th>
-                            <th scope="col" style="width: 0em;">Weight</th>
-                            <th scope="col" style="width: 6rem;">Shipping cost</th>
-                            <th scope="col">Total (KRW)</th>
-                            <th scope="col">Total (EUR)</th>
-                            <th scope="col">Total (USD)</th>
-                            <th scope="col">Item points</th>
-                            <th scope="col">Total points</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userItemsList0">
-                        <tr id="userItems0_0" class="item">
-                            <td>
-                                <input type="button" class="btn btn-primary" id="del_userItems0_0"
-                                    value="-" onclick="delete_product(this)"/>
-                            </td>
-                            <td><input class="form-control form-control-sm item-code" value=""/></td>
-                            <td class="item-name"></td>
-                            <td><input class="form-control form-control-sm item-quantity" value="1"/></td>
-                            <td class="item-price"></td>
-                            <td class="cost-krw"></td>
-                            <td class="total-item-weight"></td>
-                            <td class="shipping-cost-krw"></td>
-                            <td class="total-krw"></td>
-                            <td class="total-eur"></td>
-                            <td class="total-usd"></td>
-                            <td class="item-points"></td>
-                            <td class="total-points"></td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr id="userItemsTotal0" class="table-secondary subcustomer-total">
-                            <td>                                
-                                <input type="button" class="btn btn-primary" 
-                                    id="add_userItems0" value="+" />
-                            </td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td id="subtotalCostKRW"></td>
-                            <td id="subtotalWeight"></td>
-                            <td>
-                                <div class="local-shipping"></div>
-                                <div id="subtotalShippingCostKRW"></div>
-                            </td>
-                            <td id="subtotalTotalKRW"></td>
-                            <td id="subtotalTotalEUR"></td>
-                            <td id="subtotalTotalUSD"></td>
-                            <td></td>
-                            <td id="subtotalTotalPoints"></td>
-                        </tr>
-                    </tfoot>
-                </table>                        
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover col-12">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 1rem;"></th>
+                                <th scope="col" style="min-width: 7rem; max-width: 7rem; width: 7rem;">Item code</th>
+                                <th scope="col" style="width: 25rem">Item name</th>
+                                <th scope="col" style="width: 5em;">Quantity</th>
+                                <th scope="col" style="min-width: 5rem; max-width: 5rem; width: 5rem;" class="hide-on-mobile">Price</th>
+                                <th scope="col" style="min-width: 5rem; max-width: 5rem; width: 5rem;">Items cost</th>
+                                <th scope="col" style="width: 0em;" class="hide-on-mobile">Weight</th>
+                                <th scope="col" style="width: 5rem;" class="hide-on-mobile">Shipping</th>
+                                <th scope="col">Total (KRW)</th>
+                                <th scope="col" class="hide-on-mobile">Total (EUR)</th>
+                                <th scope="col" class="hide-on-mobile">Total (USD)</th>
+                                <th scope="col" class="hide-on-mobile">Item points</th>
+                                <th scope="col" class="hide-on-mobile">Total points</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userItemsList0">
+                            <tr id="userItems0_0" class="item">
+                                <td>
+                                    <input type="button" class="btn btn-primary" id="del_userItems0_0"
+                                        value="-" onclick="delete_product(this)"/>
+                                </td>
+                                <td><input class="form-control form-control-sm item-code" value=""/></td>
+                                <td class="item-name"></td>
+                                <td class="item-quantity"><input id="item-quantity" class="form-control form-control-sm" value="1"/></td>
+                                <td class="item-price hide-on-mobile"></td>
+                                <td class="cost-krw"></td>
+                                <td class="total-item-weight hide-on-mobile"></td>
+                                <td class="shipping-cost-krw hide-on-mobile"></td>
+                                <td class="total-krw"></td>
+                                <td class="total-eur hide-on-mobile"></td>
+                                <td class="total-usd hide-on-mobile"></td>
+                                <td class="item-points hide-on-mobile"></td>
+                                <td class="total-points hide-on-mobile"></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr id="userItemsTotal0" class="table-secondary subcustomer-total">
+                                <td>                                
+                                    <input type="button" class="btn btn-primary" 
+                                        id="add_userItems0" value="+" />
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td class="hide-on-mobile"></td>
+                                <td id="subtotalCostKRW"></td>
+                                <td id="subtotalWeight" class="hide-on-mobile"></td>
+                                <td class="hide-on-mobile">
+                                    <div class="local-shipping"></div>
+                                    <div id="subtotalShippingCostKRW"></div>
+                                </td>
+                                <td id="subtotalTotalKRW"></td>
+                                <td id="subtotalTotalEUR" class="hide-on-mobile"></td>
+                                <td id="subtotalTotalUSD" class="hide-on-mobile"></td>
+                                <td class="hide-on-mobile"></td>
+                                <td id="subtotalTotalPoints" class="hide-on-mobile"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>                        
             </div>
         </div>
     </div>
     <!-- </form> -->
 
-    <span class="fixed-bottom">
-        <input class="btn btn-primary" type="button" id="add_user" value="Add customer" />
-        <input class="btn btn-primary" type="button" id="import_order" value="Import order" />
+    <span class="fixed-bottom d-flex flex-wrap justify-content-start p-2 bg-light">
+        <input class="btn btn-primary mr-2 mb-2" type="button" id="add_user" value="Add customer" />
+        <input class="btn btn-primary mb-2" type="button" id="import_order" value="Import order" />
         <input type="file" id="excel" style="opacity: 0;"/>
     </span>
 {% endblock %}

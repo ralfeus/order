@@ -34,7 +34,7 @@
     "ATOMY_CENTER": true,
     "NETWORK_MANAGER_URL": "http://localhost:5001",
 
-    "CACHE_TYPE": "MemcachedCache",
+    "CACHE_TYPE": "SimpleCache",
     "CACHE_MEMCACHED_SERVERS": [
         "127.0.0.1"
     ],

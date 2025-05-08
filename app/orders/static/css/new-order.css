@@ -1,4 +1,225 @@
-.item-name {
-    /* max-width: 300px; */
+/* Responsive styles */
+
+#accordion [id^='userItems'] .table > tbody > tr.item > td.item-name,
+#accordion [id^='userItems'] .table > tbody > tr.item > td.cost-krw,
+#accordion [id^='userItems'] .table > tbody > tr.item > td.total-krw {
     white-space: normal;
+    word-break: break-word;
+    text-align: left;
+}
+
+/* Styles for screens up to 992px wide */
+@media (max-width: 992px) {
+    .row > div[class^="col-"] {
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 100%;
+        margin-bottom: 15px;
+    }
+    
+    .main-header {
+        flex-direction: column;
+    }
+    
+    .hide-on-mobile { /* General mobile hide class for 992px and below */
+        display: none !important;
+    }
+    
+    .mobile-full-width {
+        width: 100% !important;
+    }
+    
+    .mobile-stack { /* General stacking for 992px and below */
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .table-responsive-custom th,
+    .table-responsive-custom td {
+        white-space: nowrap;
+    }
+
+    /* Item table layout styles for 992px and below */
+    #accordion [id^='userItems'] .table > thead {
+        display: none;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item {
+        display: flex;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #dee2e6;
+        padding: 0.5em 0;
+        margin-bottom: 0.5em;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td {
+        border: none;
+        padding: 0.2em 0.3em;
+        display: flex;
+        align-items: center;
+        height: auto;
+        vertical-align: middle;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td .form-control {
+        width: 100%;
+        min-width: 40px;
+        font-size: 0.85rem;
+        padding: 0.2rem 0.4rem;
+        height: auto;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td:nth-child(1) { /* Delete button cell */
+        flex-shrink: 0;
+        flex-grow: 0;
+        flex-basis: 45px;
+        order: 1;
+        justify-content: center;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td:nth-child(2) { /* Item code input cell */
+        flex-basis: 90px; /* Fixed width for item code */
+        flex-shrink: 0; /* Do not shrink */
+        flex-grow: 0; /* Do not grow */
+        order: 2;
+        justify-content: flex-start; /* Align input to the left */
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td:nth-child(3).item-name { /* Item name text cell */
+        flex-grow: 1; /* Takes remaining space on the line */
+        flex-basis: calc(100% - 135px); /* Start from 0 and grow */
+        order: 3;
+        justify-content: flex-end; /* Align text to the right */
+        text-align: right; /* Ensure text itself is right aligned if it wraps */
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item::before { /* Spacer for 2nd row, 1st col */
+        content: "";
+        flex-basis: 45px;
+        width: 45px; /* Ensure width is explicitly set */
+        min-width: 45px; /* Prevent shrinking below 45px */
+        flex-shrink: 0;
+        order: 4;
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td.item-quantity {  /* Quantity input cell */
+        flex-basis: 40px; /* Match Item Code width */
+        flex-shrink: 0; /* Do not shrink quantity field */
+        flex-grow: 0;
+        order: 5;
+        justify-content: flex-start; /* Align input to the left */
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td.cost-krw::before { 
+        content: "Items: ";
+    }    
+    #accordion [id^='userItems'] .table > tbody > tr.item > td.cost-krw { /* Items cost text cell */
+        flex-basis: calc((100% - 135px) / 2); /* Share remaining space after spacer (45px) and Qty (90px) */
+        flex-grow: 1; /* Allow to grow */
+        min-width: 60px;
+        order: 6;
+        justify-content: center; /* Align text to the center */
+        text-align: center; /* Ensure text itself is center aligned if it wraps */
+    }
+    #accordion [id^='userItems'] .table > tbody > tr.item > td.total-krw::before { 
+        content: "Total: ";
+    }    
+    #accordion [id^='userItems'] .table > tbody > tr.item > td.total-krw { /* Total KRW text cell */
+        flex-basis: calc((100% - 135px) / 2); /* Share remaining space after spacer (45px) and Qty (90px) */
+        flex-grow: 1; /* Allow to grow */
+        min-width: 60px;
+        order: 7;
+        justify-content: flex-end; /* Align text to the right */
+        text-align: right; /* Ensure text itself is right aligned if it wraps */
+    }
+
+    /* Footer alignment for item table */
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 0.5em 0; /* Match tbody > tr.item padding */
+        margin-bottom: 0.5em; /* Match tbody > tr.item margin */
+        /* border-top: 1px solid #dee2e6; Optional: if a top border is desired */
+    }
+
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td {
+        border: none; /* Match tbody > tr.item > td */
+        padding: 0.2em 0.3em; /* Match tbody > tr.item > td */
+        display: flex; /* Match tbody > tr.item > td */
+        align-items: center; /* Match tbody > tr.item > td */
+        height: auto; /* Match tbody > tr.item > td */
+        vertical-align: middle; /* Match tbody > tr.item > td */
+    }
+
+    /* Specific td styling for footer to match tbody item rows */
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(1) { /* Add button cell */
+        flex-shrink: 0;
+        flex-grow: 0;
+        flex-basis: 45px;
+        order: 1;
+        justify-content: center;
+    }
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(1) .btn {
+        padding: 0.2rem 0.4rem; 
+        font-size: 0.85rem; 
+        min-width: auto; 
+    }
+
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(2) { /* Empty cell, corresponds to Item code */
+        flex-basis: 90px;
+        flex-shrink: 0;
+        flex-grow: 0;
+        order: 2;
+    }
+
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(3) { /* Empty cell, corresponds to Item name */
+        flex-grow: 1;
+        flex-basis: calc(100% - 135px); /* Adjusted to take full width after first two elements */
+        order: 3;
+    }
+
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total::before { /* Spacer for 2nd row, 1st col */
+        content: "";
+        flex-basis: 45px;
+        width: 45px; /* Ensure width is explicitly set */
+        min-width: 45px; /* Prevent shrinking below 45px */
+        flex-shrink: 0;
+        order: 4;
+    }
+
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(4) {  /* Empty cell, corresponds to Quantity */
+        flex-basis: 90px; /* Match Item Code width for alignment */
+        flex-shrink: 0;
+        min-width: 60px;
+        order: 5;
+    }
+    #accordion td#subtotalCostKRW::before { 
+        content: "Items: ";
+    }
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(6) { /* Subtotal Cost KRW cell */
+        flex-basis: calc((100% - 135px) / 2); /* Share remaining space after spacer (45px) and Qty (90px) */
+        flex-grow: 1;
+        min-width: 60px;
+        order: 6;
+        justify-content: center;
+        text-align: center;
+        white-space: normal;
+        word-break: break-word;
+    }
+    #accordion td#subtotalTotalKRW::before { 
+        content: "Total: ";
+    }
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td:nth-child(9) { /* Subtotal Total KRW cell */
+        flex-basis: calc((100% - 135px) / 2); /* Share remaining space after spacer (45px) and Qty (90px) */
+        flex-grow: 1;
+        min-width: 60px;
+        order: 7;
+        justify-content: flex-end;
+        text-align: right;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* Ensure hidden cells in footer don't interfere if not already handled by .hide-on-mobile */
+    #accordion [id^='userItems'] .table > tfoot > tr.subcustomer-total > td.hide-on-mobile {
+        display: none !important;
+    }
+}
+  
+.is-sticky { 
+    position: sticky;
+    top: 0px;
+    z-index: 9;
+    background: white;
 }
