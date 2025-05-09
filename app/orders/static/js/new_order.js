@@ -93,7 +93,7 @@ $(document).ready(function() {
         .then(() => {
             product_code_autocomplete($('.item-code'));
         });
-    product_quantity_change($('#item-quantity'));
+    product_quantity_change($('input.item-quantity'));
     set_comment_size_limit();
 });
 
@@ -113,7 +113,7 @@ function add_product_row(idString) {
         .replace(/userItems0_0/g, 'userItems' + id + '_' + itemsCount[id])
     $('#userItemsList' + id).append(html);
     product_code_autocomplete($('.item-code'));
-    product_quantity_change($('#item-quantity'));
+    product_quantity_change($('input.item-quantity'));
     itemsCount[id]++; 
     window.scrollTo(0,document.body.scrollHeight);
 }
@@ -139,7 +139,7 @@ function add_subcustomer_node() {
         autoclose: true
     });
     product_code_autocomplete($('.item-code'));
-    product_quantity_change($('#item-quantity'));
+    product_quantity_change($('input.item-quantity'));
     users++;
     window.scrollTo(0,document.body.scrollHeight);
     return node;
@@ -157,7 +157,7 @@ function clear_form() {
     $('#attached_orders').val('');
     //$('div#accordion').append(subcustomerTemplate);
     //product_code_autocomplete($('.item-code'));
-    //product_quantity_change($('#item-quantity'));
+    //product_quantity_change($('input.item-quantity'));
 }
 
 function country_changed() {
@@ -190,7 +190,7 @@ async function update_product(product_row, product, batch_load) {
         $('.item-code', product_row).val(product.product_id);
     }
     if (!isNaN(product.quantity)) {
-        $('#item-quantity', product_row).val(product.quantity);
+        $('input.item-quantity', product_row).val(product.quantity);
     }
     if (product.available) {
         $('.item-code', product_row).attr('title', '');
@@ -536,7 +536,7 @@ function submit_changes(_sender, draft=false) {
                 seq_num: $('.subcustomer-seq-num', user).val(),
                 items: $('.item', user).toArray().map(item => ({
                     item_code: $('.item-code', item).val(),
-                    quantity: $('#item-quantity', item).val()
+                    quantity: $('input.item-quantity', item).val()
                 }))
             })),
             params: g_order.params
@@ -611,8 +611,8 @@ function update_grand_totals() {
 async function update_item_subtotal(item, batch_load=false) {
     if (g_cart[item.id]) {
         g_cart[item.id].user = '';
-        g_cart[item.id].quantity = /^\d+$/.test($('#item-quantity', item).val())
-            ? parseInt($('#item-quantity', item).val()) : 0;
+        g_cart[item.id].quantity = /^\d+$/.test($('input.item-quantity', item).val())
+            ? parseInt($('input.item-quantity', item).val()) : 0;
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
         $('td.cost-krw', item).html(fmtKRW.format(g_cart[item.id].costKRW));
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
