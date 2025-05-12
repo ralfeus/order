@@ -121,4 +121,4 @@ def multiple_request():
 
 with create_app().app_context():
     # logging.root.setLevel(logging.INFO)
-    build_network()
+    post_po()

@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 import logging
 from multiprocessing import Process, active_children
+from multiprocessing.pool import ThreadPool
 from os import getcwd, environ
 import psutil
 from random import random
@@ -17,6 +18,7 @@ from netman_app import app
 from model import AtomyPerson
 
 PROCESS_NAME = 'build_network.py'
+logging.getLogger('neo4j').setLevel(logging.INFO)
 
 def _get_builder_process():
     processes = psutil.process_iter(['pid', 'cmdline'])
@@ -96,6 +98,17 @@ def stop_builder():
 @app.route('/api/v1/node/<node_id>')
 def get_nodes(node_id):
     '''Gets node either by ID provided in URL or filter provided in JSON payload'''
+    def get_total(query_params):
+        return db.cypher_query('''
+            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
+            RETURN COUNT(n)
+        ''', params=query_params)
+    def get_filtered(query_filter, query_params):
+        return db.cypher_query(f'''
+            MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
+            {query_filter}
+            RETURN COUNT(n)
+        ''', params=query_params)
     logger = logging.getLogger('network_manager.get_nodes()')
     body = None
     try:
@@ -117,6 +130,7 @@ def get_nodes(node_id):
     if request_params is not None and request_params.get('root_id') is not None:
         root_id = request_params['root_id']
     else:
+        logger.info("Getting root ID")
         query = "MATCH (r) WHERE NOT EXISTS((r)-[:PARENT]->()) RETURN r.atomy_id"
         root_id = db.cypher_query(query)[0][0][0]
     query_params = {'root_id': root_id, 'test': 'test'}
@@ -125,11 +139,9 @@ def get_nodes(node_id):
     #     MATCH (n:AtomyPerson)
     #     RETURN COUNT(n)
     # ''')[0][0]
-    total = db.cypher_query('''
-        MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n)
-        RETURN COUNT(n)
-    ''', params=query_params)[0][0]
-    filtered = total
+    logger.info("Getting total number of nodes")
+    total_thread = ThreadPool().apply_async(get_total, args=(query_params,))
+    filtered_thread = total_thread
     if request_params is not None:
         if request_params.get('filter') is not None:
             query_filter = _get_filter(request_params['filter'])
@@ -140,11 +152,8 @@ def get_nodes(node_id):
             #     {query_filter}
             #     RETURN COUNT(n)
             # ''', params=query_params)[0][0]
-            filtered = db.cypher_query(f'''
-                MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
-                {query_filter}
-                RETURN COUNT(n)
-            ''', params=query_params)[0][0]
+            logger.info("Getting number of filtered nodes")
+            filtered_thread = ThreadPool().apply_async(get_filtered, args=(query_filter, query_params))
         if request_params.get('start') is not None and request_params.get('limit') is not None:
             paging['start'] = 'SKIP ' + str(request_params['start'])
             paging['limit'] = 'LIMIT ' + str(request_params['limit'])
@@ -162,16 +171,19 @@ def get_nodes(node_id):
     #     RETURN n {paging["start"]} {paging["limit"]}
     # '''
     query = f'''
-        MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n)
+        MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
         {query_filter}
         RETURN n {paging["start"]} {paging["limit"]}
     '''
     logger.debug(query)
     result, _ = db.cypher_query(query, params=query_params)
+    logger.info("Got %s records", len(result))
+    total = total_thread.get()[0][0][0]
+    filtered = filtered_thread.get()[0][0][0]
     logger.info("Returning %s records", filtered)
     return jsonify({
-        'records_total': total[0],
-        'records_filtered': filtered[0],
+        'records_total': total,
+        'records_filtered': filtered,
         'data': [AtomyPerson.inflate(item[0]) for item in result]
     })
 

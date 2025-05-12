@@ -28,5 +28,6 @@
         "projectKey": "order"
     },
     "makefile.configureOnOpen": false,
-    "python.defaultInterpreterPath": "python"
+    "python.defaultInterpreterPath": "python",
+    "containers.imageBuildContextPath": "."
 }
