@@ -198,7 +198,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         }
         self.__mst = self.__po_params["mst"]
         self.__dlvpList = self.__po_params["dlvpList"]
-        self.__goodsList = [  ] # Propagated in `__add_products`
+        self.__goodsList = self.__po_params['goodsList'] # Propagated in `__add_products`
         self.__beneList = self.__po_params["beneList"]
         self.__payment_payload: dict[str, Any] = {
             "ordData": self.__po_params,
