@@ -23,6 +23,20 @@ class CustomDateProperty(DateProperty):
                 value = value[:value.find('T')]
             return date(int(value[:4]), int(value[5:7]), int(value[8:10]))
         raise Exception(f"Unknown format: {value}")
+    
+class CustomIntegerProperty(IntegerProperty):
+    """
+    Stores an integer
+    """
+    form_field_class = 'IntegerField'
+
+    @validator
+    def inflate(self, value):
+        if isinstance(value, str):
+            if value == '':
+                return None
+            return int(value)
+        raise Exception(f"Unknown format: {value}")
 
 class AtomyPerson(StructuredNode):
     '''Atomy person object as it's saved in Neo4j'''
@@ -35,9 +49,9 @@ class AtomyPerson(StructuredNode):
     center = StringProperty()
     country = StringProperty()
     signup_date = CustomDateProperty()
-    pv = IntegerProperty()
-    total_pv = IntegerProperty()
-    network_pv = IntegerProperty()
+    pv = CustomIntegerProperty()
+    total_pv = CustomIntegerProperty()
+    network_pv = CustomIntegerProperty()
     '''Defines whether a tree for this node was already built or not
     Needed when the node has no children and shouldn't be traversed'''
     built_tree = BooleanProperty(default=False)
