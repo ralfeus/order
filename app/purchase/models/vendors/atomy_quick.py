@@ -526,7 +526,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             headers=self.__get_session_headers() + [
                 {"referer": f"{URL_BASE}/order/sheet"}],
         )
-        bu_code_definition = re.search(r'buCode.*?:.*?"(.*?)\\"', document)
+        bu_code_definition = re.search(r'buPlace.*?:.*?"(.*?)\\"', document) or \
+            re.search(r'buCode.*?:.*?"(.*?)\\"', document)
         if bu_code_definition:
             self.__po_params['mst']['buPlace'] = bu_code_definition.group(1)  
         else:
