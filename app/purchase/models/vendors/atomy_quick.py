@@ -600,12 +600,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl['payTaxAmt'] = total_krw
         pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
         pl['expiry'] = self.__get_payment_deadline()
+        pl["morcNm"] = po.customer.name
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
         pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name
         pl["vanData"]["data"]["ordererNm"] = po.customer.name
         pl["vanData"]["data"]["expiry"] = self.__get_payment_deadline()
         pl['vanData']["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
+        pl["vanData"]['data']["taxAmount"] = total_krw
+        pl["vanData"]['data']["totPayAmt"] = total_krw
         pl["vanData"]["payAmt"] = total_krw
         self.__payment_payload["ordData"]["payList"][0]["bankCd"] = pl["bankCd"]
         self.__payment_payload["ordData"]["payList"][0][
