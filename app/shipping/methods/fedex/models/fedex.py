@@ -473,7 +473,7 @@ class Fedex(Shipping):
                             { 
                                 'weight': {
                                     'units': 'KG',
-                                    'value': (weight if weight >= 3000 else min(weight * 1.15, 3000)) / 1000
+                                    'value': weight / 1000
                                 } 
                             }
                         ]
