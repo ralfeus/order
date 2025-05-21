@@ -78,7 +78,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "siteNo": "KR",
                 "jisaCode": "01",
                 "saleDate": "20250521",
-                "buPlace": "R442",
+                "buPlace": None, # set in `__set_bu_place`
                 "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
                 "cellNo": "01050062045",
                 "email": "orlovakati82@gmail.com",
@@ -277,6 +277,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             ordered_products, unavailable_products = self.__add_products(
                 purchase_order.order_products
             )
+            self.__set_bu_place()
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(
@@ -516,6 +517,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return purchase_date is None or (
             purchase_date >= min_date and purchase_date <= max_date
         )
+    
+    def __set_bu_place(self):
+        logger = self._logger.getChild("__set_bu_place")
+        logger.debug("Setting buPlace")
+        document, _ = invoke_curl(
+            url=f"{URL_BASE}/order/sheet",
+            headers=self.__get_session_headers() + [
+                {"referer": f"{URL_BASE}/order/sheet"}],
+        )
+        bu_code_definition = re.search(r'buCode.*?:.*?"(.*?)\\"', document)
+        if bu_code_definition:
+            self.__po_params['mst']['buPlace'] = bu_code_definition.group(1)  
+        else:
+            raise PurchaseOrderError(self.__purchase_order, message="Couldn't get buCode from Atomy server")
 
     def __set_purchase_date(self, purchase_date):
         logger = self._logger.getChild("__set_purchase_date")

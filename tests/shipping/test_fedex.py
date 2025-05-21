@@ -40,10 +40,18 @@ class TestShippingFedex(BaseTestCase):
         self.try_add_entities([fedex])
         fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
         db.session.commit()
-        res = fedex.get_shipping_cost('cz')
-        self.assertEqual(res, 198)
+        res = fedex.get_shipping_cost('cz', weight=4000)
+        self.assertEqual(res, 424)
         res = fedex.get_shipping_cost('de')
         self.assertIsNotNone(res)
+
+    def test_get_rate_below_3kg(self):
+        fedex = Fedex()
+        self.try_add_entities([fedex])
+        fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
+        db.session.commit()
+        res = fedex.get_shipping_cost('cz', weight=2000)
+        self.assertEqual(res, 329)
 
     def test_create_shipment(self):
         fedex = Fedex()
