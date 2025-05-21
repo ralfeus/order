@@ -200,6 +200,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         '--compressed' # need this for cases that response is zipped
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
+    # _logger.info(' '.join(run_params))
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)

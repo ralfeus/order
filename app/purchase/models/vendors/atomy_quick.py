@@ -51,141 +51,157 @@ class AtomyQuick(PurchaseOrderVendorBase):
     __purchase_order: PurchaseOrder = None  # type: ignore
 
     def __init_payload(self):
-        self.__mst = {
-            "seq": 5,
-            "clientNo": "ATOMY",
-            "siteNo": "KR",
-            "jisaCode": "01",
-            "saleDate": None,  # Set by `__set_purchase_date`
-            "buPlace": "7000",
-            "ordererNm": None,  # Set by `__set_receiver_address`
-            "cellNo": None,  # To be set by `__set_receiver_mobile`
-            "deliMethodCd": "3",
-            "deliCostDiviCd": "1",
-            "ordChnlCd": "10",
-            "ordChnlCdTemp": "10",
-            "cartGrpCd": "10",
-            "packingNo": None,
-            "packingYn": "N",
-            "mailRecvYn": "N",
-            "ordKindCd": "03",
-            "nomemOrdYn": "N",
-            "senderPrintYn": "Y",
-            "smsRecvYn": "Y",
-            "cashReceiptUseDiviCd": "1",  # TODO: Check if used for tax id
-            "cashReceiptIssueCd": "1",  # TODO: Check if used for tax id
-            "cashReceiptCertNo": "010-000-1234",  # Most likely to be set in `__set_tax_info`
-            "saleNo": None,  # To set provided from `mersList`
+        self.__good_template = {
+            "seq": None, # set in `__add_products`
+            "goodsNo": None, # set in `__add_products`
+            "itemNo": None, # set in `__add_products`
+            "ordQty": None, # set in `__add_products`
+            "lowVendNo": "LV01",
+            "pkgGoodsSeq": 0,
+            "cartNo": "250500019539284",
+            "dispGoodsNm": None, # set in `__add_products`
+            "imageUrl": "https://image.atomy.com/KR/goods/000129/773f540b-50a9-4bc6-a670-73b1d963522b.jpg",
+            "salePrice": None, # set in `__add_products`
+            "pvPrice": 7000, # set in `__add_products`
+            "saleWeight": 0.1, # Not provided
+            "totWeight": 0.30000000000000004, # Not provided
+            "warehouseNo": "01",
+            "seqNo": "000001",
+            "dlvpSeq": 0,
+            "beneSeqList": [1]
         }
-        self.__dlvpList = [
-            {
-                "count": 0,
-                "deliFormCd": "10",
-                "mbrDlvpSeq": "0000001",
-                "dlvpDiviCd": "10",
-                "baseYn": "Y",
-                "dlvpNm": None,  # Set by `__set_order_id`
-                "recvrPostNo": None,  # Postal code is to be set by `__set_receiver_address`
-                "recvrBaseAddr": None,  # To be set by `__set_receiver_address`
-                "recvrDtlAddr": None,  # To be set by `__set_receiver_address`
-                "cellNo": None,  # To be set by `__set_receiver_mobile`
-                "publicPlace": False,
-                "express": False,
-                "seq": 0,
-                "dlvpNo": "1",
-                "recvrNm": None,  # Set by `__set_receiver_address`
-                "buPlace": "",
-                "deliTypeCd": "3",
-                "packingMemo": None,
-                "deliCostTaxRate": 0,
-                "weekDeliveryPossYn": "N",
-                "saleAmtDispYn": "Y",
-            }
-        ]
-        self.__goodsList = [  ] # Propagated in `__add_products`
-        self.__beneList = [
-            {
-                "seq": 1,
-                "tempOrdSeq": "1",
-                "issueDiviCd": "10",
-                "costKindCd": "20",
-                "costKindDtlCd": "2010",
-                "relDiviCd": "10",
-                "deliCostAmt": 0,
-                "deliCostPoliNo": "KR00011",
-                "stAmt": 50000,
-                "costAmt": 0,
-                "taxAmt": 0,
+        self.__po_params = {
+            "maxSeq": 5,
+            "mst": {
+                "seq": 4,
+                "clientNo": "ATOMY",
+                "siteNo": "KR",
+                "jisaCode": "01",
+                "saleDate": "20250521",
+                "buPlace": "R442",
+                "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                "cellNo": "01050062045",
+                "email": "orlovakati82@gmail.com",
+                "deliMethodCd": "3",
                 "deliCostDiviCd": "0",
-                "oriDeliCostAmt": 0,
-                "deliTaxVal": "1.1",
-                "deliTaxTypeCd": "15",
-            }
-        ]
-        self.__po_params: dict[str, Any] = {
-            "maxSeq": 6,
-            "mst": self.__mst,
+                "ordChnlCd": "10",
+                "ordChnlCdTemp": "10",
+                "cartGrpCd": "10",
+                "packingNo": "010-5006-2045/08584",
+                "packingYn": "Y",
+                "mailRecvYn": "N",
+                "ordKindCd": "03",
+                "nomemOrdYn": "N",
+                "senderPrintYn": "Y",
+                "smsRecvYn": "Y",
+                "cashReceiptUseDiviCd": "2",
+                "cashReceiptIssueCd": "3",
+                "cashReceiptCertNo": "418-14-11817",
+                "saleNo": "{{saleNo}}"
+            },
             "payList": [
                 {
-                    "seq": 4,
+                    "seq": 3,
                     "payMean": "vbank",
                     "mersDiviCd": "101",
                     "payMeanCd": "1401",
-                    "payAmt": None,  # Set by `__set_payment_params`
-                    "payVat": None,  # Set by `__set_payment_params`
-                    "bankCd": None,  # Set by `__set_payment_params`
-                    "expiry": None,  # Set by `__get_payment_deadline`
-                    "payerPhone": None,  # Set by `__set_payment_params`
-                    "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                    "registrationNumber": "0100001234",  # Set by `__set_tax_info`
-                    "payNo": None,  # To be obtained from `mersList`
+                    "payAmt": "50400",
+                    "payVat": 4581,
+                    "totPayAmt": 50400,
+                    "payTaxAmt": 50400,
+                    "bankCd": "04",
+                    "morcNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                    "expiry": "20250522230000",
+                    "expiryDtime": "20250522230000",
+                    "rcvCellNo": "01050062045",
+                    "payerPhone": "010-5006-2045",
+                    "cashReceiptType": "PROOF",
+                    "registrationNumber": "4181411817",
+                    "payNo": "{{payNo}}",
                     "vanData": {
                         "data": {
-                            "bankCd": None,  # Set by `__set_payment_params`
-                            "dispGoodsNm": None,  # Set by `__set_payment_params`
-                            "ordererNm": None,  # Set by `__set_payment_params`
-                            "expiry": None,  # `__get_payment_deadline`
-                            "cashReceiptType": "DEDUCTION",  # TODO: Depends on tax method?
-                            "registrationNumber": "0100001234",  # Set by `__set_tax_info`
-                            "customerMobilePhone": None,  # Set by `__set_receiver_mobile`
+                            "bankCd": "06",
+                            "dispGoodsNm": "Finezyme",
+                            "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                            "expiry": "20250522235959",
+                            "cashReceiptType": "PROOF",
+                            "registrationNumber": "4181411817",
+                            "taxAmount": 50400,
+                            "totPayAmt": 50400,
+                            "customerMobilePhone": "01050062045"
                         },
                         "vanCd": "50",
-                        "saleNo": None,  # To be obtained from `mersList`
-                        "payNo": None,  # To be obtained from `mersList`
+                        "saleNo": "{{saleNo}}",
+                        "payNo": "{{payNo}}",
                         "payMeanCd": "1401",
                         "payMean": "vbank",
                         "mersDiviCd": "101",
-                        "payAmt": None,  # Set by `__set_payment_params`
+                        "payAmt": "50400",
                         "timezone": "Asia/Seoul",
                         "paySiteNo": "KR",
                         "payJisaCode": "01",
                         "payClientNo": "ATOMY",
-                        "payChnlCd": "10",
+                        "payChnlCd": "10"
                     },
-                    "webhook": False,
+                    "webhook": False
                 }
             ],
-            "dlvpList": self.__dlvpList,
-            "goodsList": self.__goodsList,  # To be set by `__add_products`
-            "beneList": self.__beneList,
-            "saveYn": "N",
+            "dlvpList": [
+                {
+                    "mode": "INS",
+                    "dlvpNm": "Test recipient",
+                    "cellNo": "010-5006-2045",
+                    "telNo": "",
+                    "postNo": "08584",
+                    "baseAddr": "서울특별시 금천구 두산로 70",
+                    "dtlAddr": "291-1번지 현대지식산업센터  A동 605호",
+                    "state": "",
+                    "city": "",
+                    "baseYn": "Y",
+                    "favoritesYn": "N",
+                    "recvrPostNo": "08584",
+                    "recvrBaseAddr": "서울특별시 금천구 두산로 70",
+                    "recvrDtlAddr": "291-1번지 현대지식산업센터  A동 605호",
+                    "deliFormCd": "10",
+                    "seq": 0,
+                    "dlvpNo": "1",
+                    "recvrNm": "Test recipient",
+                    "buPlace": "",
+                    "deliTypeCd": "3",
+                    "packingMemo": "010-5006-2045/08584",
+                    "deliCostTaxRate": 0,
+                    "weekDeliveryPossYn": "N",
+                    "saleAmtDispYn": "Y"
+                }
+            ],
+            "goodsList": [],
+            "beneList": [
+                {
+                    "seq": 1,
+                    "tempOrdSeq": "1",
+                    "issueDiviCd": "10",
+                    "costKindCd": "20",
+                    "costKindDtlCd": "2010",
+                    "relDiviCd": "10",
+                    "deliCostAmt": 0,
+                    "deliCostPoliNo": "KR00011",
+                    "stAmt": 50000,
+                    "costAmt": 0,
+                    "taxAmt": 0,
+                    "deliCostDiviCd": "0",
+                    "oriDeliCostAmt": 0,
+                    "deliTaxVal": "1.1",
+                    "deliTaxTypeCd": "15"
+                }
+            ],
+            "saveYn": "N"
         }
+        self.__mst = self.__po_params["mst"]
+        self.__dlvpList = self.__po_params["dlvpList"]
+        self.__goodsList = [  ] # Propagated in `__add_products`
+        self.__beneList = self.__po_params["beneList"]
         self.__payment_payload: dict[str, Any] = {
-            "ordData": {
-                "maxSeq": 6,
-                "mst": self.__mst,
-                "payList": [
-                    {
-                        "mersDiviCd": "101",
-                        "bankCd": None,  # Set in `__set_payment_params`
-                        "expiry": None,  # Set in `__get_payment_deadline`
-                    }
-                ],
-                "dlvpList": self.__dlvpList,
-                "goodsList": self.__goodsList,
-                "beneList": self.__beneList,
-                "saveYn": "N",
-            },
+            "ordData": self.__po_params,
             "payData": {
                 "entry": {
                     "paySiteNo": "KR",
@@ -295,29 +311,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ex
 
     def __login(self, purchase_order):
-        # _, stderr = invoke_curl(
-        #     url=f"{URL_BASE}/login/doLogin",
-        #     headers=[{"content-type": "application/json"}],
-        #     raw_data=json.dumps(
-        #         {
-        #             "mbrLoginId": purchase_order.customer.username,
-        #             "pwd": purchase_order.customer.password,
-        #             "saveId": False,
-        #             "autoLogin": False,
-        #             "recaptcha": "",
-        #         }
-        #     ),
-        # )
-        # if re.search("HTTP.*200", stderr) is not None:
-        #     self._logger.info(
-        #         f"Logged in successfully as {purchase_order.customer.username}"
-        #     )
-        #     # It's confirmed JSESSIONID is sufficient
-        #     jwt = re.search("set-cookie: (JSESSIONID=.*?);", stderr).group(1)  # type: ignore
-        #     self.__session_cookies = [jwt]
-        #     return [jwt]
-        # else:
-        #     raise AtomyLoginError(purchase_order.customer.username)
         self.__session_cookies = [atomy_login2(
             purchase_order.customer.username, purchase_order.customer.password)]
         return self.__session_cookies
@@ -433,17 +426,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 ))
                 
                 ordered_products.append((op,))
-                self.__goodsList.append({
+                self.__po_params['goodsList'].append({
+                    **self.__good_template,
                     'seq': len(self.__goodsList),
                     "goodsNo": product['goodsNo'],
                     "itemNo": option,
                     "ordQty": op.quantity,
-                    "lowVendNo": "LV01",
+                    "dispGoodsNm": product['goodsNm'],
                     "salePrice": op.price,
-                    "warehouseNo": "01",
+                    "pvPrice": product['pvPrice'],
                     'seqNo': str(len(self.__goodsList)).zfill(6),
-                    "dlvpSeq": 0,
-                    "beneSeqList": [1]
                 })
                 logger.info("Added product %s", op.product_id)
             except ProductNotAvailableError as ex:
@@ -584,27 +576,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug("Setting shipment address")
         self.__mst['ordererNm'] = order_id
         self.__dlvpList[0] = {
-            "count": 0,
-            "deliFormCd": "10",
-            "mbrDlvpSeq": "0000001",
-            "dlvpDiviCd": "10",
-            "baseYn": "Y",
-            "dlvpNm": order_id,
-            "recvrPostNo": address.zip,
-            "recvrBaseAddr": address.address_1,
-            "recvrDtlAddr": address.address_2,
-            "cellNo": phone,
-            "publicPlace": False,
-            "express": False,
-            "seq": 0,
-            "dlvpNo": "1",
-            "recvrNm": order_id,
-            "buPlace": "",
-            "deliTypeCd": "3",
-            "packingMemo": None,
-            "deliCostTaxRate": 0,
-            "weekDeliveryPossYn": "N",
-            "saleAmtDispYn": "Y",
+            **self.__dlvpList[0],
+            'dlvpNm': order_id,
+            'postNo': address.zip,
+            'baseAddr': address.address_1,
+            'dtlAddr': address.address_2,
+            'recvrPostNo': address.zip,
+            'recvrBaseAddr': address.address_1,
+            'recvrDtlAddr': address.address_2,
+            'recvrNm': order_id,
         }
 
     def __set_payment_params(self, po: PurchaseOrder, ordered_products: list[tuple[OrderProduct, str]]):
@@ -616,6 +596,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl = self.__po_params["payList"][0]
         pl["payAmt"] = total_krw
         pl["payVat"] = int(total_krw / 11)
+        pl["totPayAmt"] = total_krw
+        pl['payTaxAmt'] = total_krw
         pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
         pl['expiry'] = self.__get_payment_deadline()
         pl["payerPhone"] = po.payment_phone
