@@ -81,7 +81,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "buPlace": None, # set in `__set_bu_place`
                 "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
                 "cellNo": "01050062045",
-                "email": "orlovakati82@gmail.com",
+                "email": "", # Not provided
                 "deliMethodCd": "3",
                 "deliCostDiviCd": "0",
                 "ordChnlCd": "10",
