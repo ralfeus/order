@@ -435,6 +435,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "dispGoodsNm": product['goodsNm'],
                     "salePrice": op.price,
                     "pvPrice": product['pvPrice'],
+                    'saleWeight': product['weight'],
+                    'totWeight': product['weight'] * op.quantity,
                     'seqNo': str(len(self.__goodsList)).zfill(6),
                 })
                 logger.info("Added product %s", op.product_id)
