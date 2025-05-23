@@ -1,16 +1,68 @@
 from datetime import datetime
+from typing import Any
 from flask.globals import current_app
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from flask import Response, abort, jsonify, request, redirect
-from flask_security import roles_required
+from flask_security import roles_required, login_user
 
-from app import db
+from app import db, security
+from app.network.models.node import Node
 from app.tools import modify_object
-from app.users import bp_api_admin
+from app.users import bp_api_admin, bp_api_user
 from app.users.models.user import Role, User
 from app.users.validators.user import UserValidator, UserEditValidator
+
+@bp_api_user.route('/signup', methods=['POST'])
+def signup():
+    """
+    User sign-up page.
+    POST requests validate form & user creation.
+    """
+    logger = current_app.logger.getChild('signup')
+    with UserValidator(request) as validator:
+        if not validator.validate():
+            return jsonify({
+                'data': [],
+                'error': "Couldn't create a user",
+                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                                for message in validator.errors]
+            }), 400
+    payload: dict[str, Any] = request.get_json() # type: ignore
+    existing_user = User.query. \
+        filter_by(username=payload['username']).first()
+    if existing_user is not None:
+        logger.warning("Attempt to create user %s whilst %s exist", existing_user.username, existing_user)
+        return jsonify({
+            'data': [],
+            'error': 'A user already exists.'
+        }), 409
+    user = security.datastore.create_user( #type: ignore
+        username=payload['username'],
+        password=payload['password'],
+        email=payload.get('email'),
+        phone=payload['phone'],
+        atomy_id=payload['atomy_id'] if 'atomy_id' in payload and payload['atomy_id'] != '' else None,
+        when_created=datetime.now(),
+        active=False)
+    if user.atomy_id and Node.query.get(user.atomy_id.strip()):
+        user.enabled = True
+    db.session.add(user) # type: ignore
+    db.session.commit()  # type: ignore
+    if user.enabled:
+        login_user(user)  # Log in as newly created user
+        return jsonify({
+            'data': [user.to_dict()],
+            'error': None
+        }), 201
+    else:
+        logger.info("User %s has been created but not activated", user.username)
+        return jsonify ({
+            'data': [],
+            'error': 'You have succesfully signed up. Wait till adminitrator will activate your account'
+        }), 201
+
 
 @bp_api_admin.route('', methods=['POST'])
 @roles_required('admin')

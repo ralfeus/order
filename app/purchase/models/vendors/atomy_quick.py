@@ -97,7 +97,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "cashReceiptUseDiviCd": "2",
                 "cashReceiptIssueCd": "3",
                 "cashReceiptCertNo": "418-14-11817",
-                "saleNo": "{{saleNo}}"
+                "saleNo": None, # set in `__send_order_post_request`
             },
             "payList": [
                 {
@@ -117,7 +117,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "payerPhone": "010-5006-2045",
                     "cashReceiptType": "PROOF",
                     "registrationNumber": "4181411817",
-                    "payNo": "{{payNo}}",
+                    "payNo": None, # set in `__send_order_post_request`
                     "vanData": {
                         "data": {
                             "bankCd": "06",
@@ -131,8 +131,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             "customerMobilePhone": "01050062045"
                         },
                         "vanCd": "50",
-                        "saleNo": "{{saleNo}}",
-                        "payNo": "{{payNo}}",
+                        "saleNo": None, # set in `__send_order_post_request`
+                        "payNo": None, # set in `__send_order_post_request`
                         "payMeanCd": "1401",
                         "payMean": "vbank",
                         "mersDiviCd": "101",
@@ -270,7 +270,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
-        self._logger.info("Logging in...")
         try:
             self.__login(purchase_order)
             self.__init_quick_order()
@@ -286,6 +285,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__get_order_id(purchase_order),
             )
             self.__set_local_shipment(purchase_order, ordered_products)
+            self.__set_payment_deadline()
             self.__set_payment_params(purchase_order, ordered_products)
             self.__set_tax_info(purchase_order)
             po_params = self.__submit_order()
@@ -312,6 +312,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ex
 
     def __login(self, purchase_order):
+        logger = self._logger.getChild("__login")
+        logger.info("Logging in as %s", purchase_order.customer.username)
         self.__session_cookies = [atomy_login2(
             purchase_order.customer.username, purchase_order.customer.password)]
         return self.__session_cookies
@@ -341,8 +343,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         return result['mersList'][0]['payNo'], result['mersList'][0]['saleNo']
 
-    def __send_order_post_request(self, pay_no, sale_no) -> str:
-        """Posts order. Returns posted order ID"""
+    def __send_order_post_request(self, pay_no, sale_no) -> None:
+        """Posts order
+        
+        :param str pay_no: payment number - internal Atomy number
+        :param str sale_no: sale number - internal Atomy number
+        """
         logger = self._logger.getChild("__send_order_post_request")
         self.__mst["saleNo"] = sale_no
         self.__po_params['payList'][0]['payNo'] = pay_no
@@ -520,7 +526,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
     
     def __set_bu_place(self):
         logger = self._logger.getChild("__set_bu_place")
-        logger.info("Setting buPlace")
         document, _ = invoke_curl(
             url=f"{URL_BASE}/order/sheet",
             headers=self.__get_session_headers() + [
@@ -529,6 +534,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         bu_code_definition = re.search(r'buPlace.*?:.*?"(.*?)\\"', document) or \
             re.search(r'buCode.*?:.*?"(.*?)\\"', document)
         if bu_code_definition:
+            logger.info("buPlace is set to %s", bu_code_definition.group(1))
             self.__po_params['mst']['buPlace'] = bu_code_definition.group(1)  
         else:
             raise PurchaseOrderError(self.__purchase_order, message="Couldn't get buCode from Atomy server")
@@ -542,6 +548,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
             sale_date += timedelta(days=1)
         self.__mst["saleDate"] = sale_date.strftime("%Y%m%d")
+        logger.info("Purchase date is set to %s", self.__mst["saleDate"])
 
     def __set_local_shipment(
         self,
@@ -585,16 +592,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_receiver_mobile(self, phone="     "):
         logger = self._logger.getChild("__set_receiver_mobile")
-        logger.debug("Setting receiver phone number")
+        logger.debug("Setting receiver phone number to %s", phone)
         self.__mst["cellNo"] = phone.replace("-", "")
         self.__dlvpList[0]["cellNo"] = phone
 
     def __set_receiver_address(self, address: Address, phone, order_id):
         logger = self._logger.getChild("__set_receiver_address")
-        logger.debug("Setting shipment address")
         self.__mst['ordererNm'] = order_id
-        self.__dlvpList[0] = {
-            **self.__dlvpList[0],
+        address_dict = {
             'dlvpNm': order_id,
             'postNo': address.zip,
             'baseAddr': address.address_1,
@@ -603,6 +608,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             'recvrBaseAddr': address.address_1,
             'recvrDtlAddr': address.address_2,
             'recvrNm': order_id,
+        }
+        logger.debug("Setting shipment address to %s", address_dict)
+        self.__dlvpList[0] = {
+            **self.__dlvpList[0],
+            **address_dict
         }
 
     def __set_payment_params(self, po: PurchaseOrder, ordered_products: list[tuple[OrderProduct, str]]):
@@ -617,33 +627,33 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl["totPayAmt"] = total_krw
         pl['payTaxAmt'] = total_krw
         pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
-        pl['expiry'] = self.__get_payment_deadline()
-        pl['expiryDtime'] = self.__get_payment_deadline()
         pl["morcNm"] = po.customer.name
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
         pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name
         pl["vanData"]["data"]["ordererNm"] = po.customer.name
-        pl["vanData"]["data"]["expiry"] = self.__get_payment_deadline()
         pl['vanData']["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
         pl["vanData"]['data']["taxAmount"] = total_krw
         pl["vanData"]['data']["totPayAmt"] = total_krw
         pl["vanData"]["payAmt"] = total_krw
-        self.__payment_payload["ordData"]["payList"][0]["bankCd"] = pl["bankCd"]
-        self.__payment_payload["ordData"]["payList"][0][
-            "expiry"
-        ] = self.__get_payment_deadline()
 
-    def __get_payment_deadline(self) -> str:
-        logger = self._logger.getChild("__get_payment_deadline")
+    def __set_payment_deadline(self) -> None:
+        '''Sets payment deadline to 47 hours from now with accounting
+        for Korean timezone'''
+        logger = self._logger.getChild("__set_payment_deadline")
         deadline = (datetime.now() + timedelta(hours=47)).strftime("%Y%m%d%H0000")
         logger.info("Payment deadline is %s", deadline)
-        return deadline
+        pl = self.__po_params["payList"][0]
+        pl['expiry'] = deadline
+        pl['expiryDtime'] = deadline
+        pl["vanData"]["data"]["expiry"] = deadline
 
     def __set_tax_info(self, purchase_order: PurchaseOrder):
-        self._logger.debug("Setting counteragent tax information")
+        logger = self._logger.getChild("__set_tax_info")
+        logger.info("Setting counteragent tax information")
         if purchase_order.company.tax_id != ("", "", ""):  # Company is taxable
             if purchase_order.company.tax_simplified:
+                logger.debug("Setting tax information for simplified tax invoice")
                 self.__mst["cashReceiptIssueCd"] = "3"
                 self.__mst["cashReceiptUseDiviCd"] = "2"
                 self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
@@ -667,6 +677,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__payment_payload['ordData']["payList"][0]["registrationNumber"] = \
                     self.__po_params["payList"][0]["registrationNumber"]
             else:
+                logger.debug("Setting tax information for tax invoice")
                 self.__mst["cashReceiptUseDiviCd"] = "3"
                 del self.__mst["cashReceiptIssueCd"]
                 self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
