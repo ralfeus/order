@@ -1,14 +1,8 @@
-from datetime import datetime
-
 from flask import send_file
-from flask import redirect, render_template, flash, current_app, url_for, send_from_directory
-from flask_security import roles_required, login_user, logout_user, current_user
+from flask import render_template
+from flask_security import roles_required
 
-from app import db, security
-from app.network.models.node import Node
 from app.users import bp_client_admin, bp_client_user
-from app.users.forms import SignupForm
-from app.users.models.user import User
 
 @bp_client_admin.route('/static/<path:file>')
 @bp_client_user.route('/static/<path:file>')
