@@ -520,7 +520,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     
     def __set_bu_place(self):
         logger = self._logger.getChild("__set_bu_place")
-        logger.debug("Setting buPlace")
+        logger.info("Setting buPlace")
         document, _ = invoke_curl(
             url=f"{URL_BASE}/order/sheet",
             headers=self.__get_session_headers() + [
@@ -618,6 +618,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl['payTaxAmt'] = total_krw
         pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
         pl['expiry'] = self.__get_payment_deadline()
+        pl['expiryDtime'] = self.__get_payment_deadline()
         pl["morcNm"] = po.customer.name
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
@@ -634,7 +635,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         ] = self.__get_payment_deadline()
 
     def __get_payment_deadline(self) -> str:
-        return (datetime.now() + timedelta(hours=47)).strftime("%Y%m%d%H0000")
+        logger = self._logger.getChild("__get_payment_deadline")
+        deadline = (datetime.now() + timedelta(hours=47)).strftime("%Y%m%d%H0000")
+        logger.info("Payment deadline is %s", deadline)
+        return deadline
 
     def __set_tax_info(self, purchase_order: PurchaseOrder):
         self._logger.debug("Setting counteragent tax information")
