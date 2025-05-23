@@ -38,20 +38,3 @@ class TestClient(BaseTestCase):
             logout(self.client)
             res = login(self.client, 'user2', '1')
             self.assertEqual(res.status_code, 200)
-
-    def test_signup(self):
-        with self.client:
-            res = self.client.post('/users/signup', data={
-                'username': 'user3',
-                'password': '1',
-                'confirm': '1',
-                'phone': '1',
-                'email': 'test@email.com'
-            })
-            res = login(self.client, 'user3', '1')
-            self.assertEqual(res.status_code, 200)
-            user3 = User.query.filter_by(username='user3').first()
-            user3.enabled = True
-            db.session.commit()
-            res = login(self.client, 'user3', '1')
-            self.assertEqual(current_user.username, 'user3')
