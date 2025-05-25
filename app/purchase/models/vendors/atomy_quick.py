@@ -83,12 +83,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "cellNo": "01050062045",
                 "email": "", # Not provided
                 "deliMethodCd": "3",
-                "deliCostDiviCd": "0",
+                "deliCostDiviCd": "0", # set in `__set_local_shipment`
                 "ordChnlCd": "10",
                 "ordChnlCdTemp": "10",
                 "cartGrpCd": "10",
-                "packingNo": "010-5006-2045/08584",
-                "packingYn": "Y",
+                "packingNo": None, # set in `__set_local_shipment`
+                "packingYn": "N", # set in `__set_local_shipment`
                 "mailRecvYn": "N",
                 "ordKindCd": "03",
                 "nomemOrdYn": "N",
@@ -150,25 +150,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 {
                     "mode": "INS",
                     "dlvpNm": "Test recipient",
-                    "cellNo": "010-5006-2045",
+                    "cellNo": None,  # set in `__set_receiver_mobile`
                     "telNo": "",
-                    "postNo": "08584",
-                    "baseAddr": "서울특별시 금천구 두산로 70",
-                    "dtlAddr": "291-1번지 현대지식산업센터  A동 605호",
-                    "state": "",
-                    "city": "",
+                    "postNo": None,  # set in `__set_receiver_address`
+                    "baseAddr": None,  # set in `__set_receiver_address`
+                    "dtlAddr": None,  # set in `__set_receiver_address`
+                    "state": "", # not provided
+                    "city": "", # not provided
                     "baseYn": "Y",
                     "favoritesYn": "N",
-                    "recvrPostNo": "08584",
-                    "recvrBaseAddr": "서울특별시 금천구 두산로 70",
-                    "recvrDtlAddr": "291-1번지 현대지식산업센터  A동 605호",
+                    "recvrPostNo": None,  # set in `__set_receiver_address`
+                    "recvrBaseAddr": None,  # set in `__set_receiver_address`
+                    "recvrDtlAddr": None,  # set in `__set_receiver_address`
                     "deliFormCd": "10",
                     "seq": 0,
                     "dlvpNo": "1",
                     "recvrNm": "Test recipient",
                     "buPlace": "",
                     "deliTypeCd": "3",
-                    "packingMemo": "010-5006-2045/08584",
+                    "packingMemo": None, # set in `__set_local_shipment`
                     "deliCostTaxRate": 0,
                     "weekDeliveryPossYn": "N",
                     "saleAmtDispYn": "Y"
@@ -188,7 +188,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "stAmt": 50000,
                     "costAmt": 0,
                     "taxAmt": 0,
-                    "deliCostDiviCd": "0",
+                    "deliCostDiviCd": "0", # set in `__set_local_shipment`
                     "oriDeliCostAmt": 0,
                     "deliTaxVal": "1.1",
                     "deliTaxTypeCd": "15"
@@ -573,16 +573,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if local_shipment:
             logger.debug("Setting combined shipment params")
             self.__mst["deliCostDiviCd"] = "1"
-            self.__mst["packingNo"] = (
-                f"{purchase_order.contact_phone}/{purchase_order.address.zip}"
-            )
             self.__mst["packingYn"] = "Y"
-            self.__dlvpList[0][
-                "packingMemo"
-            ] = f"{purchase_order.contact_phone}/{purchase_order.address.zip}"
-            self.__beneList[0]["deliCostDiviCd"] = "1"
+            self.__mst["packingNo"] = \
+                f"{purchase_order.contact_phone}/{purchase_order.address.zip}"
+            self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
+            self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
         else:
             logger.debug("No combined shipment is needed")
+            self.__mst["deliCostDiviCd"] = "0"
+            self.__mst["packingYn"] = "N"
+            self.__mst["packingNo"] = None
+            self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
+            self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
 
     def __get_order_id(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split("-")
