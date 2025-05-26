@@ -67,6 +67,8 @@ def get_html(url, **kwargs):
         
 @patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
         MagicMock(return_value=["JSESSIONID=token"]))
+@patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__set_bu_place",
+        lambda _: None)
 @patch("app.purchase.models.vendors.atomy_quick.get_json",
         MagicMock(side_effect=get_json))
 @patch("app.purchase.models.vendors.atomy_quick.invoke_curl",

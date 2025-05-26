@@ -1,9 +1,8 @@
-from datetime import datetime
 import logging
 from operator import itemgetter
 
 from flask import Response, abort, current_app, jsonify, request
-from flask_security import current_user, roles_required
+from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
 
@@ -24,16 +23,17 @@ from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 
 @bp_api_admin.route('/order', defaults={'po_id': None})
 @bp_api_admin.route('/order/<po_id>')
+@login_required
 @roles_required('admin')
 def get_purchase_orders(po_id):
     ''' Returns all or selected purchase orders in JSON '''
     purchase_orders: list[PurchaseOrder] = PurchaseOrder.query
     if po_id is not None:
-        purchase_orders = purchase_orders.filter_by(id=po_id)
-        if purchase_orders.count() == 1:
-            return jsonify(purchase_orders.first().to_dict())
+        purchase_orders = purchase_orders.filter_by(id=po_id) #type: ignore
+        if purchase_orders.count() == 1: #type: ignore
+            return jsonify(purchase_orders.first().to_dict()) #type: ignore
     if request.args.get('status'):
-        purchase_orders = purchase_orders.filter_by(
+        purchase_orders = purchase_orders.filter_by( #type: ignore
             status=PurchaseOrderStatus[request.args['status']].name)
     if request.args.get('draw') is not None: # Args were provided by DataTables
         purchase_orders, records_total, records_filtered = prepare_datatables_query(
@@ -51,12 +51,13 @@ def get_purchase_orders(po_id):
             'recordsFiltered': records_filtered,
             'data': [entry.to_dict() for entry in purchase_orders]
         })
-    if purchase_orders.count() == 0:
+    if purchase_orders.count() == 0: #type: ignore
         abort(Response("No purchase orders were found", status=404))
     else:
         return jsonify([entry.to_dict() for entry in purchase_orders])
 
 @bp_api_admin.route('/order', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_create_purchase_orders():
     '''
@@ -106,6 +107,7 @@ def admin_create_purchase_orders():
     return (jsonify({'data': [po.to_dict() for po in purchase_orders]}), 202)
 
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def update_purchase_order(po_id):
     logger = logging.getLogger('update_purchase_order')
@@ -114,11 +116,11 @@ def update_purchase_order(po_id):
         abort(Response("No purchase order <{po_id}> was found", status=404))
 
     from app.purchase.jobs import post_purchase_orders, update_purchase_orders_status
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     try:
         if request.values.get('action') == 'repost':
             po.reset_status()
-            db.session.commit()
+            db.session.commit() #type: ignore
             task = post_purchase_orders.apply_async(
                 kwargs={'po_id': po.id}, retry=False, connect_timeout=1)
             # post_purchase_orders(po.id)
@@ -141,19 +143,20 @@ def update_purchase_order(po_id):
                 })
             editable_attributes = ['customer_id', 'payment_account', 'purchase_date',
                 'vendor', 'vendor_po_id']
-            po = modify_object(po, payload, editable_attributes)
+            po = modify_object(po, payload, editable_attributes) #type: ignore
             if payload.get('status') is not None:
                 po.set_status(payload['status'])
             result = jsonify({'data': [po.to_dict()]})
     except: # Exception as ex:
         logger.exception("Couldn't update PO %s", po_id)
         abort(Response(po_id, 500))
-    db.session.commit()
+    db.session.commit() #type: ignore
     return result
     # task = post_purchase_orders() # For debug purposes only
 
 
 @bp_api_admin.route('/company_list')
+@login_required
 @roles_required('admin')
 def get_companies():
     companies = Company.query.filter_by(enabled=True)
@@ -162,17 +165,20 @@ def get_companies():
         key=itemgetter('name')))
 
 @bp_api_admin.route('/status')
+@login_required
 @roles_required('admin')
 def get_statuses():
     return jsonify([i.name for i in PurchaseOrderStatus])
 
 @bp_api_admin.route('/vendor')
+@login_required
 @roles_required('admin')
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify([v.to_dict() for v in vendor_mgmt.get_vendors(config=current_app.config)])
 
 @bp_api_admin.route('/order/validate', methods=['POST'])
+@login_required
 @roles_required('admin')
 def validate_po_input():
     payload = request.get_json()

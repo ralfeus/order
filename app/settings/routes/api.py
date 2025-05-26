@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 
 from flask import Response, abort, jsonify, request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app import db
 from app.settings import bp_api_admin
@@ -11,6 +11,7 @@ from app.settings.validators.setting import SettingValidator
 
 @bp_api_admin.route('/', defaults={'setting_id': None}, strict_slashes=False)
 @bp_api_admin.route('/<setting_id>')
+@login_required
 @roles_required('admin')
 def get_settings(setting_id):
     '''Returns all or selected settings in JSON'''
@@ -21,6 +22,7 @@ def get_settings(setting_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), settings)))
 
 @bp_api_admin.route('/<setting_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def save_setting(setting_id):
     '''Creates or modifies existing setting'''
@@ -47,6 +49,7 @@ def save_setting(setting_id):
     return jsonify({'data': [setting.to_dict()]})
 
 @bp_api_admin.route('/<setting_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_setting(setting_id):
     '''Deletes existing setting item'''
@@ -58,6 +61,7 @@ def delete_setting(setting_id):
     return jsonify({'data': [setting.to_dict()]})
 
 @bp_api_admin.route('/restart')
+@login_required
 @roles_required('admin')
 def restart_app():
     ''' Restart whole aplication'''

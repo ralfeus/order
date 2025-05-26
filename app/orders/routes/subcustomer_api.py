@@ -21,6 +21,7 @@ from ..models.suborder import Suborder
 from ..utils import parse_subcustomer
 
 @bp_api_admin.route('/subcustomer')
+@login_required
 @roles_required('admin')
 def admin_get_subcustomers():
     subcustomers = Subcustomer.query
@@ -56,6 +57,7 @@ def admin_get_subcustomers():
     return jsonify([entry.to_dict() for entry in subcustomers])
 
 @bp_api_admin.route('/subcustomer', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_create_subcustomer():
     payload = request.get_json()
@@ -83,6 +85,7 @@ def admin_create_subcustomer():
         abort(Response("Not all subcustomer data is provided", status=400))
     
 @bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_subcustomer(subcustomer_id):
     payload = request.get_json()
@@ -105,6 +108,7 @@ def admin_save_subcustomer(subcustomer_id):
     return jsonify(subcustomer.to_dict())
 
 @bp_api_admin.route('/subcustomer/<subcustomer_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def admin_delete_subcustomer(subcustomer_id):
     subcustomer = Subcustomer.query.get(subcustomer_id)

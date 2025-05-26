@@ -14,6 +14,7 @@ def get_static(file):
         abort(404)
 
 @bp_client_admin.route('/permissions')
+@login_required
 @roles_required('admin')
 def admin_get_pv_stats_nodes_permissions():
     '''PV Stats nodes management'''

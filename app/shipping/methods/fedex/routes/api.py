@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from flask import request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 from sqlalchemy import or_
 
 from app import cache, db
@@ -15,6 +15,7 @@ from ..models.fedex_setting import FedexSetting
 from .. import bp_api_admin
 
 @bp_api_admin.route("/<shipment_id>")
+@login_required
 @roles_required('admin')
 def admin_get_settings(shipment_id: int):
     '''Returns settings of FedEx shipment'''
@@ -24,6 +25,7 @@ def admin_get_settings(shipment_id: int):
     return {'data': fedex.to_dict()}, 200
 
 @bp_api_admin.route("/<shipment_id>", methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_settings(shipment_id: int):
     '''Saves settings of FedEx shipment'''

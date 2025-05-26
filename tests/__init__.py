@@ -18,19 +18,22 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        db.session.execute('pragma foreign_keys=on')
+        db.session.execute('pragma foreign_keys=on') #type:ignore
 
     def setUp(self):
         self.app = app
         self.client = self.app.test_client()
+        self._app_ctx = self.app.app_context()  # Create a new application context
+        self._app_ctx.push()  # Push the application context
         self._ctx = self.app.test_request_context()
         self._ctx.push()
         self.maxDiff = None
 
 
     def tearDown(self):
-        db.session.remove()
         db.drop_all()
+        self._ctx.pop()  # Pop the request context
+        self._app_ctx.pop() # Pop the application context
 
     def try_admin_operation(self, operation, 
                             user_name:Optional[str]=None, user_password='1',
@@ -44,9 +47,9 @@ class BaseTestCase(TestCase):
         @param admin_password: str - admin password to authenticate
         @param admin_only: bool - if `true` - do not try to perform operation as a user
         '''
-        if user_name is None:
+        if user_name is None and self.user:
             user_name = self.user.username
-        if admin_name is None:
+        if admin_name is None and self.admin:
             admin_name = self.admin.username
         res = operation()
         self.assertEqual(res.status_code, 302)
@@ -59,7 +62,7 @@ class BaseTestCase(TestCase):
         return operation()
 
     def try_user_operation(self, operation, user_name=None, user_password='1'):
-        if user_name is None:
+        if user_name is None and self.user:
             user_name = self.user.username
         res = operation()
         self.assertEqual(res.status_code, 302)
@@ -77,11 +80,11 @@ class BaseTestCase(TestCase):
 
     def try_add_entity(self, entity):
         try:
-            db.session.add(entity)
-            db.session.commit()
+            db.session.add(entity) #type:ignore
+            db.session.commit() #type:ignore
         except Exception as e:
             print(f'Exception while trying to add <{entity}>:', e)
-            db.session.rollback()
+            db.session.rollback() #type:ignore
 
     def try_add_entities(self, entities):
         for entity in entities:

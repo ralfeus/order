@@ -1,10 +1,11 @@
 from flask import jsonify, request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.users import bp_api_admin
 from app.users.models.role import Role
 
 @bp_api_admin.route('/role')
+@login_required
 @roles_required('admin')
 def get_role():
     '''Returns list of roles'''

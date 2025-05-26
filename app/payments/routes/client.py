@@ -14,18 +14,21 @@ def get_static(file):
     return send_file(f"payments/static/{file}")
 
 @bp_client_admin.route('/balances')
+@login_required
 @roles_required('admin')
 def admin_balances():
     ''' Customers balances '''
     return render_template('admin_balances.html')
 
 @bp_client_admin.route('/methods')
+@login_required
 @roles_required('admin')
 def admin_payment_methods():
     ''' Payment methods management '''
     return render_template('admin_payment_methods.html')
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def admin_payments():
     '''
@@ -34,6 +37,7 @@ def admin_payments():
     return render_template('admin_payments.html')
 
 @bp_client_admin.route('/transactions')
+@login_required
 @roles_required('admin')
 def admin_transactions():
     '''

@@ -1,7 +1,7 @@
 '''Client routes for Fedex shipping'''
 import os
 from flask import Response, abort, current_app, render_template, request, send_file
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.orders.models.order import Order
 from app.shipping.models.shipping import Shipping
@@ -10,11 +10,13 @@ from ..models.fedex import get_label
 from .. import bp_client_admin
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def admin_edit():
     pass
 
 @bp_client_admin.route('/label')
+@login_required
 @roles_required('admin')
 def admin_print_label():
     order = Order.query.get(request.args.get('order_id'))
@@ -31,6 +33,7 @@ def admin_print_label():
         abort(Response(status=404, response=response))
 
 @bp_client_admin.route('/<shipping_id>')
+@login_required
 @roles_required('admin')
 def admin_edit_settings(shipping_id: int):
     fedex = Shipping.query.get(shipping_id)

@@ -113,7 +113,8 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
 
 
 # @bp_api_admin.route('/box')
-# @roles_required('admin')
+# @login_required
+@roles_required('admin')
 # def admin_get_shipping_boxes():
 #     return jsonify([box.to_dict() for box in Box.query])
 

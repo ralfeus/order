@@ -1,6 +1,6 @@
 from flask import Response, abort, current_app, escape, redirect, request, \
      render_template, send_file, send_from_directory, flash, url_for
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from sqlalchemy.exc import IntegrityError
 
@@ -16,6 +16,7 @@ def get_static(file):
     return send_file(f"products/static/{file}")
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def get_products():
     '''

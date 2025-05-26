@@ -51,6 +51,7 @@ def get_product_by_term(term):
 
 @bp_api_admin.route('', defaults={'product_id': None})
 @bp_api_admin.route('/<product_id>')
+@login_required
 @roles_required('admin')
 def admin_get_product(product_id):
     '''
@@ -101,6 +102,7 @@ def _filter_products(products, filter_params):
 
 @bp_api_admin.route('', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<product_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def save_product(product_id):
     '''Saves updates in product or creates new product'''
@@ -132,6 +134,7 @@ def save_product(product_id):
 
 
 @bp_api_admin.route('/<product_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_product(product_id):
     '''

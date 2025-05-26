@@ -53,6 +53,7 @@ def _create_po(order: Order, errors: list) -> None:
         errors.append(f"Couldn't create purchase orders: {str(ex)}")
 
 @bp_api_admin.route('/<order_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def admin_delete_order(order_id):
     '''
@@ -105,6 +106,7 @@ def user_delete_order(order_id):
 
 @bp_api_admin.route('', defaults={'order_id': None})
 @bp_api_admin.route('/<order_id>')
+@login_required
 @roles_required('admin')
 def admin_get_orders(order_id):
     ''' Returns all or selected orders in JSON '''
@@ -488,6 +490,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
                     status=400))
 
 @bp_api_admin.route('/product/<int:order_product_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_order_product(order_product_id):
     '''
@@ -536,6 +539,7 @@ def user_delete_order_product(order_product_id):
 
 @bp_api_admin.route('/product/<int:order_product_id>/status/<order_product_status>',
                    methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_set_order_product_status(order_product_id, order_product_status):
     '''
@@ -601,6 +605,7 @@ def update_order_product(order, order_product, item):
         order.when_changed = datetime.now()
 
 @bp_api_admin.route('/<order_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_order(order_id):
     '''
@@ -737,6 +742,7 @@ def get_order_product(order_product_id):
     return order_product
 
 @bp_api_admin.route('/<order_id>/box')
+@login_required
 @roles_required('admin')
 def admin_get_order_boxes(order_id):
     order = Order.query.get(order_id)

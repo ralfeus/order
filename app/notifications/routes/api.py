@@ -9,17 +9,19 @@ from .. import bp_api_admin, bp_api_user
 from ..models.notification import Notification
 
 @bp_api_admin.route('', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_create_notification():
     payload = request.get_json()
     if payload is None:
         return jsonify({'error': 'No payload'})
     notification = Notification(**payload, when_created=datetime.now())
-    db.session.add(notification)
-    db.session.commit()
+    db.session.add(notification) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({'data': [notification.to_dict()]})
 
 @bp_api_admin.route('/<notification_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_update_notification(notification_id):
     notification = Notification.query.get(notification_id)
@@ -29,21 +31,23 @@ def admin_update_notification(notification_id):
     if payload is None:
         return jsonify({'error': 'No payload'})
     modify_object(notification, payload, ['short_desc', 'long_desc'])
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [notification.to_dict()]})
 
 @bp_api_admin.route('/<notification_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def admin_delete_notification(notification_id):
     notification = Notification.query.get(notification_id)
     if notification is None:
         return jsonify({'error': f'No notification is found by ID {notification_id}'})
-    db.session.delete(notification)
-    db.session.commit()
+    db.session.delete(notification) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({})
     
 @bp_api_admin.route('', defaults={'notification_id': None})
 @bp_api_admin.route('/<notification_id>')
+@login_required
 @roles_required('admin')
 def admin_get_notifications(notification_id):
     notifications = Notification.query
@@ -79,5 +83,5 @@ def user_manage_notification(notification_id):
         if int(user_profile.get('last_read_notification', 0)) < notification_id:
             user_profile['last_read_notification'] = notification_id
             current_user.set_profile(user_profile)
-            db.session.commit()
+            db.session.commit() #type: ignore
     return jsonify({})

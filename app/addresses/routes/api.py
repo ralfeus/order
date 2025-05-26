@@ -25,6 +25,7 @@ def get_addresses(address_id):
 
 @bp_api_admin.route('/<address_id>', methods=['POST'])
 @bp_api_admin.route('', methods=['POST'], defaults={'address_id': None})
+@login_required
 @roles_required('admin')
 def save_address(address_id):
     '''
@@ -40,7 +41,7 @@ def save_address(address_id):
             country_id='kr', # we assume all addresses are in Korea
             user_created=True,
             when_created=datetime.now())
-        db.session.add(address)
+        db.session.add(address) # type:ignore
     else:
         address = Address.query.get(address_id)
         if not address:
@@ -57,11 +58,12 @@ def save_address(address_id):
          'address_2_eng', 'city_eng', 'delivery_comment']
     )
 
-    db.session.commit()
+    db.session.commit() # type:ignore
     return jsonify(address.to_dict())
 
 
 @bp_api_admin.route('/<address_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_address(address_id):
     '''
@@ -71,8 +73,8 @@ def delete_address(address_id):
     if not address:
         abort(Response(f'No address <{address_id}> was found', status=404))
 
-    db.session.delete(address)
-    db.session.commit()
+    db.session.delete(address) # type:ignore
+    db.session.commit() # type:ignore
     return jsonify({
         'status': 'success'
     })

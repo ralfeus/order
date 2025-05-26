@@ -42,6 +42,7 @@ def get_admin_order_products_js():
     })
 
 @bp_client_admin.route('/products')
+@login_required
 @roles_required('admin')
 def admin_order_products():
     from app.orders.signals import admin_order_products_rendering
@@ -136,6 +137,7 @@ def get_order_drafts():
     return render_template('order_drafts.html')
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def admin_get_orders():
     '''
@@ -145,6 +147,7 @@ def admin_get_orders():
     return render_template('admin_orders.html', usd_rate=usd_rate)
 
 @bp_client_admin.route('/<order_id>')
+@login_required
 @roles_required('admin')
 def admin_get_order(order_id):
     order: Order = Order.query.get(order_id)
@@ -185,6 +188,7 @@ def user_get_order_excel(order_id):
             f"Couldn't generate an order Excel due to following error: {';'.join(ex.args)}"))
 
 @bp_client_admin.route('/<order_id>/customs_label')
+@login_required
 @roles_required('admin')
 def admin_get_customs_label(order_id):
     '''
@@ -209,6 +213,7 @@ def admin_get_customs_label(order_id):
             f"Couldn't generate customs label due to following error: {';'.join(ex.args)}"))
 
 @bp_client_admin.route('/subcustomers')
+@login_required
 @roles_required('admin')
 def admin_get_subcustomers():
     return render_template('admin_subcustomers.html')
