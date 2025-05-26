@@ -44,7 +44,7 @@ signals = Namespace()
 def create_app(config=None):
     ''' Application factory '''
     global app 
-    from app.users.forms import LoginForm
+    from app.users.forms.login_form import LoginForm
     config_file = config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json'
     tenant = re.search('[^/]*(?=/config)', config_file).group() \
              if re.search('[^/]*(?=/config)', config_file) \

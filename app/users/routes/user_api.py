@@ -4,8 +4,8 @@ from flask.globals import current_app
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from flask import Response, abort, jsonify, request, redirect
-from flask_security import roles_required, login_user
+from flask import jsonify, request
+from flask_security import login_required, login_user, roles_required
 
 from app import db, security
 from app.network.models.node import Node
@@ -65,6 +65,7 @@ def signup():
 
 
 @bp_api_admin.route('', methods=['POST'])
+@login_required
 @roles_required('admin')
 def create_user():
     '''Creates new user'''
@@ -76,7 +77,7 @@ def create_user():
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             }), 400
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     user = User(
         username=payload['username'],
         email=payload['email'],
@@ -85,12 +86,13 @@ def create_user():
         enabled=True
     )
     user.set_password(payload['password'])
-    db.session.add(user)
-    db.session.commit()
+    db.session.add(user) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({'data': [user.to_dict()]})
 
 
 @bp_api_admin.route('/<user_ids>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_user(user_ids):
     '''Deletes a user by its user_id'''
@@ -98,7 +100,7 @@ def delete_user(user_ids):
     result = None
     try:
         User.query.filter(User.id.in_(user_ids.split(','))).delete(synchronize_session='fetch')
-        db.session.commit()
+        db.session.commit() #type: ignore
         result = jsonify({
             'status': 'success'
         })
@@ -112,6 +114,7 @@ def delete_user(user_ids):
     return result
 
 @bp_api_admin.route('')
+@login_required
 @roles_required('admin')
 def get_user():
     '''Returns list of products in JSON'''
@@ -139,6 +142,7 @@ def get_user():
 
 
 @bp_api_admin.route('/<int:user_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def save_user(user_id):
     with UserEditValidator(request) as validator:
@@ -150,7 +154,7 @@ def save_user(user_id):
                                 for message in validator.errors]
             }), 400
     user = User.query.get(user_id)
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     if 'roles' in payload.keys():
         user.roles = Role.query.filter(Role.id.in_(payload['roles'])).all()
 
@@ -158,5 +162,5 @@ def save_user(user_id):
     if 'password' in payload.keys() and payload['password'] != '':
         user.set_password(payload['password'])
     user.when_changed = datetime.now()
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [user.to_dict()]})

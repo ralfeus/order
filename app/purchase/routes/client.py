@@ -1,6 +1,6 @@
 import itertools
 from flask import render_template, send_file
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.purchase import bp_client_admin, bp_client_user
 
@@ -10,6 +10,7 @@ def get_static(file):
     return send_file(f"purchase/static/{file}")
 
 @bp_client_admin.route('/orders')
+@login_required
 @roles_required('admin')
 def purchase_orders():
     from app.purchase.signals import create_purchase_order_rendering
@@ -33,6 +34,7 @@ def get_admin_purchase_orders_js():
 
 
 @bp_client_admin.route('/companies')
+@login_required
 @roles_required('admin')
 def get_company():
     ''' company management '''

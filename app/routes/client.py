@@ -28,6 +28,7 @@ def index():
         return redirect('/orders')
 
 @client.route('/admin')
+@login_required
 @roles_required('admin')
 def admin_dashboard():
     '''

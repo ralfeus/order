@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask import jsonify, request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 from sqlalchemy import or_
 
 from app import cache, db
@@ -12,6 +12,7 @@ from .. import bp_api_admin
 
 @bp_api_admin.route("<shipping_id>/rate/<rate_id>")
 @bp_api_admin.route("<shipping_id>/rate", defaults={'rate_id': None})
+@login_required
 @roles_required('admin')
 def admin_get_rates(shipping_id, rate_id):
     '''Returns list of rates in JSON'''
@@ -60,6 +61,7 @@ def _filter_rates(rates, filter_params):
 
 @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['post'])
 @bp_api_admin.route('<shipping_id>/rate', methods=['post'], defaults={'destination': None})
+@login_required
 @roles_required('admin')
 def admin_save_rate(shipping_id, destination):
     '''Update selected rate'''
@@ -105,6 +107,7 @@ def admin_save_rate(shipping_id, destination):
         return {'error': str(ex)}, 500
 
 @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['delete'])
+@login_required
 @roles_required('admin')
 def admin_delete_rate(shipping_id, destination):
     '''Delete selected rate'''

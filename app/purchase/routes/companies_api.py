@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from flask import Response, abort, jsonify, request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app import db
 from app.purchase import bp_api_admin
@@ -13,6 +13,7 @@ from app.purchase.models import Company
 
 @bp_api_admin.route('/company', defaults={'company_id': None})
 @bp_api_admin.route('/company/<company_id>')
+@login_required
 @roles_required('admin')
 def get_company(company_id):
     ''' Returns all or selected company in JSON '''
@@ -24,6 +25,7 @@ def get_company(company_id):
     
 @bp_api_admin.route('/company/<company_id>', methods=['POST'])
 @bp_api_admin.route('/company', methods=['POST'], defaults={'company_id': None})
+@login_required
 @roles_required('admin')
 def save_company(company_id):
     ''' Creates or modifies existing company '''
@@ -72,6 +74,7 @@ def save_company(company_id):
     return jsonify({'data': result})
 
 @bp_api_admin.route('/company/<company_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_company(company_id):
     '''

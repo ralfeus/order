@@ -1,6 +1,6 @@
 ''' Client routes for Packer related activities '''
 from flask import render_template, send_file
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.modules.packer import bp_client_admin
 
@@ -10,6 +10,7 @@ def get_static(file):
     return send_file(f"modules/packer/static/{file}")
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def admin_get_warehouses():
     '''Packer management'''

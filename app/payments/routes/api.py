@@ -28,6 +28,7 @@ from app.tools import prepare_datatables_query, stream_and_close
 
 @bp_api_admin.route('', defaults={'payment_id': None})
 @bp_api_admin.route('/<int:payment_id>')
+@login_required
 @roles_required('admin')
 def admin_get_payments(payment_id):
     '''
@@ -63,6 +64,7 @@ def filter_payments(payments, filter_params):
     })
 
 @bp_api_admin.route('/<int:payment_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_payment(payment_id):
     ''' Saves updates of user payment '''
@@ -355,6 +357,7 @@ def admin_get_payment_methods():
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['POST'])
 @bp_api_admin.route('/method', methods=['POST'], defaults={'payment_method_id': None})
+@login_required
 @roles_required('admin')
 def save_payment_method(payment_method_id):
     payment_method = PaymentMethod.query.get(payment_method_id)
@@ -372,6 +375,7 @@ def save_payment_method(payment_method_id):
     return jsonify({'data': [payment_method.to_dict()]})
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_payment_method(payment_method_id):
     payment_method = PaymentMethod.query.get(payment_method_id)

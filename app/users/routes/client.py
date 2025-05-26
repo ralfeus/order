@@ -1,6 +1,6 @@
 from flask import send_file
 from flask import render_template
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.users import bp_client_admin, bp_client_user
 
@@ -19,6 +19,7 @@ def user_signup():
     return render_template('signup.html')
 
 @bp_client_admin.route('/', methods=['GET', 'POST'])
+@login_required
 @roles_required('admin')
 def users():
     '''

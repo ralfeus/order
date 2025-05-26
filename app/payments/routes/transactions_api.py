@@ -15,6 +15,7 @@ from ..validators.transaction import TransactionValidator
 
 @bp_api_admin.route('/transaction', defaults={'transaction_id': None})
 @bp_api_admin.route('/transaction/<int:transaction_id>')
+@login_required
 @roles_required('admin')
 def admin_get_transactions(transaction_id):
     '''
@@ -53,6 +54,7 @@ def user_get_transactions(transaction_id):
     return jsonify(list(map(lambda entry: entry.to_dict(), transactions)))
 
 @bp_api_admin.route('/transaction', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_transaction():
     logger = logging.getLogger('admin_save_transaction')

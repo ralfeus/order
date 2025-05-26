@@ -11,6 +11,7 @@ from app.currencies.models import Currency
 
 @bp_api_admin.route('', defaults={'currency_id': None})
 @bp_api_admin.route('/<currency_id>')
+@login_required
 @roles_required('admin')
 def get_currencies(currency_id):
     '''
@@ -38,6 +39,7 @@ def user_get_currencies(currency_id):
 
 @bp_api_admin.route('/<currency_id>', methods=['POST'])
 @bp_api_admin.route('', methods=['POST'], defaults={'currency_id': None})
+@login_required
 @roles_required('admin')
 def save_currency(currency_id):
     ''' Creates or modifies existing currency '''
@@ -54,7 +56,7 @@ def save_currency(currency_id):
     if currency_id is None:
         currency = Currency()
         currency.when_created = datetime.now()
-        db.session.add(currency)
+        db.session.add(currency) #type: ignore
     else:
         currency = Currency.query.get(currency_id)
         if not currency:
@@ -71,10 +73,11 @@ def save_currency(currency_id):
         else:
             today_rate.rate = float(payload['rate'])
 
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [currency.to_dict()]})
 
 @bp_api_admin.route('/<currency_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def delete_currency(currency_id):
     '''
@@ -84,8 +87,8 @@ def delete_currency(currency_id):
     if not currency:
         abort(Response(f'No currency <{currency_id}> was found', status=404))
 
-    db.session.delete(currency)
-    db.session.commit()
+    db.session.delete(currency) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({
         'status': 'success'
     })

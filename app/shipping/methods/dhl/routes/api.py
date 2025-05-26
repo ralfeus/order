@@ -2,7 +2,7 @@
 from datetime import datetime
 import pandas as pd
 
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 from sqlalchemy import or_
 
 from app import db
@@ -12,6 +12,7 @@ from ..models.dhl_rate import DHLRate
 from .. import bp_api_admin
 
 @bp_api_admin.route("rate")
+@login_required
 @roles_required('admin')
 def admin_get_rates():
     '''Returns list of rates in JSON'''
@@ -24,7 +25,8 @@ def admin_get_rates():
 
 # @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['post'])
 # @bp_api_admin.route('<shipping_id>/rate', methods=['post'], defaults={'destination': None})
-# @roles_required('admin')
+# @login_required
+@roles_required('admin')
 # def admin_save_rate(shipping_id, destination):
 #     '''Update selected rate'''
 #     payload = request.get_json()
@@ -68,7 +70,8 @@ def admin_get_rates():
 #         return {'error': str(ex)}, 500
 
 # @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['delete'])
-# @roles_required('admin')
+# @login_required
+@roles_required('admin')
 # def admin_delete_rate(shipping_id, destination):
 #     '''Delete selected rate'''
 #     shipping = WeightBased.query.get(shipping_id)

@@ -1,6 +1,7 @@
 '''API routes for warehouse module'''
+from typing import Any
 from flask import Response, abort, current_app, jsonify, request
-from flask_security import current_user, roles_required
+from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.tools import modify_object, prepare_datatables_query
@@ -11,18 +12,20 @@ from app.modules.warehouse.validators.warehouse import WarehouseValidator
 from app.modules.warehouse.validators.warehouse_product import WarehouseProductValidator
 
 @bp_api_admin.route('/<warehouse_id>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def admin_delete_warehouses(warehouse_id):
     ''' Deletes a warehouses '''
     warehouse = Warehouse.query.get(warehouse_id)
     if not warehouse:
         abort(Response(f'No warehouse {warehouse_id} was found', status=404))
-    db.session.delete(warehouse)
-    db.session.commit()
+    db.session.delete(warehouse) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({})
 
 @bp_api_admin.route('', defaults={'warehouse_id': None})
 @bp_api_admin.route('/<warehouse_id>')
+@login_required
 @roles_required('admin')
 def admin_get_warehouses(warehouse_id):
     ''' Returns all or selected warehouses in JSON '''
@@ -39,13 +42,14 @@ def admin_get_warehouses(warehouse_id):
 
 @bp_api_admin.route('', defaults={'warehouse_id': None}, methods=['POST'])
 @bp_api_admin.route('/<warehouse_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_warehouse(warehouse_id):
     '''Modify the warehouse'''
     logger = current_app.logger.getChild('admin_save_warehouse')
     if warehouse_id is None:
         warehouse = Warehouse()
-        db.session.add(warehouse)
+        db.session.add(warehouse) #type: ignore
     else:
         warehouse = Warehouse.query.get(warehouse_id)
         if not warehouse:
@@ -58,11 +62,11 @@ def admin_save_warehouse(warehouse_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     logger.info('Modifying warehouse %s by %s with data: %s',
                 warehouse_id, current_user, payload)
     modify_object(warehouse, payload, ['name', 'is_local'])
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [warehouse.to_dict()]})
 
 def _filter_objects(entities, filter_params):
@@ -78,6 +82,7 @@ def _filter_objects(entities, filter_params):
 
 @bp_api_admin.route('/<warehouse_id>/product', defaults={'product_id': None})
 @bp_api_admin.route('/<warehouse_id>/product/<product_id>')
+@login_required
 @roles_required('admin')
 def admin_get_warehouse_products(warehouse_id, product_id):
     ''' Returns all or selected products in a warehouse in JSON '''
@@ -93,6 +98,7 @@ def admin_get_warehouse_products(warehouse_id, product_id):
 
 @bp_api_admin.route('/<warehouse_id>/product', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<warehouse_id>/product/<product_id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_warehouse_product(warehouse_id, product_id):
     '''Creates or saves existing warehouse product'''
@@ -112,20 +118,21 @@ def admin_save_warehouse_product(warehouse_id, product_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             })
-    payload = request.get_json()
+    payload: dict[str, Any] = request.get_json() #type: ignore
     if product_id is None:
         product = WarehouseProduct(warehouse_id=warehouse_id, product_id=payload['product_id'])
-        db.session.add(product)
+        db.session.add(product) #type: ignore
     else:
         product = WarehouseProduct.query.filter_by(
             warehouse_id=warehouse_id, product_id=product_id).first()
     logger.info('Modifying product %s in warehouse %s by %s with data: %s',
                 product_id, warehouse_id, current_user, payload)
     modify_object(product, payload, ['quantity'])
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [product.to_dict()]})
     
 @bp_api_admin.route('/<warehouse_id>/product/<product_ids>', methods=['DELETE'])
+@login_required
 @roles_required('admin')
 def admin_delete_warehouse_product(warehouse_id, product_ids):
     ''' Deletes a warehouses '''
@@ -138,6 +145,6 @@ def admin_delete_warehouse_product(warehouse_id, product_ids):
         if product is None:
             abort(Response(f'No product {product_id} in warehouse {warehouse_id} was found',
                 status=404))
-        db.session.delete(product)
-    db.session.commit()
+        db.session.delete(product) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({})

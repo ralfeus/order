@@ -172,6 +172,7 @@ def user_get_node_stats(node_id):
     return jsonify(node)
 
 @bp_api_admin.route('/permission')
+@login_required
 @roles_required('admin')
 def admin_get_nodes_permissions():
     nodes = PVStat.query
@@ -181,6 +182,7 @@ def admin_get_nodes_permissions():
     return jsonify({'data': [node.to_dict() for node in nodes]})
 
 @bp_api_admin.route('/permission/<id>', methods=['POST'])
+@login_required
 @roles_required('admin')
 def admin_save_node_permission(id):
     node = PVStat.query.get(id)

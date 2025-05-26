@@ -4,12 +4,13 @@ import logging
 import requests
 
 from flask import abort, current_app, jsonify, request
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from app.network import bp_api_admin
 from app.tools import convert_datatables_args
 
 @bp_api_admin.route('/builder/<action>')
+@login_required
 @roles_required('admin')
 def get_network_builder_status(action):
     valid_actions = {'start', 'stop', 'status'}
@@ -27,6 +28,7 @@ def get_network_builder_status(action):
     return jsonify(data)
 
 @bp_api_admin.route('')
+@login_required
 @roles_required('admin')
 def admin_get_nodes():
     '''Returns filtered nodes in JSON'''

@@ -1,6 +1,6 @@
 ''' Notifications client routes '''
 from flask import render_template, send_file
-from flask_security.decorators import roles_required
+from flask_security.decorators import login_required, roles_required
 
 from .. import bp_client_admin, bp_client_user
 
@@ -10,6 +10,7 @@ def get_static(file):
     return send_file(f"notifications/static/{file}")
 
 @bp_client_admin.route('/')
+@login_required
 @roles_required('admin')
 def get_notifications():
     return render_template('admin_notifications.html')

@@ -9,7 +9,7 @@ import openpyxl
 
 from flask import abort, current_app, jsonify, request
 from flask.wrappers import Response
-from flask_security import roles_required
+from flask_security import login_required, roles_required
 
 from sqlalchemy import or_
 
@@ -47,8 +47,8 @@ def create_invoice(usd_rate):
     for order in orders:
         order.invoice = invoice
 
-    db.session.add(invoice)
-    db.session.add_all(
+    db.session.add(invoice) #type: ignore
+    db.session.add_all( #type: ignore
         [
             InvoiceItem(
                 invoice=invoice,
@@ -59,7 +59,7 @@ def create_invoice(usd_rate):
             for op in cumulative_order_products.items()
         ]
     )
-    db.session.add(
+    db.session.add( #type: ignore
         InvoiceItem(
             invoice=invoice,
             product_id="SHIPPING",
@@ -69,7 +69,7 @@ def create_invoice(usd_rate):
             quantity=1,
         )
     )
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({"status": "success", "invoice_id": invoice.id})
 
 
@@ -166,7 +166,7 @@ def get_templates():
 
 def create_invoice_excel(reference_invoice: Invoice, template: str):
     def render_cell(cell, template, vars):
-        if isinstance(cell, openpyxl.cell.cell.MergedCell):
+        if isinstance(cell, openpyxl.cell.cell.MergedCell): #type: ignore
             return
         params = re.findall("(?<={{).+?(?=}})", str(template))
         for param in params:
@@ -255,7 +255,7 @@ def save_invoice(invoice_id):
     if not payload:
         abort(Response("No invoice data was provided", status=400))
     modify_object(invoice, payload, ["customer", "export_id", "payee"])
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({"data": [invoice.to_dict()]})
 
 
@@ -272,7 +272,7 @@ def get_invoice_excel(invoice_id):
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
 
     file = create_invoice_excel(
-        reference_invoice=invoice, template=request.args.get("template")
+        reference_invoice=invoice, template=request.args.get("template") #type: ignore
     )
     return current_app.response_class(
         stream_and_close(file),
@@ -301,7 +301,7 @@ def get_invoice_cumulative_excel():
         cumulative_invoice.orders += invoice.orders
 
     file = create_invoice_excel(
-        reference_invoice=cumulative_invoice, template=request.args.get("template")
+        reference_invoice=cumulative_invoice, template=request.args.get("template") #type: ignore
     )
     return current_app.response_class(
         stream_and_close(file),
@@ -336,8 +336,8 @@ def save_invoice_item(invoice_id, invoice_item_id):
 
     modify_object(invoice_item, payload, ["product_id", "price", "quantity"])
     if invoice_item_id == "new":
-        db.session.add(invoice_item)
-    db.session.commit()
+        db.session.add(invoice_item) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify(invoice_item.to_dict())
 
 
@@ -353,6 +353,6 @@ def delete_invoice_item(invoice_id, invoice_item_id):
     invoice_item = invoice.get_invoice_items().filter_by(id=invoice_item_id).first()
     if not invoice_item:
         abort(Response(f"No invoice item<{invoice_item_id}> was found", status=404))
-    db.session.delete(invoice_item)
-    db.session.commit()
+    db.session.delete(invoice_item) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({"status": "success"})
