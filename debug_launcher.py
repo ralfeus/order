@@ -24,16 +24,16 @@ def build_network():
     # get_atomy_products()
 
 def post_po():
-    # from flask import current_app
-    # current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
-    po_id = "PO-2025-05-0298-009"
+    from flask import current_app
+    current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
+    po_id = "PO-2025-05-0013-001"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
     po.customer.username = '23426444'
     po.customer.password = 'atomy#01'    
-    po.purchase_date = datetime.now()
+    #po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
     db.session.rollback()
