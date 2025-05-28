@@ -79,7 +79,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "jisaCode": "01",
                 "saleDate": "20250521",
                 "buPlace": None, # set in `__set_bu_place`
-                "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                "ordererNm": None, # set in `__set_receiver_address`
                 "cellNo": "01050062045",
                 "email": "", # Not provided
                 "deliMethodCd": "3",
@@ -110,7 +110,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     "totPayAmt": 50400,
                     "payTaxAmt": 50400,
                     "bankCd": "04",
-                    "morcNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                    "morcNm": None, # set in `__set_payment_params`
                     "expiry": "20250522230000",
                     "expiryDtime": "20250522230000",
                     "rcvCellNo": "01050062045",
@@ -122,7 +122,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         "data": {
                             "bankCd": "06",
                             "dispGoodsNm": "Finezyme",
-                            "ordererNm": "ОРЛОВА ЕКАТЕРИНА ВИКТОРОВНА",
+                            "ordererNm": None, # set in `__set_payment_params`
                             "expiry": "20250522235959",
                             "cashReceiptType": "PROOF",
                             "registrationNumber": "4181411817",
@@ -148,30 +148,27 @@ class AtomyQuick(PurchaseOrderVendorBase):
             ],
             "dlvpList": [
                 {
-                    "mode": "INS",
-                    "dlvpNm": "Test recipient",
-                    "cellNo": None,  # set in `__set_receiver_mobile`
-                    "telNo": "",
-                    "postNo": None,  # set in `__set_receiver_address`
-                    "baseAddr": None,  # set in `__set_receiver_address`
-                    "dtlAddr": None,  # set in `__set_receiver_address`
-                    "state": "", # not provided
-                    "city": "", # not provided
+                    "count": 0,
+                    "deliFormCd": "10",
+                    "mbrDlvpSeq": "0000001",
+                    "dlvpDiviCd": "10",
                     "baseYn": "Y",
-                    "favoritesYn": "N",
+                    "dlvpNm": None, # set in `__set_receiver_address`
                     "recvrPostNo": None,  # set in `__set_receiver_address`
                     "recvrBaseAddr": None,  # set in `__set_receiver_address`
                     "recvrDtlAddr": None,  # set in `__set_receiver_address`
-                    "deliFormCd": "10",
+                    "cellNo": None,  # set in `__set_receiver_mobile`
+                    "publicPlace": False,
+                    "express": False,
                     "seq": 0,
                     "dlvpNo": "1",
-                    "recvrNm": "Test recipient",
+                    "recvrNm": None,  # set in `__set_receiver_address`
                     "buPlace": "",
                     "deliTypeCd": "3",
                     "packingMemo": None, # set in `__set_local_shipment`
                     "deliCostTaxRate": 0,
                     "weekDeliveryPossYn": "N",
-                    "saleAmtDispYn": "Y"
+                    "saleAmtDispYn": "Y",
                 }
             ],
             "goodsList": [],
@@ -589,7 +586,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_order_id(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split("-")
         return (
-            order_id_parts[2][1:] + "ㅡ" + order_id_parts[1] + "ㅡ" + order_id_parts[0]
+            order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
         )
 
     def __set_receiver_mobile(self, phone="     "):
@@ -603,9 +600,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__mst['ordererNm'] = order_id
         address_dict = {
             'dlvpNm': order_id,
-            'postNo': address.zip,
-            'baseAddr': address.address_1,
-            'dtlAddr': address.address_2,
             'recvrPostNo': address.zip,
             'recvrBaseAddr': address.address_1,
             'recvrDtlAddr': address.address_2,
