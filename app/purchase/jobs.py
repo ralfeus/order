@@ -74,6 +74,8 @@ def post_purchase_orders(po_id=None):
                             '\n'.join([f"{id}: {reason}"
                                 for id, reason in failed_products.items()])
                     else:
+                        raise PurchaseOrderError(po, vendor, 
+                            "No products were posted.")
                         po.set_status(PurchaseOrderStatus.failed)
                         po.when_changed = datetime.now()
                         logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
@@ -84,7 +86,7 @@ def post_purchase_orders(po_id=None):
                     po.set_status(PurchaseOrderStatus.failed)
                     po.status_details = str(ex)
                     po.when_changed = datetime.now()
-                db.session.commit()
+                db.session.commit() #type: ignore
         logger.info('Done posting purchase orders')
     except Exception as ex:
         for po in pending_purchase_orders:

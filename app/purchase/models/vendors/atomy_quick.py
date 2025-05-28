@@ -270,10 +270,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             self.__login(purchase_order)
             self.__init_quick_order()
+            self.__set_bu_place()
             ordered_products, unavailable_products = self.__add_products(
                 purchase_order.order_products
             )
-            self.__set_bu_place()
             self.__set_purchase_date(purchase_order.purchase_date)
             self.__set_receiver_mobile(purchase_order.contact_phone)
             self.__set_receiver_address(
@@ -534,7 +534,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.info("buPlace is set to %s", bu_code_definition.group(1))
             self.__po_params['mst']['buPlace'] = bu_code_definition.group(1)  
         else:
-            raise PurchaseOrderError(self.__purchase_order, message="Couldn't get buCode from Atomy server")
+            try:
+                message = json.loads(document)['errorMessage'] #type: ignore
+            except:
+                message = "Couldn't get buPlace from Atomy server."
+            raise PurchaseOrderError(self.__purchase_order, message=message)
 
     def __set_purchase_date(self, purchase_date):
         logger = self._logger.getChild("__set_purchase_date")
