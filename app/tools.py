@@ -12,6 +12,7 @@ import os.path
 import re
 from typing import T, Any, Callable # type: ignore
 import lxml
+from lxml import etree
 from time import sleep
 from werkzeug.datastructures import MultiDict
 
@@ -227,10 +228,10 @@ def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str=''
 
 def get_html(url, raw_data: str='', headers: list=[], method='GET', retry=True, 
              get_data: Callable=invoke_curl, ignore_ssl_check=False
-             ) -> lxml.etree.Element:
+             ) -> etree.Element: #type: ignore
     stdout, stderr = get_data(url, raw_data, headers)
     if re.search('HTTP.*? 200', stderr) and len(stdout) > 0:
-        doc = lxml.etree.fromstring(stdout, parser=lxml.etree.HTMLParser()) #type: ignore
+        doc = etree.fromstring(stdout, parser=etree.HTMLParser()) #type: ignore
         return doc
 
     raise HTTPError(f"Couldn't get page {url}: {stderr}")

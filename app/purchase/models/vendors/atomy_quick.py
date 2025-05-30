@@ -539,7 +539,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __get_bu_place_from_network(self) -> str:
 
         result = get_json(
-            url=f"{URL_NETWORK_MANAGER}/api/v1/node/{self.__purchase_order.customer.username}")
+            url=f"{URL_NETWORK_MANAGER}/api/v1/node/{self.__purchase_order.customer.username}",
+            get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: 
+                invoke_curl(url, raw_data, headers, method, False, retries, ignore_ssl_check),)
         return result['center_code']
         
     def __get_bu_place_from_page(self) -> str:

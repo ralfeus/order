@@ -31,9 +31,11 @@ def post_po():
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    po.customer.username = '35744761'
-    po.customer.password = 'bs0105'    
-    #po.purchase_date = datetime.now()
+    po.customer.username = '23426444'
+    po.customer.password = 'atomy#01'     
+    # po.customer.username = '35744761'
+    # po.customer.password = 'bs0105'    
+    po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
     db.session.rollback()
