@@ -55,7 +55,7 @@
                 "5001"
             ],
             "jinja": true,
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }

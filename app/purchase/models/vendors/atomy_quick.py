@@ -29,6 +29,7 @@ from app.purchase.models import PurchaseOrderStatus
 from . import PurchaseOrderVendorBase
 
 URL_BASE = "https://kr.atomy.com"
+URL_NETWORK_MANAGER = 'http://localhost:5001'
 URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_FOREIGN_ACCOUNT = "해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
@@ -523,23 +524,45 @@ class AtomyQuick(PurchaseOrderVendorBase):
     
     def __set_bu_place(self):
         logger = self._logger.getChild("__set_bu_place")
+        try:
+            bu_place = self.__get_bu_place_from_page()
+        except Exception as ex:
+            logger.warning("Couldn't get buPlace from the page: %s", ex.args)
+            logger.warning("Trying to get buPlace from the network manager")
+            try:
+                bu_place = self.__get_bu_place_from_network()
+            except:
+                raise PurchaseOrderError(self.__purchase_order, message=ex.args)
+        self.__po_params['mst']['buPlace'] = bu_place 
+
+        
+    def __get_bu_place_from_network(self) -> str:
+
+        result = get_json(
+            url=f"{URL_NETWORK_MANAGER}/api/v1/node/{self.__purchase_order.customer.username}")
+        return result['center_code']
+        
+    def __get_bu_place_from_page(self) -> str:
+        """Gets buPlace from the page. If not found, returns None"""
+
+        logger = self._logger.getChild("__get_bu_place_from_page")
         document, _ = invoke_curl(
             url=f"{URL_BASE}/order/sheet",
             headers=self.__get_session_headers() + [
                 {"referer": f"{URL_BASE}/order/sheet"}],
+            retries=0
         )
         bu_code_definition = re.search(r'buPlace.*?:.*?"(.*?)\\"', document) or \
             re.search(r'buCode.*?:.*?"(.*?)\\"', document)
         if bu_code_definition:
-            logger.info("buPlace is set to %s", bu_code_definition.group(1))
-            self.__po_params['mst']['buPlace'] = bu_code_definition.group(1)  
-        else:
-            try:
-                message = json.loads(document)['errorMessage'] #type: ignore
-            except:
-                message = "Couldn't get buPlace from Atomy server."
-            raise PurchaseOrderError(self.__purchase_order, message=message)
-
+            logger.debug("buPlace is to %s", bu_code_definition.group(1))
+            return bu_code_definition.group(1)
+        try:
+            message = json.loads(document)['errorMessage'] #type: ignore
+        except:
+            message = "Couldn't get buPlace from Atomy server."
+        raise Exception(message)
+        
     def __set_purchase_date(self, purchase_date):
         logger = self._logger.getChild("__set_purchase_date")
         if purchase_date and self.__is_purchase_date_valid(purchase_date):

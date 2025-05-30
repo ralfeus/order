@@ -13,8 +13,10 @@ Jinja2==3.0.3
 lxml
 more_itertools
 mysqlclient==2.2.4
+neomodel
 openpyxl==3.0.10
 pandas
+psutil
 pytz
 requests
 SQLAlchemy==1.3.20

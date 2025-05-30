@@ -1,5 +1,6 @@
 '''Network manager'''
 from datetime import date, timedelta
+import json
 import logging
 from multiprocessing import Process, active_children
 from multiprocessing.pool import ThreadPool
@@ -117,11 +118,20 @@ def get_nodes(node_id):
         pass # No JSON body is mandatory
     logger.info(body)
     if node_id is not None:
-        query = 'MATCH (n {atomy_id: $atomy_id}) RETURN n'
-        node = AtomyPerson.nodes.get_or_none(atomy_id=node_id)
-        if node is None:
-            abort(404)
-        return jsonify(node)
+        query = '''
+            MATCH (n:AtomyPerson {atomy_id: $atomy_id}) 
+            OPTIONAL MATCH (c:Center {name: n.center}) 
+            RETURN n, c.code
+        '''
+        result = db.cypher_query(query, params={'atomy_id': node_id})
+        if len(result[0]) == 0:
+            abort(Response(
+                json.dumps({'description': f"Node with ID {node_id} not found", 'status': 404}), 
+                status=404, content_type='application/json'))
+        node = AtomyPerson.inflate(result[0][0][0], lazy=False)
+        response = node.to_dict()
+        response['center_code'] = result[0][0][1]
+        return jsonify(response)
 
     request_params = body
     paging = {'start': '', 'limit': 'LIMIT 100'}
