@@ -533,6 +533,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 bu_place = self.__get_bu_place_from_network()
             except:
                 raise PurchaseOrderError(self.__purchase_order, message=ex.args)
+        logger.debug("buPlace is %s", bu_place)
         self.__po_params['mst']['buPlace'] = bu_place 
 
         
@@ -557,7 +558,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         bu_code_definition = re.search(r'buPlace.*?:.*?"(.*?)\\"', document) or \
             re.search(r'buCode.*?:.*?"(.*?)\\"', document)
         if bu_code_definition:
-            logger.debug("buPlace is to %s", bu_code_definition.group(1))
             return bu_code_definition.group(1)
         try:
             message = json.loads(document)['errorMessage'] #type: ignore
