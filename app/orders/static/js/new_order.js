@@ -43,7 +43,44 @@ var subtotal_krw = 0;
 var subcustomerTemplate;
 var itemTemplate;
 
-//const fmtKRW = new Intl.NumberFormat('KR-kr', {style: 'currency', currency: 'KRW'});
+document.addEventListener('DOMContentLoaded', function() {
+    function adjustTableForMobile() {
+        const width = window.innerWidth;
+        const table = document.querySelector('#userItems0 table');
+        
+        if (table) {
+            if (width <= 992) {
+                table.classList.add('table-responsive-custom');
+            } else {
+                table.classList.remove('table-responsive-custom');
+            }
+        }
+    }
+
+    function toggleStickyHeader() {
+        const header = document.querySelector('.main-header');
+        if (!header) return;
+
+        const headerHeight = header.offsetHeight;
+        const screenHeight = window.innerHeight;
+
+        if (headerHeight <= screenHeight / 2) {
+            header.classList.add('is-sticky');
+        } else {
+            header.classList.remove('is-sticky');
+        }
+    }
+    
+    // Initial adjustments
+    adjustTableForMobile();
+    toggleStickyHeader();
+    
+    // Adjust on resize
+    window.addEventListener('resize', function() {
+        adjustTableForMobile();
+        toggleStickyHeader();
+    });
+});
 
 $(document).ready(function() {
     itemTemplate = $('#userItems0_0')[0].outerHTML;
@@ -532,6 +569,7 @@ function submit_changes(_sender, draft=false) {
             create_po: $('#create-po')[0] && $('#create-po')[0].checked,
             suborders: $('div.subcustomer-card').toArray().map(user => ({
                 subcustomer: $('.subcustomer-identity', user).val(),
+                subcustomer_center_code: $('.subcustomer-center-code', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
                 seq_num: $('.subcustomer-seq-num', user).val(),
                 items: $('.item', user).toArray().map(item => ({
@@ -798,5 +836,37 @@ function validate_subcustomer(sender) {
             }
         },
         complete: () => $(sender).next().hide()
-    })
+    });
+    /// Try to get center code for subcustomer
+    getCenterCode(sender);
+}
+
+function getCenterCode(identity) {
+    const centerCodeInput = $('.subcustomer-center-code', $(identity).closest('.subcustomer-card'));
+    centerCodeInput
+        .val('')
+        .prop('disabled', false)
+        .removeClass('is-valid')
+        .removeClass('is-invalid')
+        .next().show();
+    $.ajax({
+        url: `/api/v1/order/subcustomer/center_code`,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({subcustomer: identity.value}),
+        success: data => {
+            if (data && data.center_code) {
+                centerCodeInput
+                    .val(data.center_code)
+                    .prop('disabled', true)
+                    .addClass('is-valid');
+            } else {
+                centerCodeInput.addClass('is-invalid');
+            }
+        },
+        complete: () => {
+            centerCodeInput.next().hide();
+        }
+    });
 }

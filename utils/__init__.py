@@ -78,7 +78,8 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
              socks5_proxy=''
              ):
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
-        headers=headers, retries=retries, 
+        headers=headers + [{'Content-Type': 'application/json'}], 
+        retries=retries, 
         ignore_ssl_check=ignore_ssl_check, socks5_proxy=socks5_proxy)
     try:
         return json.loads(stdout)
