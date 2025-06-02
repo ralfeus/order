@@ -525,7 +525,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_bu_place(self):
         logger = self._logger.getChild("__set_bu_place")
         try:
-            bu_place = self.__get_bu_place_from_page()
+            if self.__purchase_order.customer.center_code:
+                logger.debug("Using buPlace from the customer center code")
+                bu_place = self.__purchase_order.customer.center_code
+            else:
+                logger.debug("Trying to get buPlace from the page")
+                bu_place = self.__get_bu_place_from_page()
         except Exception as ex:
             logger.warning("Couldn't get buPlace from the page: %s", ex.args)
             logger.warning("Trying to get buPlace from the network manager")

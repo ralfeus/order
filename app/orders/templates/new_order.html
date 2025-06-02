@@ -11,47 +11,6 @@
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
 </script>
-<script>
-    // Add responsive handling for mobile
-    document.addEventListener('DOMContentLoaded', function() {
-        function adjustTableForMobile() {
-            const width = window.innerWidth;
-            const table = document.querySelector('#userItems0 table');
-            
-            if (table) {
-                if (width <= 992) {
-                    table.classList.add('table-responsive-custom');
-                } else {
-                    table.classList.remove('table-responsive-custom');
-                }
-            }
-        }
-
-        function toggleStickyHeader() {
-            const header = document.querySelector('.main-header');
-            if (!header) return;
-
-            const headerHeight = header.offsetHeight;
-            const screenHeight = window.innerHeight;
-
-            if (headerHeight <= screenHeight / 2) {
-                header.classList.add('is-sticky');
-            } else {
-                header.classList.remove('is-sticky');
-            }
-        }
-        
-        // Initial adjustments
-        adjustTableForMobile();
-        toggleStickyHeader();
-        
-        // Adjust on resize
-        window.addEventListener('resize', function() {
-            adjustTableForMobile();
-            toggleStickyHeader();
-        });
-    });
-</script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
 <script src="https://unpkg.com/xlsx@0.16.5/dist/xlsx.full.min.js"></script>
@@ -167,7 +126,7 @@
     <div class="container-fluid">
         <div class="card card-header">
             <div class="row input-group mobile-stack">
-                <div class="col-md-9 col-12">            
+                <div class="col-md-8 col-12">            
                     <input class="btn btn-secondary mr-2 mb-2" type="button" value="Clear form" onclick="clear_form()" />
                     <input class="btn btn-secondary mb-2" type="button" id="save_draft" value="Save draft" />
                 </div>    
@@ -187,19 +146,28 @@
     <div id="accordion" class="container-fluid">
         <div class="card subcustomer-card">
             <div class="input-group card-header mobile-stack" id="userItemsHeader0">
-                <div class="is-loading col-md-9 col-12 px-0 mb-2">
-                    <input class="form-control subcustomer-identity w-100" 
-                        placeholder="Number, name, password" 
+                <!-- <div class="is-loading col-md-5 px-0 mb-2"> -->
+                <div class="is-loading flex-grow-1">
+                    <input class="form-control subcustomer-identity w-100"
+                        placeholder="Number, name, password"
                         onchange="validate_subcustomer(this)"/>
                     <div class="spinner-border spinner-border-sm" style="display: none;"></div>
                 </div>
-                <div class="col-md-2 col-8 px-0 mb-2">
+                <!-- <div class="is-loading col-md-2 px-0 mb-2"> -->
+                <div class="is-loading center-code">
+                    <input class="form-control subcustomer-center-code w-100"
+                        placeholder="Center" />
+                    <div class="spinner-border spinner-border-sm" style="display: none;"></div>
+                </div>
+                <!-- <div class="col-md-4 px-0 mb-2"> -->
+                <div class="">
                     <input class="form-control subcustomer-buyout-date w-100" type="text" placeholder="Purchase date" />
                 </div>
                 <input class="subcustomer-seq-num" type="hidden" />
-                <div class="col-md-1 col-4 px-0 mb-2 d-flex">
-                    <button class="btn btn-primary mr-1" type="button" 
-                        data-toggle="collapse" data-target="#userItems0" aria-expanded="true" 
+                <!-- <div class="col-md-1 col-4 px-0 mb-2 d-flex"> -->
+                <div class="">
+                    <button class="btn btn-primary mr-1" type="button"
+                        data-toggle="collapse" data-target="#userItems0" aria-expanded="true"
                         aria-controls="userItems0">Toggle</button>
                     <input type="button" class="btn btn-primary btn-delete" value="-" onclick="delete_subcustomer(this)"/>
                 </div>

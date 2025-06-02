@@ -304,6 +304,8 @@ def add_suborders(order, suborders, errors):
 def _add_suborder(order, suborder_data, errors):
     try:
         subcustomer, is_new = parse_subcustomer(suborder_data['subcustomer'])
+        if suborder_data.get('subcustomer_center_code'):
+            subcustomer.center_code = suborder_data['subcustomer_center_code']
         if is_new:
             db.session.add(subcustomer)
         if len(suborder_data['items']) == 1 and suborder_data['items'][0]['item_code'] == '':
@@ -450,6 +452,8 @@ def _update_suborder(order, order_products, suborder_data, errors):
             db.session.flush()
         else:
             subcustomer, _state = parse_subcustomer(suborder_data['subcustomer'])
+            if suborder_data.get('subcustomer_center_code'):
+                subcustomer.center_code = suborder_data['subcustomer_center_code']
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None
             suborder.subcustomer = subcustomer

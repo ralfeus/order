@@ -1,5 +1,7 @@
 /* Responsive styles */
-
+#accordion [id^='userItems'] .center-code {
+    flex: 0 0 12ch;
+}
 #accordion [id^='userItems'] .table > tbody > tr.item > td.item-name,
 #accordion [id^='userItems'] .table > tbody > tr.item > td.cost-krw,
 #accordion [id^='userItems'] .table > tbody > tr.item > td.total-krw {
@@ -37,6 +39,10 @@
     .table-responsive-custom th,
     .table-responsive-custom td {
         white-space: nowrap;
+    }
+
+    #accordion [id^='userItems'] .center-code {
+        flex: 1 0 auto;
     }
 
     /* Item table layout styles for 992px and below */

@@ -10,10 +10,11 @@ class Subcustomer(db.Model, BaseModel):
     ''' Subcustomer '''
     __tablename__ = 'subcustomers'
 
-    name:str = Column(String(128))
-    username: str = Column(String(16))
-    password: str = Column(String(32))
-    in_network: bool = Column(Boolean())
+    name = Column(String(128))
+    username = Column(String(16))
+    password = Column(String(32))
+    in_network = Column(Boolean())
+    center_code = Column(String(8))
     # suborders = relationship("Suborder", lazy='dynamic')
 
     def __repr__(self):
@@ -61,6 +62,7 @@ class Subcustomer(db.Model, BaseModel):
             'name': self.name,
             'username': self.username,
             'password': self.password,
+            'center_code': self.center_code,
             'in_network': self.in_network,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,

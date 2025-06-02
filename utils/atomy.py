@@ -1,15 +1,17 @@
 import json
 import logging
 import re
-import threading
 from time import sleep
 from typing import Any
-from urllib.parse import urlencode
 
 from flask import current_app
 
-from . import invoke_curl
+from . import invoke_curl, get_json
 from exceptions import AtomyLoginError, HTTPError
+
+URL_BASE = 'https://kr.atomy.com'
+URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
+URL_NETWORK_MANAGER = 'http://localhot:5001'
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -17,62 +19,6 @@ try:
     logger = current_app.logger
 except:
     pass
-
-class SessionManager:
-    __instance = None
-
-    @classmethod
-    def create_instance(cls, username, password):
-        cls.__instance = SessionManager(username, password)
-
-    @classmethod
-    def get_instance(cls):
-        return cls.__instance
-
-    def __init__(self, username, password):
-        self.__username = username
-        self.__password = password
-        self.__create_session()
-
-    def __create_session(self):
-        with threading.Lock():
-            self.__session = atomy_login(
-                username=self.__username, password=self.__password, run_browser=False)
-
-def _atomy_login_curl(username, password) -> list[str]:
-    '''    Logins to Atomy customer section    
-    Returns list of session cookies
-    '''
-    if len(username) < 8:
-        username = 'S' + username
-    stdout, stderr = invoke_curl(
-        url='https://www.atomy.kr/v2/Home/Account/Login',
-        raw_data=urlencode({
-            'userId': username,
-            'userPw': password,
-            'orderNum': '',
-            'userName': '',
-            'idSave': 'on',
-            'rpage': '',
-            'loadPage': ''
-        })
-    )
-    if re.search('< location: /[vV]2', stderr) or \
-       re.search('btnChangePassword', stdout):
-        return re.findall('set-cookie: (.*)', stderr)
-    elif re.search("var isLoginFail = \\'True\\';", stdout):
-        message = re.search(r"isLoginFail ==.*\n.*?alert\('(.*?)'", stdout, re.MULTILINE).groups()[0]
-        raise AtomyLoginError(username=username, message=message)
-    elif re.search("HTTP.*503", stderr):
-        message = "Vendor's server is temporary unavailable. Please try again later"
-        raise AtomyLoginError(username=username, message=message)
-
-    raise HTTPError((stdout, stderr))
-
-def atomy_login(username, password, browser=None, run_browser=False) -> list[str]:
-    if not run_browser:
-        return try_perform(lambda: _atomy_login_curl(username, password))
-    raise NotImplementedError("Browser login is not implemented")
 
 #TODO: remove and replace with app.tools.try_perform
 def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) -> Any:
@@ -90,8 +36,6 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) ->
     if last_exception:
         raise last_exception
 
-URL_BASE = 'https://kr.atomy.com'
-URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
 def atomy_login2(username, password, socks5_proxy="") -> str:
     '''Logs in to Atomy using new authentication interface
     :param username: user name
@@ -118,5 +62,49 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
         raise AtomyLoginError(username, result.get('message'))
     
     logger.info(f"Logged in successfully as {username}")
-    jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1)
+    jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1) # type: ignore
     return jwt
+
+def get_bu_place_from_network(username) -> str:
+    result = get_json(
+        url=f"{URL_NETWORK_MANAGER}/api/v1/node/{username}",
+        get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: 
+            invoke_curl(url, raw_data, headers, method, False, retries, ignore_ssl_check),)
+    return result['center_code']
+    
+def get_bu_place_from_page(username, password) -> str:
+    """Gets buPlace from the page. If not found, raises an exception.
+
+    :param str username: Atomy user name
+    :param str password: Atomy user password
+    :returns str: buPlace code
+    :raises AtomyLoginError: if login fails
+    :raises Exception: if buPlace is not found in the page"""
+
+    logger = logging.getLogger("get_bu_place_from_page")
+    jwt = atomy_login2(username, password)
+    logger.debug("Logged in successfully as %s", username)
+    cart = get_json(
+        url=f"{URL_BASE}/cart/registCart/30",
+        headers=[
+            {"Cookie": jwt}],
+        raw_data="[]",
+    )
+    document, _ = invoke_curl(
+        url=f"{URL_BASE}/order/sheet",
+        headers=[
+            {"Cookie": jwt},
+            {"referer": f"{URL_BASE}/order/sheet"}],
+        retries=0
+    )
+    bu_code_definition = re.search(r'buPlace.*?:.*?"(.*?)\\"', document) or \
+        re.search(r'buCode.*?:.*?"(.*?)\\"', document)
+    if bu_code_definition:
+        return bu_code_definition.group(1)
+    logger.info("Couldn't find buPlace in the page for user %s", username)
+    try:
+        message = json.loads(document)['errorMessage'] #type: ignore
+    except:
+        message = "Couldn't get buPlace from Atomy server."
+    raise Exception(message)
+    
