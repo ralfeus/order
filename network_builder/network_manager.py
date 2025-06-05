@@ -68,7 +68,7 @@ def start_builder():
     try:
         cwd = getcwd()
         params = [sys.executable, PROCESS_NAME, 
-                    '--threads', threads, '--user', 'S5832131',
+                    '--max-threads', threads, '--user', 'S5832131',
                     '--password', "mkk03020529!!", '--root', 'S5832131',
                     '--nodes', request.args.get('nodes') or '0',
                     '--last-updated', last_updated.strftime('%Y-%m-%d'),

@@ -1,6 +1,6 @@
 FROM python:3.13-alpine
 # RUN apt update
-RUN apk add --no-cache geos geos-dev gcc musl-dev linux-headers
+RUN apk add --no-cache geos geos-dev gcc musl-dev linux-headers curl
 RUN pip install setuptools
 RUN pip install werkzeug==2.0.3
 RUN pip install flask==2.1.2
