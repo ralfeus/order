@@ -99,10 +99,15 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
         traversing_nodes_list = []
         traversing_nodes_set = set()
         with open(roots_file) as file:
-            for root in file:
-                node = _init_network(root.strip(), last_updated or datetime.today())[0]
-                print(node)
-                traversing_nodes_list.append((node[0], (node[1], node[2])))
+            for node in tqdm(file):
+                #node = _init_network(root.strip(), last_updated or datetime.today())
+                #if len(node) > 0:
+                #    node = node[0]
+                #else:
+                #    continue
+                #print(node)
+                id, username, password = node.split('\t')
+                traversing_nodes_list.append((id, (username, password)))
     else:
         traversing_nodes_list = [(node[0], (node[1], node[2])) 
                              for node in sorted(
