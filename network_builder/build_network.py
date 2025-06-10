@@ -113,14 +113,14 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
                              for node in sorted(
                                  _init_network(root_id, last_updated or datetime.today()),
                                  key=lambda i: i[0].replace('S', '0'))]
+    global threads
     traversing_nodes_set = {node[0] for node in traversing_nodes_list}
     stop_state_server = False
     server_thread = _start_state_server(
-        lambda: stop_state_server, lambda: (traversing_nodes_set, updated_nodes))
+        lambda: stop_state_server, lambda: (traversing_nodes_set, updated_nodes, threads))
     # logger.debug(traversing_nodes_list)
     c = 0
     pbar = tqdm(traversing_nodes_list)
-    global threads
     while nodes == 0 or updated_nodes < nodes:
         if nodes > 0:
             logger.info("%s of %s nodes are updated", updated_nodes, nodes)
@@ -662,6 +662,7 @@ def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
                     speed = len(data[0]) / execution_duration.seconds
                     response = {
                         'threads': [t.name for t in threading.enumerate()],
+                        'threads_count': data[2],
                         'to_crawl': len(data[0]),
                         'updated': data[1],
                         'execution_duration': execution_duration,
