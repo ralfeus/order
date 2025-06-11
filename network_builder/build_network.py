@@ -268,7 +268,9 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
             if ex.status == '302':
                 logger.debug("The token for %s seems to be expired. Trying to re-login", 
                              auth[0])
-                token = _set_token(auth[0], auth[1], locked=False)
+                with token_locks[auth[0]]:
+                    tokens[auth[0]] = None
+                continue
         except BuildPageNodesException as ex:
             exceptions.put(ex) # The exception is to be handled in the calling thread
         except NoParentException as ex:
