@@ -3,11 +3,11 @@ var urlJSZIP = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.8.0/jszip.js";
 
 var order_product_number = 0;
 
-$(document).ready(async () => {
-    await g_dictionaries_loaded;
+$(document).ready(() => {
     $('#excel')
-        .on('change', function() {
+        .on('change',  async function() {
             $('.wait').show();
+            await g_dictionaries_loaded;
             read_file(this.files[0]);
             this.value = null;
         })
