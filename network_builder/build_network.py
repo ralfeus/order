@@ -649,8 +649,7 @@ def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
         with socket.socket() as s:
             s.bind(('localhost', 0))
             port = s.getsockname()[1]
-            os.environ['STATE_SERVER_PORT'] = str(port)
-            logger.info("State server is running on port %s", port)
+            logger.info("State server is running on localhost:%s", port)
             s.listen(1)
             s.settimeout(1)
             while not stop():
@@ -659,14 +658,14 @@ def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
                     logger.debug("Connection from %s", addr)
                     data = get_data()
                     execution_duration = datetime.now() - start_time
-                    speed = len(data[0]) / execution_duration.seconds
+                    speed = (len(data[0]) - initial_nodes_to_crawl) / execution_duration.seconds
                     response = {
                         'threads': [t.name for t in threading.enumerate()],
                         'threads_count': data[2],
                         'to_crawl': len(data[0]),
                         'updated': data[1],
-                        'execution_duration': execution_duration,
-                        'processing_speed': f'{speed} nodes/sec',
+                        'execution_duration': str(execution_duration),
+                        'processing_speed': f'{speed:.3} nodes/sec',
                     }
                     conn.sendall(json.dumps(response).encode('utf-8'))
                     conn.close()

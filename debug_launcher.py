@@ -16,7 +16,7 @@ import time
 def build_network():
     sys.path.append('./network_builder')
     from network_builder.build_network import build_network
-    build_network(root_id='43774626', user='S5832131', password='mkk03020529!!', max_threads=1, 
+    build_network(user='S5832131', password='mkk03020529!!', max_threads=1, 
                   last_updated=date(2030, 1, 4), profile=False)
     # copy_subtree(root_id='S9945812')
     # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
@@ -38,6 +38,7 @@ def post_po():
     po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
+
     db.session.rollback()
     # print(po.to_dict())
 
@@ -125,4 +126,4 @@ def multiple_request():
 
 with create_app().app_context():
     # logging.root.setLevel(logging.INFO)
-    post_po()
+    build_network()
