@@ -349,8 +349,9 @@ def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]
             logger.debug("Releasing the token for %s at %s", auth[0], datetime.now())
             token['last_used'] = datetime.now()
             token['usage_count'] += 1
-    except AtomyLoginError:
-        logger.debug("Couldn't log in as %s. Trying ancestor's username", auth[0])
+    except AtomyLoginError as ex:
+        logger.debug("Couldn't log in as %s. Trying ancestor's username. Details: %s",
+                     auth[0], str(ex))
         auth = _get_parent_auth(auth[0])
         return _get_token(auth, socks5_proxy)
     return [{'Cookie': token['token']}]
@@ -658,7 +659,7 @@ def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
                     logger.debug("Connection from %s", addr)
                     data = get_data()
                     execution_duration = datetime.now() - start_time
-                    speed = (len(data[0]) - initial_nodes_to_crawl) / execution_duration.seconds
+                    speed = (initial_nodes_to_crawl - len(data[0])) / execution_duration.seconds
                     response = {
                         'threads': [t.name for t in threading.enumerate()],
                         'threads_count': data[2],
