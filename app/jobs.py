@@ -30,7 +30,7 @@ def import_products():
     if len(vendor_products) == 0: # Something went wrong
         logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
         return
-    for atomy_product in vendor_products:
+    for atomy_product in tqdm(vendor_products):
         try:
             product = next(p for p in products
                            if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))

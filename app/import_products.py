@@ -1,46 +1,48 @@
-import itertools
 import logging
+import math
 from typing import Any
-import lxml.html
+from lxml import etree
 from lxml.cssselect import CSSSelector
 import re
 import subprocess
-
 from tqdm import tqdm
 
-from app.tools import get_json
+from app.tools import get_html, get_json
+from exceptions import HTTPError
 
 from utils.atomy import URL_BASE, URL_SUFFIX, atomy_login2
 
-sel_item = CSSSelector("td.line_C_r input[name=chk]")
-sel_item_code = CSSSelector("td.line_C_r:nth-child(2)")
-sel_item_name = CSSSelector("td.line_L_r a")
-sel_item_name_sold_out = CSSSelector("td.line_L_r a span")
-sel_item_price = CSSSelector("td.line_C_r:nth-child(4)")
-sel_item_points = CSSSelector("td.line_C_r:nth-child(5)")
-sel_item_image_url = CSSSelector("ul.bxslider img.scr")
+sel_item = CSSSelector(".gdsList-wrap>li")
+sel_rows_per_page = CSSSelector("[name=rowsPerPage]")
+sel_total = CSSSelector('[name=totalCount]')
+sel_item_code = CSSSelector(".gdImg>a")
+sel_item_name = CSSSelector(".title")
+sel_item_oos = CSSSelector(".gdInfo .state_tx>em")
+sel_item_price = CSSSelector(".prc_ori>b")
+sel_item_points = CSSSelector(".pv_ori>b")
+sel_item_image_url = CSSSelector(".gdImg img")
 
 
-def get_document_from_url(url, headers=None, raw_data=None, encoding="euc-kr"):
-    headers_list = list(
-        itertools.chain.from_iterable(
-            [["-H", f"{k}: {v}"] for pair in headers for k, v in pair.items()]
-        )
-    )
-    raw_data = ["--data-raw", raw_data] if raw_data else []
-    output = subprocess.run(
-        ["curl", url, "-v"] + headers_list + raw_data,
-        encoding=encoding,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+# def get_document_from_url(url, headers=None, raw_data=None, encoding="euc-kr"):
+#     headers_list = list(
+#         itertools.chain.from_iterable(
+#             [["-H", f"{k}: {v}"] for pair in headers for k, v in pair.items()]
+#         )
+#     )
+#     raw_data = ["--data-raw", raw_data] if raw_data else []
+#     output = subprocess.run(
+#         ["curl", url, "-v"] + headers_list + raw_data,
+#         encoding=encoding,
+#         stdout=subprocess.PIPE,
+#         stderr=subprocess.PIPE,
+#         check=False,
+#     )
 
-    if re.search("HTTP.*? 200", output.stderr):
-        doc = lxml.html.fromstring(output.stdout)
-        return doc
+#     if re.search("HTTP.*? 200", output.stderr):
+#         doc = lxml.html.fromstring(output.stdout)
+#         return doc
 
-    raise Exception(f"Couldn't get page {url}: " + output.stderr)
+#     raise Exception(f"Couldn't get page {url}: " + output.stderr)
 
 
 def get_atomy_images(item_code):
@@ -68,69 +70,64 @@ def get_atomy_products() -> list[dict[str, Any]]:
     logger.info("Got %s core products", len(core_products))
     result = []
     for core_product in tqdm(core_products):
-        if core_product["materialCode"] is None:
-            continue
-        if core_product["optionType"]["value"] == "none":
-            result.append(
-                {
-                    "id": core_product["materialCode"],
-                    "atomy_id": core_product["id"],
-                    "name": core_product["productName"],
-                    "name_english": core_product['name'],
-                    "price": core_product["memRetailPrice"],
-                    "points": core_product["pvPrice"],
-                    "available": "soldOut" not in core_product["flags"],
-                    "image_url": core_product["images"][0]["file"] 
-                        if len(core_product['images']) > 0 else '',
-                }
-            )
-        else:
-            result += [
-                {
-                    "id": p["materialCode"],
-                    "atomy_id": p["id"],
-                    "name": f'{core_product["productName"]} - {p["name"]}',
-                    "name_english": f'{core_product["name"]} - {p["name"]}',
-                    "price": p["memRetailPrice"],
-                    "points": p["pvPrice"],
-                    "available": p['enable'] and not p['soldOut'],
-                    "image_url": core_product["images"][0]["file"] 
-                        if len(core_product['images']) > 0 else '',
-                }
-                for p in _get_product_options(core_product, jwt)
-            ]
+        options = _get_product_options(core_product['id'], jwt)
+        result += [core_product] if len(options) == 1 \
+        else [{
+            "id": i['materialCode'],
+            "atomy_id": i['materialCode'],
+            "name": i['itemNm'],
+            "name_english": i['itemNm'],
+            "price": i['custSalePrice'],
+            "points": i['pvPrice'],
+            "available": i['goodsStatNm'] == "goods.word.sale.normal",
+            "image_url": core_product['image_url'],
+        } for i in options]
+        
 
     return result
 
-
 def _get_products_list(jwt):
-    url_template = "{}/product/list?page={}&{}"
+    url_template = "{}/search/searchGoodsList?sortType=POPULAR&pageIdx={}"
     products = []
-    products_pre_get = get_json(
-        url_template.format(URL_BASE, 1, URL_SUFFIX), headers=[{"Cookie": jwt}]
-    )
-    if products_pre_get["result"] != "200":
-        raise products_pre_get["resultMessage"]
-    pages = products_pre_get["pageCount"]
-    for page in tqdm(range (1, pages + 1)):
-        products_page = get_json(
-            url_template.format(URL_BASE, page, URL_SUFFIX),
-            headers=[{"Cookie": jwt}],
+    try:
+        doc = get_html(
+            url_template.format(URL_BASE, 1), headers=[{"Cookie": jwt}]
         )
-        if products_page["result"] != "200":
-            raise products_page["resultMessage"]
-        products += products_page['items']
-    return products
+        total = int(sel_total(doc)[0].attrib['value'])
+        rows_per_page = int(sel_rows_per_page(doc)[0].attrib['value'])
+        pages = math.ceil(total / rows_per_page)
+        for page in tqdm(range (1, pages + 1)):
+            products_page = get_html(
+                url_template.format(URL_BASE, page),
+                headers=[{"Cookie": jwt}],
+            )
+            products += _get_products(products_page)
+        return products
+    except HTTPError as ex:
+        raise Exception(f"Couldn't get products list: {ex}")
+    
+def _get_products(products_page: etree.Element): #type: ignore
+    return [{
+        "id": sel_item_code(i)[0].attrib['href'].split('/')[-1],
+        "atomy_id": sel_item_code(i)[0].attrib['href'].split('/')[-1],
+        "name": sel_item_name(i)[0].text,
+        "name_english": sel_item_name(i)[0].text,
+        "price": sel_item_price(i)[0].text.replace(',', ''),
+        "points": sel_item_points(i)[0].text.replace(',', ''),
+        "available": len(sel_item_oos(i)) == 0,
+        "image_url": 'https:' + sel_item_image_url(i)[0].attrib['src'],
+        } for i in sel_item(products_page)
+        if len(sel_item_price(i)) > 0
+    ]
 
 
-def _get_product_options(product, jwt):
+def _get_product_options(product_id, jwt):
     options = get_json(
-        f"{URL_BASE}/product/optionsOnly?productId={product['id']}&{URL_SUFFIX}",
-        headers=[{"Cookie": jwt}]
+        f"{URL_BASE}/goods/itemStatus",
+        headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-encoded'}],
+        raw_data=f'goodsNo={product_id}&goodsTypeCd=101'
     )
-    if options['result'] != '200':
-        raise options['resultMessage']
-    return [o for o in options['item']['option']['productOptions']]
+    return options.values()
 
 def atomy_login(username="atomy1026", password="5714"):
     """

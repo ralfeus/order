@@ -124,6 +124,10 @@ def multiple_request():
         time.sleep(.8)
 ############################# Entry point #####################################
 
+def import_products():
+    from app.jobs import import_products
+    import_products()
+
 with create_app().app_context():
     # logging.root.setLevel(logging.INFO)
-    build_network()
+    import_products()
