@@ -107,7 +107,7 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
                 #    continue
                 #print(node)
                 id, username, password = node.split('\t')
-                traversing_nodes_list.append((id, (username, password)))
+                traversing_nodes_list.append((id, (username, password.strip())))
     else:
         traversing_nodes_list = [(node[0], (node[1], node[2])) 
                              for node in sorted(
