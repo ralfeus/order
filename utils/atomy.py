@@ -59,7 +59,8 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
         raise AtomyLoginError(username)
     result = json.loads(stdout)
     if result.get('code') != '0000':
-        raise AtomyLoginError(username, result.get('message'))
+        raise AtomyLoginError(username=username, password=password, 
+                              message=result.get('message'))
     
     logger.info(f"Logged in successfully as {username}")
     jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1) # type: ignore

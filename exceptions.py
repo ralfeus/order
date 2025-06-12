@@ -1,12 +1,13 @@
 class AtomyLoginError(Exception):
-    def __init__(self, username=None, message=None):
+    def __init__(self, username=None, password=None, message=None):
         super().__init__()
         self.username = username
+        self.password = password
         self.message = message
         self.args = (username, message)
 
     def __str__(self):
-        return f"Couldn't log in as {self.username}: {self.message}"
+        return f"Couldn't log in as '{self.username}':'{self.password}': {self.message}"
 
 class EmptySuborderError(Exception):
     pass
