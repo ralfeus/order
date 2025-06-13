@@ -485,7 +485,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             base_product_id = product_info['goodsNo']
             product_benefits = self.__get_product_benefits(base_product_id)
             for pb in product_benefits:
-                if pb.get('promoNo') is None:
+                if pb.get('promoNo') is None or pb['promoNo'] == '':
                     continue
                 self.__beneList.append({
                     "seq": len(self.__beneList) + 1,
@@ -693,7 +693,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
         pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name \
-            or po.order_products[0].product.name_english
+            or po.order_products[0].product.name_english \
+            or 'Products'
         pl["vanData"]["data"]["ordererNm"] = po.customer.name
         pl['vanData']["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
         pl["vanData"]['data']["taxAmount"] = total_krw
