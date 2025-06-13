@@ -483,6 +483,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 return None, None
             product_info = json.loads(result.cssselect('input#goodsInfo_0')[0].attrib['data-goodsinfo'])
             base_product_id = product_info['goodsNo']
+            product_benefits = self.__get_product_benefits(base_product_id)
+            for pb in product_benefits:
+                if pb.get('promoNo') is None:
+                    continue
+                self.__beneList.append({
+                    "seq": len(self.__beneList) + 1,
+                    "issueDiviCd": "10",
+                    "costKindCd": "10",
+                    "costKindDtlCd": "1025",
+                    "relDiviCd": "10",
+                    "relNo": pb['promoNo'],
+                    "relDtlNo": "",
+                    "relDtlNo1": pb['promoTypeNo'],
+                    "seqNoList": [
+                        "000001"
+                    ],
+                    "dcAmt": pb['dcAmt'],
+                    "taxAmt": 0
+                })
             option = (
                 self.__get_product_option(base_product_id, product_id)
                     if (len(result.cssselect('button[option-role]'))) > 0
@@ -495,6 +514,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 product_id,
             )
         return None, None
+    
+    def __get_product_benefits(self, product_id):
+        product_info = get_json(url=f'{URL_BASE}/goods/quickSearchGoodsInfo',
+                                headers=self.__get_session_headers(),
+                                raw_data=json.dumps({
+                                    'selectedGoods': {
+                                        'goodsNo': product_id
+                                    }
+                                }))
+        product_benefits = product_info['goodsDetail']['gdGoods']['prBenefitInfoList']
+        return product_benefits
 
     def __get_product_option(self, product, option_id):
         result = get_json(
@@ -536,6 +566,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             logger.warning("Trying to get buPlace from the network manager")
             try:
                 bu_place = self.__get_bu_place_from_network()
+                if bu_place is None:
+                    raise Exception("Couldn't find center code")
             except:
                 raise PurchaseOrderError(self.__purchase_order, message=ex.args)
         logger.debug("buPlace is %s", bu_place)
@@ -660,7 +692,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         pl["morcNm"] = po.customer.name
         pl["payerPhone"] = po.payment_phone
         pl["vanData"]["data"]["bankCd"] = po.company.bank_id
-        pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name
+        pl["vanData"]["data"]["dispGoodsNm"] = po.order_products[0].product.name \
+            or po.order_products[0].product.name_english
         pl["vanData"]["data"]["ordererNm"] = po.customer.name
         pl['vanData']["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
         pl["vanData"]['data']["taxAmount"] = total_krw

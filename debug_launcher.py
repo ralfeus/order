@@ -130,4 +130,4 @@ def import_products():
 
 with create_app().app_context():
     # logging.root.setLevel(logging.INFO)
-    import_products()
+    post_po()
