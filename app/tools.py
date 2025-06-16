@@ -241,7 +241,8 @@ def get_json(url, raw_data=None, headers: list=[], method='GET', retry=True,
              ) -> dict[str, Any]:
     content_type = [h for h in headers if list(h.keys())[0].lower() == 'content-type']
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
-        headers=headers + [{'Content-Type': 'application/json'}] if len(content_type) == 0 else [], 
+        headers=headers + ([{'Content-Type': 'application/json'}]
+                           if len(content_type) == 0 else []), 
         retries=3 if retry else 0, 
         ignore_ssl_check=ignore_ssl_check)
     try:
