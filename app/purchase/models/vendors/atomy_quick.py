@@ -323,11 +323,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
         '''Initializes the quick order. Doesn't return anything but essential
         for order creation'''
         self.__init_payload()
-        get_json(
-            url=f"{URL_BASE}/cart/registCart/30",
-            headers=self.__get_session_headers(),
-            raw_data="[]",
-        )
+        try:
+            get_json(
+                url=f"{URL_BASE}/cart/registCart/30",
+                headers=self.__get_session_headers(),
+                raw_data="[]",
+            )
+        except Exception as ex:
+            self._logger.warning(
+                "Couldn't initialize quick order: %s", str(ex)
+            )
+            raise PurchaseOrderError(
+                self.__purchase_order, self, "Couldn't initialize quick order"
+            )
 
     def __send_payment_request(self) -> tuple[str, str]:
         logger = self._logger.getChild("__send_payment_request")
