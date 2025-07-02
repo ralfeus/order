@@ -280,7 +280,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__set_receiver_address(
                 purchase_order.address,
                 purchase_order.payment_phone,
-                self.__get_order_id(purchase_order),
+                self.__get_recipient_name(purchase_order),
             )
             self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_payment_deadline()
@@ -657,10 +657,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
             self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
 
-    def __get_order_id(self, purchase_order: PurchaseOrder) -> str:
+    def __get_recipient_name(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split("-")
         return (
-            order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
+            f'{purchase_order.company} {purchase_order.customer.name} {order_id_parts[1]}'
+            # order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
         )
 
     def __set_receiver_mobile(self, phone="     "):
@@ -669,15 +670,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__mst["cellNo"] = phone.replace("-", "")
         self.__dlvpList[0]["cellNo"] = phone
 
-    def __set_receiver_address(self, address: Address, phone, order_id):
+    def __set_receiver_address(self, address: Address, phone, recipient_name):
         logger = self._logger.getChild("__set_receiver_address")
-        self.__mst['ordererNm'] = order_id
+        self.__mst['ordererNm'] = recipient_name
         address_dict = {
-            'dlvpNm': order_id,
+            'dlvpNm': recipient_name,
             'recvrPostNo': address.zip,
             'recvrBaseAddr': address.address_1,
             'recvrDtlAddr': address.address_2,
-            'recvrNm': order_id,
+            'recvrNm': recipient_name,
         }
         logger.debug("Setting shipment address to %s", address_dict)
         self.__dlvpList[0] = {
