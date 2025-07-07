@@ -280,7 +280,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__set_receiver_address(
                 purchase_order.address,
                 purchase_order.payment_phone,
-                self.__get_recipient_name(purchase_order),
+                self.__get_receiver_name(purchase_order),
             )
             self.__set_local_shipment(purchase_order, ordered_products)
             self.__set_payment_deadline()
@@ -657,10 +657,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
             self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
 
-    def __get_recipient_name(self, purchase_order: PurchaseOrder) -> str:
+    def __get_receiver_name(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split("-")
         return (
-            f'{purchase_order.company} {purchase_order.customer.name} {order_id_parts[1]}'
+            f'{purchase_order.company} {order_id_parts[1]}'
             # order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
         )
 
