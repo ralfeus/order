@@ -143,8 +143,11 @@ def admin_get_orders():
     '''
     Order management
     '''
-    usd_rate = Currency.query.get('USD').rate
-    return render_template('admin_orders.html', usd_rate=usd_rate)
+    # usd_rate = Currency.query.get('USD').rate
+    currencies = Currency.query.filter(Currency.enabled).filter(Currency.code!='KRW').all()
+    for currency in currencies:
+        currency.display_rate = round(1 / currency.rate, 2)
+    return render_template('admin_orders.html', currencies=currencies,)
 
 @bp_client_admin.route('/<order_id>')
 @login_required

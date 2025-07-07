@@ -59,7 +59,7 @@ function init_invoices_table() {
             { data: 'customer', className: 'editable' },
             { name: 'orders', data: row => row.orders.join() },
             { name: 'shippings', data: row => row.shippings.join() },
-            { data: 'total' },
+            { name: 'total', data: row => `${row.currency_code} ${row.total}` },
             { data: 'when_created' },
             { data: 'when_changed' }
         ],

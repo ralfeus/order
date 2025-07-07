@@ -1,5 +1,6 @@
 let g_filter_sources;
 let g_countries;
+let g_currencies;
 let g_order_statuses;
 let g_orders_table;
 let g_payment_methods;
@@ -106,6 +107,7 @@ function delete_order(_target, row) {
 
 async function get_dictionaries() {
     g_countries = await get_list('/api/v1/country');
+    g_currencies = (await get_list('/api/v1/currency')).data;
     g_order_statuses = await get_list('/api/v1/order/status');
     g_payment_methods = (await get_payment_methods()).map(
         item => ({ text: item.name, ...item }));
@@ -244,15 +246,19 @@ async function format(row, data) {
     return order_details;
 }
 
-function create_invoice(rows) {
+function create_invoice(rows, currency) {
     $('.wait').show();
     const orders = rows.data().map(row => row.id).toArray();
     $.ajax({
-        url: '/api/v1/admin/invoice/new/' + $('#usd-rate').first().text(),
+        url: `/api/v1/admin/invoice/new`,
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
-        data: JSON.stringify({ order_ids: orders }),
+        data: JSON.stringify({ 
+            order_ids: orders,
+            currency: currency,
+            rate: $(`#${currency}-rate`).val() || 1
+        }),
         complete: function () {
             $('.wait').hide();
         },
@@ -354,11 +360,15 @@ function init_orders_table() {
                 }
             },
             {
-                extend: 'selected',
+                extend: 'collection',
                 text: 'Create invoice',
-                action: function (e, dt, node, config) {
-                    create_invoice(dt.rows({ selected: true }));
-                }
+                buttons: g_currencies.map(currency => ({
+                    extend: 'selected',
+                    text: currency.name,
+                    action: function (e, dt, node, config) {
+                        create_invoice(dt.rows({ selected: true }), currency.code);
+                    }
+                }))
             },
             {
                 extend: 'selected',

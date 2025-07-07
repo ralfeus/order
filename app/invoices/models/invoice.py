@@ -4,7 +4,7 @@ Invoice model
 from datetime import datetime
 import logging
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -24,6 +24,7 @@ class Invoice(db.Model):  # type: ignore
     payee = Column(String(32))
     orders = relationship('Order')
     export_id = Column(String(32))
+    currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=False)
     _invoice_items = relationship('InvoiceItem', lazy='dynamic')
     #total = Column(Integer)
 
@@ -39,7 +40,9 @@ class Invoice(db.Model):  # type: ignore
             from app.currencies.models import Currency
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
-            usd_rate = Currency.query.get('USD').rate
+            currency = Currency.query.get(self.currency_code)
+            rate = currency.get_rate(self.when_created) \
+                if currency else 1.0
             for order in self.orders:
                 order_products = None
                 if order.suborders.count() > 0:
@@ -54,7 +57,7 @@ class Invoice(db.Model):  # type: ignore
                         invoice=self,
                         product_id=order_product.product.id,
                         product=order_product.product,
-                        price=round(order_product.price * usd_rate, 2),
+                        price=round(order_product.price * rate, 2),
                         quantity=order_product.quantity
                     ))
             return temp_invoice_items
@@ -144,6 +147,7 @@ class Invoice(db.Model):  # type: ignore
             'phone': self.orders[0].phone if self.orders else None,
             'weight': weight,
             'total': round(float(total), 2),
+            'currency_code': self.currency_code,
             'orders': [order.id for order in self.orders],
             'shippings': list({order.shipping.name for order in self.orders 
                                if order.shipping is not None}),

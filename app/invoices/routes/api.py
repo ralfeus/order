@@ -3,6 +3,7 @@ from functools import reduce
 import os.path
 import re
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from more_itertools import map_reduce
 import openpyxl
@@ -14,24 +15,28 @@ from flask_security import login_required, roles_required
 from sqlalchemy import or_
 
 from app import db
+from app.currencies.models.currency import Currency
 from app.invoices import bp_api_admin
 from app.invoices.models.invoice import Invoice
 from app.invoices.models.invoice_item import InvoiceItem
+from app.invoices.validators.invoice import InvoiceValidator
 from app.orders.models.order import Order
 from app.tools import modify_object, prepare_datatables_query, stream_and_close
 
 
-@bp_api_admin.route("/new/<float:usd_rate>", methods=["POST"])
+@bp_api_admin.route("/new", methods=["POST"])
 @roles_required("admin")
-def create_invoice(usd_rate):
+def create_invoice():
     """Creates invoice for provided orders"""
-    payload = request.get_json()
-    if not payload or not payload["order_ids"]:
-        abort(Response("No orders were provided", status=400))
+    with InvoiceValidator(request) as validator:
+        if not validator.validate():
+            return Response(f"Couldn't create an Invoice\n{validator.errors}", status=409)
+
+    payload: dict[str, Any] = request.get_json() # type: ignore
     orders = Order.query.filter(Order.id.in_(payload["order_ids"])).all()
-    if not orders:
-        abort(Response("No orders with provided IDs were found ", status=400))
-    invoice = Invoice()
+    currency = Currency.query.get(payload["currency"])
+    rate = currency.get_rate()
+    invoice = Invoice(currency_code=currency.code)
     # invoice_items = []
     invoice.when_created = datetime.now()  # type: ignore
     cumulative_order_products = map_reduce(
@@ -53,7 +58,7 @@ def create_invoice(usd_rate):
             InvoiceItem(
                 invoice=invoice,
                 product_id=op[0][0],
-                price=round(op[0][2] * usd_rate, 2),
+                price=round(op[0][2] * rate, 2),
                 quantity=op[1],
             )
             for op in cumulative_order_products.items()
@@ -64,7 +69,7 @@ def create_invoice(usd_rate):
             invoice=invoice,
             product_id="SHIPPING",
             price=round(
-                reduce(lambda acc, o: acc + o.shipping_krw * usd_rate, orders, 0), 2
+                reduce(lambda acc, o: acc + o.shipping_krw * rate, orders, 0), 2
             ),
             quantity=1,
         )
@@ -188,7 +193,8 @@ def create_invoice_excel(reference_invoice: Invoice, template: str):
                         "suffix": suffix,
                         "invoice_dict": invoice_dict,
                         "total": total,
-                        'pieces': pieces
+                        'pieces': pieces,
+                        'currency_code': reference_invoice.currency_code,
                     },
                 )
 
