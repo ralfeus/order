@@ -659,10 +659,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_receiver_name(self, purchase_order: PurchaseOrder) -> str:
         order_id_parts = purchase_order.id[8:].split("-")
+        parts = {
+            'id0': order_id_parts[0],
+            'id1': order_id_parts[1],
+            'id2': order_id_parts[2][1:],
+            'company': purchase_order.company
+        }
         return (
-            f'{purchase_order.company} {order_id_parts[1]}'
+            self.__config.get('ATOMY_RECEIVER_NAME_FORMAT')
+            or '{company} {id1}'
+        ).format(**parts)
             # order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
-        )
+        
 
     def __set_receiver_mobile(self, phone="     "):
         logger = self._logger.getChild("__set_receiver_mobile")
