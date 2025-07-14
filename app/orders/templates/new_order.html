@@ -10,6 +10,7 @@
 <script>
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
+    const SERVICE_FEE = {{ service_fee }};
 </script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
@@ -92,6 +93,7 @@
                         <col />
                     </colgroup>
                     <tbody>
+                        {% if hide_krw %}
                         <tr>
                             <td>KRW</td>
                             <td id="totalItemsCostKRW"></td>
@@ -99,6 +101,7 @@
                             <td id="totalShippingCostKRW"></td>
                             <td id="totalGrandTotalKRW"></td>
                         </tr>
+                        {% endif %}
                         <tr>
                             <td>EUR</td>
                             <td id="totalItemsCostEUR"></td>

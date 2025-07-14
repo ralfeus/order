@@ -152,7 +152,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
                 phone=referred_order.phone,
                 comment="Postponed due to products unavailability",
                 shipping=PostponeShipping.query.first(),
-                when_created=datetime.now()
+                when_created=datetime.now(),
             )
             db.session.add(postponed_order)
         suborder = postponed_order.suborders.filter_by(

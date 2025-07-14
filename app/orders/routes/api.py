@@ -219,7 +219,8 @@ def user_create_order():
             comment=payload.get('comment'),
             subtotal_krw=0,
             status=OrderStatus.pending,
-            when_created=datetime.now()
+            when_created=datetime.now(),
+            service_fee=current_app.config.get('SERVICE_FEE', 0),
         )
         if 'draft' in payload.keys() and payload['draft']:
             order = _set_draft(order)
@@ -363,6 +364,7 @@ def user_save_order(order_id):
         if not validator.validate():
             return Response(f"Couldn't update an Order\n{validator.errors}", status=409)
 
+    order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     payload: dict[str, Any] = request.get_json() #type: ignore
     logger.info('Modifying order by %s with data: %s',
                 current_user, payload)

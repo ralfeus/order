@@ -34,18 +34,6 @@ from exceptions import OrderError, UnfinishedOrderError
 from .order_product import OrderProduct
 from .order_status import OrderStatus
 
-# class OrderStatus(enum.Enum):
-#     ''' Sale orders statuses '''
-#     draft = 0
-#     pending = 1
-#     can_be_paid = 2
-#     po_created = 3
-#     packed = 4
-#     shipped = 5
-#     cancelled = 6
-#     ready_to_ship = 7
-#     at_warehouse = 8
-
 ORDER_ID = 'orders.id'
 
 class OrderBox(db.Model, BaseModel): # type: ignore
@@ -72,6 +60,7 @@ class Order(db.Model, BaseModel): # type: ignore
     ''' Sale order '''
     __tablename__ = 'orders'
     __id_pattern = 'ORD-{year}-{month:02d}-'
+    service_fee = 0
 
     id = Column(String(16), primary_key=True, nullable=False)
     seq_num = Column(Integer)
@@ -206,6 +195,7 @@ class Order(db.Model, BaseModel): # type: ignore
             self.shipping = kwargs['shipping']
         if kwargs.get('status'):
             self.status = kwargs['status']
+        self.service_fee = kwargs.get('service_fee', 0)
 
     def __repr__(self):
         return f"<Order: {self.id}>"
@@ -295,7 +285,10 @@ class Order(db.Model, BaseModel): # type: ignore
     def get_payee(self) -> Optional[p.Company]:
         return self.payment_method.payee if self.payment_method \
             else None
-
+    
+    def get_service_fee(self, currency: Optional[Currency]=None):
+        return (self.service_fee * currency.rate) if currency else self.service_fee
+    
     def get_shipping(self, currency: Optional[Currency]=None):
         ''' Returns shipping cost in currency provided '''
         return \
@@ -315,7 +308,7 @@ class Order(db.Model, BaseModel): # type: ignore
             else self.subtotal_krw
 
     def get_total(self, currency: Optional[Currency]=None):
-        '''Returns total of the order - subtotal plus shipping costs'''
+        '''Returns total of the order - subtotal plus shipping costs plus service fee'''
         return \
             self.total_cur1 if currency and currency.code == 'USD' \
             else self.total_cur2 if currency and currency.code == 'EUR' \
@@ -510,8 +503,8 @@ class Order(db.Model, BaseModel): # type: ignore
         logger.debug("Shipping (KRW): %s", self.shipping_krw)
         self.shipping_cur2 = self.shipping_krw * float(rate_eur)
         self.shipping_cur1 = self.shipping_krw * float(Currency.query.get('USD').rate)
-
-        self.total_krw = self.subtotal_krw + self.shipping_krw
+        logger.debug("Service fee: %s", self.service_fee)
+        self.total_krw = self.subtotal_krw + self.shipping_krw + self.service_fee
         logger.debug("Total (KRW): %s", self.total_krw)
         self.total_cur2 = self.subtotal_cur2 + self.shipping_cur2
         self.total_cur1 = self.subtotal_cur1 + self.shipping_cur1

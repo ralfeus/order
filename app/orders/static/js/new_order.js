@@ -639,11 +639,17 @@ async function update_all_totals() {
  */
 function update_grand_totals() {
     $('#totalGrandTotalKRW').html(fmtKRW.format(round_up(
-        parseFloat($('#totalItemsCostKRW').html()) + parseFloat($('#totalShippingCostKRW').html()), 2)));
+        parseFloat($('#totalItemsCostKRW').html()) 
+        + parseFloat($('#totalShippingCostKRW').html()) 
+        + SERVICE_FEE, 2)));
     $('#totalGrandTotalEUR').html(round_up(
-        parseFloat($('#totalItemsCostEUR').html()) + parseFloat($('#totalShippingCostEUR').html()), 2));
+        parseFloat($('#totalItemsCostEUR').html()) 
+        + parseFloat($('#totalShippingCostEUR').html())
+        + SERVICE_FEE * currencyRates.EUR, 2));
     $('#totalGrandTotalUSD').html(round_up(
-        parseFloat($('#totalItemsCostUSD').html()) + parseFloat($('#totalShippingCostUSD').html()), 2));
+        parseFloat($('#totalItemsCostUSD').html()) 
+        + parseFloat($('#totalShippingCostUSD').html()
+        + SERVICE_FEE * currencyRates.USD), 2));
 }
 
 async function update_item_subtotal(item, batch_load=false) {

@@ -11,8 +11,11 @@
     "UPLOAD_PATH": "upload",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "PRODUCT_IMPORT_PERIOD": 300,
+
+    "HIDE_KRW": false,
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 50000,
     "LOCAL_SHIPPING_COST": 2900,
+    "SERVICE_FEE": 5000,
 
     "SHIPPING_AUTOMATION": {
         "enabled": true,

@@ -70,23 +70,9 @@ def user_new_order():
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
         extensions="\n".join([e[1] for e in extensions]),
         order_id=request.args.get('from_order'),
-        make_copy=request.args.get('from_order') is not None)
-
-@bp_client_user.route('/new-new')
-@login_required
-def user_new_order_new():
-    '''New order form'''
-    from ..signals import user_create_sale_order_rendering
-    extensions = user_create_sale_order_rendering.send()
-    return render_template('new_order-new.html',
-        load_excel=request.args.get('upload') is not None,
-        can_create_po=current_user.has_role('allow_create_po'),
-        check_subcustomers=Setting.get('order.new.check_subcustomers'),
-        free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
-        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
-        extensions="\n".join([e[1] for e in extensions]),
-        order_id=request.args.get('from_order'),
-        make_copy=request.args.get('from_order') is not None)
+        make_copy=request.args.get('from_order') is not None,
+        hide_krw=current_app.config.get('HIDE_KRW', False),
+        service_fee=current_app.config.get('SERVICE_FEE', 0))
 
 @bp_client_user.route('/<order_id>')
 @login_required
@@ -100,12 +86,14 @@ def user_get_order(order_id):
     order = order.filter_by(id=order_id).first()
     if not order:
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
+    order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     if order.status == OrderStatus.draft:
         return render_template('new_order.html',
             order_id=order.id,        
             check_subcustomers=Setting.get('order.new.check_subcustomers'),
             free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
-            local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST']
+            local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
+            service_fee=current_app.config.get('SERVICE_FEE', 0),
         )
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
@@ -122,7 +110,8 @@ def user_get_order(order_id):
     rate = currency.get_rate(order.when_created)
     logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
     return render_template('order_view.html', order=order,
-        currency=currency, currencies=currencies, rate=rate, mode='view')
+        currency=currency, currencies=currencies, rate=rate, mode='view',
+        service_fee=current_app.config.get('SERVICE_FEE', 0))
 
 @bp_client_user.route('/')
 @login_required
@@ -168,7 +157,8 @@ def admin_get_order(order_id):
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
         order_id=order_id,
         free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
-        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'])
+        local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
+        service_fee=current_app.config.get('SERVICE_FEE', 0))
 
 
 @bp_client_user.route('/<order_id>/excel')
