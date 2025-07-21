@@ -10,6 +10,7 @@
     "EXPLAIN_TEMPLATE_LOADING": false,
     "UPLOAD_PATH": "upload",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
+    "LANGUAGES": ["en", "ua", "ru"],
     "PRODUCT_IMPORT_PERIOD": 300,
 
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 50000,

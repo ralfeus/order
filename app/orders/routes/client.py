@@ -1,9 +1,10 @@
 ''' Client routes for order related activities '''
 import itertools
 import json
-from flask import Response, abort, current_app, escape, request, render_template, send_file
+from flask import Response, abort, current_app, request, render_template, send_file
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
+import markupsafe
 
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
@@ -13,6 +14,7 @@ from exceptions import OrderError
 
 from ..models.order import Order
 from ..models.order_status import OrderStatus
+from app.orders.translations import translations
 
 file_types = {
     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -146,9 +148,12 @@ def admin_get_order(order_id):
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
+        language = request.values.get('language') or 'en'
         return render_template('order_print_view.html', order=order,
             currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print',
-            language=request.values.get('language') or 'en')
+            language=language,
+            languages=current_app.config.get('LANGUAGES', ['en', 'ru']),
+            t=translations[language])
 
     if request.values.get('view') == 'customs_label':
         return render_template(order.shipping.customs_label_template_name, order=order)
