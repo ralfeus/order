@@ -8,9 +8,10 @@ import utils.logging as logging
 import os, os.path
 from queue import Empty, Queue
 import threading
+from time import sleep
 from tqdm_loggable.auto import tqdm
 from tqdm_loggable.tqdm_logging import tqdm_logging
-from time import sleep
+import traceback
 
 from neomodel import db, config
 
@@ -177,7 +178,7 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
                     MATCH (a:AtomyPerson{atomy_id: $id}) DETACH DELETE a
                 ''', {'id': ex.node_id})
             else:
-                logger.warning(str(ex))
+                logger.exception(str(ex), exc_info=ex)
         except RuntimeError as ex:
             logger.warning("Couldn't start a new thread. "
                            "Trying again and reducing amount of maximum threads")
@@ -278,7 +279,9 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                          node_id)
             break
         except Exception as ex:
-            exceptions.put(BuildPageNodesException(node_id, ex)) # The exception is to be handled in the calling thread
+            # The exception is to be handled in the calling thread
+            exceptions.put(BuildPageNodesException(node_id, ex)
+                           .with_traceback(ex.__traceback__)) 
             # with lock:
             #     threads -= 1
             break # I don't want to raise an unhandled exception
