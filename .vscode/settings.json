@@ -29,5 +29,7 @@
     },
     "makefile.configureOnOpen": false,
     "python.defaultInterpreterPath": "python",
-    "containers.imageBuildContextPath": "."
+    "containers.imageBuildContextPath": ".",
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
 }
