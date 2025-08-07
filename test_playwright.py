@@ -26,7 +26,7 @@ def find_address(base_address: str):
     page.locator('button[address-role="select-button"]').click()
 
 URL_BASE = "https://kr.atomy.com"
-product_id = '000121'
+product_id = '000172'
 with sync_playwright() as p:
         # browser = p.chromium.launch(headless=True) 
         browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
@@ -35,8 +35,8 @@ with sync_playwright() as p:
         # Login
         print("Logging in...")
         page.goto(f"{URL_BASE}/login")
-        page.fill("#login_id", '23426444')
-        page.fill("#login_pw", 'atomy#01')
+        page.fill("#login_id", '34431920')
+        page.fill("#login_pw", '12345kz')
         page.click(".login_btn button")
         page.wait_for_load_state()
 
@@ -152,13 +152,15 @@ with sync_playwright() as p:
             print("No addresses found, creating a new one.")
             page.locator('#btnOrderDlvpReg').click()
             page.wait_for_selector('div.lyr-pay_addr_add')
-            page.fill('#dlvpNm', 'Test User')
-            page.fill('#cellNo', '01050062045')
-            page.locator('#btnAdressSearch').click()
-            page.locator('#lyr_pay_sch_bx33').fill('12345')  # Example base address
+            fill(page.locator('#dlvpNm'), 'Test-User')
+            fill(page.locator('#cellNo'), '01050062045')
+            try_click(page.locator('#btnAdressSearch'), 
+                lambda: page.wait_for_selector('#lyr_pay_sch_bx33', timeout=5000))
+            fill(page.locator('#lyr_pay_sch_bx33'), '서울특별시 중구 다산로36길 110(신당동, 신당푸르지오)')  # Example base address
             page.locator('button[address-role="search-button"]').click()
             page.locator('button[address-role="select-button"]').click()
-            page.fill('#dtlAddr', '12345')
+            fill(page.locator('#dtlAddr'), '108동1904호')
+            page.locator('#dtlAddr').dispatch_event('keyup')
             page.locator('label[for="baseYn"]').click()
             page.locator('#btnSubmit').click()
             page.wait_for_selector('div.lyr-pay_addr_add', state='detached')

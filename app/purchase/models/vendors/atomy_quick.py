@@ -477,11 +477,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             page.fill('#cellNo', phone.replace('-', ''))
             expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
             page.locator('#btnAdressSearch').click()
-            page.locator('#lyr_pay_sch_bx33').fill(address.address_1)  # base address
-            page.locator('button[address-role="search-button"]').click()
-            page.locator('button[address-role="select-button"]').click()
-            page.fill('#dtlAddr', address.address_2)
-            expect(page.locator('#dtlAddr')).to_have_value(address.address_2)            
+            find_address(page, address.address_1)  # base address
+            fill(page.locator('#dtlAddr'), address.address_2)
+            page.locator('#dtlAddr').dispatch_event('keyup')          
             page.locator('label[for="baseYn"]').click()
             try_click(page.locator('#btnSubmit'),
                 lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
