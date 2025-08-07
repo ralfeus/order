@@ -538,7 +538,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 try_click(page.locator('#cash-btnAdressSearch'),
                         lambda: page.wait_for_selector('#lyr_pay_sch_bx33'))
                 find_address(page, company.address.address_1)
-                fill(page.locator('#cash-mth-taxes-txt_3_dtl'), company.address.address_1) # Detailed address
+                fill(page.locator('#cash-mth-taxes-txt_3_dtl'), company.address.address_2) # Detailed address
                 fill(page.locator('#cash-mth-taxes-txt_4'), company.business_type) # Business status
                 fill(page.locator('#cash-mth-taxes-txt_5'), company.business_category) # Business type
                 fill(page.locator('#cash-mth-taxes-txt_6'), company.tax_phone) # Mobile
