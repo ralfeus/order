@@ -367,14 +367,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
             }}
         """)
         option = [o for o in list(result.values()) if o['materialCode'] == option_id][0]
-        try_click(page.locator('button[aria-controls="pay-gds__slt_0"]'),
-                    lambda: page.wait_for_selector('div[option-role="item-option-list"]'))
-        try_click(page.locator(f'//a[.//span[contains(text(), "{option["itemNm"]}")]]'),
+        option_list_loc = page.locator('div[option-role="item-option-list"]')
+        product_loc = page.locator(f'//li[@goods-cart-role="{base_product_id}" and div[@class="lyr-gd__opt"]]') \
+            .filter(has_text=option["optValNm1"])
+        try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').first,
+                    lambda: option_list_loc.wait_for(state='visible'))
+        if option.get('optValNm2') == None:
+            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm1"]}")]]'),
                     lambda: page.wait_for_selector('#cart'))
+        else:
+            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm1"]}")]]'),
+                    lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
+            try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').last,
+                    lambda: option_list_loc.last.wait_for(state='visible'))
+            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm2"]}")]]'),
+                    lambda: page.wait_for_selector('#cart'))
+            product_loc = product_loc.filter(has_text=option["optValNm2"])
         try_click(page.locator('#cart'), 
-                    lambda: page.wait_for_selector(
-                        f'//li[@goods-cart-role="{base_product_id}"]/div[@class="lyr-gd__opt"]/em[text()="{option["itemNm"]}"]'))
-        return page.locator(f'//li[@goods-cart-role="{base_product_id}" and div[@class="lyr-gd__opt"]/em[text()="{option["itemNm"]}"]]//input[@id="selected-qty1"]')
+                    lambda: product_loc.wait_for(state='visible'))
+        return product_loc.locator('input#selected-qty1')
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone("Asia/Seoul")
