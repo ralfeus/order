@@ -129,5 +129,5 @@ def import_products():
     import_products()
 
 with create_app().app_context():
-    # logging.root.setLevel(logging.INFO)
+    logging.root.setLevel(logging.DEBUG)
     post_po()

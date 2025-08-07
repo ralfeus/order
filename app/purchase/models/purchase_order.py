@@ -48,7 +48,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
     address_1 = Column(String(64))
     address_2 = Column(String(64))
     company_id = Column(Integer, ForeignKey('companies.id'))
-    company = relationship(Company, foreign_keys=[company_id])
+    company: Company = relationship(Company, foreign_keys=[company_id])
     vendor = Column(String(64))
     purchase_restricted_products = Column(Boolean, default=False)
     status_details = Column(Text)

@@ -2,6 +2,7 @@
 using quick order"""
 
 from functools import reduce
+from time import sleep
 from typing import Any, Optional
 from urllib.parse import urlencode
 
@@ -10,11 +11,12 @@ from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
 from app.tools import get_html, get_json, invoke_curl, try_perform
 from utils.atomy import atomy_login2
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import json
 import logging
 from pytz import timezone
 import re
+from playwright.sync_api import Locator, Page, expect, sync_playwright
 
 from app import db
 from exceptions import (
@@ -45,191 +47,34 @@ ORDER_STATUSES = {
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
+def try_click(object, execute_criteria, retries=3):
+    exception = Exception(f"Failed to click the object after {retries} retries.")
+    for _ in range(retries):
+        try:
+            object.click()
+            execute_criteria()
+            sleep(.7)
+            return
+        except Exception as e:
+            print(f"Retrying click on {object}: {e}")
+            exception = e
+    raise exception
+
+def fill(object: Locator, data: str):
+    object.fill(data)
+    expect(object).to_have_value(data)
+
+def find_address(page: Page, base_address: str):
+    page.locator('#lyr_pay_sch_bx33').fill(base_address)  # Base address
+    page.locator('button[address-role="search-button"]').click()
+    page.locator('button[address-role="select-button"]').click()
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
 
     __session_cookies: list[str] = []
     __purchase_order: PurchaseOrder = None  # type: ignore
-
-    def __init_payload(self):
-        self.__good_template = {
-            "seq": None,  # set in `__add_products`
-            "goodsNo": None,  # set in `__add_products`
-            "itemNo": None,  # set in `__add_products`
-            "ordQty": None,  # set in `__add_products`
-            "lowVendNo": "LV01",
-            "pkgGoodsSeq": 0,
-            "cartNo": "250500019539284",
-            "dispGoodsNm": None,  # set in `__add_products`
-            "imageUrl": "https://image.atomy.com/KR/goods/000129/773f540b-50a9-4bc6-a670-73b1d963522b.jpg",
-            "salePrice": None,  # set in `__add_products`
-            "pvPrice": 7000,  # set in `__add_products`
-            "saleWeight": 0.1,  # Not provided
-            "totWeight": 0.30000000000000004,  # Not provided
-            "warehouseNo": "01",
-            "seqNo": "000001",
-            "dlvpSeq": 0,
-            "beneSeqList": [1],
-        }
-        self.__po_params = {
-            "maxSeq": 5,
-            "mst": {
-                "seq": 4,
-                "clientNo": "ATOMY",
-                "siteNo": "KR",
-                "jisaCode": "01",
-                "saleDate": "20250521",
-                "buPlace": None,  # set in `__set_bu_place`
-                "ordererNm": None,  # set in `__set_receiver_address`
-                "cellNo": "01050062045",
-                "email": "",  # Not provided
-                "deliMethodCd": "3",
-                "deliCostDiviCd": "0",  # set in `__set_local_shipment`
-                "ordChnlCd": "10",
-                "ordChnlCdTemp": "10",
-                "cartGrpCd": "10",
-                "packingNo": None,  # set in `__set_local_shipment`
-                "packingYn": "N",  # set in `__set_local_shipment`
-                "mailRecvYn": "N",
-                "ordKindCd": "03",
-                "nomemOrdYn": "N",
-                "senderPrintYn": "Y",
-                "smsRecvYn": "Y",
-                "cashReceiptUseDiviCd": "2",
-                "cashReceiptIssueCd": "3",
-                "cashReceiptCertNo": "418-14-11817",
-                "saleNo": None,  # set in `__send_order_post_request`
-            },
-            "payList": [
-                {
-                    "seq": 3,
-                    "payMean": "vbank",
-                    "mersDiviCd": "101",
-                    "payMeanCd": "1401",
-                    "payAmt": "50400",
-                    "payVat": 4581,
-                    "totPayAmt": 50400,
-                    "payTaxAmt": 50400,
-                    "bankCd": "04",
-                    "morcNm": None,  # set in `__set_payment_params`
-                    "expiry": "20250522230000",
-                    "expiryDtime": "20250522230000",
-                    "rcvCellNo": "01050062045",
-                    "payerPhone": "010-5006-2045",
-                    "cashReceiptType": "PROOF",
-                    "registrationNumber": "4181411817",
-                    "payNo": None,  # set in `__send_order_post_request`
-                    "vanData": {
-                        "data": {
-                            "bankCd": "06",
-                            "dispGoodsNm": "Finezyme",
-                            "ordererNm": None,  # set in `__set_payment_params`
-                            "expiry": "20250522235959",
-                            "cashReceiptType": "PROOF",
-                            "registrationNumber": "4181411817",
-                            "taxAmount": 50400,
-                            "totPayAmt": 50400,
-                            "customerMobilePhone": "01050062045",
-                        },
-                        "vanCd": "50",
-                        "saleNo": None,  # set in `__send_order_post_request`
-                        "payNo": None,  # set in `__send_order_post_request`
-                        "payMeanCd": "1401",
-                        "payMean": "vbank",
-                        "mersDiviCd": "101",
-                        "payAmt": "50400",
-                        "timezone": "Asia/Seoul",
-                        "paySiteNo": "KR",
-                        "payJisaCode": "01",
-                        "payClientNo": "ATOMY",
-                        "payChnlCd": "10",
-                    },
-                    "webhook": False,
-                }
-            ],
-            "dlvpList": [
-                {
-                    "count": 0,
-                    "deliFormCd": "10",
-                    "mbrDlvpSeq": "0000001",
-                    "dlvpDiviCd": "10",
-                    "baseYn": "Y",
-                    "dlvpNm": None,  # set in `__set_receiver_address`
-                    "recvrPostNo": None,  # set in `__set_receiver_address`
-                    "recvrBaseAddr": None,  # set in `__set_receiver_address`
-                    "recvrDtlAddr": None,  # set in `__set_receiver_address`
-                    "cellNo": None,  # set in `__set_receiver_mobile`
-                    "publicPlace": False,
-                    "express": False,
-                    "seq": 0,
-                    "dlvpNo": "1",
-                    "recvrNm": None,  # set in `__set_receiver_address`
-                    "buPlace": "",
-                    "deliTypeCd": "3",
-                    "packingMemo": None,  # set in `__set_local_shipment`
-                    "deliCostTaxRate": 0,
-                    "weekDeliveryPossYn": "N",
-                    "saleAmtDispYn": "Y",
-                }
-            ],
-            "goodsList": [],
-            "beneList": [
-                {
-                    "seq": 1,
-                    "tempOrdSeq": "1",
-                    "issueDiviCd": "10",
-                    "costKindCd": "20",
-                    "costKindDtlCd": "2010",
-                    "relDiviCd": "10",
-                    "deliCostAmt": 0,
-                    "deliCostPoliNo": "KR00011",
-                    "stAmt": 50000,
-                    "costAmt": 0,
-                    "taxAmt": 0,
-                    "deliCostDiviCd": "0",  # set in `__set_local_shipment`
-                    "oriDeliCostAmt": 0,
-                    "deliTaxVal": "1.1",
-                    "deliTaxTypeCd": "15",
-                }
-            ],
-            "saveYn": "N",
-        }
-        self.__mst = self.__po_params["mst"]
-        self.__dlvpList = self.__po_params["dlvpList"]
-        self.__goodsList = self.__po_params[
-            "goodsList"
-        ]  # Propagated in `__add_products`
-        self.__beneList = self.__po_params["beneList"]
-        self.__payment_payload: dict[str, Any] = {
-            "ordData": self.__po_params,
-            "payData": {
-                "entry": {
-                    "paySiteNo": "KR",
-                    "payJisaCode": "01",
-                    "payClientNo": "ATOMY",
-                    "payChnlCd": "10",
-                    "origin": "https://kr.atomy.com",
-                },
-                "payLocale": {
-                    "payCountry": "KR",
-                    "timezone": "Asia/Seoul",
-                    "payLanguage": "ko",
-                    "currency": {"name": "KRW", "code": "410"},
-                },
-                "returnUrl": "https://kr.atomy.com/order/regist",
-                "completeUrl": "https://kr.atomy.com/order/finish",
-            },
-        }
-        self.__cart_request = {
-            "cartList": [], # To be filled in `__add_products`
-            "mbCartList": [],
-            "cartDiviCd": "30",
-            "presentYn": "N",
-            # "gdsSearchLayerYn": "Y",
-            # "gdsSearchKeyword": "000120",
-        }
-
+    
     def __init__(
         self,
         browser=None,
@@ -251,6 +96,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config: dict[str, Any] = config
+        self.__order_page: str = ""
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -279,155 +125,123 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
-        try:
-            self.__login(purchase_order)
-            self.__init_quick_order()
-            self.__set_bu_place()
-            ordered_products, unavailable_products = self.__add_products(
-                purchase_order.order_products
-            )
-            self.__set_purchase_date(purchase_order.purchase_date)
-            self.__set_receiver_mobile(purchase_order.contact_phone)
-            self.__set_receiver_address(
-                purchase_order.address,
-                purchase_order.payment_phone,
-                self.__get_receiver_name(purchase_order),
-            )
-            self.__set_local_shipment(purchase_order, ordered_products)
-            self.__set_payment_deadline()
-            self.__set_payment_params(purchase_order, ordered_products)
-            self.__set_tax_info(purchase_order)
-            po_params = self.__submit_order()
-            self._logger.info("Created order %s", po_params[0])
-            purchase_order.vendor_po_id = po_params[0]
-            purchase_order.payment_account = po_params[1]
-            purchase_order.total_krw = po_params[2]
-            db.session.flush()
-            self._set_order_products_status(
-                ordered_products, OrderProductStatus.purchased
-            )
-            return purchase_order, unavailable_products
-        except AtomyLoginError as ex:
-            self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
-            raise ex
-        except PurchaseOrderError as ex:
-            self._logger.warning(ex)
-            if ex.retry:
-                self._logger.warning("Retrying %s", purchase_order.id)
-                return self.post_purchase_order(purchase_order)
-            raise ex
-        except Exception as ex:
-            self._logger.exception("Failed to post an order %s", purchase_order.id)
-            raise ex
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch(headless=True) 
+                # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+                page = browser.new_page()
+                page.set_viewport_size({"width": 1420, "height": 1080})
 
-    def __login(self, purchase_order):
+                self.__login(page, purchase_order)
+                self.__init_quick_order(page)
+                ordered_products, unavailable_products = self.__add_products(
+                    page, purchase_order.order_products
+                )
+                self.__set_purchase_date(page, purchase_order.purchase_date)
+                self.__set_receiver_mobile(page, purchase_order.contact_phone)
+                self.__set_receiver_name(page, purchase_order)
+                self.__set_receiver_address(page,
+                    purchase_order.address,
+                    purchase_order.payment_phone
+                )
+                self.__set_local_shipment(page, ordered_products)
+                self.__set_payment_params(page, purchase_order)
+                self.__set_tax_info(page, purchase_order)
+                po_params = self.__submit_order(page)
+                self._logger.info("Created order %s", po_params[0])
+                purchase_order.vendor_po_id = po_params[0]
+                purchase_order.payment_account = po_params[1]
+                purchase_order.total_krw = po_params[2]
+                db.session.flush()
+                self._set_order_products_status(
+                    ordered_products, OrderProductStatus.purchased
+                )
+                return purchase_order, unavailable_products
+            except AtomyLoginError as ex:
+                self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
+                raise ex
+            except PurchaseOrderError as ex:
+                self._logger.warning(ex)
+                if ex.retry:
+                    self._logger.warning("Retrying %s", purchase_order.id)
+                    return self.post_purchase_order(purchase_order)
+                raise ex
+            except Exception as ex:
+                self._logger.exception("Failed to post an order %s", purchase_order.id)
+                page.screenshot(path=f'failed-{purchase_order.id}.png')
+                raise ex
+
+    def __login(self, page, purchase_order):
         logger = self._logger.getChild("__login")
         logger.info("Logging in as %s", purchase_order.customer.username)
-        self.__session_cookies = [
-            atomy_login2(
-                purchase_order.customer.username, purchase_order.customer.password
-            )
-        ]
-        return self.__session_cookies
+        page.goto(f"{URL_BASE}/login")
+        page.fill("#login_id", purchase_order.customer.username)
+        page.fill("#login_pw", purchase_order.customer.password)
+        page.click(".login_btn button")
+        page.wait_for_load_state()
+        logger.debug("Logged in as %s", purchase_order.customer.username)
+
 
     def __get_session_headers(self):
         return [{"Cookie": c} for c in self.__session_cookies]
 
-    def __init_quick_order(self):
+    def __init_quick_order(self, page):
         """Initializes the quick order. Doesn't return anything but essential
         for order creation"""
-        self.__init_payload()
+        logger = self._logger.getChild("__init_quick_order")
+        logger.info('Changing language')
+        page.evaluate('overpass.util.setLanguage("en");')
+        page.wait_for_load_state("networkidle")
         try:
-            get_json(
-                url=f"{URL_BASE}/cart/registCart/30",
-                headers=self.__get_session_headers(),
-                raw_data="[]",
-            )
-        except Exception as ex:
-            self._logger.warning("Couldn't initialize quick order: %s", str(ex))
-            raise PurchaseOrderError(
-                self.__purchase_order, self, "Couldn't initialize quick order"
-            )
+            page.locator('button[layer-role="close-button"]').click()
+        except Exception as e:
+            pass  # No popup to close
+        logger.info('Opening Quick Order')
+        try_click(page.locator('a[href^="javascript:overpass.cart.regist"]'),
+                  lambda: page.wait_for_load_state())
         
-    def __register_cart(self) -> str:
+    def __register_cart(self, page: Page) -> None:
         """Registers the cart with the products to be ordered
 
         :returns str: cart number"""
         logger = self._logger.getChild("__register_cart")
         logger.info("Registering cart")
-        cart = get_json(
-            url=f"{URL_BASE}/cart/registQuickOrderCart",
-            headers=self.__get_session_headers(),
-            raw_data=json.dumps(self.__cart_request),
-        )
-        return cart['cartList'][0]["cartNo"]
+        page.locator('[cart-role="quick-cart-send"]').click()
+        try_click(
+            page.locator('[layer-role="close-button"]'),
+            lambda: page.wait_for_selector('#schInput', state='detached'))
 
-    def __send_payment_request(self) -> tuple[str, str]:
-        logger = self._logger.getChild("__send_payment_request")
-        logger.info("Sending payment request")
-        logger.debug("Payment payload")
-        logger.debug(json.dumps(self.__payment_payload))
-        result = get_json(
-            url=f"{URL_BASE}/overpass-payments/support/mersList",
-            headers=self.__get_session_headers(),
-            raw_data=json.dumps(self.__payment_payload),
-        )
-        return result["mersList"][0]["payNo"], result["mersList"][0]["saleNo"]
-
-    def __send_order_post_request(self, pay_no, sale_no) -> None:
-        """Posts order
-
-        :param str pay_no: payment number - internal Atomy number
-        :param str sale_no: sale number - internal Atomy number
-        """
-        logger = self._logger.getChild("__send_order_post_request")
-        self.__mst["saleNo"] = sale_no
-        self.__po_params["payList"][0]["payNo"] = pay_no
-        self.__po_params["payList"][0]["vanData"]["payNo"] = pay_no
-        self.__po_params["payList"][0]["vanData"]["saleNo"] = sale_no
-        logger.debug("Order params")
-        logger.debug(json.dumps(self.__po_params))
-        try:
-            stdout, stderr = try_perform(
-                lambda: invoke_curl(
-                    url=f"{URL_BASE}/order/regist",
-                    # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                    headers=self.__get_session_headers()
-                    + [{"content-type": "application/json; charset=UTF-8"}],
-                    raw_data=json.dumps(self.__po_params),
-                ),
-                logger=logger,
-            )
-            if re.search("HTTP.*200", stderr) is None:
-                raise PurchaseOrderError(self.__purchase_order, self, message=stdout)
-
-        except HTTPError as ex:
-            logger.warning(self.__po_params)
-            logger.warning(ex)
-            raise PurchaseOrderError(
-                self.__purchase_order, self, "Unexpected error has occurred"
-            )
-
-    def __get_order_details(self) -> dict[str, Any]:
-        stdout, stderr = try_perform(
-            lambda: invoke_curl(
-                url=f"{URL_BASE}/order/finish",
-                headers=self.__get_session_headers(),
-            ),
-            logger=self._logger.getChild("__get_order_details"),
-        )
-        vendor_po = re.search(r"saleNum.*?(\d+)", stdout).group(1)
-        payment_account = re.search(r"ipgumAccountNo.*?(\d+)", stdout).group(1)
-        total = re.search(r"ipgumAmt.*?(\d+)", stdout).group(1)
+    def __get_order_details(self, page: Page) -> dict[str, Any]:
+        page.wait_for_load_state('networkidle')
+        ord_data = [ m.string 
+            for m in [
+                re.search(r"JSON.parse\((.*)\)", s.text_content())
+                for s in page.locator('script').all()
+            ] if m != None
+        ][0]
+        vendor_po = re.search(r"saleNum.*?(\d+)", ord_data).group(1)
+        payment_account = re.search(r"ipgumAccountNo.*?(\d+)", ord_data).group(1)
+        total = re.search(r"ipgumAmt.*?(\d+)", ord_data).group(1)
         return {
             "vendor_po": vendor_po,
             "payment_account": payment_account,
             "total_price": total,
         }
+    
+    def __get_order_page(self) -> str:
+        """Gets the order page after the order is placed"""
+        if not self.__order_page:
+            self.__order_page, _ = invoke_curl(
+                url=f"{URL_BASE}/order/sheet",
+                headers=self.__get_session_headers()
+                    + [{"referer": f"{URL_BASE}/order/sheet"}],
+                retries=0,
+            )
+        return self.__order_page
 
-    def __add_products(
-        self, order_products: list[OrderProduct]
-    ) -> tuple[list[tuple[OrderProduct, str]], dict[str, str]]:
+
+    def __add_products(self, page, order_products: list[OrderProduct]
+            ) -> tuple[list[tuple[OrderProduct, str]], dict[str, str]]:
         """Adds products to be purchased.
         :param order_products: products to be ordered
         :type order_products: list[OrderProduct]
@@ -439,7 +253,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.info("Adding products")
         ordered_products = []
         unavailable_products = {}
+        # Open the product search form
+        sleep(3)
+        try_click(page.locator('button[quick-form-button="search"]'),
+                  lambda: page.wait_for_selector('#schInput', timeout=5000))
+
         for op in order_products:
+            logger.info("Adding product %s", op.product_id)
             if not op.product.purchase:
                 logger.warning(
                     "The product %s is exempted from purchase", op.product_id
@@ -452,77 +272,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 continue
             try:
                 product_id = op.product_id.zfill(6)
-                product, option = self.__get_product_by_id(product_id)
-                if not product:
-                    raise ProductNotAvailableError(product_id)
-                if product.get("stockExistYn") == "N":
-                    raise ProductNotAvailableError(product_id)
+                if not self.__is_product_allowed(page, product_id):
+                    raise ProductNotAvailableError(
+                        product_id, 
+                        f"The product {product_id} is not allowed for user {self.__purchase_order.customer.username}")
+                product_object, product_info = self.__get_product_by_id(page, product_id)
+                product_object.fill(str(op.quantity))
+
                 op.product.separate_shipping = bool(
-                    int(product.get("isIndividualDelivery") or 0)
+                    int(product_info.get("isIndividualDelivery") or 0)
                 )
-
-                # Get the product benefits and add them to the beneList and add each benefit
-                # to the product's beneList
-                product_benefits = self.__get_product_benefits(product["goodsNo"])
-                product_beneSeqList = self.__good_template["beneSeqList"].copy()
-                for pb in product_benefits:
-                    if pb.get("promoNo") is None or pb["promoNo"] == "":
-                        continue
-                    seq_num = len(self.__beneList) + 1
-                    product_beneSeqList.append(seq_num)
-                    self.__beneList.append({
-                        "seq": seq_num,
-                        "issueDiviCd": "10",
-                        "costKindCd": "10",
-                        "costKindDtlCd": "1025",
-                        "relDiviCd": "10",
-                        "relNo": pb["promoNo"],
-                        "relDtlNo": "",
-                        "relDtlNo1": pb["promoTypeNo"],
-                        "seqNoList": ["000001"],
-                        "dcAmt": pb["dcAmt"],
-                        "taxAmt": 0,
-                    })
-
-
                 ordered_products.append((op,))
-                self.__goodsList.append(
-                    {
-                        **self.__good_template,
-                        "seq": len(self.__goodsList),
-                        "goodsNo": product["goodsNo"],
-                        "itemNo": option,
-                        "ordQty": op.quantity,
-                        "dispGoodsNm": product["goodsNm"],
-                        "salePrice": op.price,
-                        "pvPrice": product["pvPrice"],
-                        "saleWeight": product["weight"],
-                        "totWeight": product["weight"] * op.quantity,
-                        "seqNo": str(len(self.__goodsList)).zfill(6),
-                        "beneSeqList": product_beneSeqList,
-                    }
-                )
-                self.__cart_request["cartList"].append(
-                    {
-                        "beneCustSalePrice": product["beneCustSalePrice"],
-                        "custPvupPrice": product["custPvupPrice"],
-                        "goodsCmpsDiviCd": "goodsCmpsDiviCd",
-                        "goodsNm": product["goodsNm"],
-                        "goodsNo": product["goodsNo"],
-                        "goodsTypeCd": product["goodsTypeCd"],
-                        "itemNo": option,
-                        "multiItemYn": product["multiItemYn"],
-                        "ordQty": op.quantity,
-                        "pvPrice": product["pvPrice"],
-                        "salePossQty": product["salePossQty"],
-                        "salePrice": product["salePrice"],
-                        "materialCode": product["goodsNo"],
-                        "immePurchYn": product["immePurchYn"],
-                        "onSiteSalesYn": product["onSiteSalesYn"],
-                        "soldOutWareHouseNo": "",
-                    }
-                )                    
-
                 logger.info("Added product %s", op.product_id)
             except ProductNotAvailableError as ex:
                 logger.warning(
@@ -541,69 +301,80 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 f"No available products are in the PO. Unavailable products:\n{unavailable_products}",
             )
         # Register the cart with the products to be ordered
-        cart_id = self.__register_cart()
+        self.__register_cart(page)
         # Set the cart number in the goods list
-        for good in self.__goodsList:
-            good["cartNo"] = cart_id
         return ordered_products, unavailable_products
 
-    def __get_product_by_id(self, product_id):
-        try:
-            result = get_html(
-                url=f"{URL_BASE}/goods/goodsResult",
-                # resolve="www.atomy.kr:443:13.209.185.92,3.39.241.190",
-                headers=self.__get_session_headers(),
-                raw_data=urlencode(
-                    {
-                        "pagingYn": "N",
-                        "pageIdx": 1,
-                        "rowsPerPage": 15,
-                        "searchKeyword": product_id,
-                        "index": 0,
-                    }
-                ),
-            )
-
-            if len(result.cssselect("div#goodsPagedList_none")) > 0:
-                # The product with such a code doesn't exist
-                return None, None
-            product_info = json.loads(
-                result.cssselect("input#goodsInfo_0")[0].attrib["data-goodsinfo"]
-            )
+    def __get_product_by_id(self, page: Page, product_id):
+        '''Gets a product or a specific product option by its ID'''
+        logger = self._logger.getChild("__get_product_by_id")
+        logger.debug("Getting product %s by ID", product_id)
+        fill(page.locator('#schInput'), product_id)
+        logger.debug("Set '%s' to the search field", product_id)
+        try_click(page.locator('#schBtn'),
+            lambda: page.wait_for_selector('#goodsList'))
+        sleep(.7)
+        product = page.locator('.lyr-pay-gds__item > input[data-goodsinfo]')
+        if product.count() == 0:
+            # No product was found
+            raise ProductNotAvailableError(product_id, "Not found")
+        product_info_attr = product.get_attribute('data-goodsinfo')
+        product_info = json.loads(product_info_attr) #type: ignore
+        button = page.locator('button[cart-role="btn-solo"]')
+        if button.count() > 0: 
+            # There are no options
+            add_button = page.locator('//div[contains(@class, "item_top")]/button[em[text()="Add"]]')
+            if add_button.is_disabled():
+                raise ProductNotAvailableError(product_id)
+            try_click(
+                add_button, 
+                lambda: page.wait_for_selector(f'[goods-cart-role="{product_id}"]'))
+            result = page.locator(f'[goods-cart-role="{product_id}"] #selected-qty1')
+        else:
+            # There are options
             base_product_id = product_info["goodsNo"]
-            option = (
-                self.__get_product_option(base_product_id, product_id)
-                if (len(result.cssselect("button[option-role]"))) > 0
-                else "00000"
-            )
-            return product_info, option
-        except HTTPError:
-            self._logger.warning(
-                "Product %s: Couldn't get response from Atomy server in several attempts. Giving up",
-                product_id,
-            )
-        return None, None
+            result = self.__get_product_option(page, base_product_id, product_id)
+        return result, product_info
 
-    def __get_product_benefits(self, product_id):
-        product_info = get_json(
-            url=f"{URL_BASE}/goods/quickSearchGoodsInfo",
-            headers=self.__get_session_headers(),
-            raw_data=json.dumps({"selectedGoods": {"goodsNo": product_id}}),
-        )
-        product_benefits = product_info["goodsDetail"]["gdGoods"]["prBenefitInfoList"]
-        return product_benefits
+    def __is_product_allowed(self, page, product_id):
+        '''Checks whether product is allowed'''
+        logger = self._logger.getChild("__is_product_allowed")
+        logger.debug("Checking whether product %s allowed", product_id)
+        result = page.evaluate(f"""
+            async () => {{
+                const res = await fetch('{URL_BASE}/cart/checkPurchaseRestrirction', {{
+                    method: 'POST',
+                    headers: {{'content-type': 'application/json'}},
+                    body: '{{"goodsNoNmList":{{"{product_id}":""}}}}'
+                }});
+                return await res.ok
+            }}
+        """) 
+        return result
 
-    def __get_product_option(self, product, option_id):
-        result = get_json(
-            url=f"{URL_BASE}/goods/itemStatus",
-            headers=self.__get_session_headers()
-            + [{"content-type": "application/x-www-form-urlencoded"}],
-            raw_data=urlencode({"goodsNo": product, "goodsTypeCd": "101"}),
-        )
-        option = [o for o in result.values() if o["materialCode"] == option_id][0]
-        if option["goodsStatNm"] == "goods.word.outofstock":
-            raise ProductNotAvailableError(product, "Option out of stock")
-        return option["itemNo"]
+    def __get_product_option(self, page, base_product_id, option_id):
+        try_click(page.locator('button[option-role="opt-layer-btn"]'),
+                    lambda: page.wait_for_selector('#gds_opt_0'))
+        # base_product_id = page.locator('.lyr-gd__num').text_content()
+        result = page.evaluate(f"""
+            async () => {{
+                const res = await fetch('{URL_BASE}/goods/itemStatus', {{
+                    method: 'POST',
+                    headers: {{'content-type': 'application/x-www-form-urlencoded'}},
+                    body: 'goodsNo={base_product_id}&goodsTypeCd=101'
+                }});
+                return await res.json()
+            }}
+        """)
+        option = [o for o in list(result.values()) if o['materialCode'] == option_id][0]
+        try_click(page.locator('button[aria-controls="pay-gds__slt_0"]'),
+                    lambda: page.wait_for_selector('div[option-role="item-option-list"]'))
+        try_click(page.locator(f'//a[.//span[contains(text(), "{option["itemNm"]}")]]'),
+                    lambda: page.wait_for_selector('#cart'))
+        try_click(page.locator('#cart'), 
+                    lambda: page.wait_for_selector(
+                        f'//li[@goods-cart-role="{base_product_id}"]/div[@class="lyr-gd__opt"]/em[text()="{option["itemNm"]}"]'))
+        return page.locator(f'//li[@goods-cart-role="{base_product_id}" and div[@class="lyr-gd__opt"]/em[text()="{option["itemNm"]}"]]//input[@id="selected-qty1"]')
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone("Asia/Seoul")
@@ -616,72 +387,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
             purchase_date >= min_date and purchase_date <= max_date
         )
 
-    def __set_bu_place(self):
-        logger = self._logger.getChild("__set_bu_place")
-        try:
-            logger.debug("Trying to get buPlace from the page")
-            bu_place = self.__get_bu_place_from_page()
-        except Exception as ex:
-            logger.warning("Couldn't get buPlace from the page: %s", ex.args)
-            if self.__purchase_order.customer.center_code:
-                logger.debug("Using buPlace from the customer center code")
-                bu_place = self.__purchase_order.customer.center_code
-            else:
-                logger.warning("Trying to get buPlace from the network manager")
-                try:
-                    bu_place = self.__get_bu_place_from_network()
-                    if bu_place is None:
-                        raise Exception("Couldn't find center code")
-                except:
-                    raise PurchaseOrderError(self.__purchase_order, message=ex.args)
-        logger.debug("buPlace is %s", bu_place)
-        self.__po_params["mst"]["buPlace"] = bu_place
-
-    def __get_bu_place_from_network(self) -> str:
-
-        result = get_json(
-            url=f"{URL_NETWORK_MANAGER}/api/v1/node/{self.__purchase_order.customer.username}",
-            get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: invoke_curl(
-                url, raw_data, headers, method, False, retries, ignore_ssl_check
-            ),
-        )
-        return result["center_code"]
-
-    def __get_bu_place_from_page(self) -> str:
-        """Gets buPlace from the page. If not found, returns None"""
-
-        logger = self._logger.getChild("__get_bu_place_from_page")
-        document, _ = invoke_curl(
-            url=f"{URL_BASE}/order/sheet",
-            headers=self.__get_session_headers()
-            + [{"referer": f"{URL_BASE}/order/sheet"}],
-            retries=0,
-        )
-        bu_code_definition = re.search(
-            r'buPlace.*?:.*?"(.*?)\\"', document
-        ) or re.search(r'buCode.*?:.*?"(.*?)\\"', document)
-        if bu_code_definition:
-            return bu_code_definition.group(1)
-        try:
-            message = json.loads(document)["errorMessage"]  # type: ignore
-        except:
-            message = "Couldn't get buPlace from Atomy server."
-        raise Exception(message)
-
-    def __set_purchase_date(self, purchase_date):
+    def __set_purchase_date(self, page: Page, sale_date: date):
         logger = self._logger.getChild("__set_purchase_date")
-        if purchase_date and self.__is_purchase_date_valid(purchase_date):
-            sale_date = purchase_date
+        if sale_date and self.__is_purchase_date_valid(sale_date):
+            sale_date_str = sale_date.strftime('%Y-%m-%d')
+            try_click(page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label'),
+                  lambda: expect(page.locator(
+                      f'ul.slt-date input[value="{sale_date_str}"]'))
+                      .to_be_checked())
+            logger.info("Purchase date is set to %s", sale_date_str)
         else:
-            sale_date = datetime.now()
-        if sale_date.weekday() == 6 or (sale_date.month, sale_date.day) == (1, 1):
-            sale_date += timedelta(days=1)
-        self.__mst["saleDate"] = sale_date.strftime("%Y%m%d")
-        logger.info("Purchase date is set to %s", self.__mst["saleDate"])
+            logger.info("Purchase date is left default")
 
     def __set_local_shipment(
-        self,
-        purchase_order: PurchaseOrder,
+        self, page: Page,
         ordered_products: list[tuple[OrderProduct, str]],
     ):
         logger = self._logger.getChild("__set_local_shipment")
@@ -700,23 +419,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
             < self.__config["FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD"]
         )
         if local_shipment:
-            logger.debug("Setting combined shipment params")
-            self.__mst["deliCostDiviCd"] = "1"
-            self.__mst["packingYn"] = "Y"
-            self.__mst["packingNo"] = (
-                f"{purchase_order.contact_phone}/{purchase_order.address.zip}"
-            )
-            self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
-            self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
+            logger.debug("Setting combined shipment")
+            try_perform(lambda: self.__set_combined_shipping(page), logger=logger)
+            logger.debug("Combined shipment is set")
         else:
             logger.debug("No combined shipment is needed")
-            self.__mst["deliCostDiviCd"] = "0"
-            self.__mst["packingYn"] = "N"
-            self.__mst["packingNo"] = None
-            self.__dlvpList[0]["packingMemo"] = self.__mst["packingNo"]
-            self.__beneList[0]["deliCostDiviCd"] = self.__mst["deliCostDiviCd"]
 
-    def __get_receiver_name(self, purchase_order: PurchaseOrder) -> str:
+    def __set_combined_shipping(self, page: Page):
+        combined_shipping = page.locator('label[for="pay-dlv_ck0_1"]')
+        if combined_shipping.count() > 0:
+            try_click(combined_shipping,
+                lambda: page.wait_for_selector('[layer-role="close-button"]'))
+            try_click(page.locator('[layer-role="close-button"]'),
+                lambda: page.wait_for_selector('[layer-role="close-button"]', state='detached'))
+            if not page.locator('#pay-dlv_ck0_1').is_checked():
+                raise Exception("Combined shipping is not set")
+
+    def __set_receiver_name(self, page: Page, purchase_order: PurchaseOrder) -> None:
+        logger = self._logger.getChild("__set_receiver_name")
+        logger.debug("Setting recipient's name")
         order_id_parts = purchase_order.id[8:].split("-")
         parts = {
             "id0": order_id_parts[0],
@@ -724,144 +445,118 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "id2": order_id_parts[2][1:],
             "company": purchase_order.company,
         }
-        return (
+        rcpt_name = (
             self.__config.get("ATOMY_RECEIVER_NAME_FORMAT") or "{company} {id1}"
         ).format(**parts)
-        # order_id_parts[2][1:] + "-" + order_id_parts[1] + "-" + order_id_parts[0]
+        page.locator("#psn-txt_0_0").fill(rcpt_name)
+        expect(page.locator("#psn-txt_0_0")).to_have_value(rcpt_name)
+        logger.debug(f"Recipient's name set to {rcpt_name}")
 
-    def __set_receiver_mobile(self, phone="     "):
+
+    def __set_receiver_mobile(self, page: Page, phone="     "):
         logger = self._logger.getChild("__set_receiver_mobile")
         logger.debug("Setting receiver phone number to %s", phone)
-        self.__mst["cellNo"] = phone.replace("-", "")
-        self.__dlvpList[0]["cellNo"] = phone
+        page.locator("#psn-txt_1_0").fill(phone.replace('-', ''))
+        expect(page.locator("#psn-txt_1_0")).to_have_value(phone.replace('-', ''))
 
-    def __set_receiver_address(self, address: Address, phone, recipient_name):
+    def __set_receiver_address(self, page: Page, address: Address, phone: str):
         logger = self._logger.getChild("__set_receiver_address")
-        self.__mst["ordererNm"] = recipient_name
-        address_dict = {
-            "dlvpNm": recipient_name,
-            "recvrPostNo": address.zip,
-            "recvrBaseAddr": address.address_1,
-            "recvrDtlAddr": address.address_2,
-            "recvrNm": recipient_name,
-        }
-        logger.debug("Setting shipment address to %s", address_dict)
-        self.__dlvpList[0] = {**self.__dlvpList[0], **address_dict}
+        logger.debug("Setting recipient's address")
+        try_click(
+            page.locator('button[data-owns="lyr_pay_addr_lst"]'),
+            lambda: page.locator('#btnOrderDlvpReg').wait_for(timeout=5000))
+        addresses = page.locator('#dlvp_list > dl.lyr-address')
+        if addresses.count() > 0:
+            logger.debug("Found %s addresses.", addresses.count())
+        else:
+            logger.debug("No addresses found, creating a new one.")
+            try_click(page.locator('#btnOrderDlvpReg'),
+                lambda: page.wait_for_selector('div.lyr-pay_addr_add'))
+            page.fill('#dlvpNm', address.name)
+            expect(page.locator('#dlvpNm')).to_have_value(address.name)
+            page.fill('#cellNo', phone.replace('-', ''))
+            expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
+            page.locator('#btnAdressSearch').click()
+            page.locator('#lyr_pay_sch_bx33').fill(address.address_1)  # base address
+            page.locator('button[address-role="search-button"]').click()
+            page.locator('button[address-role="select-button"]').click()
+            page.fill('#dtlAddr', address.address_2)
+            expect(page.locator('#dtlAddr')).to_have_value(address.address_2)            
+            page.locator('label[for="baseYn"]').click()
+            try_click(page.locator('#btnSubmit'),
+                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+        try_click(page.locator('#dlvp_list > dl.lyr-address').first,
+                  lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
 
     def __set_payment_params(
-        self, po: PurchaseOrder, ordered_products: list[tuple[OrderProduct, str]]
+        self, page: Page, po: PurchaseOrder
     ):
         logger = self._logger.getChild("__set_payment_params")
         logger.debug("Setting payment parameters")
-        total_krw = reduce(
-            lambda acc, op: acc + (op[0].price * op[0].quantity), ordered_products, 0
-        )
-        pl = self.__po_params["payList"][0]
-        pl["payAmt"] = total_krw
-        pl["payVat"] = int(total_krw / 11)
-        pl["totPayAmt"] = total_krw
-        pl["payTaxAmt"] = total_krw
-        pl["bankCd"] = po.company.bank_id if po.company.bank_id != "06" else "04"
-        pl["morcNm"] = po.customer.name
-        pl["payerPhone"] = po.payment_phone
-        pl["vanData"]["data"]["bankCd"] = po.company.bank_id
-        pl["vanData"]["data"]["dispGoodsNm"] = (
-            po.order_products[0].product.name
-            or po.order_products[0].product.name_english
-            or "Products"
-        )
-        pl["vanData"]["data"]["ordererNm"] = po.customer.name
-        pl["vanData"]["data"]["customerMobilePhone"] = po.payment_phone.replace("-", "")
-        pl["vanData"]["data"]["taxAmount"] = total_krw
-        pl["vanData"]["data"]["totPayAmt"] = total_krw
-        pl["vanData"]["payAmt"] = total_krw
+        # Set the payment method
+        logger.debug("Setting payment method...")
+        page.locator('#mth-tab_3').click()
+        page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
+        # Set the payment mobile
+        print("Setting payment mobile...")
+        page.locator('#mth-cash-txt_0').fill(po.payment_phone)
+        logger.debug("Payment parameters are set")
 
-    def __set_payment_deadline(self) -> None:
-        """Sets payment deadline to 47 hours from now with accounting
-        for Korean timezone"""
-        logger = self._logger.getChild("__set_payment_deadline")
-        deadline = (datetime.now() + timedelta(hours=47)).strftime("%Y%m%d%H0000")
-        logger.info("Payment deadline is %s", deadline)
-        pl = self.__po_params["payList"][0]
-        pl["expiry"] = deadline
-        pl["expiryDtime"] = deadline
-        pl["vanData"]["data"]["expiry"] = deadline
-
-    def __set_tax_info(self, purchase_order: PurchaseOrder):
+    def __set_tax_info(self, page: Page, purchase_order: PurchaseOrder):
         logger = self._logger.getChild("__set_tax_info")
         logger.info("Setting counteragent tax information")
         if purchase_order.company.tax_id != ("", "", ""):  # Company is taxable
-            if purchase_order.company.tax_simplified:
+            company = purchase_order.company
+            if company.tax_simplified:
                 logger.debug("Setting tax information for simplified tax invoice")
-                self.__mst["cashReceiptIssueCd"] = "3"
-                self.__mst["cashReceiptUseDiviCd"] = "2"
-                self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
-                    purchase_order.company.tax_id[0],
-                    purchase_order.company.tax_id[1],
-                    purchase_order.company.tax_id[2],
-                )
-                self.__po_params["payList"][0]["cashReceiptType"] = "PROOF"
-                self.__po_params["payList"][0]["registrationNumber"] = "{}{}{}".format(
-                    purchase_order.company.tax_id[0],
-                    purchase_order.company.tax_id[1],
-                    purchase_order.company.tax_id[2],
-                )
-                self.__po_params["payList"][0]["vanData"]["data"][
-                    "cashReceiptType"
-                ] = "PROOF"
-                self.__po_params["payList"][0]["vanData"]["data"][
-                    "registrationNumber"
-                ] = self.__po_params["payList"][0]["registrationNumber"]
-
-                self.__payment_payload["ordData"]["payList"][0][
-                    "cashReceiptType"
-                ] = "PROOF"
-                self.__payment_payload["ordData"]["payList"][0][
-                    "registrationNumber"
-                ] = self.__po_params["payList"][0]["registrationNumber"]
+                page.locator('label[for="cash-mth-proof_rdo_1"]').click()
+                confirm_button = page.locator('button[layer-role="confirm-button"]')
+                try_click(page.locator('label[for="pay_important_ck_0"]'),
+                    lambda: expect(confirm_button).to_be_enabled(), retries=5)
+                confirm_button.click()
+                logger.debug('Set usage purpose')
+                page.locator('#cash-mth-proof-slt_0').select_option('cash-receipt_1')
+                page.locator('#cash-mth-receipt_opr').fill('%s%s%s' % company.tax_id)
+                page.locator('label[for="cash-mth-cash-btm_ck0"]').click()            
             else:
                 logger.debug("Setting tax information for tax invoice")
-                self.__mst["cashReceiptUseDiviCd"] = "3"
-                del self.__mst["cashReceiptIssueCd"]
-                self.__mst["cashReceiptCertNo"] = "{}-{}-{}".format(
-                    purchase_order.company.tax_id[0],
-                    purchase_order.company.tax_id[1],
-                    purchase_order.company.tax_id[2],
-                )
-                self.__payment_payload["ordData"]["taxInfo"] = self.__get_atomy_company(
-                    purchase_order.company
-                )
-                self.__po_params["taxInfo"] = self.__get_atomy_company(
-                    purchase_order.company
-                )
+                confirm_button = page.locator('button[layer-role="confirm-button"]')
+                logger.debug("Switch to Tax Invoice")
+                try_click(page.locator('label[for="cash-mth-proof_rdo_2"]'),
+                        lambda: expect(confirm_button).to_be_attached())
+                logger.debug("Close notice")
+                try_click(page.locator('label[for="pay_important_ck_1"]'),
+                        lambda: expect(confirm_button).to_be_enabled())
+                try_click(confirm_button,
+                        lambda: expect(confirm_button).not_to_be_attached())
+                logger.debug("Select New")
+                try_click(page.locator('label[for="cash-mth-taxes_rdo_1"]'),
+                        lambda: page.wait_for_selector('#cash-mth-taxes-txt_0'))
+                logger.debug("Fill data")
+                fill(page.locator('#cash-mth-taxes-txt_0'), company.name) # Company Name
+                fill(page.locator('#cash-mth-taxes-txt_1'), '%s%s%s' % company.tax_id) # Business Number
+                fill(page.locator('#cash-mth-taxes-txt_2'), company.contact_person) # Representative name
+                logger.debug("Find address")
+                try_click(page.locator('#cash-btnAdressSearch'),
+                        lambda: page.wait_for_selector('#lyr_pay_sch_bx33'))
+                find_address(page, company.address.address_1)
+                fill(page.locator('#cash-mth-taxes-txt_3_dtl'), company.address.address_1) # Detailed address
+                fill(page.locator('#cash-mth-taxes-txt_4'), company.business_type) # Business status
+                fill(page.locator('#cash-mth-taxes-txt_5'), company.business_category) # Business type
+                fill(page.locator('#cash-mth-taxes-txt_6'), company.tax_phone) # Mobile
+                fill(page.locator('#cash-mth-taxes-txt_7'), company.contact_person) # Manager
+                fill(page.locator('#cash-mth-taxes-txt_8'), company.email) # E-mail
+            logger.debug("Tax information is set")
 
-    def __get_atomy_company(self, company: Company) -> dict[str, Any]:
-        logger = self._logger.getChild("__get_atomy_company")
-        return {
-            "type": "new",
-            "bizNm": company.name,
-            "taxMbrNm": company.contact_person,
-            "bizNo": "{}{}{}".format(
-                company.tax_id[0], company.tax_id[1], company.tax_id[2]
-            ),
-            "industry": company.business_type,
-            "bunic": company.business_category,
-            "category": company.business_category,
-            "postNo": company.address.zip,
-            "baseAddr": company.address.address_1,
-            "dtlAddr": company.address.address_2,
-            "cellNo": company.tax_phone,
-            "email": company.email,
-            "contactNm": company.contact_person,
-            "saveYn": "N",
-        }
-
-    def __submit_order(self):
+    def __submit_order(self, page: Page):
         logger = self._logger.getChild("__submit_order")
         logger.info("Submitting the order")
-        pay_no, sale_no = self.__send_payment_request()
-        self.__send_order_post_request(pay_no, sale_no)
-        vendor_po = self.__get_order_details()
+        logger.debug("Agreeing to terms")
+        page.locator('label[for="fxd-agr_ck_2502000478"]').click()
+        logger.debug("Submitting order")
+        page.locator('button[sheet-role="pay-button"]').click()
+        page.wait_for_selector('.odrComp')
+        vendor_po = self.__get_order_details(page)
         logger.debug("Created order: %s", vendor_po)
         return (
             vendor_po["vendor_po"],
@@ -929,3 +624,56 @@ class AtomyQuick(PurchaseOrderVendorBase):
             for element in res.cssselect("div.my_odr_gds li")
         ]
         return orders
+    
+    def __get_recapcha_token(self) -> str:
+        """Gets reCAPTCHA token from the page"""
+        from playwright.sync_api import sync_playwright
+        logger = self._logger.getChild("__get_recaptcha_token")
+        logger.debug("Getting reCAPTCHA token")
+        site_key = self.__get_site_key()
+        action = 'ORDER'
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)  # headless=True if you want headless
+            page = browser.new_page()
+            page.goto(f"{URL_BASE}/login")
+            page.fill("#login_id", self.__purchase_order.customer.username)
+            page.fill("#login_pw", self.__purchase_order.customer.password)
+            page.click(".login_btn button")
+            # page.set_extra_http_headers(self.__get_session_headers()[0])
+            page.wait_for_load_state()
+            page.click('a[href^="javascript:overpass.cart.regist"]')
+            page.wait_for_load_state("domcontentloaded")
+            page.on("console", lambda msg: logger.debug(f"Console: {msg.type}: {msg.text}"))
+            # Wait for grecaptcha to be defined and ready
+
+
+            page.wait_for_function("typeof window.grecaptcha !== 'undefined' && typeof window.grecaptcha.execute === 'function'")
+            # Wait for grecaptcha to be ready and then execute
+            token = page.evaluate("""async ([siteKey, action]) => {
+                return new Promise((resolve, reject) => {
+                    grecaptcha.ready(function() {
+                        grecaptcha.execute(siteKey, {action: action}).then(function(token) {
+                            resolve(token);
+                        }).catch(reject);
+                    });
+                });
+            }""", [site_key, action])
+
+            print("reCAPTCHA token:", token)
+            browser.close()
+            return token
+        raise PurchaseOrderError(
+            self.__purchase_order, self, "Couldn't get reCAPTCHA token"
+        )
+
+    def __get_site_key(self) -> str:
+        """Gets reCAPTCHA site key from the page"""
+        logger = self._logger.getChild("__get_site_key")
+        document = self.__get_order_page()
+        match = re.search(r"https://www.google.com/recaptcha/enterprise.js\?render=(.*?)\"", document)
+        if match:
+            return match.group(1)
+        raise PurchaseOrderError(
+            self.__purchase_order, self, "Couldn't get reCAPTCHA site key"
+        )
