@@ -122,42 +122,41 @@ class AtomyQuick(PurchaseOrderVendorBase):
             return purchase_order, {}
         self.__purchase_order = purchase_order
         try:
-            p = sync_playwright().start()
-            browser = p.chromium.launch(
-                headless=True,
-                proxy={
-                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                } if self.__config.get('SOCKS5_PROXY') else None) 
-            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
-            page = browser.new_page()
-            page.set_viewport_size({"width": 1420, "height": 1080})
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    proxy={
+                        "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+                    } if self.__config.get('SOCKS5_PROXY') else None) 
+                # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+                page = browser.new_page()
+                page.set_viewport_size({"width": 1420, "height": 1080})
 
-            self.__login(page, purchase_order)
-            self.__init_quick_order(page)
-            ordered_products, unavailable_products = self.__add_products(
-                page, purchase_order.order_products
-            )
-            self.__set_purchase_date(page, purchase_order.purchase_date)
-            self.__set_receiver_mobile(page, purchase_order.contact_phone)
-            self.__set_receiver_name(page, purchase_order)
-            self.__set_receiver_address(page,
-                purchase_order.address,
-                purchase_order.payment_phone
-            )
-            self.__set_local_shipment(page, ordered_products)
-            self.__set_payment_params(page, purchase_order)
-            self.__set_tax_info(page, purchase_order)
-            po_params = self.__submit_order(page)
-            self._logger.info("Created order %s", po_params[0])
-            purchase_order.vendor_po_id = po_params[0]
-            purchase_order.payment_account = po_params[1]
-            purchase_order.total_krw = po_params[2]
-            db.session.flush() # type: ignore
-            self._set_order_products_status(
-                ordered_products, OrderProductStatus.purchased
-            )
-            browser.close()
-            p.stop()
+                self.__login(page, purchase_order)
+                self.__init_quick_order(page)
+                ordered_products, unavailable_products = self.__add_products(
+                    page, purchase_order.order_products
+                )
+                self.__set_purchase_date(page, purchase_order.purchase_date)
+                self.__set_receiver_mobile(page, purchase_order.contact_phone)
+                self.__set_receiver_name(page, purchase_order)
+                self.__set_receiver_address(page,
+                    purchase_order.address,
+                    purchase_order.payment_phone
+                )
+                self.__set_local_shipment(page, ordered_products)
+                self.__set_payment_params(page, purchase_order)
+                self.__set_tax_info(page, purchase_order)
+                po_params = self.__submit_order(page)
+                self._logger.info("Created order %s", po_params[0])
+                purchase_order.vendor_po_id = po_params[0]
+                purchase_order.payment_account = po_params[1]
+                purchase_order.total_krw = po_params[2]
+                db.session.flush() # type: ignore
+                self._set_order_products_status(
+                    ordered_products, OrderProductStatus.purchased
+                )
+                browser.close()
             return purchase_order, unavailable_products
         except AtomyLoginError as ex:
             self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
