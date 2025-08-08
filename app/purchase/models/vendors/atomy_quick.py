@@ -171,7 +171,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 page.screenshot(path=f'failed-{purchase_order.id}.png')
                 raise ex
 
-    def __login(self, page, purchase_order):
+    def __login(self, page: Page, purchase_order):
         logger = self._logger.getChild("__login")
         logger.info("Logging in as %s", purchase_order.customer.username)
         page.goto(f"{URL_BASE}/login")
@@ -215,13 +215,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.wait_for_load_state('networkidle')
         ord_data = [ m.string 
             for m in [
-                re.search(r"JSON.parse\((.*)\)", s.text_content())
+                re.search(r"JSON.parse\((.*)\)", s.text_content() or '')
                 for s in page.locator('script').all()
             ] if m != None
         ][0]
-        vendor_po = re.search(r"saleNum.*?(\d+)", ord_data).group(1)
-        payment_account = re.search(r"ipgumAccountNo.*?(\d+)", ord_data).group(1)
-        total = re.search(r"ipgumAmt.*?(\d+)", ord_data).group(1)
+        vendor_po = re.search(r"saleNum.*?(\d+)", ord_data).group(1) #type: ignore
+        payment_account = re.search(r"ipgumAccountNo.*?(\d+)", ord_data).group(1) #type: ignore
+        total = re.search(r"ipgumAmt.*?(\d+)", ord_data).group(1) #type: ignore
         return {
             "vendor_po": vendor_po,
             "payment_account": payment_account,
@@ -573,13 +573,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
             vendor_po["total_price"],
         )
 
-    def update_purchase_order_status(self, purchase_order):
+    def update_purchase_order_status(self, purchase_order: PurchaseOrder):
         logger = self._logger.getChild("update_purchase_order_status")
         logger.info("Updating %s status", purchase_order.id)
         logger.debug("Logging in as %s", purchase_order.customer.username)
-        self.__login(purchase_order)
+        session = [atomy_login2(
+            purchase_order.customer.username,
+            purchase_order.customer.password
+        )]
         logger.debug("Getting POs from Atomy...")
-        vendor_purchase_orders = self.__get_purchase_orders()
+        vendor_purchase_orders = self.__get_purchase_orders(session)
         self._logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             # logger.debug(str(o))
@@ -592,13 +595,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
             % purchase_order.vendor_po_id
         )
 
-    def update_purchase_orders_status(self, subcustomer, purchase_orders):
+    def update_purchase_orders_status(self, subcustomer, 
+                                      purchase_orders: list[PurchaseOrder]):
         logger = self._logger.getChild("update_purchase_orders_status")
         logger.info("Updating %s POs status", len(purchase_orders))
         logger.debug("Attempting to log in as %s...", subcustomer.name)
-        self.__login(purchase_orders[0])
+        session = [atomy_login2(
+            purchase_orders[0].customer.username,
+            purchase_orders[0].customer.password
+        )]
         logger.debug("Getting subcustomer's POs")
-        vendor_purchase_orders = self.__get_purchase_orders()
+        vendor_purchase_orders = self.__get_purchase_orders(session)
         logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             # logger.debug(str(o))
@@ -616,13 +623,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     o["id"],
                 )
 
-    def __get_purchase_orders(self):
+    def __get_purchase_orders(self, session_headers: list[str]):
         logger = self._logger.getChild("__get_purchase_orders")
         logger.debug("Getting purchase orders")
         res = get_html(
             url=f"{URL_BASE}/mypage/orderList?"
             + "psearchMonth=12&startDate=&endDate=&orderStatus=all&pageIdx=2&rowsPerPage=100",
-            headers=self.__get_session_headers() + [{"Cookie": "KR_language=en"}],
+            headers=session_headers + [{"Cookie": "KR_language=en"}],
         )
 
         orders = [
@@ -633,56 +640,3 @@ class AtomyQuick(PurchaseOrderVendorBase):
             for element in res.cssselect("div.my_odr_gds li")
         ]
         return orders
-    
-    def __get_recapcha_token(self) -> str:
-        """Gets reCAPTCHA token from the page"""
-        from playwright.sync_api import sync_playwright
-        logger = self._logger.getChild("__get_recaptcha_token")
-        logger.debug("Getting reCAPTCHA token")
-        site_key = self.__get_site_key()
-        action = 'ORDER'
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)  # headless=True if you want headless
-            page = browser.new_page()
-            page.goto(f"{URL_BASE}/login")
-            page.fill("#login_id", self.__purchase_order.customer.username)
-            page.fill("#login_pw", self.__purchase_order.customer.password)
-            page.click(".login_btn button")
-            # page.set_extra_http_headers(self.__get_session_headers()[0])
-            page.wait_for_load_state()
-            page.click('a[href^="javascript:overpass.cart.regist"]')
-            page.wait_for_load_state("domcontentloaded")
-            page.on("console", lambda msg: logger.debug(f"Console: {msg.type}: {msg.text}"))
-            # Wait for grecaptcha to be defined and ready
-
-
-            page.wait_for_function("typeof window.grecaptcha !== 'undefined' && typeof window.grecaptcha.execute === 'function'")
-            # Wait for grecaptcha to be ready and then execute
-            token = page.evaluate("""async ([siteKey, action]) => {
-                return new Promise((resolve, reject) => {
-                    grecaptcha.ready(function() {
-                        grecaptcha.execute(siteKey, {action: action}).then(function(token) {
-                            resolve(token);
-                        }).catch(reject);
-                    });
-                });
-            }""", [site_key, action])
-
-            print("reCAPTCHA token:", token)
-            browser.close()
-            return token
-        raise PurchaseOrderError(
-            self.__purchase_order, self, "Couldn't get reCAPTCHA token"
-        )
-
-    def __get_site_key(self) -> str:
-        """Gets reCAPTCHA site key from the page"""
-        logger = self._logger.getChild("__get_site_key")
-        document = self.__get_order_page()
-        match = re.search(r"https://www.google.com/recaptcha/enterprise.js\?render=(.*?)\"", document)
-        if match:
-            return match.group(1)
-        raise PurchaseOrderError(
-            self.__purchase_order, self, "Couldn't get reCAPTCHA site key"
-        )
