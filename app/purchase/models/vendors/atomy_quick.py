@@ -31,7 +31,7 @@ from . import PurchaseOrderVendorBase
 URL_BASE = "https://kr.atomy.com"
 URL_NETWORK_MANAGER = "http://localhost:5001"
 URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
-ERROR_FOREIGN_ACCOUNT = "해외법인 소속회원은 현재 소속국가 홈페이지에서 판매중인 상품을 주문하실 수 없습니다."
+ERROR_BAD_ACCOUNT = "Unverified distributor cannot purchase."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
 
 
@@ -196,6 +196,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.info('Opening Quick Order')
         try_click(page.locator('a[href^="javascript:overpass.cart.regist"]'),
                   lambda: page.wait_for_load_state())
+        if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]'):
+            raise PurchaseOrderError(self.__purchase_order, self, ERROR_BAD_ACCOUNT)
         
     def __register_cart(self, page: Page) -> None:
         """Registers the cart with the products to be ordered
