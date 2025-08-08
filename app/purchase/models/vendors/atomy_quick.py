@@ -358,14 +358,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').first,
                     lambda: option_list_loc.wait_for(state='visible'))
         if option.get('optValNm2') == None:
-            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm1"]}")]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"]}"]]'),
                     lambda: page.wait_for_selector('#cart'))
         else:
-            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm1"]}")]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"]}"]]'),
                     lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
             try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').last,
                     lambda: option_list_loc.last.wait_for(state='visible'))
-            try_click(page.locator(f'//a[.//span[contains(text(), "{option["optValNm2"]}")]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm2"]}"]]'),
                     lambda: page.wait_for_selector('#cart'))
             product_loc = product_loc.filter(has_text=option["optValNm2"])
         try_click(page.locator('#cart'), 
@@ -452,8 +452,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_mobile(self, page: Page, phone="     "):
         logger = self._logger.getChild("__set_receiver_mobile")
         logger.debug("Setting receiver phone number to %s", phone)
-        page.locator("#psn-txt_1_0").fill(phone.replace('-', ''))
-        expect(page.locator("#psn-txt_1_0")).to_have_value(phone.replace('-', ''))
+        fill(page.locator("#psn-txt_1_0"), phone.replace('-', ''))
 
     def __set_receiver_address(self, page: Page, address: Address, phone: str):
         logger = self._logger.getChild("__set_receiver_address")
@@ -492,7 +491,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.locator('#mth-tab_3').click()
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile
-        print("Setting payment mobile...")
+        logger.debug("Setting payment mobile...")
         page.locator('#mth-cash-txt_0').fill(po.payment_phone)
         logger.debug("Payment parameters are set")
 
