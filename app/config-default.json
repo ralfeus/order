@@ -9,6 +9,7 @@
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
     "UPLOAD_PATH": "upload",
+    "SOCKS5_PROXY": "localhost:9050",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "LANGUAGES": ["en", "ua", "ru"],
     "PRODUCT_IMPORT_PERIOD": 300,

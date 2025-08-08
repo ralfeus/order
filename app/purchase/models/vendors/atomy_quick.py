@@ -4,12 +4,11 @@ using quick order"""
 from functools import reduce
 from time import sleep
 from typing import Any, Optional
-from urllib.parse import urlencode
 
 from app.models.address import Address
 from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
-from app.tools import get_html, get_json, invoke_curl, try_perform
+from app.tools import get_html, try_perform
 from utils.atomy import atomy_login2
 from datetime import date, datetime, timedelta
 import json
@@ -21,7 +20,6 @@ from playwright.sync_api import Locator, Page, expect, sync_playwright
 from app import db
 from exceptions import (
     AtomyLoginError,
-    HTTPError,
     NoPurchaseOrderError,
     ProductNotAvailableError,
     PurchaseOrderError,
@@ -56,7 +54,7 @@ def try_click(object, execute_criteria, retries=3):
             sleep(.7)
             return
         except Exception as e:
-            print(f"Retrying click on {object}: {e}")
+            print(f"Retrying click on {object}")
             exception = e
     raise exception
 
@@ -72,7 +70,6 @@ def find_address(page: Page, base_address: str):
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
 
-    __session_cookies: list[str] = []
     __purchase_order: PurchaseOrder = None  # type: ignore
     
     def __init__(
@@ -96,7 +93,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config: dict[str, Any] = config
-        self.__order_page: str = ""
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -125,51 +121,57 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
-        with sync_playwright() as p:
-            try:
-                browser = p.chromium.launch(headless=True) 
-                # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
-                page = browser.new_page()
-                page.set_viewport_size({"width": 1420, "height": 1080})
+        try:
+            p = sync_playwright().start()
+            browser = p.chromium.launch(
+                headless=True,
+                proxy={
+                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+                } if self.__config.get('SOCKS5_PROXY') else None) 
+            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            page = browser.new_page()
+            page.set_viewport_size({"width": 1420, "height": 1080})
 
-                self.__login(page, purchase_order)
-                self.__init_quick_order(page)
-                ordered_products, unavailable_products = self.__add_products(
-                    page, purchase_order.order_products
-                )
-                self.__set_purchase_date(page, purchase_order.purchase_date)
-                self.__set_receiver_mobile(page, purchase_order.contact_phone)
-                self.__set_receiver_name(page, purchase_order)
-                self.__set_receiver_address(page,
-                    purchase_order.address,
-                    purchase_order.payment_phone
-                )
-                self.__set_local_shipment(page, ordered_products)
-                self.__set_payment_params(page, purchase_order)
-                self.__set_tax_info(page, purchase_order)
-                po_params = self.__submit_order(page)
-                self._logger.info("Created order %s", po_params[0])
-                purchase_order.vendor_po_id = po_params[0]
-                purchase_order.payment_account = po_params[1]
-                purchase_order.total_krw = po_params[2]
-                db.session.flush()
-                self._set_order_products_status(
-                    ordered_products, OrderProductStatus.purchased
-                )
-                return purchase_order, unavailable_products
-            except AtomyLoginError as ex:
-                self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
-                raise ex
-            except PurchaseOrderError as ex:
-                self._logger.warning(ex)
-                if ex.retry:
-                    self._logger.warning("Retrying %s", purchase_order.id)
-                    return self.post_purchase_order(purchase_order)
-                raise ex
-            except Exception as ex:
-                self._logger.exception("Failed to post an order %s", purchase_order.id)
-                page.screenshot(path=f'failed-{purchase_order.id}.png')
-                raise ex
+            self.__login(page, purchase_order)
+            self.__init_quick_order(page)
+            ordered_products, unavailable_products = self.__add_products(
+                page, purchase_order.order_products
+            )
+            self.__set_purchase_date(page, purchase_order.purchase_date)
+            self.__set_receiver_mobile(page, purchase_order.contact_phone)
+            self.__set_receiver_name(page, purchase_order)
+            self.__set_receiver_address(page,
+                purchase_order.address,
+                purchase_order.payment_phone
+            )
+            self.__set_local_shipment(page, ordered_products)
+            self.__set_payment_params(page, purchase_order)
+            self.__set_tax_info(page, purchase_order)
+            po_params = self.__submit_order(page)
+            self._logger.info("Created order %s", po_params[0])
+            purchase_order.vendor_po_id = po_params[0]
+            purchase_order.payment_account = po_params[1]
+            purchase_order.total_krw = po_params[2]
+            db.session.flush() # type: ignore
+            self._set_order_products_status(
+                ordered_products, OrderProductStatus.purchased
+            )
+            browser.close()
+            p.stop()
+            return purchase_order, unavailable_products
+        except AtomyLoginError as ex:
+            self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
+            raise ex
+        except PurchaseOrderError as ex:
+            self._logger.warning(ex)
+            if ex.retry:
+                self._logger.warning("Retrying %s", purchase_order.id)
+                return self.post_purchase_order(purchase_order)
+            raise ex
+        except Exception as ex:
+            self._logger.exception("Failed to post an order %s", purchase_order.id)
+            page.screenshot(path=f'failed-{purchase_order.id}.png')
+            raise ex
 
     def __login(self, page: Page, purchase_order):
         logger = self._logger.getChild("__login")
@@ -180,10 +182,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.click(".login_btn button")
         page.wait_for_load_state()
         logger.debug("Logged in as %s", purchase_order.customer.username)
-
-
-    def __get_session_headers(self):
-        return [{"Cookie": c} for c in self.__session_cookies]
 
     def __init_quick_order(self, page):
         """Initializes the quick order. Doesn't return anything but essential
@@ -227,18 +225,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
             "payment_account": payment_account,
             "total_price": total,
         }
-    
-    def __get_order_page(self) -> str:
-        """Gets the order page after the order is placed"""
-        if not self.__order_page:
-            self.__order_page, _ = invoke_curl(
-                url=f"{URL_BASE}/order/sheet",
-                headers=self.__get_session_headers()
-                    + [{"referer": f"{URL_BASE}/order/sheet"}],
-                retries=0,
-            )
-        return self.__order_page
-
 
     def __add_products(self, page, order_products: list[OrderProduct]
             ) -> tuple[list[tuple[OrderProduct, str]], dict[str, str]]:
@@ -577,10 +563,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger = self._logger.getChild("update_purchase_order_status")
         logger.info("Updating %s status", purchase_order.id)
         logger.debug("Logging in as %s", purchase_order.customer.username)
-        session = [atomy_login2(
+        session = [{"Cookie": atomy_login2(
             purchase_order.customer.username,
             purchase_order.customer.password
-        )]
+        )}]
         logger.debug("Getting POs from Atomy...")
         vendor_purchase_orders = self.__get_purchase_orders(session)
         self._logger.debug("Got %s POs", len(vendor_purchase_orders))
@@ -600,10 +586,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger = self._logger.getChild("update_purchase_orders_status")
         logger.info("Updating %s POs status", len(purchase_orders))
         logger.debug("Attempting to log in as %s...", subcustomer.name)
-        session = [atomy_login2(
+        session = [{"Cookie": atomy_login2(
             purchase_orders[0].customer.username,
             purchase_orders[0].customer.password
-        )]
+        )}]
         logger.debug("Getting subcustomer's POs")
         vendor_purchase_orders = self.__get_purchase_orders(session)
         logger.debug("Got %s POs", len(vendor_purchase_orders))
@@ -623,7 +609,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     o["id"],
                 )
 
-    def __get_purchase_orders(self, session_headers: list[str]):
+    def __get_purchase_orders(self, session_headers: list[dict[str, str]]):
         logger = self._logger.getChild("__get_purchase_orders")
         logger.debug("Getting purchase orders")
         res = get_html(
