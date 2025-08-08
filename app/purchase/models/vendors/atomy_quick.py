@@ -549,7 +549,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.locator('label[for="fxd-agr_ck_2502000478"]').click()
         logger.debug("Submitting order")
         page.locator('button[sheet-role="pay-button"]').click()
-        page.wait_for_selector('.odrComp')
+        page.wait_for_selector('.odrComp', timeout=60000)
         vendor_po = self.__get_order_details(page)
         logger.debug("Created order: %s", vendor_po)
         return (
