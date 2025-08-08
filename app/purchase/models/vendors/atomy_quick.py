@@ -358,14 +358,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').first,
                     lambda: option_list_loc.wait_for(state='visible'))
         if option.get('optValNm2') == None:
-            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"]}"]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
         else:
-            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"]}"]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
             try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').last,
                     lambda: option_list_loc.last.wait_for(state='visible'))
-            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm2"]}"]]'),
+            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm2"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
             product_loc = product_loc.filter(has_text=option["optValNm2"])
         try_click(page.locator('#cart'), 
