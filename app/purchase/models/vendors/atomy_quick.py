@@ -121,15 +121,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True,
-                    proxy={
-                        "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                    } if self.__config.get('SOCKS5_PROXY') else None) 
-                # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
-                page = browser.new_page()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                proxy={
+                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+                } if self.__config.get('SOCKS5_PROXY') else None) 
+            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            page = browser.new_page()
+            try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
 
                 self.__login(page, purchase_order)
@@ -157,20 +157,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     ordered_products, OrderProductStatus.purchased
                 )
                 browser.close()
-            return purchase_order, unavailable_products
-        except AtomyLoginError as ex:
-            self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
-            raise ex
-        except PurchaseOrderError as ex:
-            self._logger.warning(ex)
-            if ex.retry:
-                self._logger.warning("Retrying %s", purchase_order.id)
-                return self.post_purchase_order(purchase_order)
-            raise ex
-        except Exception as ex:
-            self._logger.exception("Failed to post an order %s", purchase_order.id)
-            page.screenshot(path=f'failed-{purchase_order.id}.png')
-            raise ex
+                return purchase_order, unavailable_products
+            except AtomyLoginError as ex:
+                self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
+                raise ex
+            except PurchaseOrderError as ex:
+                self._logger.warning(ex)
+                if ex.retry:
+                    self._logger.warning("Retrying %s", purchase_order.id)
+                    return self.post_purchase_order(purchase_order)
+                raise ex
+            except Exception as ex:
+                self._logger.exception("Failed to post an order %s", purchase_order.id)
+                page.screenshot(path=f'failed-{purchase_order.id}.png')
+                raise ex
 
     def __login(self, page: Page, purchase_order):
         logger = self._logger.getChild("__login")
