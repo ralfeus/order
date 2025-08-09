@@ -389,7 +389,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_purchase_date(self, page: Page, sale_date: date):
         logger = self._logger.getChild("__set_purchase_date")
+        logger.debug("Setting purchase date")
         if sale_date and self.__is_purchase_date_valid(sale_date):
+            page.locator('#tgLyr_0').screenshot(path='test.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             try_click(page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label'),
                   lambda: expect(page.locator(
@@ -404,7 +406,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         ordered_products: list[tuple[OrderProduct, str]],
     ):
         logger = self._logger.getChild("__set_local_shipment")
-        logger.debug("Set local shipment")
+        logger.debug("Seting local shipment")
         free_shipping_eligible_amount = reduce(
             lambda acc, op: (
                 acc + (op[0].price * op[0].quantity)
