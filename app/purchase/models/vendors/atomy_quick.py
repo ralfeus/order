@@ -196,7 +196,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.info('Opening Quick Order')
         try_click(page.locator('a[href^="javascript:overpass.cart.regist"]'),
                   lambda: page.wait_for_load_state())
-        if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]'):
+        if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]').count() > 0:
             raise PurchaseOrderError(self.__purchase_order, self, ERROR_BAD_ACCOUNT)
         
     def __register_cart(self, page: Page) -> None:
