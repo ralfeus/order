@@ -112,9 +112,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             if purchase_order.purchase_date < datetime.now().date():
                 raise PurchaseOrderError(
-                    purchase_order,
-                    self,
-                    "Can't create a purchase order. The purchase date is in the past",
+                    purchase_order, self,
+                    f"The purchase date {purchase_order.purchase_date} is not available"
                 )
             self._logger.info(
                 "Skip <%s>: purchase date is %s",
@@ -390,15 +389,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_purchase_date(self, page: Page, sale_date: date):
         logger = self._logger.getChild("__set_purchase_date")
         logger.debug("Setting purchase date")
-        if sale_date and self.__is_purchase_date_valid(sale_date):
-            page.locator('#tgLyr_0').screenshot(path='test.png')
+        if sale_date:
             sale_date_str = sale_date.strftime('%Y-%m-%d')
-            try_click(page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label'),
-                  lambda: expect(page.locator(
-                      f'ul.slt-date input[value="{sale_date_str}"]'))
-                      .to_be_checked())
-            logger.info("Purchase date is set to %s", sale_date_str)
+            sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
+            if sale_date_loc.count():
+                try_click(sale_date_loc,
+                    lambda: expect(page.locator(
+                        f'ul.slt-date input[value="{sale_date_str}"]'))
+                        .to_be_checked())
+                logger.info("Purchase date is set to %s", sale_date_str)
+            else:
+                raise PurchaseOrderError(self.__purchase_order, self,
+                    message=f"Purchase date {sale_date_str} is not available")
         else:
+            page.locator('#tgLyr_0').screenshot(path='test.png')
             logger.info("Purchase date is left default")
 
     def __set_local_shipment(
