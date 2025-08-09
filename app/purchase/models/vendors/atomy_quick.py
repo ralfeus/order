@@ -63,9 +63,11 @@ def fill(object: Locator, data: str):
     expect(object).to_have_value(data)
 
 def find_address(page: Page, base_address: str):
-    page.locator('#lyr_pay_sch_bx33').fill(base_address)  # Base address
-    page.locator('button[address-role="search-button"]').click()
-    page.locator('button[address-role="select-button"]').click()
+    fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
+    try_click(page.locator('button[address-role="search-button"]'),
+              lambda: page.wait_for_selector('[address-role="result"]'))
+    try_click(page.locator('button[address-role="select-button"]'),
+              lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""

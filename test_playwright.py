@@ -21,9 +21,11 @@ def fill(object: Locator, data: str):
     expect(object).to_have_value(data)
 
 def find_address(base_address: str):
-    page.locator('#lyr_pay_sch_bx33').fill(base_address)  # Base address
-    page.locator('button[address-role="search-button"]').click()
-    page.locator('button[address-role="select-button"]').click()
+    fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
+    try_click(page.locator('button[address-role="search-button"]'),
+              lambda: page.wait_for_selector('[address-role="result"]'))
+    try_click(page.locator('button[address-role="select-button"]'),
+              lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
 
 URL_BASE = "https://kr.atomy.com"
 product_id = '004785'
@@ -166,9 +168,7 @@ with sync_playwright() as p:
             fill(page.locator('#cellNo'), '01050062045')
             try_click(page.locator('#btnAdressSearch'), 
                 lambda: page.wait_for_selector('#lyr_pay_sch_bx33', timeout=5000))
-            fill(page.locator('#lyr_pay_sch_bx33'), '서울특별시 중구 다산로36길 110(신당동, 신당푸르지오)')  # Example base address
-            page.locator('button[address-role="search-button"]').click()
-            page.locator('button[address-role="select-button"]').click()
+            find_address('서울특별시 중구 다산로36길 110(신당동, 신당푸르지오)')
             fill(page.locator('#dtlAddr'), '108동1904호')
             page.locator('#dtlAddr').dispatch_event('keyup')
             page.locator('label[for="baseYn"]').click()
