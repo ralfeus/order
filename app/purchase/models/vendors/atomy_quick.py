@@ -162,12 +162,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
             return purchase_order, {}
         self.__purchase_order = purchase_order
         with sync_playwright() as p:
-            # browser = p.chromium.launch(
-            #     headless=True,
-            #     proxy={
-            #         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-            #     } if self.__config.get('SOCKS5_PROXY') else None) 
-            browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            browser = p.chromium.launch(
+                headless=True,
+                proxy={
+                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+                } if self.__config.get('SOCKS5_PROXY') else None) 
+            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
             page = browser.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
