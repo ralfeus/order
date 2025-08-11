@@ -443,10 +443,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         .to_be_checked())
                 logger.info("Purchase date is set to %s", sale_date_str)
             else:
+                page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
                 raise PurchaseOrderError(self.__purchase_order, self,
                     message=f"Purchase date {sale_date_str} is not available")
         else:
-            page.locator('#tgLyr_0').screenshot(path='test.png')
+            page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
             logger.info("Purchase date is left default")
 
     def __set_local_shipment(
