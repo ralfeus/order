@@ -76,7 +76,11 @@ def find_address(page: Page, base_address: str):
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     addresses = page.locator('#dlvp_list > dl.lyr-address').all()
+    print(f"Found {len(addresses)} addresses")
     for address_element in addresses:
+        print(f"Address: {address_element.get_attribute('data-recvr-post-no')}"
+              f"         {address_element.get_attribute('data-recvr-base-addr')}"
+              f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
         if address_element.get_attribute('data-recvr-post-no') \
             and (address_element.get_attribute('data-recvr-base-addr') in address.address_1
                  or address.address_1 in address_element.get_attribute('data-recvr-base-addr')) \
@@ -532,6 +536,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         except Exception as e:
             raise PurchaseOrderError(self.__purchase_order, self, 
                 f"Couldn't set the recipient address: {str(e)}", screenshot=True)
+        
     def __set_payment_params(
         self, page: Page, po: PurchaseOrder
     ):
