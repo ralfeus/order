@@ -211,10 +211,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 if ex.retry:
                     self._logger.warning("Retrying %s", purchase_order.id)
                     return self.post_purchase_order(purchase_order)
+                if ex.screenshot:
+                    page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
             except Exception as ex:
                 self._logger.exception("Failed to post an order %s", purchase_order.id)
-                page.screenshot(path=f'failed-{purchase_order.id}.png')
+                page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
 
     def __login(self, page: Page, purchase_order):
@@ -529,7 +531,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise
         except Exception as e:
             raise PurchaseOrderError(self.__purchase_order, self, 
-                f"Couldn't set the recipient address: {str(e)}")
+                f"Couldn't set the recipient address: {str(e)}", screenshot=True)
     def __set_payment_params(
         self, page: Page, po: PurchaseOrder
     ):

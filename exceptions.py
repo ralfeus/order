@@ -33,12 +33,13 @@ class PaymentNoReceivedAmountException(Exception):
     pass
 
 class PurchaseOrderError(Exception):
-    def __init__(self, po=None, vendor=None, message=None, retry=False):
+    def __init__(self, po=None, vendor=None, message=None, retry=False, screenshot=False):
         super().__init__()
         self.final = False
         self.message = message
         self.po_id = po.id if po else None
         self.retry = retry
+        self.screenshot = screenshot
         self.vendor = str(vendor)
         self.args = (message,)
     
