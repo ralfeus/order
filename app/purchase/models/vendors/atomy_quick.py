@@ -68,6 +68,45 @@ def find_address(page: Page, base_address: str):
               lambda: page.wait_for_selector('[address-role="result"]'))
     try_click(page.locator('button[address-role="select-button"]'),
               lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
+    
+def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
+    addresses = page.locator('#dlvp_list > dl.lyr-address').all()
+    for address_element in addresses:
+        if address_element.get_attribute('data-recvr-post-no') \
+            and (address_element.get_attribute('data-recvr-base-addr') in address.address_1
+                 or address.address_1 in address_element.get_attribute('data-recvr-base-addr')) \
+            and (address_element.get_attribute('data-recvr-dtl-addr') in address.address_2
+                 or address.address_2 in address_element.get_attribute('data-recvr-dtl-addr')):
+            return address_element
+    return None
+    # data-dlvp-nm="Valentina" 
+    # data-dlvp-memo="문 앞에 놓아주세요." 
+    # data-recvr-post-no="15211" 
+    # data-recvr-base-addr="경기도 안산시 단원구 석수동길 57" 
+    # data-recvr-dtl-addr="302호" 
+    # data-cell-no="010-7563-8479" 
+    # data-deli-state="경기도" 
+    # data-deli-city="안산시 단원구"
+
+def create_address(page: Page, address: Address, phone: str):
+    addresses_count = page.locator('#dlvp_list > dl.lyr-address').count()
+    try_click(page.locator('#btnOrderDlvpReg'),
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add'))
+    page.fill('#dlvpNm', address.name)
+    expect(page.locator('#dlvpNm')).to_have_value(address.name)
+    page.fill('#cellNo', phone.replace('-', ''))
+    expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
+    page.locator('#btnAdressSearch').click()
+    find_address(page, address.address_1)  # base address
+    fill(page.locator('#dtlAddr'), address.address_2)
+    page.locator('#dtlAddr').dispatch_event('keyup')          
+    # page.locator('label[for="baseYn"]').click()
+    try_click(page.locator('#btnSubmit'),
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+    while page.locator('#dlvp_list > dl.lyr-address').count() == addresses_count:
+        sleep(1)
+    return find_existing_address(page, address)
+
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
@@ -123,12 +162,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
             return purchase_order, {}
         self.__purchase_order = purchase_order
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                proxy={
-                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                } if self.__config.get('SOCKS5_PROXY') else None) 
-            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            # browser = p.chromium.launch(
+            #     headless=True,
+            #     proxy={
+            #         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+            #     } if self.__config.get('SOCKS5_PROXY') else None) 
+            browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
             page = browser.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
@@ -470,25 +509,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try_click(
             page.locator('button[data-owns="lyr_pay_addr_lst"]'),
             lambda: page.locator('#btnOrderDlvpReg').wait_for(timeout=5000))
-        addresses = page.locator('#dlvp_list > dl.lyr-address')
-        if addresses.count() > 0:
-            logger.debug("Found %s addresses.", addresses.count())
+        address_element = find_existing_address(page, address)
+        if address_element:
+            logger.debug("Found the existing address.")
         else:
-            logger.debug("No addresses found, creating a new one.")
-            try_click(page.locator('#btnOrderDlvpReg'),
-                lambda: page.wait_for_selector('div.lyr-pay_addr_add'))
-            page.fill('#dlvpNm', address.name)
-            expect(page.locator('#dlvpNm')).to_have_value(address.name)
-            page.fill('#cellNo', phone.replace('-', ''))
-            expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
-            page.locator('#btnAdressSearch').click()
-            find_address(page, address.address_1)  # base address
-            fill(page.locator('#dtlAddr'), address.address_2)
-            page.locator('#dtlAddr').dispatch_event('keyup')          
-            page.locator('label[for="baseYn"]').click()
-            try_click(page.locator('#btnSubmit'),
-                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
-        try_click(page.locator('#dlvp_list > dl.lyr-address').first,
+            logger.debug("No address found, creating one.")
+            address_element = create_address(page, address, phone)
+        try_click(address_element,
                   lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
 
     def __set_payment_params(

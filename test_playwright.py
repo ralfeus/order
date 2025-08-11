@@ -27,6 +27,39 @@ def find_address(base_address: str):
     try_click(page.locator('button[address-role="select-button"]'),
               lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
 
+def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
+    address_element = page.locator(f'''
+        #dlvp_list > 
+        dl.lyr-address[data-recvr-post-no="{address.zip}"]
+                       data-recvr-base-addr="{address.address_1}" 
+                       data-recvr-dtl-addr="{address.address_2}" 
+    ''')
+    return address_element if address_element.count() == 1 else None
+    # data-dlvp-nm="Valentina" 
+    # data-dlvp-memo="문 앞에 놓아주세요." 
+    # data-recvr-post-no="15211" 
+    # data-recvr-base-addr="경기도 안산시 단원구 석수동길 57" 
+    # data-recvr-dtl-addr="302호" 
+    # data-cell-no="010-7563-8479" 
+    # data-deli-state="경기도" 
+    # data-deli-city="안산시 단원구"
+
+def create_address(page: Page, address: Address, phone: str):
+    try_click(page.locator('#btnOrderDlvpReg'),
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add'))
+    page.fill('#dlvpNm', address.name)
+    expect(page.locator('#dlvpNm')).to_have_value(address.name)
+    page.fill('#cellNo', phone.replace('-', ''))
+    expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
+    page.locator('#btnAdressSearch').click()
+    find_address(page, address.address_1)  # base address
+    fill(page.locator('#dtlAddr'), address.address_2)
+    page.locator('#dtlAddr').dispatch_event('keyup')          
+    page.locator('label[for="baseYn"]').click()
+    try_click(page.locator('#btnSubmit'),
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+    return find_existing_address(page, address)
+
 URL_BASE = "https://kr.atomy.com"
 product_id = '004785'
 with sync_playwright() as p:
@@ -148,6 +181,7 @@ with sync_playwright() as p:
         print("Setting phone number...")
         page.locator("#psn-txt_1_0").fill("01050062045")
         expect(page.locator("#psn-txt_1_0")).to_have_value("01050062045")
+
         # Set the address
         print("Setting address...")
         for _ in range(3):
@@ -174,8 +208,9 @@ with sync_playwright() as p:
             page.locator('label[for="baseYn"]').click()
             page.locator('#btnSubmit').click()
             page.wait_for_selector('div.lyr-pay_addr_add', state='detached')
-        try_click(page.locator('#dlvp_list > dl.lyr-address').first,
-                  lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
+
+
+
         # Set the combined shipping
         print("Set combined shipping")
         combined_shipping = page.locator('label[for="pay-dlv_ck0_1"]')
