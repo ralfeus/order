@@ -32,6 +32,7 @@ URL_BASE = "https://kr.atomy.com"
 URL_NETWORK_MANAGER = "http://localhost:5001"
 URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_BAD_ACCOUNT = "Unverified distributor cannot purchase."
+ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
 
 
@@ -98,21 +99,32 @@ def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     # data-deli-city="안산시 단원구"
 
 def create_address(page: Page, address: Address, phone: str):
-    addresses_count = page.locator('#dlvp_list > dl.lyr-address').count()
+    addresses_loc = page.locator('#dlvp_list > dl.lyr-address')
+    existing_addresses_count = addresses_loc.count()
     try_click(page.locator('#btnOrderDlvpReg'),
         lambda: page.wait_for_selector('div.lyr-pay_addr_add'))
-    page.fill('#dlvpNm', address.name)
-    expect(page.locator('#dlvpNm')).to_have_value(address.name)
-    page.fill('#cellNo', phone.replace('-', ''))
-    expect(page.locator('#cellNo')).to_have_value(phone.replace('-', ''))            
+    fill(page.locator('#dlvpNm'), address.name)
+    fill(page.locator('#cellNo'), phone.replace('-', ''))
     page.locator('#btnAdressSearch').click()
     find_address(page, address.address_1)  # base address
+    # If the found base address is different than provided one
+    # there is a chance it exists and just wasn't found
+    found_base_address = page.locator('#baseAddr').text_content()
+    if not (
+        found_base_address in address.address_1 or
+        address.address_1 in found_base_address ):
+        address.address_1 = found_base_address
+        existing_address = find_existing_address(page, address)
+        if existing_address:
+            try_click(
+                page.locator('//button[@id="btnSubmit"]/preceding-sibling::*[1]'),
+                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+            return existing_address
     fill(page.locator('#dtlAddr'), address.address_2)
     page.locator('#dtlAddr').dispatch_event('keyup')          
-    # page.locator('label[for="baseYn"]').click()
     try_click(page.locator('#btnSubmit'),
         lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
-    while page.locator('#dlvp_list > dl.lyr-address').count() == addresses_count:
+    while addresses_loc.count() == existing_addresses_count:
         sleep(1)
     return find_existing_address(page, address)
 
@@ -171,12 +183,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
             return purchase_order, {}
         self.__purchase_order = purchase_order
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                proxy={
-                    "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                } if self.__config.get('SOCKS5_PROXY') else None) 
-            # browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")
+            if 'BROWSER_URL' in self.__config:
+                browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
+            else:
+                browser = p.chromium.launch(
+                    headless=True,
+                    proxy={
+                        "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
+                    } if self.__config.get('SOCKS5_PROXY') else None) 
             page = browser.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})

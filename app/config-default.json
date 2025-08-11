@@ -10,6 +10,7 @@
     "EXPLAIN_TEMPLATE_LOADING": false,
     "UPLOAD_PATH": "upload",
     "SOCKS5_PROXY": "localhost:9050",
+    "BROWSER_URL": "http://127.0.0.1:9222",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "LANGUAGES": ["en", "ua", "ru"],
     "PRODUCT_IMPORT_PERIOD": 300,
