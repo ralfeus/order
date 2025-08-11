@@ -66,7 +66,12 @@ def find_address(page: Page, base_address: str):
     fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
     try_click(page.locator('button[address-role="search-button"]'),
               lambda: page.wait_for_selector('[address-role="result"]'))
-    try_click(page.locator('button[address-role="select-button"]'),
+    found_addresses = page.locator('button[address-role="select-button"]')
+    if found_addresses.count() < 1:
+        raise Exception(f"The base address {base_address} is invalid")
+    if found_addresses.count() > 1:
+        raise Exception("More than one address found")
+    try_click(found_addresses,
               lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
@@ -506,18 +511,24 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_address(self, page: Page, address: Address, phone: str):
         logger = self._logger.getChild("__set_receiver_address")
         logger.debug("Setting recipient's address")
-        try_click(
-            page.locator('button[data-owns="lyr_pay_addr_lst"]'),
-            lambda: page.locator('#btnOrderDlvpReg').wait_for(timeout=5000))
-        address_element = find_existing_address(page, address)
-        if address_element:
-            logger.debug("Found the existing address.")
-        else:
-            logger.debug("No address found, creating one.")
-            address_element = create_address(page, address, phone)
-        try_click(address_element,
-                  lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
-
+        try:
+            try_click(
+                page.locator('button[data-owns="lyr_pay_addr_lst"]'),
+                lambda: page.locator('#btnOrderDlvpReg').wait_for(timeout=5000))
+            address_element = find_existing_address(page, address)
+            if address_element:
+                logger.debug("Found the existing address.")
+            else:
+                logger.debug("No address found, creating:")
+                logger.debug(address.to_dict())
+                address_element = create_address(page, address, phone)
+            try_click(address_element,
+                    lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
+        except PurchaseOrderError:
+            raise
+        except Exception as e:
+            raise PurchaseOrderError(self.__purchase_order, self, 
+                f"Couldn't set the recipient address: {str(e)}")
     def __set_payment_params(
         self, page: Page, po: PurchaseOrder
     ):
