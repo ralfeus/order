@@ -77,11 +77,11 @@ def find_address(page: Page, base_address: str):
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     addresses = page.locator('#dlvp_list > dl.lyr-address').all()
-    print(f"Found {len(addresses)} addresses")
+    # print(f"Found {len(addresses)} addresses")
     for address_element in addresses:
-        print(f"Address: {address_element.get_attribute('data-recvr-post-no')}"
-              f"         {address_element.get_attribute('data-recvr-base-addr')}"
-              f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
+        # print(f"Address: {address_element.get_attribute('data-recvr-post-no')}"
+        #       f"         {address_element.get_attribute('data-recvr-base-addr')}"
+        #       f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
         if address_element.get_attribute('data-recvr-post-no') \
             and (address_element.get_attribute('data-recvr-base-addr') in address.address_1
                  or address.address_1 in address_element.get_attribute('data-recvr-base-addr')) \
@@ -519,8 +519,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
         rcpt_name = (
             self.__config.get("ATOMY_RECEIVER_NAME_FORMAT") or "{company} {id1}"
         ).format(**parts)
-        page.locator("#psn-txt_0_0").fill(rcpt_name)
-        expect(page.locator("#psn-txt_0_0")).to_have_value(rcpt_name)
+        fill(page.locator("#psn-txt_0_0"), rcpt_name)
+        try_click(page.locator('label[for="psn-ck_waybill"]'),
+                  lambda: expect(page.locator('#psn-ck_waybill')).to_be_checked(checked=True))
         logger.debug(f"Recipient's name set to {rcpt_name}")
 
 
