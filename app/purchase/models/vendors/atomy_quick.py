@@ -128,6 +128,24 @@ def create_address(page: Page, address: Address, phone: str):
         sleep(1)
     return find_existing_address(page, address)
 
+def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
+    order_id_parts = purchase_order.id[8:].split("-")
+    parts = {
+        "id0": order_id_parts[0],
+        "id1": order_id_parts[1],
+        "id2": order_id_parts[2][1:],
+        "company": purchase_order.company,
+    }
+    return template.format(**parts)
+
+def update_address_name(address_element: Locator, name: str):
+    edit_window = address_element.page.locator('#lyr_pay_addr_add')
+    try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
+              lambda: expect(edit_window).to_be_visible())
+    fill(edit_window.locator('#dlvpNm'), name)
+    try_click(edit_window.locator('#btnSubmit'), 
+              lambda: expect(edit_window).not_to_be_attached())
+    expect(address_element.locator('dt>b')).to_have_text(name)
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
@@ -509,16 +527,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_name(self, page: Page, purchase_order: PurchaseOrder) -> None:
         logger = self._logger.getChild("__set_receiver_name")
         logger.debug("Setting recipient's name")
-        order_id_parts = purchase_order.id[8:].split("-")
-        parts = {
-            "id0": order_id_parts[0],
-            "id1": order_id_parts[1],
-            "id2": order_id_parts[2][1:],
-            "company": purchase_order.company,
-        }
-        rcpt_name = (
-            self.__config.get("ATOMY_RECEIVER_NAME_FORMAT") or "{company} {id1}"
-        ).format(**parts)
+        rcpt_name = get_receiver_name(purchase_order, 
+            self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}"))
         fill(page.locator("#psn-txt_0_0"), rcpt_name)
         try_click(page.locator('label[for="psn-ck_waybill"]'),
                   lambda: expect(page.locator('#psn-ck_waybill')).to_be_checked(checked=True))
@@ -544,6 +554,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 logger.debug("No address found, creating:")
                 logger.debug(address.to_dict())
                 address_element = create_address(page, address, phone)
+            update_address_name(address_element, get_receiver_name(self.__purchase_order, 
+                self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")))
             try_click(address_element,
                     lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
         except PurchaseOrderError:
