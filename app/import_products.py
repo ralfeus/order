@@ -124,7 +124,7 @@ def _get_products(products_page: etree.Element): #type: ignore
 def _get_product_options(product_id, jwt):
     options = get_json(
         f"{URL_BASE}/goods/itemStatus",
-        headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-encoded'}],
+        headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-urlencoded'}],
         raw_data=f'goodsNo={product_id}&goodsTypeCd=101'
     )
     return options.values()
