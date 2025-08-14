@@ -110,8 +110,8 @@ def _get_products(products_page: etree.Element): #type: ignore
     return [{
         "id": sel_item_code(i)[0].attrib['href'].split('/')[-1],
         "atomy_id": sel_item_code(i)[0].attrib['href'].split('/')[-1],
-        "name": sel_item_name(i)[0].text,
-        "name_english": sel_item_name(i)[0].text,
+        "name": ' '.join(sel_item_name(i)[0].itertext()),
+        "name_english": ' '.join(sel_item_name(i)[0].itertext()),
         "price": sel_item_price(i)[0].text.replace(',', ''),
         "points": sel_item_points(i)[0].text.replace(',', ''),
         "available": len(sel_item_oos(i)) == 0,
