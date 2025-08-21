@@ -296,13 +296,16 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     
     # Update or create root node
     # if node_id == root_id:
+    nodes_to_save = []
     try:
-        _save_node(members[0], '', '', logger)
+        _save_node(members[0], '', '', logger, nodes_to_save)
         if members[0]['ptnrYn'] == 'Y':
             _get_children(
                 node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
-                logger=logger, auth=auth
+                logger=logger, auth=auth, nodes_to_save=nodes_to_save
             )
+        logger.debug("Saving %s nodes to the database", len(nodes_to_save))
+        _save_child_nodes(nodes_to_save)
         logger.debug("Done building node %s", node_id)
     except Exception as ex:
         exceptions.put(BuildPageNodesException(node_id, ex))
@@ -391,7 +394,8 @@ def get_child_id(parent_id, child_type: ChildType):
 
 def _get_children(node_id: str, traversing_nodes_set: set[str], 
                   traversing_nodes_list: list[tuple[str, tuple[str, str]]], 
-                  node_element, elements, logger, auth: tuple[str, str]) -> bool:
+                  node_element, elements, logger, auth: tuple[str, str],
+                  nodes_to_save: list[dict]) -> bool:
     '''Recursively gets children of the node and adds them to the database
 
     :param str node_id: Atomy ID of the node, whose children are to be obtained
@@ -414,10 +418,11 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
         #     logger.warning("------------- FOUND S9854104 -------------")
         #     logger.warning("------------- Parent: %s -----------------", node_id)
         #     os._exit(0)
-        child_id = _add_node(parent_id=node_id, element=element, logger=logger)        
+        child_id = _add_node(parent_id=node_id, element=element, logger=logger, 
+                             nodes_to_save=nodes_to_save)        
         to_crawl |= _get_children(child_id, traversing_nodes_set, 
                     traversing_nodes_list, element, elements, 
-                    logger=logger, auth=auth)
+                    logger=logger, auth=auth, nodes_to_save=nodes_to_save)
     # Determine if the node has to be added to the traversing list
     if to_crawl:
         logger.debug("The node %s has children but they are not found in this page. Adding to the traversing list", node_id)
@@ -429,18 +434,22 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
                 traversing_nodes_set.add(node_id)
                 traversing_nodes_list.append((node_id, creds or auth))
     else:
+        logger.debug("The node %s has no children on the page", node_id)
         # Determine if might have children. If the node has children, the parent
         # node has to be added to the traversing list
         if len(children_elements) == 0 and node_element['ptnrYn'] == 'Y':
             # Means the element has children but they aren't found in this page
             # So the crawling will be done for this element
+            logger.debug("The node %s has children on the page but might have ones. "
+                         "Adding parent node to the crawling set", node_id)
             return True
         else:
             logger.debug("%s is done. Removing from the crawling set", node_id)
             traversing_nodes_set.discard(node_id)
     return False
 
-def _add_node(parent_id, element, logger: logging.OrderLogger):
+def _add_node(parent_id, element, logger: logging.OrderLogger, 
+              nodes_to_save: list[dict[str, Any]]) -> str:
     _logger:logging.OrderLogger = logging.getLogger('_add_node()') #type:ignore
     element_id = element['custNo']
     child_type = ChildType.LEFT_CHILD if element['trctLocCd'] == 'L' \
@@ -463,7 +472,7 @@ def _add_node(parent_id, element, logger: logging.OrderLogger):
                 '%s already has %s as a %s. Updating data...',
                 parent_id, element_id, child_type)
     return _save_node(element=element, parent_id=parent_id, child_type=str(child_type), 
-                     logger=logger)
+                     logger=logger, nodes_to_save=nodes_to_save)
 
 
 def _init_network(root_id: str, last_update: date=datetime.now()) -> list[list[str]]:
@@ -486,7 +495,7 @@ def _init_network(root_id: str, last_update: date=datetime.now()) -> list[list[s
     return result
 
 def _save_node(element: dict[str, Any], parent_id: str, child_type: str, 
-              logger: logging.Logger) -> str:
+              logger: logging.Logger, nodes_to_save: list[dict]) -> str:
     '''Saves node in the database
     
     :param dict[str, Any] element: JSON representation of the element to be saved
@@ -512,9 +521,21 @@ def _save_node(element: dict[str, Any], parent_id: str, child_type: str,
     if parent_id == '':
         _save_root_node(atomy_id, element, signup_date, last_purchase_date)
     else:
-        _save_child_node(atomy_id, parent_id, element, child_type,
-                                signup_date, last_purchase_date)
-    logger.debug('Saved node %s: {rank: %s}', atomy_id, 
+        # _save_child_node(atomy_id, parent_id, element, child_type,
+        #                         signup_date, last_purchase_date)
+        nodes_to_save.append({
+            'atomy_id': atomy_id,
+            'parent_id': parent_id,
+            'name': element['custNm'],
+            'rank': titles.get(element['curLvlCd']),
+            'highest_rank': titles.get(element['mlvlCd']),
+            'center': element.get('ectrNm'),
+            'country': element['corpNm'],
+            'child_type': child_type,
+            'signup_date': signup_date,
+            'last_purchase_date': last_purchase_date
+        })
+    logger.debug('Added node %s: {rank: %s} for saving', atomy_id, 
                  titles.get(element['curLvlCd']))
     return atomy_id
         
@@ -625,6 +646,42 @@ def _save_child_node(atomy_id: str, parent_id: str, element, child_type: str,
         'now': datetime.now()
     })
     return atomy_id
+
+def _save_child_nodes(nodes: list[dict]) -> None:
+    '''Saves a child node to the database
+    
+    :param list[dict] records: Atomy ID of the node to be saved'''
+    db.cypher_query(f'''
+        UNWIND $records AS record
+        MATCH (parent:AtomyPerson {{atomy_id: record.parent_id}})
+        MERGE (node:AtomyPerson {{atomy_id: record.atomy_id}})
+        ON CREATE SET
+                node.atomy_id_normalized = REPLACE(record.atomy_id, 'S', '0'),
+                node.name = record.name,
+                node.rank = record.rank,
+                node.highest_rank = record.highest_rank,
+                node.center = record.center,
+                node.country = record.country,
+                node.signup_date = record.signup_date,
+                node.last_purchase_date = record.last_purchase_date,
+                node.username = parent.username,
+                node.password = parent.password,
+                node.when_updated = $now
+        ON MATCH SET
+                node.name = record.name,
+                node.rank = record.rank,
+                node.highest_rank = record.highest_rank,
+                node.center = record.center,
+                node.country = record.country,
+                node.last_purchase_date = record.last_purchase_date,
+                node.when_updated = $now
+        MERGE (node)-[:PARENT]->(parent)
+        MERGE (parent)-[:` + record.child_type + `]->(node)
+        RETURN node.atomy_id
+    ''', params={
+        'records': nodes,
+        'now': datetime.now()
+    })
 
 def _set_branches(root_id):
     children, _ = db.cypher_query('''
