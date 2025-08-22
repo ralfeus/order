@@ -300,11 +300,13 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     # if node_id == root_id:
     nodes_to_save = []
     try:
+        children_nodes = _get_children_nodes(members)
         _save_node(members[0], '', '', logger, nodes_to_save)
         if members[0]['ptnrYn'] == 'Y':
             _get_children(
                 node_id, traversing_nodes_set, traversing_nodes_list, members[0], members[1:],
-                logger=logger, auth=auth, nodes_to_save=nodes_to_save
+                logger=logger, auth=auth, nodes_to_save=nodes_to_save, 
+                children_nodes=children_nodes
             )
         logger.debug("Saving %s nodes to the database", len(nodes_to_save))
         _save_child_nodes(nodes_to_save)
@@ -313,6 +315,22 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         exceptions.put(BuildPageNodesException(node_id, ex))
     with lock:
         threads -= 1
+
+def _get_children_nodes(members: list[dict[str, Any]]) -> dict[str, dict[ChildType, str]]:
+    '''Returns dictionary of children of the nodes on the page'''
+    result, _ = db.cypher_query('''
+        UNWIND $nodes AS node
+        MATCH (n:AtomyPerson {atomy_id: node})
+        OPTIONAL MATCH (n)-[:LEFT_CHILD]->(l:AtomyPerson)
+        OPTIONAL MATCH (n)-[:RIGHT_CHILD]->(r:AtomyPerson)
+        RETURN n.atomy_id AS id, 
+               CASE WHEN l IS NULL THEN NULL ELSE l.atomy_id END AS left_child,
+               CASE WHEN r IS NULL THEN NULL ELSE r.atomy_id END AS right_child
+    ''', {'nodes': [m['custNo'] for m in members]})
+    return {row[0]: {
+        ChildType.LEFT_CHILD: row[1], 
+        ChildType.RIGHT_CHILD: row[2]
+        } for row in result}
 
 def _get_parent_auth(node_id: str) -> tuple[str, str]:
     '''Returns credentials of the parent node
@@ -388,17 +406,17 @@ def _set_token_cooldown(username: str) -> None:
     with token_locks[username]:
         tokens[username]['last_used'] = datetime.now() + EMERGENCY_COOLDOWN
 
-def get_child_id(parent_id, child_type: ChildType):
-    result, _ = db.cypher_query(f'''
-        MATCH (p:AtomyPerson {{atomy_id: '{parent_id}'}})-[:{child_type.name}]->(c:AtomyPerson)
-        RETURN c.atomy_id
-    ''')
-    return result[0][0] if len(result) > 0 else None
+# def get_child_id(parent_id, child_type: ChildType):
+#     result, _ = db.cypher_query(f'''
+#         MATCH (p:AtomyPerson {{atomy_id: '{parent_id}'}})-[:{child_type.name}]->(c:AtomyPerson)
+#         RETURN c.atomy_id
+#     ''')
+#     return result[0][0] if len(result) > 0 else None
 
 def _get_children(node_id: str, traversing_nodes_set: set[str], 
                   traversing_nodes_list: list[tuple[str, tuple[str, str]]], 
                   node_element, elements, logger, auth: tuple[str, str],
-                  nodes_to_save: list[dict]) -> bool:
+                  nodes_to_save: list[dict], children_nodes: dict[str, dict]) -> bool:
     '''Recursively gets children of the node and adds them to the database
 
     :param str node_id: Atomy ID of the node, whose children are to be obtained
@@ -422,10 +440,11 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
         #     logger.warning("------------- Parent: %s -----------------", node_id)
         #     os._exit(0)
         child_id = _add_node(parent_id=node_id, element=element, logger=logger, 
-                             nodes_to_save=nodes_to_save)        
+                             nodes_to_save=nodes_to_save, children_nodes=children_nodes)        
         to_crawl |= _get_children(child_id, traversing_nodes_set, 
                     traversing_nodes_list, element, elements, 
-                    logger=logger, auth=auth, nodes_to_save=nodes_to_save)
+                    logger=logger, auth=auth, nodes_to_save=nodes_to_save,
+                    children_nodes=children_nodes)
     # Determine if the node has to be added to the traversing list
     if to_crawl:
         logger.debug("The node %s has children but they are not found in this page. Adding to the traversing list", node_id)
@@ -452,13 +471,14 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
     return False
 
 def _add_node(parent_id, element, logger: logging.OrderLogger, 
-              nodes_to_save: list[dict[str, Any]]) -> str:
+              nodes_to_save: list[dict[str, Any]], children_nodes: dict) -> str:
     _logger:logging.OrderLogger = logging.getLogger('_add_node()') #type:ignore
     element_id = element['custNo']
     child_type = ChildType.LEFT_CHILD if element['trctLocCd'] == 'L' \
         else ChildType.RIGHT_CHILD
     _logger.debug("%s is %s to %s", element_id, child_type, parent_id)
-    child_id = get_child_id(parent_id, child_type)
+    # child_id = get_child_id(parent_id, child_type)
+    child_id = children_nodes.get(parent_id, {}).get(child_type) 
     if child_id is None:
         _logger.debug("%s has no %s. Adding %s as a %s", 
                         parent_id, child_type, element_id, child_type)
