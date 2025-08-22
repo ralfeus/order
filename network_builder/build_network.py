@@ -249,7 +249,9 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     while True:
         try:
             # with atomy_lock:
-            token = _get_token(auth, socks5_proxy)
+            token, user = _get_token(auth, socks5_proxy)
+            if user !=auth[0]:
+                logger.debug("The parent's (%s) credentials were used for %s", user, node_id)
             members = get_json(TREE_URL + '?' + 
                             DATA_TEMPLATE.format(node_id), 
                             headers=token + [{'Cookie': 'KR_language=en'}],
@@ -257,20 +259,20 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                 # sleep(0.75)
             if type(members) == dict and members.get('errorMessage') is not None:
                 if members['errorMessage'] == 'Not a downline member':
-                    logger.debug("Couldn't find the node %s in the network of %s", node_id, auth[0])
+                    logger.debug("Couldn't find the node %s in the network of %s", node_id, user)
                     logger.debug("Trying parent's creds")
                     auth = _get_parent_auth(auth[0])
                 else:
                     logger.debug("Account %s needs to cool down", auth[0])
-                    _set_token_cooldown(auth[0])
+                    _set_token_cooldown(user)
                 continue
             break
         except HTTPError as ex:
             if ex.status == '302':
                 logger.debug("The token for %s seems to be expired. Trying to re-login", 
-                             auth[0])
-                with token_locks[auth[0]]:
-                    tokens[auth[0]] = None
+                             user)
+                with token_locks[user]:
+                    tokens[user] = None
                 continue
         except BuildPageNodesException as ex:
             exceptions.put(ex) # The exception is to be handled in the calling thread
@@ -324,7 +326,7 @@ def _get_parent_auth(node_id: str) -> tuple[str, str]:
         raise NoParentException(node_id)
     return result[0][0], result[0][1]
     
-def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]:
+def _get_token(auth: tuple[str, str], socks5_proxy: str) -> tuple[list[dict[str, str]], str]:
     '''Returns token to be used in the headers for the Atomy API calls
     First tries to find the token of the node in the global token list
     If not found tries to authenticate as current user.
@@ -334,7 +336,8 @@ def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]
     :param tuple[str, str] auth: tuple of Atomy ID and password
     :param str socks5_proxy: address of the SOCKS5 proxy to use for Atomy calls
     
-    :return list[dict[str, str]]: List of headers to be supplied as session token'''
+    :return tuple[list[dict[str, str]], str]: List of headers to be supplied as session token 
+        and Atomy ID of the logged in user'''
     global tokens
     logger = logging.getLogger('_get_token()')
     # logger.setLevel(logging.DEBUG)
@@ -362,7 +365,7 @@ def _get_token(auth: tuple[str, str], socks5_proxy: str) -> list[dict[str, str]]
                      auth[0], str(ex))
         auth = _get_parent_auth(auth[0])
         return _get_token(auth, socks5_proxy)
-    return [{'Cookie': token['token']}]
+    return [{'Cookie': token['token']}], auth[0]
 
 def _set_token(username, password, locked:bool=False) -> dict[str, str]:
     global tokens
