@@ -79,9 +79,9 @@ def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     addresses = page.locator('#dlvp_list > dl.lyr-address').all()
     # print(f"Found {len(addresses)} addresses")
     for address_element in addresses:
-        print(f"Address: {address_element.get_attribute('data-recvr-post-no')}"
-              f"         {address_element.get_attribute('data-recvr-base-addr')}"
-              f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
+        # print(f"Address: {address_element.get_attribute('data-recvr-post-no')}"
+        #       f"         {address_element.get_attribute('data-recvr-base-addr')}"
+        #       f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
         if address_element.get_attribute('data-recvr-post-no') \
             and ((address_element.get_attribute('data-recvr-base-addr') or '') in address.address_1
                  or address.address_1 in (address_element.get_attribute('data-recvr-base-addr') or '')) \
