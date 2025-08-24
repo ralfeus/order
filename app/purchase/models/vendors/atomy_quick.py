@@ -149,6 +149,7 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
         fill(edit_window.locator('#dtlAddr'), detailed_address)
+        edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
               lambda: expect(edit_window).not_to_be_attached())
     expect(address_element.locator('dt>b')).to_have_text(name)
