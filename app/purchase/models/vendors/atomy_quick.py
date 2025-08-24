@@ -83,10 +83,10 @@ def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
               f"         {address_element.get_attribute('data-recvr-base-addr')}"
               f"         {address_element.get_attribute('data-recvr-dtl-addr')}")
         if address_element.get_attribute('data-recvr-post-no') \
-            and (address_element.get_attribute('data-recvr-base-addr') in address.address_1
-                 or address.address_1 in address_element.get_attribute('data-recvr-base-addr')) \
-            and (address_element.get_attribute('data-recvr-dtl-addr') in address.address_2
-                 or address.address_2 in address_element.get_attribute('data-recvr-dtl-addr')):
+            and ((address_element.get_attribute('data-recvr-base-addr') or '') in address.address_1
+                 or address.address_1 in (address_element.get_attribute('data-recvr-base-addr') or '')) \
+            and ((address_element.get_attribute('data-recvr-dtl-addr') or '') in address.address_2
+                 or address.address_2 in (address_element.get_attribute('data-recvr-dtl-addr') or '')):
             return address_element
     return None
     # data-dlvp-nm="Valentina" 
