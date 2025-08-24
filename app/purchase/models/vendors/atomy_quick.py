@@ -109,7 +109,7 @@ def create_address(page: Page, address: Address, phone: str):
     find_address(page, address.address_1)  # base address
     # If the found base address is different than provided one
     # there is a chance it exists and just wasn't found
-    found_base_address = page.locator('#baseAddr').text_content()
+    found_base_address = page.locator('#baseAddr').text_content() or ''
     if not (
         found_base_address in address.address_1 or
         address.address_1 in found_base_address ):
@@ -138,12 +138,18 @@ def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     }
     return template.format(**parts)
 
-def update_address_name(address_element: Locator, name: str):
+def update_address(address_element: Locator, name: str, detailed_address: str, 
+                   parent_logger: logging.Logger):
+    logger = parent_logger.getChild("atomy_quick.update_address_name")
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
     fill(edit_window.locator('#dlvpNm'), name)
-    try_click(edit_window.locator('#btnSubmit'), 
+    submit_button = edit_window.locator('#btnSubmit')
+    if submit_button.is_disabled():
+        logger.error("The detailed address is missing. Adding...")
+        fill(edit_window.locator('#dtlAddr'), detailed_address)
+    try_click(submit_button, 
               lambda: expect(edit_window).not_to_be_attached())
     expect(address_element.locator('dt>b')).to_have_text(name)
 
@@ -554,8 +560,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 logger.debug("No address found, creating:")
                 logger.debug(address.to_dict())
                 address_element = create_address(page, address, phone)
-            update_address_name(address_element, get_receiver_name(self.__purchase_order, 
-                self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")))
+            update_address(address_element, 
+                name=get_receiver_name(self.__purchase_order, 
+                    self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
+                detailed_address=address.address_2,
+                parent_logger=self._logger)
             try_click(address_element,
                     lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
         except PurchaseOrderError:
