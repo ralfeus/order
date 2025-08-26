@@ -497,10 +497,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
             if sale_date_loc.count():
-                try_click(sale_date_loc,
-                    lambda: expect(page.locator(
-                        f'ul.slt-date input[value="{sale_date_str}"]'))
-                        .to_be_checked())
+                try:
+                    try_click(sale_date_loc,
+                        lambda: expect(page.locator(
+                            f'ul.slt-date input[value="{sale_date_str}"]'))
+                            .to_be_checked())
+                except Exception as e:
+                    if "intercepts pointer events" in str(e):
+                        logger.warning("An unexpected popup is shown. "
+                                       "The PO will be retried")
+                        raise PurchaseOrderError(self.__purchase_order, self,
+                            message=str(e), retry=True)
+                    raise PurchaseOrderError(self.__purchase_order, self,
+                        message=f"Couldn't set the purchase date {sale_date_str}: {str(e)}")
                 logger.info("Purchase date is set to %s", sale_date_str)
             else:
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
