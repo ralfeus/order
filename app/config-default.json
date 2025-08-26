@@ -9,7 +9,7 @@
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
     "UPLOAD_PATH": "upload",
-    "BROWSER_URL": "http://127.0.0.1:9222",
+    "BROWSER_URL": "",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "LANGUAGES": ["en", "ua", "ru"],
     "PRODUCT_IMPORT_PERIOD": 300,

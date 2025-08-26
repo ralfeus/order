@@ -130,6 +130,6 @@ def import_products():
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    # post_po()
+    post_po()
     # import_products()
-    build_network()
+    # build_network()

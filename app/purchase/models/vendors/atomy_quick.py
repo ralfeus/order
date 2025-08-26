@@ -215,7 +215,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             return purchase_order, {}
         self.__purchase_order = purchase_order
         with sync_playwright() as p:
-            if 'BROWSER_URL' in self.__config:
+            if self.__config.get('BROWSER_URL'):
                 browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
             else:
                 browser = p.chromium.launch(
@@ -347,7 +347,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # Open the product search form
         sleep(3)
         try_click(page.locator('button[quick-form-button="search"]'),
-                  lambda: page.wait_for_selector('#schInput', timeout=5000),
+                  lambda: page.wait_for_selector('#schInput', timeout=10000),
                   base_logger=logger)
 
         for op in order_products:
