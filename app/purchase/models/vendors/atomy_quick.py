@@ -51,7 +51,7 @@ def try_click(object: Locator, execute_criteria, retries=3,
     logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
     object.page.screenshot(
-        path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}',
+        path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}.png',
         full_page=True)
     for _ in range(retries):
         try:
@@ -339,7 +339,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # Open the product search form
         sleep(3)
         try_click(page.locator('button[quick-form-button="search"]'),
-                  lambda: page.wait_for_selector('#schInput', timeout=5000))
+                  lambda: page.wait_for_selector('#schInput', timeout=5000),
+                  base_logger=logger)
 
         for op in order_products:
             logger.info("Adding product %s", op.product_id)
