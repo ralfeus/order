@@ -51,9 +51,10 @@ def try_click(object: Locator, execute_criteria, retries=3,
               base_logger: logging.Logger=logging.root):
     logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
-    object.page.screenshot(
-        path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}.png',
-        full_page=True)
+    ### Last resort debugging screenshot
+    # object.page.screenshot(
+    #     path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}.png',
+    #     full_page=True)
     for _ in range(retries):
         try:
             object.click()
