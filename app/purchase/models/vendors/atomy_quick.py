@@ -46,7 +46,9 @@ ORDER_STATUSES = {
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
-def try_click(object, execute_criteria, retries=3):
+def try_click(object, execute_criteria, retries=3, 
+              base_logger: logging.Logger=logging.root):
+    logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
     for _ in range(retries):
         try:
@@ -55,7 +57,8 @@ def try_click(object, execute_criteria, retries=3):
             sleep(.7)
             return
         except Exception as e:
-            print(f"Retrying click on {object}")
+            logger.debug(f"Retrying click on {object}")
+            logger.debug(str(e))
             exception = e
     raise exception
 
