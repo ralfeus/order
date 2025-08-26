@@ -188,6 +188,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config: dict[str, Any] = config
+        self._retries = 3
 
     def __str__(self):
         return "Atomy - Quick order"
@@ -252,23 +253,28 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self._set_order_products_status(
                     ordered_products, OrderProductStatus.purchased
                 )
-                browser.close()
                 return purchase_order, unavailable_products
             except AtomyLoginError as ex:
                 self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
                 raise ex
             except PurchaseOrderError as ex:
                 self._logger.warning(ex)
-                if ex.retry:
-                    self._logger.warning("Retrying %s", purchase_order.id)
-                    return self.post_purchase_order(purchase_order)
                 if ex.screenshot:
                     page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
-                raise ex
+                if ex.retry and self._retries > 0:
+                    self._retries -= 1
+                    self._logger.warning("Retrying %s", purchase_order.id)
+                else:
+                    raise ex
             except Exception as ex:
                 self._logger.exception("Failed to post an order %s", purchase_order.id)
                 page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
+            finally:
+                browser.close()
+
+        # Only way to reach here is the retry is needed
+        return self.post_purchase_order(purchase_order)
 
     def __login(self, page: Page, purchase_order):
         logger = self._logger.getChild("__login")
@@ -347,10 +353,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
         unavailable_products = {}
         # Open the product search form
         sleep(3)
-        try_click(page.locator('button[quick-form-button="search"]'),
-                  lambda: page.wait_for_selector('#schInput', timeout=10000),
-                  base_logger=logger)
-
+        try:
+            try_click(page.locator('button[quick-form-button="search"]'),
+                    lambda: page.wait_for_selector('#schInput', timeout=10000),
+                    base_logger=logger)
+        except:
+            # At this point there should be no issue
+            # Therefore the PO will be retried
+            logger.error("Couldn't open the product search form")
+            raise PurchaseOrderError(self.__purchase_order, self,
+                "Couldn't open the product search form", retry=True, screenshot=True)
         for op in order_products:
             logger.info("Adding product %s", op.product_id)
             if not op.product.purchase:
