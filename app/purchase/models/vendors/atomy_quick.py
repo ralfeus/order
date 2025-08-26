@@ -34,6 +34,7 @@ URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_BAD_ACCOUNT = "Unverified distributor cannot purchase."
 ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
+PRODUCTS_ADDED_TO_CART = 'The product has been added.'
 
 
 ORDER_STATUSES = {
@@ -301,10 +302,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
         :returns str: cart number"""
         logger = self._logger.getChild("__register_cart")
         logger.info("Registering cart")
-        page.locator('[cart-role="quick-cart-send"]').click()
+        try_click(page.locator('[cart-role="quick-cart-send"]'),
+            lambda: page.wait_for_selector('button[layer-role="close-button"]'),
+            base_logger=logger)
+        message = page.locator('//p[@layer-role="message"]').all_text_contents()
+        if message != PRODUCTS_ADDED_TO_CART:
+            raise PurchaseOrderError(self.__purchase_order, self,
+                message, screenshot=True)
         try_click(
             page.locator('[layer-role="close-button"]'),
-            lambda: page.wait_for_selector('#schInput', state='detached'))
+            lambda: page.wait_for_selector('#schInput', state='detached'),
+            base_logger=logger)
 
     def __get_order_details(self, page: Page) -> dict[str, Any]:
         page.wait_for_load_state('networkidle')
