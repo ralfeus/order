@@ -202,6 +202,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         :returns: tuple[PurchaseOrder, dict[str, str]] posted purchase order
             and the list of products that couldn't be ordered"""
         self._logger = self.__original_logger.getChild(purchase_order.id)
+        logger = self._logger.getChild("post_purchase_order()")
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             if purchase_order.purchase_date < datetime.now().date():
@@ -209,17 +210,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     purchase_order, self,
                     f"The purchase date {purchase_order.purchase_date} is not available"
                 )
-            self._logger.info(
+            logger.info(
                 "Skip <%s>: purchase date is %s",
                 purchase_order.id,
                 purchase_order.purchase_date,
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
+        logger.debug("Initializing playwright")
         with sync_playwright() as p:
             if self.__config.get('BROWSER_URL'):
+                logger.debug("Connecting to the browser")
                 browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
             else:
+                logger.debug("Starting the browser")
                 browser = p.chromium.launch(
                     headless=True,
                     proxy={
@@ -258,16 +262,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
                 raise ex
             except PurchaseOrderError as ex:
-                self._logger.warning(ex)
+                logger.warning(ex)
                 if ex.screenshot:
                     page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 if ex.retry and self._retries > 0:
                     self._retries -= 1
-                    self._logger.warning("Retrying %s", purchase_order.id)
+                    logger.warning("Retrying %s", purchase_order.id)
                 else:
                     raise ex
             except Exception as ex:
-                self._logger.exception("Failed to post an order %s", purchase_order.id)
+                logger.exception("Failed to post an order %s", purchase_order.id)
                 page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
             finally:
@@ -416,10 +420,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug("Getting product %s by ID", product_id)
         fill(page.locator('#schInput'), product_id)
         logger.debug("Set '%s' to the search field", product_id)
-        try_click(page.locator('#schBtn'),
-            lambda: page.wait_for_selector('#goodsList'))
-        sleep(.7)
+        page.locator('#schBtn').click()
+        sleep(1)
+        expect(page.locator('#goodsList')).to_be_visible()
         product = page.locator('.lyr-pay-gds__item > input[data-goodsinfo]')
+        print(product.count())
         if product.count() == 0:
             # No product was found
             raise ProductNotAvailableError(product_id, "Not found")
