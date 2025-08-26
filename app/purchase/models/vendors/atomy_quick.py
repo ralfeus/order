@@ -46,13 +46,12 @@ ORDER_STATUSES = {
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
-def try_click(object, execute_criteria, retries=3, 
+def try_click(object: Locator, execute_criteria, retries=3, 
               base_logger: logging.Logger=logging.root):
     logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
     object.screenshot(
-        path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}', 
-        full_page=True)
+        path=f'{logger.name}-{datetime.now().strftime("%Y%m%d%H%M%S.%f")}')
     for _ in range(retries):
         try:
             object.click()
