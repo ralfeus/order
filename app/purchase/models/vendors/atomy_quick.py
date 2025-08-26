@@ -306,7 +306,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             lambda: page.wait_for_selector('button[layer-role="close-button"]'),
             base_logger=logger)
         message = page.locator('//p[@layer-role="message"]').all_text_contents()
-        if message != PRODUCTS_ADDED_TO_CART:
+        if PRODUCTS_ADDED_TO_CART not in message:
             raise PurchaseOrderError(self.__purchase_order, self,
                 message, screenshot=True)
         try_click(
