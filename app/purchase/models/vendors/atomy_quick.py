@@ -469,8 +469,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         """) 
         return result
 
-    def __get_product_option(self, page, base_product_id, option_id):
-        try_click(page.locator('button[option-role="opt-layer-btn"]'),
+    def __get_product_option(self, page: Page, base_product_id, option_id):
+        option_button = page.locator('button[option-role="opt-layer-btn"]')
+        if option_button.is_disabled():
+            raise ProductNotAvailableError(base_product_id)
+        try_click(option_button,
                     lambda: page.wait_for_selector('#gds_opt_0'))
         # base_product_id = page.locator('.lyr-gd__num').text_content()
         result = page.evaluate(f"""
