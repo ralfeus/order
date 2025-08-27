@@ -424,10 +424,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
         sleep(1)
         expect(page.locator('#goodsList')).to_be_visible()
         product = page.locator('.lyr-pay-gds__item > input[data-goodsinfo]')
-        print(product.count())
-        if product.count() == 0:
+        product_count = product.count()
+        print(product_count)
+        if product_count == 0:
             # No product was found
             raise ProductNotAvailableError(product_id, "Not found")
+        if product_count > 1 and product_count < 15:
+            raise ProductNotAvailableError(product_id, "More than one product found")
+        if product_count >= 15:
+            logger.info("The result isn't shown yet")
+            while product.count() >= 15:
+                sleep(1)
         product_info_attr = product.get_attribute('data-goodsinfo')
         product_info = json.loads(product_info_attr) #type: ignore
         button = page.locator('button[cart-role="btn-solo"]')
