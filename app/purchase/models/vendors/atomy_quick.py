@@ -386,7 +386,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         product_id, 
                         f"The product {product_id} is not allowed for user {self.__purchase_order.customer.username}")
                 product_object, product_info = self.__get_product_by_id(page, product_id)
-                product_object.fill(str(op.quantity))
+                fill(product_object, str(op.quantity))
 
                 op.product.separate_shipping = bool(
                     int(product_info.get("isIndividualDelivery") or 0)
@@ -425,7 +425,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         expect(page.locator('#goodsList')).to_be_visible()
         product = page.locator('.lyr-pay-gds__item > input[data-goodsinfo]')
         product_count = product.count()
-        print(product_count)
+        # print(product_count)
         if product_count == 0:
             # No product was found
             raise ProductNotAvailableError(product_id, "Not found")
@@ -443,12 +443,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
             add_button = page.locator('//div[contains(@class, "item_top")]/button[em[text()="Add"]]')
             if add_button.is_disabled():
                 raise ProductNotAvailableError(product_id)
+            logger.debug("The product has no options. Adding to cart")
             try_click(
                 add_button, 
                 lambda: page.wait_for_selector(f'[goods-cart-role="{product_id}"]'))
             result = page.locator(f'[goods-cart-role="{product_id}"] #selected-qty1')
         else:
             # There are options
+            logger.debug("The product has options")
             base_product_id = product_info["goodsNo"]
             result = self.__get_product_option(page, base_product_id, product_id)
         return result, product_info
@@ -469,10 +471,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         """) 
         return result
 
-    def __get_product_option(self, page: Page, base_product_id, option_id):
+    def __get_product_option(self, page: Page, base_product_id, option_id, 
+                             base_logger: logging.Logger=logging.root):
+        logger = base_logger.getChild("__get_product_option")
         option_button = page.locator('button[option-role="opt-layer-btn"]')
         if option_button.is_disabled():
             raise ProductNotAvailableError(base_product_id)
+        logger.debug("Getting available options")
         try_click(option_button,
                     lambda: page.wait_for_selector('#gds_opt_0'))
         # base_product_id = page.locator('.lyr-gd__num').text_content()
@@ -490,16 +495,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
         option_list_loc = page.locator('div[option-role="item-option-list"]')
         product_loc = page.locator(f'//li[@goods-cart-role="{base_product_id}" and div[@class="lyr-gd__opt"]]') \
             .filter(has_text=option["optValNm1"])
+        logger.debug("Selecting option %s", option["optValNm1"])
         try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').first,
                     lambda: option_list_loc.wait_for(state='visible'))
         if option.get('optValNm2') == None:
+            logger.debug("The product has 1 option. Adding to cart")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
         else:
+            logger.debug("The product has 2 options")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
             try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').last,
                     lambda: option_list_loc.last.wait_for(state='visible'))
+            logger.debug("Selected 2nd option. Adding to cart")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm2"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
             product_loc = product_loc.filter(has_text=option["optValNm2"])
@@ -605,7 +614,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             try_click(
                 page.locator('button[data-owns="lyr_pay_addr_lst"]'),
-                lambda: page.locator('#btnOrderDlvpReg').wait_for(timeout=5000))
+                lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
             address_element = find_existing_address(page, address)
             if address_element:
                 logger.debug("Found the existing address.")
