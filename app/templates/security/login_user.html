@@ -8,7 +8,7 @@
 <div class="container" style="max-width: 375px;">
     <h1>Log In</h1>
     <form method="POST" action="/login">
-        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+        <input type="hidden" name="next" value="{{ request.form.get('next') or request.args.get('next') }}">
         {{ login_user_form.csrf_token }}
         <div class="form-group">
             <label for="username">Username:</label>

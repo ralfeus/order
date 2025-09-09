@@ -193,6 +193,8 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
     logger.info("Done. Updated %s nodes", updated_nodes)
     logger.info("Setting branches for each node")
     _set_branches(root_id)
+    logger.info("Updating search cache")
+    _update_search_cache()
     logger.info("Done")
     stop_state_server = True
     server_thread.join()
@@ -725,6 +727,25 @@ def _update_progress(pbar: tqdm, progress: int, total: int, updated: int) -> Non
     pbar.n = progress
     pbar.set_description(f"{updated} nodes are updated. {threads} threads are running")
     pbar.refresh()
+
+def _update_search_cache(root_id: str) -> None:
+    db.cypher_query('''MATCH (n:Quantity) DELETE n''')
+    for rank in titles.values():
+        db.cypher_query('''
+            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
+            WITH COUNT(n) AS total
+            MERGE (q:Quantity{root: $root_id, filter: "", total: total})
+            RETURN total
+        ''', params={'root_id': root_id})
+        db.cypher_query('''
+            MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
+            WHERE n.rank = $rank
+            WITH COUNT(n) AS total
+            MERGE (q:Quantity{root: $root_id, filter: $params, total: total})
+            RETURN total
+        ''', params={'root_id': root_id, rank: rank, 'params': json.dumps({'rank': rank})})
+
+
     
 def _start_state_server(stop: Callable, get_data: Callable) -> threading.Thread:
     def _state_server(stop: Callable, get_data) -> None:

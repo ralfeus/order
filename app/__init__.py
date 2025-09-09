@@ -182,24 +182,3 @@ def init_logging(flask_app):
 def load_modules(flask_app):
     from app.modules import init
     init(flask_app)
-
-# from blinker import ANY
-# from flask_login.signals import user_logged_in, user_accessed, user_loaded_from_cookie
-# @user_loaded_from_cookie.connect_via(ANY)
-# @user_logged_in.connect_via(ANY)
-# def register_navbar(sender, user, **kwargs):
-#     user_navbar = Navbar(
-#         Subgroup('Orders',
-#             View('Orders', 'user_orders'),
-#             View('Draft orders', 'get_order_drafts'),
-#             View('New order', 'user_new_order'),
-#             View('Ordered products', 'user_order_products')
-#         ),
-#         View('Wallet', 'user_wallet'),
-#         Link('Logout', '/logout')
-#     )
-#     admin_navbar = Navbar(title="Admin")
-#     if user is not None and user.has_role('admin'):
-#         nav.register_element('top', admin_navbar)
-#     else:
-#         nav.register_element('top', user_navbar)

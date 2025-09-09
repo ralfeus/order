@@ -422,7 +422,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.debug("Set '%s' to the search field", product_id)
         page.locator('#schBtn').click()
         sleep(1)
-        expect(page.locator('#goodsList')).to_be_visible()
+        try: 
+            expect(page.locator('#goodsList')).to_be_visible()
+        except:
+            raise ProductNotAvailableError(product_id, "Not found")
         product = page.locator('.lyr-pay-gds__item > input[data-goodsinfo]')
         product_count = product.count()
         # print(product_count)
@@ -452,7 +455,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             # There are options
             logger.debug("The product has options")
             base_product_id = product_info["goodsNo"]
-            result = self.__get_product_option(page, base_product_id, product_id)
+            result = self.__get_product_option(page, base_product_id, product_id, base_logger=logger)
         return result, product_info
 
     def __is_product_allowed(self, page, product_id):

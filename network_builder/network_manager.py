@@ -100,16 +100,30 @@ def stop_builder():
 def get_nodes(node_id):
     '''Gets node either by ID provided in URL or filter provided in JSON payload'''
     def get_total(query_params):
-        return db.cypher_query('''
-            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
-            RETURN COUNT(n)
+        quantity, _ = db.cypher_query('''
+            MATCH (q:Quantity{root: $root_id, filter: ""}) RETURN q.total
         ''', params=query_params)
+        if len(quantity) == 0:
+            quantity = db.cypher_query('''
+                MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
+                WITH COUNT(n) AS total
+                MERGE (q:Quantity{root: $root_id, filter: "", total: total})
+                RETURN total
+            ''', params=query_params)
+        return quantity
     def get_filtered(query_filter, query_params):
-        return db.cypher_query(f'''
-            MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
-            {query_filter}
-            RETURN COUNT(n)
-        ''', params=query_params)
+        quantity, _ = db.cypher_query('''
+            MATCH (q:Quantity{root: $root_id, filter: $params}) RETURN q.total
+        ''', params={**query_params, 'params': json.dumps(query_params)})
+        if len(quantity) == 0:
+            quantity = db.cypher_query(f'''
+                MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
+                {query_filter}
+                WITH COUNT(n) AS total
+                MERGE (q:Quantity{{root: $root_id, filter: $params, total: total}})
+                RETURN total
+            ''', params={**query_params, 'params': json.dumps(query_params)})
+        return quantity
     logger = logging.getLogger('network_manager.get_nodes()')
     body = None
     try:
@@ -188,8 +202,8 @@ def get_nodes(node_id):
     logger.debug(query)
     result, _ = db.cypher_query(query, params=query_params)
     logger.info("Got %s records", len(result))
-    total = total_thread.get()[0][0][0]
-    filtered = filtered_thread.get()[0][0][0]
+    total = total_thread.get()[0][0]
+    filtered = filtered_thread.get()[0][0]
     logger.info("Returning %s records", filtered)
     return jsonify({
         'records_total': total,

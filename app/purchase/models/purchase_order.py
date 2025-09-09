@@ -78,7 +78,7 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
 
     @purchase_date.setter
     def purchase_date(self, value):
-        if isinstance(value, datetime):
+        if isinstance(value, datetime) or value is None:
             self.suborder.buyout_date = value
         elif isinstance(value, str):
             self.suborder.buyout_date = datetime.strptime(value, '%Y-%m-%d')
