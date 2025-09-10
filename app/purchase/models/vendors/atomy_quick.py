@@ -527,7 +527,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         lambda: page.wait_for_selector('#cart'))
             else:
                 logger.warning("The option %s of product %s is not available", option['optValNm2'], product_id)
-                raise ProductNotAvailableError(f"{product_id} option {option['optValNm2']}")
+                raise ProductNotAvailableError(product_id, f"option {option['optValNm2']}")
             return product_loc.filter(has_text=option["optValNm2"])
 
     def __is_purchase_date_valid(self, purchase_date):
