@@ -455,7 +455,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             # There are options
             logger.debug("The product has options")
             base_product_id = product_info["goodsNo"]
-            result = self.__get_product_option(page, base_product_id, product_id, base_logger=logger)
+            result = self.__get_product_option(page, base_product_id, product_id, base_logger=self._logger)
         return result, product_info
 
     def __is_product_allowed(self, page, product_id):
@@ -506,18 +506,29 @@ class AtomyQuick(PurchaseOrderVendorBase):
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
         else:
+            product_loc = self.__get_product_2nd_option(page, product_loc, option_list_loc, base_product_id, option, base_logger)
+        try_click(page.locator('#cart'), 
+                    lambda: product_loc.wait_for(state='visible'))
+        return product_loc.locator('input#selected-qty1')
+    
+    def __get_product_2nd_option(self, page: Page, product_loc: Locator, option_list_loc: Locator,
+                                 product_id: str, option: dict, base_logger: logging.Logger) -> Locator:
+            logger = base_logger.getChild('__get_product_2nd_option')
             logger.debug("The product has 2 options")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
             try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').last,
                     lambda: option_list_loc.last.wait_for(state='visible'))
-            logger.debug("Selected 2nd option. Adding to cart")
-            try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm2"].strip()}"]]'),
-                    lambda: page.wait_for_selector('#cart'))
-            product_loc = product_loc.filter(has_text=option["optValNm2"])
-        try_click(page.locator('#cart'), 
-                    lambda: product_loc.wait_for(state='visible'))
-        return product_loc.locator('input#selected-qty1')
+            logger.debug("Selecting 2nd option %s.", option['optValNm2'])
+            # Find option #2 text
+            option2_loc = page.locator(f'//span[@class="tx" and normalize-space(text()) = "{option["optValNm2"].strip()}"]')
+            if option2_loc.count():
+                try_click(page.locator('//a').filter(has=option2_loc),
+                        lambda: page.wait_for_selector('#cart'))
+            else:
+                logger.warning("The option %s of product %s is not available", option['optValNm2'], product_id)
+                raise ProductNotAvailableError(f"{product_id} option {option['optValNm2']}")
+            return product_loc.filter(has_text=option["optValNm2"])
 
     def __is_purchase_date_valid(self, purchase_date):
         tz = timezone("Asia/Seoul")
