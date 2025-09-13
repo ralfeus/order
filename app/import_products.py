@@ -70,19 +70,22 @@ def get_atomy_products() -> list[dict[str, Any]]:
     logger.info("Got %s core products", len(core_products))
     result = []
     for core_product in tqdm(core_products):
-        options = _get_product_options(core_product['id'], jwt)
-        result += [core_product] if len(options) == 1 \
-        else [{
-            "id": i['materialCode'],
-            "atomy_id": i['materialCode'],
-            "name": i['itemNm'],
-            "name_english": i['itemNm'],
-            "price": i['custSalePrice'],
-            "points": i['pvPrice'],
-            "available": i['goodsStatNm'] == "goods.word.sale.normal",
-            "image_url": core_product['image_url'],
-        } for i in options]
-        
+        try:
+            options = _get_product_options(core_product['id'], jwt)
+            result += [core_product] if len(options) == 1 \
+            else [{
+                "id": i['materialCode'],
+                "atomy_id": i['materialCode'],
+                "name": i['itemNm'],
+                "name_english": i['itemNm'],
+                "price": i['custSalePrice'],
+                "points": i['pvPrice'],
+                "available": i['goodsStatNm'] == "goods.word.sale.normal",
+                "image_url": core_product['image_url'],
+            } for i in options]
+        except Exception as e:
+            logger.warning(f"Couldn't add product {core_product}")
+            logger.warning(str(e))
 
     return result
 

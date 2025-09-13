@@ -159,6 +159,7 @@ class Fedex(Shipping):
         if result.get('output') is None:
             logger.info(result.get('errors'))
             return []
+        # logger.debug(result['output']['transitTimes'][0]['transitTimeDetails'])
         return [s['serviceType'] 
                 for s in result['output']['transitTimes'][0]['transitTimeDetails']]
 
