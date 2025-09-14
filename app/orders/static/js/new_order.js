@@ -94,8 +94,10 @@ $(document).ready(function() {
     $('.common-purchase-date')
         .datepicker({
             format: 'yyyy-mm-dd',
+            weekStart: 1,
             todayHighlight: true,
-            autoclose: true
+            autoclose: true,
+            daysOfWeekDisabled: [0]
         })
         .on('change', event => {
             if (event.target.value) {
@@ -105,8 +107,10 @@ $(document).ready(function() {
     $('.subcustomer-buyout-date')
         .datepicker({
             format: 'yyyy-mm-dd',
+            weekStart: 1,
             todayHighlight: true,
-            autoclose: true
+            autoclose: true,
+            daysOfWeekDisabled: [0]
         })
         .on('change', () => {
             $('.common-purchase-date').val('');
