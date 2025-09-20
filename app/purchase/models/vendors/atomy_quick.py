@@ -545,6 +545,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger = self._logger.getChild("__set_purchase_date")
         logger.debug("Setting purchase date")
         if sale_date:
+            page.locator('#tgLyr_0').screenshot(path=f'set-date-0-{self.__purchase_order.id}.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
             if sale_date_loc.count():
@@ -561,14 +562,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             message=str(e), retry=True)
                     raise PurchaseOrderError(self.__purchase_order, self,
                         message=f"Couldn't set the purchase date {sale_date_str}: {str(e)}")
-                page.screenshot(path=f'set-date-{self.__purchase_order.id}.png', full_page=True)
+                page.locator('#tgLyr_0').screenshot(path=f'set-date-1-{self.__purchase_order.id}.png')
                 logger.info("Purchase date is set to %s", sale_date_str)
             else:
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
+
                 raise PurchaseOrderError(self.__purchase_order, self,
                     message=f"Purchase date {sale_date_str} is not available")
         else:
-            page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
             logger.info("Purchase date is left default")
 
     def __set_local_shipment(
