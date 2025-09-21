@@ -194,7 +194,7 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
     logger.info("Setting branches for each node")
     _set_branches(root_id)
     logger.info("Updating search cache")
-    _update_search_cache()
+    _update_search_cache(root_id=root_id)
     logger.info("Done")
     stop_state_server = True
     server_thread.join()
