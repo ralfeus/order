@@ -743,7 +743,7 @@ def _update_search_cache(root_id: str) -> None:
             WITH COUNT(n) AS total
             MERGE (q:Quantity{root: $root_id, filter: $params, total: total})
             RETURN total
-        ''', params={'root_id': root_id, rank: rank, 'params': json.dumps({'rank': rank})})
+        ''', params={'root_id': root_id, 'rank': rank, 'params': json.dumps({'rank': rank})})
 
 
     
