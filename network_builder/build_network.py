@@ -194,7 +194,7 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
     logger.info("Setting branches for each node")
     _set_branches(root_id)
     logger.info("Updating search cache")
-    _update_search_cache(root_id=root_id)
+    _update_search_cache(root_id=root_id, base_logger=logging.getLogger())
     logger.info("Done")
     stop_state_server = True
     server_thread.join()
@@ -728,9 +728,11 @@ def _update_progress(pbar: tqdm, progress: int, total: int, updated: int) -> Non
     pbar.set_description(f"{updated} nodes are updated. {threads} threads are running")
     pbar.refresh()
 
-def _update_search_cache(root_id: str) -> None:
+def _update_search_cache(root_id: str, base_logger: logging.Logger) -> None:
+    logger = base_logger.getChild('_update_search_cache()')
     db.cypher_query('''MATCH (n:Quantity) DELETE n''')
     for rank in titles.values():
+        logger.info("%s: ", rank)
         db.cypher_query('''
             MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
             WITH COUNT(n) AS total
