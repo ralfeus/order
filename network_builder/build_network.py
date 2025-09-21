@@ -738,7 +738,7 @@ def _update_search_cache(root_id: str) -> None:
             RETURN total
         ''', params={'root_id': root_id})
         db.cypher_query('''
-            MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
+            MATCH (:AtomyPerson {atomy_id: $root_id})<-[:PARENT*0..]-(n:AtomyPerson)
             WHERE n.rank = $rank
             WITH COUNT(n) AS total
             MERGE (q:Quantity{root: $root_id, filter: $params, total: total})
