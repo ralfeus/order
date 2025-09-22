@@ -35,7 +35,7 @@ def post_po():
     po.customer.password = 'atomy#01'     
     # po.customer.username = '35744761'
     # po.customer.password = 'bs0105'    
-    po.purchase_date = datetime.now()
+    # po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
 

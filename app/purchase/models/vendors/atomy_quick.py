@@ -542,6 +542,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
 
     def __set_purchase_date(self, page: Page, sale_date: date):
+        def is_date_set():
+            for _ in range(5):
+                if page.locator('ul.slt-date input:checked').get_attribute('value') == sale_date_str:
+                    return
+                sleep(1)
+            raise Exception("Date is not set")
+        
         logger = self._logger.getChild("__set_purchase_date")
         logger.debug("Setting purchase date")
         if sale_date:
@@ -551,9 +558,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             if sale_date_loc.count():
                 try:
                     try_click(sale_date_loc,
-                        lambda: expect(page.locator(
-                            f'ul.slt-date input[value="{sale_date_str}"]'))
-                            .to_be_checked())
+                        # lambda: expect(page.locator(
+                        #     f'ul.slt-date input[value="{sale_date_str}"]'))
+                        #     .to_be_checked(), 
+                        is_date_set,
+                        base_logger=logger)
                 except Exception as e:
                     if "intercepts pointer events" in str(e):
                         logger.warning("An unexpected popup is shown. "
