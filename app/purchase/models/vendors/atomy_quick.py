@@ -48,8 +48,7 @@ ORDER_STATUSES = {
 }
 
 def try_click(object: Locator, execute_criteria, retries=3, 
-              base_logger: logging.Logger=logging.root):
-    logger = base_logger.getChild("try_click()")
+              logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")
     ### Last resort debugging screenshot
     # object.page.screenshot(
@@ -145,8 +144,7 @@ def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     return template.format(**parts)
 
 def update_address(address_element: Locator, name: str, detailed_address: str, 
-                   parent_logger: logging.Logger):
-    logger = parent_logger.getChild("atomy_quick.update_address_name")
+                   logger: logging.Logger):
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
@@ -200,7 +198,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
         :returns: tuple[PurchaseOrder, dict[str, str]] posted purchase order
             and the list of products that couldn't be ordered"""
         self._logger = self.__original_logger.getChild(purchase_order.id)
-        logger = self._logger.getChild("post_purchase_order()")
         # First check whether purchase date set is in acceptable bounds
         if not self.__is_purchase_date_valid(purchase_order.purchase_date):
             if purchase_order.purchase_date < datetime.now().date():
@@ -208,20 +205,20 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     purchase_order, self,
                     f"The purchase date {purchase_order.purchase_date} is not available"
                 )
-            logger.info(
+            self._logger.info(
                 "Skip <%s>: purchase date is %s",
                 purchase_order.id,
                 purchase_order.purchase_date,
             )
             return purchase_order, {}
         self.__purchase_order = purchase_order
-        logger.debug("Initializing playwright")
+        self._logger.debug("Initializing playwright")
         with sync_playwright() as p:
             if self.__config.get('BROWSER_URL'):
-                logger.debug("Connecting to the browser")
+                self._logger.debug("Connecting to the browser")
                 browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
             else:
-                logger.debug("Starting the browser")
+                self._logger.debug("Starting the browser")
                 browser = p.chromium.launch(
                     headless=True,
                     proxy={
@@ -260,16 +257,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self._logger.warning("Couldn't log on as a customer %s", str(ex.args))
                 raise ex
             except PurchaseOrderError as ex:
-                logger.warning(ex)
+                self._logger.warning(ex)
                 if ex.screenshot:
                     page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 if ex.retry and self._retries > 0:
                     self._retries -= 1
-                    logger.warning("Retrying %s", purchase_order.id)
+                    self._logger.warning("Retrying %s", purchase_order.id)
                 else:
                     raise ex
             except Exception as ex:
-                logger.exception("Failed to post an order %s", purchase_order.id)
+                self._logger.exception("Failed to post an order %s", purchase_order.id)
                 page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
             finally:
@@ -279,27 +276,25 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return self.post_purchase_order(purchase_order)
 
     def __login(self, page: Page, purchase_order):
-        logger = self._logger.getChild("__login")
-        logger.info("Logging in as %s", purchase_order.customer.username)
+        self._logger.info("Logging in as %s", purchase_order.customer.username)
         page.goto(f"{URL_BASE}/login")
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
         page.wait_for_load_state()
-        logger.debug("Logged in as %s", purchase_order.customer.username)
+        self._logger.debug("Logged in as %s", purchase_order.customer.username)
 
     def __init_quick_order(self, page):
         """Initializes the quick order. Doesn't return anything but essential
         for order creation"""
-        logger = self._logger.getChild("__init_quick_order")
-        logger.info('Changing language')
+        self._logger.info('Changing language')
         page.evaluate('overpass.util.setLanguage("en");')
         page.wait_for_load_state("networkidle")
         try:
             page.locator('button[layer-role="close-button"]').click()
         except Exception as e:
             pass  # No popup to close
-        logger.info('Opening Quick Order')
+        self._logger.info('Opening Quick Order')
         try_click(page.locator('a[href^="javascript:overpass.cart.regist"]'),
                   lambda: page.wait_for_load_state())
         if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]').count() > 0:
@@ -309,11 +304,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         """Registers the cart with the products to be ordered
 
         :returns str: cart number"""
-        logger = self._logger.getChild("__register_cart")
-        logger.info("Registering cart")
+        self._logger.info("Registering cart")
         try_click(page.locator('[cart-role="quick-cart-send"]'),
             lambda: page.wait_for_selector('button[layer-role="close-button"]'),
-            base_logger=logger)
+            logger=self._logger)
         message = page.locator('//p[@layer-role="message"]').all_text_contents()
         if PRODUCTS_ADDED_TO_CART not in message:
             raise PurchaseOrderError(self.__purchase_order, self,
@@ -321,7 +315,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try_click(
             page.locator('[layer-role="close-button"]'),
             lambda: page.wait_for_selector('#schInput', state='detached'),
-            base_logger=logger)
+            logger=self._logger)
 
     def __get_order_details(self, page: Page) -> dict[str, Any]:
         page.wait_for_load_state('networkidle')
@@ -349,8 +343,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                   and dictionary of products that unavailable along with unavailability reason
         :rtype: tuple[list[tuple[OrderProduct, str]], dict[str, str]]
         """
-        logger = self._logger.getChild("__add_products()")
-        logger.info("Adding products")
+        self._logger.info("Adding products")
         ordered_products = []
         unavailable_products = {}
         # Open the product search form
@@ -358,22 +351,22 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try:
             try_click(page.locator('button[quick-form-button="search"]'),
                     lambda: page.wait_for_selector('#schInput', timeout=10000),
-                    base_logger=logger)
+                    logger=self._logger)
         except:
             # At this point there should be no issue
             # Therefore the PO will be retried
-            logger.error("Couldn't open the product search form")
+            self._logger.error("Couldn't open the product search form")
             raise PurchaseOrderError(self.__purchase_order, self,
                 "Couldn't open the product search form", retry=True, screenshot=True)
         for op in order_products:
-            logger.info("Adding product %s", op.product_id)
+            self._logger.info("Adding product %s", op.product_id)
             if not op.product.purchase:
-                logger.warning(
+                self._logger.warning(
                     "The product %s is exempted from purchase", op.product_id
                 )
                 continue
             if op.quantity <= 0:
-                logger.warning(
+                self._logger.warning(
                     "The product %s has wrong quantity %s", op.product_id, op.quantity
                 )
                 continue
@@ -390,16 +383,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     int(product_info.get("isIndividualDelivery") or 0)
                 )
                 ordered_products.append((op,))
-                logger.info("Added product %s", op.product_id)
+                self._logger.info("Added product %s", op.product_id)
             except ProductNotAvailableError as ex:
-                logger.warning(
+                self._logger.warning(
                     "Product %s is not available: %s", ex.product_id, ex.message
                 )
                 unavailable_products[ex.product_id] = ex.message
             except PurchaseOrderError as ex:
                 raise ex
             except Exception:
-                logger.exception("Couldn't add product %s", op.product_id)
+                self._logger.exception("Couldn't add product %s", op.product_id)
         
         if len(ordered_products) == 0:
             raise PurchaseOrderError(
@@ -414,10 +407,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_product_by_id(self, page: Page, product_id):
         '''Gets a product or a specific product option by its ID'''
-        logger = self._logger.getChild("__get_product_by_id")
-        logger.debug("Getting product %s by ID", product_id)
+        self._logger.debug("Getting product %s by ID", product_id)
         fill(page.locator('#schInput'), product_id)
-        logger.debug("Set '%s' to the search field", product_id)
+        self._logger.debug("Set '%s' to the search field", product_id)
         page.locator('#schBtn').click()
         sleep(1)
         try: 
@@ -433,7 +425,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if product_count > 1 and product_count < 15:
             raise ProductNotAvailableError(product_id, "More than one product found")
         if product_count >= 15:
-            logger.info("The result isn't shown yet")
+            self._logger.info("The result isn't shown yet")
             while product.count() >= 15:
                 sleep(1)
         product_info_attr = product.get_attribute('data-goodsinfo')
@@ -444,22 +436,21 @@ class AtomyQuick(PurchaseOrderVendorBase):
             add_button = page.locator('//div[contains(@class, "item_top")]/button[em[text()="Add"]]')
             if add_button.is_disabled():
                 raise ProductNotAvailableError(product_id)
-            logger.debug("The product has no options. Adding to cart")
+            self._logger.debug("The product has no options. Adding to cart")
             try_click(
                 add_button, 
                 lambda: page.wait_for_selector(f'[goods-cart-role="{product_id}"]'))
             result = page.locator(f'[goods-cart-role="{product_id}"] #selected-qty1')
         else:
             # There are options
-            logger.debug("The product has options")
+            self._logger.debug("The product has options")
             base_product_id = product_info["goodsNo"]
             result = self.__get_product_option(page, base_product_id, product_id, base_logger=self._logger)
         return result, product_info
 
     def __is_product_allowed(self, page, product_id):
         '''Checks whether product is allowed'''
-        logger = self._logger.getChild("__is_product_allowed")
-        logger.debug("Checking whether product %s allowed", product_id)
+        self._logger.debug("Checking whether product %s allowed", product_id)
         result = page.evaluate(f"""
             async () => {{
                 const res = await fetch('{URL_BASE}/cart/checkPurchaseRestrirction', {{
@@ -474,11 +465,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __get_product_option(self, page: Page, base_product_id, option_id, 
                              base_logger: logging.Logger=logging.root):
-        logger = base_logger.getChild("__get_product_option")
         option_button = page.locator('button[option-role="opt-layer-btn"]')
         if option_button.is_disabled():
             raise ProductNotAvailableError(base_product_id)
-        logger.debug("Getting available options")
+        self._logger.debug("Getting available options")
         try_click(option_button,
                     lambda: page.wait_for_selector('#gds_opt_0'))
         # base_product_id = page.locator('.lyr-gd__num').text_content()
@@ -496,11 +486,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         option_list_loc = page.locator('div[option-role="item-option-list"]')
         product_loc = page.locator(f'//li[@goods-cart-role="{base_product_id}" and div[@class="lyr-gd__opt"]]') \
             .filter(has_text=option["optValNm1"])
-        logger.debug("Selecting option %s", option["optValNm1"])
+        self._logger.debug("Selecting option %s", option["optValNm1"])
         try_click(page.locator('button[aria-controls="pay-gds__slt_0"]').first,
                     lambda: option_list_loc.wait_for(state='visible'))
         if option.get('optValNm2') == None:
-            logger.debug("The product has 1 option. Adding to cart")
+            self._logger.debug("The product has 1 option. Adding to cart")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('#cart'))
         else:
@@ -510,8 +500,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         return product_loc.locator('input#selected-qty1')
     
     def __get_product_2nd_option(self, page: Page, product_loc: Locator, option_list_loc: Locator,
-                                 product_id: str, option: dict, base_logger: logging.Logger) -> Locator:
-            logger = base_logger.getChild('__get_product_2nd_option')
+                                 product_id: str, option: dict, logger: logging.Logger) -> Locator:
             logger.debug("The product has 2 options")
             try_click(page.locator(f'//a[.//span[normalize-space(text()) = "{option["optValNm1"].strip()}"]]'),
                     lambda: page.wait_for_selector('.btn_opt_slt[item-box="1"]'))
@@ -547,8 +536,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 sleep(1)
             raise Exception("Date is not set")
         
-        logger = self._logger.getChild("__set_purchase_date")
-        logger.debug("Setting purchase date")
+        self._logger.debug("Setting purchase date")
         if sale_date:
             page.locator('#tgLyr_0').screenshot(path=f'set-date-0-{self.__purchase_order.id}.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
@@ -560,31 +548,30 @@ class AtomyQuick(PurchaseOrderVendorBase):
                         #     f'ul.slt-date input[value="{sale_date_str}"]'))
                         #     .to_be_checked(), 
                         is_date_set,
-                        base_logger=logger)
+                        logger=self._logger)
                 except Exception as e:
                     if "intercepts pointer events" in str(e):
-                        logger.warning("An unexpected popup is shown. "
+                        self._logger.warning("An unexpected popup is shown. "
                                        "The PO will be retried")
                         raise PurchaseOrderError(self.__purchase_order, self,
                             message=str(e), retry=True)
                     raise PurchaseOrderError(self.__purchase_order, self,
                         message=f"Couldn't set the purchase date {sale_date_str}: {str(e)}")
                 page.locator('#tgLyr_0').screenshot(path=f'set-date-1-{self.__purchase_order.id}.png')
-                logger.info("Purchase date is set to %s", sale_date_str)
+                self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
 
                 raise PurchaseOrderError(self.__purchase_order, self,
                     message=f"Purchase date {sale_date_str} is not available")
         else:
-            logger.info("Purchase date is left default")
+            self._logger.info("Purchase date is left default")
 
     def __set_local_shipment(
         self, page: Page,
         ordered_products: list[tuple[OrderProduct, str]],
     ):
-        logger = self._logger.getChild("__set_local_shipment")
-        logger.debug("Seting local shipment")
+        self._logger.debug("Seting local shipment")
         free_shipping_eligible_amount = reduce(
             lambda acc, op: (
                 acc + (op[0].price * op[0].quantity)
@@ -599,11 +586,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
             < self.__config["FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD"]
         )
         if local_shipment:
-            logger.debug("Setting combined shipment")
+            self._logger.debug("Setting combined shipment")
             try_perform(lambda: self.__set_combined_shipping(page), logger=logger)
-            logger.debug("Combined shipment is set")
+            self._logger.debug("Combined shipment is set")
         else:
-            logger.debug("No combined shipment is needed")
+            self._logger.debug("No combined shipment is needed")
 
     def __set_combined_shipping(self, page: Page):
         combined_shipping = page.locator('label[for="pay-dlv_ck0_1"]')
@@ -616,40 +603,37 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 raise Exception("Combined shipping is not set")
 
     def __set_receiver_name(self, page: Page, purchase_order: PurchaseOrder) -> None:
-        logger = self._logger.getChild("__set_receiver_name")
-        logger.debug("Setting recipient's name")
+        self._logger.debug("Setting recipient's name")
         rcpt_name = get_receiver_name(purchase_order, 
             self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}"))
         fill(page.locator("#psn-txt_0_0"), rcpt_name)
         try_click(page.locator('label[for="psn-ck_waybill"]'),
                   lambda: expect(page.locator('#psn-ck_waybill')).to_be_checked(checked=True))
-        logger.debug(f"Recipient's name set to {rcpt_name}")
+        self._logger.debug(f"Recipient's name set to {rcpt_name}")
 
 
     def __set_receiver_mobile(self, page: Page, phone="     "):
-        logger = self._logger.getChild("__set_receiver_mobile")
-        logger.debug("Setting receiver phone number to %s", phone)
+        self._logger.debug("Setting receiver phone number to %s", phone)
         fill(page.locator("#psn-txt_1_0"), phone.replace('-', ''))
 
     def __set_receiver_address(self, page: Page, address: Address, phone: str):
-        logger = self._logger.getChild("__set_receiver_address")
-        logger.debug("Setting recipient's address")
+        self._logger.debug("Setting recipient's address")
         try:
             try_click(
                 page.locator('button[data-owns="lyr_pay_addr_lst"]'),
                 lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
-            address_element = find_existing_address(page, address)
+            address_element: Locator = find_existing_address(page, address) #type: ignore
             if address_element:
-                logger.debug("Found the existing address.")
+                self._logger.debug("Found the existing address.")
             else:
-                logger.debug("No address found, creating:")
-                logger.debug(address.to_dict())
+                self._logger.debug("No address found, creating:")
+                self._logger.debug(address.to_dict())
                 address_element = create_address(page, address, phone)
             update_address(address_element, 
                 name=get_receiver_name(self.__purchase_order, 
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
                 detailed_address=address.address_2,
-                parent_logger=self._logger)
+                logger=self._logger)
             try_click(address_element,
                     lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
         except PurchaseOrderError:
@@ -661,52 +645,50 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_payment_params(
         self, page: Page, po: PurchaseOrder
     ):
-        logger = self._logger.getChild("__set_payment_params")
-        logger.debug("Setting payment parameters")
+        self._logger.debug("Setting payment parameters")
         # Set the payment method
-        logger.debug("Setting payment method...")
+        self._logger.debug("Setting payment method...")
         page.locator('#mth-tab_3').click()
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile
-        logger.debug("Setting payment mobile...")
+        self._logger.debug("Setting payment mobile...")
         page.locator('#mth-cash-txt_0').fill(po.payment_phone)
-        logger.debug("Payment parameters are set")
+        self._logger.debug("Payment parameters are set")
 
     def __set_tax_info(self, page: Page, purchase_order: PurchaseOrder):
-        logger = self._logger.getChild("__set_tax_info")
-        logger.info("Setting counteragent tax information")
+        self._logger.info("Setting counteragent tax information")
         if purchase_order.company.tax_id != ("", "", ""):  # Company is taxable
             company = purchase_order.company
             if company.tax_simplified:
-                logger.debug("Setting tax information for simplified tax invoice")
+                self._logger.debug("Setting tax information for simplified tax invoice")
                 page.locator('label[for="cash-mth-proof_rdo_1"]').click()
                 confirm_button = page.locator('button[layer-role="confirm-button"]')
                 try_click(page.locator('label[for="pay_important_ck_0"]'),
                     lambda: expect(confirm_button).to_be_enabled(), retries=5)
                 confirm_button.click()
-                logger.debug('Set usage purpose')
+                self._logger.debug('Set usage purpose')
                 page.locator('#cash-mth-proof-slt_0').select_option('cash-receipt_1')
                 page.locator('#cash-mth-receipt_opr').fill('%s%s%s' % company.tax_id)
                 page.locator('label[for="cash-mth-cash-btm_ck0"]').click()            
             else:
-                logger.debug("Setting tax information for tax invoice")
+                self._logger.debug("Setting tax information for tax invoice")
                 confirm_button = page.locator('button[layer-role="confirm-button"]')
-                logger.debug("Switch to Tax Invoice")
+                self._logger.debug("Switch to Tax Invoice")
                 try_click(page.locator('label[for="cash-mth-proof_rdo_2"]'),
                         lambda: expect(confirm_button).to_be_attached())
-                logger.debug("Close notice")
+                self._logger.debug("Close notice")
                 try_click(page.locator('label[for="pay_important_ck_1"]'),
                         lambda: expect(confirm_button).to_be_enabled())
                 try_click(confirm_button,
                         lambda: expect(confirm_button).not_to_be_attached())
-                logger.debug("Select New")
+                self._logger.debug("Select New")
                 try_click(page.locator('label[for="cash-mth-taxes_rdo_1"]'),
                         lambda: page.wait_for_selector('#cash-mth-taxes-txt_0'))
-                logger.debug("Fill data")
+                self._logger.debug("Fill data")
                 fill(page.locator('#cash-mth-taxes-txt_0'), company.name) # Company Name
                 fill(page.locator('#cash-mth-taxes-txt_1'), '%s%s%s' % company.tax_id) # Business Number
                 fill(page.locator('#cash-mth-taxes-txt_2'), company.contact_person) # Representative name
-                logger.debug("Find address")
+                self._logger.debug("Find address")
                 try_click(page.locator('#cash-btnAdressSearch'),
                         lambda: page.wait_for_selector('#lyr_pay_sch_bx33'))
                 find_address(page, company.address.address_1)
@@ -716,18 +698,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 fill(page.locator('#cash-mth-taxes-txt_6'), company.tax_phone) # Mobile
                 fill(page.locator('#cash-mth-taxes-txt_7'), company.contact_person) # Manager
                 fill(page.locator('#cash-mth-taxes-txt_8'), company.email) # E-mail
-            logger.debug("Tax information is set")
+            self._logger.debug("Tax information is set")
 
     def __submit_order(self, page: Page):
-        logger = self._logger.getChild("__submit_order")
-        logger.info("Submitting the order")
-        logger.debug("Agreeing to terms")
+        self._logger.info("Submitting the order")
+        self._logger.debug("Agreeing to terms")
         page.locator('label[for="fxd-agr_ck_2502000478"]').click()
-        logger.debug("Submitting order")
+        self._logger.debug("Submitting order")
         page.locator('button[sheet-role="pay-button"]').click()
         page.wait_for_selector('.odrComp', timeout=60000)
         vendor_po = self.__get_order_details(page)
-        logger.debug("Created order: %s", vendor_po)
+        self._logger.debug("Created order: %s", vendor_po)
         return (
             vendor_po["vendor_po"],
             vendor_po["payment_account"],
@@ -735,14 +716,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
 
     def update_purchase_order_status(self, purchase_order: PurchaseOrder):
-        logger = self._logger.getChild("update_purchase_order_status")
-        logger.info("Updating %s status", purchase_order.id)
-        logger.debug("Logging in as %s", purchase_order.customer.username)
+        self._logger.info("Updating %s status", purchase_order.id)
+        self._logger.debug("Logging in as %s", purchase_order.customer.username)
         session = [{"Cookie": atomy_login2(
             purchase_order.customer.username,
             purchase_order.customer.password
         )}]
-        logger.debug("Getting POs from Atomy...")
+        self._logger.debug("Getting POs from Atomy...")
         vendor_purchase_orders = self.__get_purchase_orders(session)
         self._logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
@@ -758,20 +738,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def update_purchase_orders_status(self, subcustomer, 
                                       purchase_orders: list[PurchaseOrder]):
-        logger = self._logger.getChild("update_purchase_orders_status")
-        logger.info("Updating %s POs status", len(purchase_orders))
-        logger.debug("Attempting to log in as %s...", subcustomer.name)
+        self._logger.info("Updating %s POs status", len(purchase_orders))
+        self._logger.debug("Attempting to log in as %s...", subcustomer.name)
         session = [{"Cookie": atomy_login2(
             purchase_orders[0].customer.username,
             purchase_orders[0].customer.password
         )}]
-        logger.debug("Getting subcustomer's POs")
+        self._logger.debug("Getting subcustomer's POs")
         vendor_purchase_orders = self.__get_purchase_orders(session)
-        logger.debug("Got %s POs", len(vendor_purchase_orders))
+        self._logger.debug("Got %s POs", len(vendor_purchase_orders))
         for o in vendor_purchase_orders:
             # logger.debug(str(o))
             if ORDER_STATUSES[o["status"]] == PurchaseOrderStatus.posted:
-                logger.debug("Skipping PO %s", o["id"])
+                self._logger.debug("Skipping PO %s", o["id"])
                 continue
             filtered_po = [
                 po for po in purchase_orders if po and po.vendor_po_id == o["id"]
@@ -779,14 +758,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
             try:
                 filtered_po[0].set_status(ORDER_STATUSES[o["status"]])
             except IndexError:
-                logger.warning(
+                self._logger.warning(
                     "No corresponding purchase order for Atomy PO <%s> was found",
                     o["id"],
                 )
 
     def __get_purchase_orders(self, session_headers: list[dict[str, str]]):
-        logger = self._logger.getChild("__get_purchase_orders")
-        logger.debug("Getting purchase orders")
+        self._logger.debug("Getting purchase orders")
         res = get_html(
             url=f"{URL_BASE}/mypage/orderList?"
             + "psearchMonth=12&startDate=&endDate=&orderStatus=all&pageIdx=2&rowsPerPage=100",
