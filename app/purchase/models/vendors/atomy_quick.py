@@ -78,9 +78,7 @@ def find_address(page: Page, base_address: str):
     found_addresses = page.locator('button[address-role="select-button"]')
     if found_addresses.count() < 1:
         raise Exception(f"The base address {base_address} is invalid")
-    if found_addresses.count() > 1:
-        raise Exception("More than one address found")
-    try_click(found_addresses,
+    try_click(found_addresses.first,
               lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:

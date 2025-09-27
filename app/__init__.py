@@ -173,7 +173,7 @@ def init_logging(flask_app):
     logger.setLevel(flask_app.config['LOG_LEVEL'])
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(
-        fmt="%(asctime)s\t%(levelname)s\t%(name)s: %(message)s"))
+        fmt="%(asctime)s\t%(levelname)s\t%(name)s:%(funcName)s(%(filename)s:%(lineno)d): %(message)s"))
     logger.addHandler(handler)
     logger.info("Starting %s", flask_app.name)
     logger.info("Log level is %s", logging.getLevelName(logger.level))
