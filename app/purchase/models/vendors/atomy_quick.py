@@ -145,10 +145,14 @@ def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
 
 def update_address(address_element: Locator, name: str, detailed_address: str, 
                    logger: logging.Logger):
+    logger.debug("Updating address name to %s", name)
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
-    fill(edit_window.locator('#dlvpNm'), name)
+    try:
+        fill(edit_window.locator('#dlvpNm'), name)
+    except Exception as e:
+        logger.error("Couldn't set the address name. Leaving as is", str(e))
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
