@@ -154,8 +154,8 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
         fill(edit_window.locator('#dlvpNm'), name)
         is_name_changed = True
     except Exception as e:
-        logger.error("Couldn't set the address name. Leaving as is")
-        logger.error(str(e))
+        logger.warning("Couldn't set the address name. Leaving as is")
+        logger.warning(str(e))
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
@@ -595,7 +595,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         )
         if local_shipment:
             self._logger.debug("Setting combined shipment")
-            try_perform(lambda: self.__set_combined_shipping(page), logger=logger)
+            try_perform(lambda: self.__set_combined_shipping(page), logger=self._logger)
             self._logger.debug("Combined shipment is set")
         else:
             self._logger.debug("No combined shipment is needed")
