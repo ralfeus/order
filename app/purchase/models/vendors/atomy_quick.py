@@ -152,7 +152,8 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     try:
         fill(edit_window.locator('#dlvpNm'), name)
     except Exception as e:
-        logger.error("Couldn't set the address name. Leaving as is", str(e))
+        logger.error("Couldn't set the address name. Leaving as is")
+        logger.error(str(e))
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
