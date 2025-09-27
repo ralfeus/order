@@ -149,8 +149,10 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
+    is_name_changed = False
     try:
         fill(edit_window.locator('#dlvpNm'), name)
+        is_name_changed = True
     except Exception as e:
         logger.error("Couldn't set the address name. Leaving as is")
         logger.error(str(e))
@@ -161,7 +163,8 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
         edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
               lambda: expect(edit_window).not_to_be_attached())
-    expect(address_element.locator('dt>b')).to_have_text(name)
+    if is_name_changed:
+        expect(address_element.locator('dt>b')).to_have_text(name)
 
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
