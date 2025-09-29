@@ -538,15 +538,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
     def __set_purchase_date(self, page: Page, sale_date: date):
         def is_date_set():
+            self._logger.debug("Expecting date to be set to %s", sale_date_str)
             for _ in range(5):
                 if page.locator('ul.slt-date input:checked').get_attribute('value') == sale_date_str:
+                    self._logger.debug("Date is set to %s", sale_date_str)
                     return
+                self._logger.debug("Date is not set yet. Waiting...")
                 sleep(1)
             raise Exception("Date is not set")
         
         self._logger.debug("Setting purchase date")
         if sale_date:
-            page.locator('#tgLyr_0').screenshot(path=f'set-date-0-{self.__purchase_order.id}.png')
+            page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-0.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
             if sale_date_loc.count():
@@ -565,7 +568,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             message=str(e), retry=True)
                     raise PurchaseOrderError(self.__purchase_order, self,
                         message=f"Couldn't set the purchase date {sale_date_str}: {str(e)}")
-                page.locator('#tgLyr_0').screenshot(path=f'set-date-1-{self.__purchase_order.id}.png')
+                page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
                 self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
