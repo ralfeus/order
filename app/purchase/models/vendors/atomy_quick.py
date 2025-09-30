@@ -540,7 +540,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         def is_date_set():
             self._logger.debug("Expecting date to be set to %s", sale_date_str)
             for _ in range(5):
-                if page.locator('ul.slt-date input:checked').get_attribute('value') == sale_date_str:
+                if page.locator('[order-role="sale-date"]').text_content == sale_date_str:
                     self._logger.debug("Date is set to %s", sale_date_str)
                     return
                 self._logger.debug("Date is not set yet. Waiting...")
