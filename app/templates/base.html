@@ -69,7 +69,9 @@
             <li><a class="dropdown-item" href="/admin/invoices">Invoices</a></li>
             <li><a class="dropdown-item" href="/admin/orders">Orders</a></li>
             <li><a class="dropdown-item" href="/admin/orders/products">Order products</a></li>
+            {% if current_user.has_role('po-admin') %}
             <li><a class="dropdown-item" href="/admin/purchase/orders">Purchase orders</a></li>
+            {% endif %}
             <li><a class="dropdown-item" href="/admin/notifications">Notifications</a></li>
             <li><a class="dropdown-item" href="/admin/shipping">Shipping methods</a></li>
             <li class="dropdown-divider"></li>
@@ -88,7 +90,9 @@
               <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                 <li><a class="dropdown-item" href="/admin/currencies">Currencies</a></li>
                 <li><a class="dropdown-item" href="/admin/addresses">Addresses</a></li>
+                {% if current_user.has_role('po-admin') %}
                 <li><a class="dropdown-item" href="/admin/purchase/companies">Companies</a></li>
+                {% endif %}
                 <li><a class="dropdown-item" href="/admin/payments/methods">Payment methods</a></li>
                 <li><a class="dropdown-item" href="/admin/products">Products</a></li>
                 <li><a class="dropdown-item" href="/admin/orders/subcustomers">Subcustomers</a></li>

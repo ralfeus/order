@@ -11,7 +11,7 @@ def get_static(file):
 
 @bp_client_admin.route('/orders')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def purchase_orders():
     from app.purchase.signals import create_purchase_order_rendering
     extensions = create_purchase_order_rendering.send()
@@ -35,7 +35,7 @@ def get_admin_purchase_orders_js():
 
 @bp_client_admin.route('/companies')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def get_company():
     ''' company management '''
     return render_template('companies.html')

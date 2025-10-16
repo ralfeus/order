@@ -24,7 +24,7 @@ from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 @bp_api_admin.route('/order', defaults={'po_id': None})
 @bp_api_admin.route('/order/<po_id>')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def get_purchase_orders(po_id):
     ''' Returns all or selected purchase orders in JSON '''
     purchase_orders: list[PurchaseOrder] = PurchaseOrder.query
@@ -58,7 +58,7 @@ def get_purchase_orders(po_id):
 
 @bp_api_admin.route('/order', methods=['POST'])
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def admin_create_purchase_orders():
     '''
     Creates purchase order.
@@ -108,7 +108,7 @@ def admin_create_purchase_orders():
 
 @bp_api_admin.route('/order/<po_id>', methods=['POST'])
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def update_purchase_order(po_id):
     logger = logging.getLogger('update_purchase_order')
     po: PurchaseOrder = PurchaseOrder.query.get(po_id)
@@ -157,7 +157,7 @@ def update_purchase_order(po_id):
 
 @bp_api_admin.route('/company_list')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def get_companies():
     companies = Company.query.filter_by(enabled=True)
     return jsonify(sorted(
@@ -166,20 +166,20 @@ def get_companies():
 
 @bp_api_admin.route('/status')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def get_statuses():
     return jsonify([i.name for i in PurchaseOrderStatus])
 
 @bp_api_admin.route('/vendor')
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify([v.to_dict() for v in vendor_mgmt.get_vendors(config=current_app.config)])
 
 @bp_api_admin.route('/order/validate', methods=['POST'])
 @login_required
-@roles_required('admin')
+@roles_required('po-admin')
 def validate_po_input():
     payload = request.get_json()
     if payload is None:
