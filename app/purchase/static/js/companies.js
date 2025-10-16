@@ -1,16 +1,19 @@
 var g_addresses = [];
 var g_banks = [
-    {value: "03", label: '기업'},
-    {value: "07", label: '수협'},
-    {value: "31", label: '대구'},
-    {value: "06", label: '국민'},
-    {value: "11", label: '농협'},
-    {value: "81", label: 'KEB하나'},
-    {value: "20", label: '우리'},
-    {value: "26", label: '신한'},
-    {value: "39", label: '경남'},
-    {value: "71", label: '우체국'},
-    {value: "32", label: '부산'}
+    {value: "39", label: "경남은행"},
+    {value: "34", label: "광주은행"},
+    {value: "32", label: "부산은행"},
+    {value: "45", label: "새마을금고"},
+    {value: "88", label: "신한은행"},
+    {value: "20", label: "우리은행"},
+    {value: "71", label: "우체국예금보험"},
+    {value: "ST", label: "토스증권"},
+    {value: "81", label: "하나은행"},
+    {value: "31", label: "DGB대구은행"},
+    {value: "03", label: "IBK기업은행"},
+    {value: "06", label: "KB국민은행"},
+    {value: "11", label: "NH농협은행"},
+    {value: "07", label: "Sh수협은행"}
 ]
 
 $(document).ready(() => {
