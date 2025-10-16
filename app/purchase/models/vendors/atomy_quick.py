@@ -661,6 +661,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # Set the payment method
         self._logger.debug("Setting payment method...")
         page.locator('#mth-tab_3').click()
+        self._logger.debug("Setting bank to %s", po.company.bank_id)
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile
         self._logger.debug("Setting payment mobile...")
