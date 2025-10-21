@@ -204,42 +204,41 @@ class Fedex(Shipping):
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
-        logger = logging.getLogger("FedEx::can_ship()")
         if not self._are_all_products_shippable(products):
-            logger.debug(f"Not all products are shippable to {country}")
+            logging.debug(f"Not all products are shippable to {country}")
             return False
         if weight and weight > 30000:
-            logger.debug(f"The parcel is too heavy: {weight}g")
+            logging.debug(f"The parcel is too heavy: {weight}g")
             return False
         if country is None:
             return True
 
         services = self.__get_service_availability(country.id)
         if self.settings.service_type in services:
-            logger.debug(f"Can ship to country {country}. ")
+            logging.debug(f"Can ship to country {country}. ")
             return True
         else:
-            logger.debug(f"Can't ship to country {country}.")
+            logging.debug(f"Can't ship to country {country}.")
+            logging.debug(f"Available services: {services}")
             return False
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
                 recipient: Address, rcpt_contact: ShippingContact,
                 items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]={}
                 ) -> ConsignResult:
-        logger = logging.getLogger("FedEx::consign()")
         try:
             if sender is None or recipient is None or items is None:
                 raise ShippingException("No sender or recipient or shipping items defined")
             payload = self.__prepare_shipment_request_payload(
                     sender, sender_contact, recipient, rcpt_contact, items, boxes)
-            logger.debug(payload)
+            logging.debug(payload)
             result = self.__get_json(
                 url=f"{self.__base_url}/ship/v1/shipments",
                 raw_data=json.dumps(payload)
             )
             if result.get('output') is None:
                 raise ShippingException(result.get('alerts') or result.get('errors'))
-            logger.info("The new consignment ID is: %s", result)
+            logging.info("The new consignment ID is: %s", result)
             shipment_object = result['output']['transactionShipments'][0]
             self.__save_label(shipment_object['masterTrackingNumber'],
                 # shipment_object['pieceResponses'][0]['packageDocuments'][0]['url'])
@@ -251,7 +250,7 @@ class Fedex(Shipping):
                 # next_step_url=shipment_object['pieceResponses'][0]['packageDocuments'][0]['url']
             )
         except FedexLoginException:
-            logger.warning("Can't log in to Fedex")
+            logging.warning("Can't log in to Fedex")
             raise
         
     def is_consignable(self):
