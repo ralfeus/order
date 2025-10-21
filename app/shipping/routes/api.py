@@ -1,5 +1,4 @@
 from __future__ import annotations
-from datetime import datetime
 import logging
 from operator import itemgetter
 from typing import Any, Optional
@@ -56,6 +55,9 @@ def get_shipping_methods(country_id, weight):
         else:
             logging.debug("%s can't ship to %s", shipping, country)
 
+    logging.debug("Found shipping methods for %sg to %s:", weight, country_name)
+    logging.debug(result)
+    
     if len(result) > 0:
         return jsonify(sorted(result, key=itemgetter("name")))
     abort(
