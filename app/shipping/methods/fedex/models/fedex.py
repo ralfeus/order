@@ -57,7 +57,6 @@ class Fedex(Shipping):
 
     def __get_json(self, url, raw_data=None, headers: list=[], method='GET', 
                    retry=True, ignore_ssl_check=False) -> dict[str, Any]:
-        logger = logging.getLogger("FedEx::__get_json()")
         
         def __invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
                     method='GET', retries=2, ignore_ssl_check=False) -> tuple[str, str]:
@@ -67,7 +66,7 @@ class Fedex(Shipping):
                                             use_proxy=False, retries=retries, 
                                             ignore_ssl_check=ignore_ssl_check)
                 if re.search("HTTP.*? 401", stderr):
-                    logger.warning("FedEx authentication error. Retrying...")
+                    logging.warning("FedEx authentication error. Retrying...")
                     token = [self.__login(force=True)]
                 else:
                     return stdout, stderr
@@ -84,7 +83,6 @@ class Fedex(Shipping):
         '''Returns list of services available for the given country
         :param str country_id: ID of the country
         :returns list[str]: list of available services'''
-        logger = logging.getLogger("FedEx::__get_service_availability()")
         country = Country.query.get(country_id)
         if country is None:
             return []
@@ -157,34 +155,33 @@ class Fedex(Shipping):
         result = self.__get_json(url=f"{self.__base_url}/availability/v1/transittimes",
                                  raw_data=payload)
         if result.get('output') is None:
-            logger.info(result.get('errors'))
+            logging.info(result.get('errors'))
             return []
-        # logger.debug(result['output']['transitTimes'][0]['transitTimeDetails'])
+        # logging.debug(result['output']['transitTimes'][0]['transitTimeDetails'])
         return [s['serviceType'] 
                 for s in result['output']['transitTimes'][0]['transitTimeDetails']]
 
     def __login(self, force=False) -> dict[str, str]:
-        logger = logging.getLogger("FedEx::__login()")
         if cache.get("fedex_login_in_progress"):
-            logger.info("Another login process is running. Will wait till the end")
-            logger.info("and use newly generated token")
+            logging.info("Another login process is running. Will wait till the end")
+            logging.info("and use newly generated token")
             timeout = 20
             while cache.get("fedex_login_in_progress") and not timeout:
                 time.sleep(1)
                 timeout -= 1
             if cache.get("fedex_login_in_progress"):
-                logger.warning(
+                logging.warning(
                     "Waiting for another login process to complete has timed out"
                 )
-                logger.warning("will clear login semaphore and exit")
+                logging.warning("will clear login semaphore and exit")
                 cache.delete("fedex_login_in_progress")
                 raise FedexLoginException
-            logger.info("Another login process has finished. Will use existing token")
-            logger.info(cache.get("fedex_auth"))
+            logging.info("Another login process has finished. Will use existing token")
+            logging.info(cache.get("fedex_auth"))
             force = False
-        # logger.debug("%s, %s", cache.get("fedex_auth"), force)
+        # logging.debug("%s, %s", cache.get("fedex_auth"), force)
         if cache.get("fedex_auth") is None or force:
-            logger.info("Logging in to FedEx")
+            logging.info("Logging in to FedEx")
             cache.set("fedex_login_in_progress", True)
             result: dict = get_json(
                 url=f"{self.__base_url}/oauth/token",
@@ -195,7 +192,7 @@ class Fedex(Shipping):
             ) #type: ignore
             cache.set("fedex_auth", result["access_token"], 
                       timeout=result['expires_in'])
-            logger.debug("Auth result: %s", cache.get("fedex_auth"))
+            logging.debug("Auth result: %s", cache.get("fedex_auth"))
             cache.delete("fedex_login_in_progress")
         return {"Authorization": f"Bearer {cache.get('fedex_auth')}"}
 
@@ -392,17 +389,16 @@ class Fedex(Shipping):
         if order.tracking_id is None:
             raise AttributeError(f'Order {order.id} has no consignment created')
         self.__login()
-        logger = logging.getLogger("FedEx::print()")
-        logger.info("Getting consignment %s", order.tracking_id)
+        logging.info("Getting consignment %s", order.tracking_id)
         try:
             code = self.__get_consignment_code(order.tracking_id)
-            logger.debug(code)
+            logging.debug(code)
             # uncomment for production, comment for development
             self.__print_label(code) 
             consignment = self.__get_consignment(code)
             return consignment
         except Exception as e:
-            logger.warning(f"Couldn't print label for order {order.id}")
+            logging.warning(f"Couldn't print label for order {order.id}")
             raise e
 
     def __get_shipment_value(self, items: list[ShippingItem]):
@@ -417,7 +413,6 @@ class Fedex(Shipping):
         return super().get_customs_label(order)
 
     def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
-        logger = logging.getLogger("FedEx::get_shipping_items()")
         result = []
         try:
             result = [ShippingItem(
@@ -429,8 +424,8 @@ class Fedex(Shipping):
                 for item in items
             ]
         except (KeyError, IndexError):
-            logger.warning("Couldn't get items from:")
-            logger.warning(items)
+            logging.warning("Couldn't get items from:")
+            logging.warning(items)
             result = [ShippingItem(
                     name="Cosmetics",
                     quantity=1,
@@ -444,7 +439,6 @@ class Fedex(Shipping):
         return f"{bp_client_admin.url_prefix}/{self.id}"
 
     def get_shipping_cost(self, country_id, weight=250):
-        logger = logging.getLogger("FedEx::get_shipping_cost()")
         try:
             country: Country = Country.query.get(country_id)
             if country is None:
@@ -498,7 +492,7 @@ class Fedex(Shipping):
                 raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
             # Add 5% to cover future cost change
             rate = int(round(rate / float(currency.rate) * 1.05))
-            logger.debug(
+            logging.debug(
                 "Shipping rate for %skg parcel to %s (service type: %s) is %s",
                 weight / 1000,
                 country_id,
@@ -507,13 +501,13 @@ class Fedex(Shipping):
             )
             return rate
         except NoShippingRateError as e:
-            logger.warning("There is no rate to %s of %sg package", country_id, weight)
-            logger.warning(e)
+            logging.warning("There is no rate to %s of %sg package", country_id, weight)
+            logging.warning(e)
             raise e
         except Exception as e:
-            logger.error("During getting rate to %s of %sg package the error has occurred",
+            logging.error("During getting rate to %s of %sg package the error has occurred",
                          country_id, weight)
-            logger.exception(e)
+            logging.exception(e)
             raise NoShippingRateError
         
     def to_dict(self):

@@ -3,6 +3,7 @@ from calendar import monthrange
 import cProfile
 from datetime import date, datetime, timedelta
 import json
+import sys
 from typing import Any, Callable, Optional
 import utils.logging as logging
 import os, os.path
@@ -129,7 +130,8 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
             sleep(1)
         try:
             try: # Get exception from the threads
-                raise exceptions.get(block=False)
+                ex = exceptions.get(block=False)
+                raise ex.with_traceback(ex.__traceback__)
             except Empty:
                 pass
             with lock:
