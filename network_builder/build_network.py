@@ -181,6 +181,12 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
                 ''', {'id': ex.node_id})
             else:
                 logger.exception(str(ex), exc_info=ex)
+        except NoParentException as ex:
+                logger.info("The node %s is no longer in the network. Deleting...", 
+                            ex.node_id)
+                db.cypher_query('''
+                    MATCH (a:AtomyPerson{atomy_id: $id}) DETACH DELETE a
+                ''', {'id': ex.node_id})
         except RuntimeError as ex:
             logger.warning("Couldn't start a new thread. "
                            "Trying again and reducing amount of maximum threads")
@@ -283,7 +289,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         except NoParentException as ex:
             logger.fine("The node %s wasn't found in the root's tree. Skipping...", 
                          node_id)
-            break
+            exceptions.put(ex)
         except Exception as ex:
             # The exception is to be handled in the calling thread
             exceptions.put(BuildPageNodesException(node_id, ex)
