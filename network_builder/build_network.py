@@ -290,6 +290,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
             logger.fine("The node %s wasn't found in the root's tree. Skipping...", 
                          node_id)
             exceptions.put(ex)
+            break
         except Exception as ex:
             # The exception is to be handled in the calling thread
             exceptions.put(BuildPageNodesException(node_id, ex)
