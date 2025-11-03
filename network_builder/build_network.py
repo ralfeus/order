@@ -289,7 +289,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         except NoParentException as ex:
             logger.fine("The node %s wasn't found in the root's tree. Skipping...", 
                          node_id)
-            exceptions.put(ex)
+            exceptions.put(NoParentException(node_id).with_traceback(ex.__traceback__))
             break
         except Exception as ex:
             # The exception is to be handled in the calling thread
@@ -392,7 +392,10 @@ def _get_token(auth: tuple[str, str], socks5_proxy: str) -> tuple[list[dict[str,
     except AtomyLoginError as ex:
         logger.debug("Couldn't log in as %s. Trying ancestor's username. Details: %s",
                      auth[0], str(ex))
-        auth = _get_parent_auth(auth[0])
+        try:
+            auth = _get_parent_auth(auth[0])
+        except NoParentException:
+            raise NoParentException(auth[0])
         return _get_token(auth, socks5_proxy)
     return [{'Cookie': token['token']}], auth[0]
 
