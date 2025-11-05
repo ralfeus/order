@@ -60,6 +60,8 @@ def get_shipping_methods(country_id, weight):
     
     if len(result) > 0:
         logging.debug("Returning shipping methods")
+        logging.debug("Parameters: country=%s, weight=%s", country_name, weight)
+        logging.debug("Query string: %s", request.query_string)
         logging.debug(sorted(result, key=itemgetter("name")))
         return jsonify(sorted(result, key=itemgetter("name")))
     abort(
