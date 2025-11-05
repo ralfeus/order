@@ -59,6 +59,8 @@ def get_shipping_methods(country_id, weight):
     logging.debug(result)
     
     if len(result) > 0:
+        logging.debug("Returning shipping methods")
+        logging.debug(sorted(result, key=itemgetter("name")))
         return jsonify(sorted(result, key=itemgetter("name")))
     abort(
         Response(
