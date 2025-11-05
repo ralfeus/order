@@ -25,7 +25,8 @@ def build_network():
 
 def post_po():
     # from flask import current_app
-    current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
+    # current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
+    current_app.config['BROWSER_URL'] = 'http://localhost:9222'
     po_id = "PO-2025-03-0451-001"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
@@ -35,7 +36,7 @@ def post_po():
     po.customer.password = 'atomy#01'     
     # po.customer.username = '35744761'
     # po.customer.password = 'bs0105'    
-    # po.purchase_date = datetime.now()
+    po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
 
@@ -130,6 +131,6 @@ def import_products():
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    # post_po()
+    post_po()
     # import_products()
-    build_network()
+    # build_network()

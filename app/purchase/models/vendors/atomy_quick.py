@@ -61,9 +61,13 @@ def try_click(object: Locator, execute_criteria, retries=3,
             sleep(.7)
             return
         except Exception as e:
+            if 'intercepts pointer events' in str(e):
+                logger.debug("Click intercepted by another element.")
+                object.page.locator('button[layer-role="close-button"]').click()
+            else:
+                logger.debug(str(e))
+                exception = e
             logger.debug(f"Retrying click on {object}")
-            logger.debug(str(e))
-            exception = e
     raise exception
 
 def fill(object: Locator, data: str):
@@ -550,7 +554,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         
         self._logger.debug("Setting purchase date")
         if sale_date:
-            page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-0.png')
+            # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-0.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
             if sale_date_loc.count():
@@ -569,7 +573,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                             message=str(e), retry=True)
                     raise PurchaseOrderError(self.__purchase_order, self,
                         message=f"Couldn't set the purchase date {sale_date_str}: {str(e)}")
-                page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
+                # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
                 self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
