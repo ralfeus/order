@@ -66,7 +66,7 @@ def try_click(object: Locator, execute_criteria, retries=3,
                 object.page.locator('button[layer-role="close-button"]').click()
             else:
                 logger.debug(str(e))
-                exception = e
+            exception = e
             logger.debug(f"Retrying click on {object}")
     raise exception
 
