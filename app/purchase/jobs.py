@@ -1,6 +1,7 @@
 ''' Background jobs for Purchase module'''
 from datetime import datetime, timedelta
 import logging
+from time import sleep
 from more_itertools import map_reduce
 from pytz import timezone
 
@@ -58,6 +59,7 @@ def post_purchase_orders(po_id=None):
                 #     continue
                 logger.info("Posting a purchase order %s", po.id)
                 try:
+                    sleep(current_app.config.get("PO_POSTING_DELAY_SECONDS", 0))
                     _, failed_products = vendor.post_purchase_order(po)
                     posted_ops_count = len([op for op in po.order_products
                                                if op.status == OrderProductStatus.purchased])

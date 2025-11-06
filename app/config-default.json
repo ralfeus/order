@@ -33,6 +33,8 @@
     },
 
     "PROFILER": true,
+
+    "PO_POSTING_DELAY_SECONDS": 10,
     "CELERY_TASK_DEFAULT_QUEUE": "order",
     "ATOMY_CENTER": true,
     "ATOMY_RECEIVER_NAME_FORMAT": "{id2}-{id1}-{id0}",
