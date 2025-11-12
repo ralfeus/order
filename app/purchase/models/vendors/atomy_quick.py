@@ -557,6 +557,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-0.png')
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
+            self._logger.debug(sale_date_loc.count())
             if sale_date_loc.count():
                 try:
                     try_click(sale_date_loc,
