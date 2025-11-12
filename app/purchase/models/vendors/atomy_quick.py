@@ -56,7 +56,7 @@ def try_click(object: Locator, execute_criteria, retries=3,
     #     full_page=True)
     for _ in range(retries):
         try:
-            object.click()
+            object.click(timeout=5000)
             execute_criteria()
             sleep(.7)
             return
@@ -242,10 +242,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
                 self.__login(page, purchase_order)
                 self.__init_quick_order(page)
+                self.__set_purchase_date(page, purchase_order.purchase_date)
                 ordered_products, unavailable_products = self.__add_products(
                     page, purchase_order.order_products
                 )
-                self.__set_purchase_date(page, purchase_order.purchase_date)
                 self.__set_receiver_mobile(page, purchase_order.contact_phone)
                 self.__set_receiver_name(page, purchase_order)
                 self.__set_receiver_address(page,
