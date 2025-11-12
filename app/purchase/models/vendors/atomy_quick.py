@@ -56,7 +56,7 @@ def try_click(object: Locator, execute_criteria, retries=3,
     #     full_page=True)
     for _ in range(retries):
         try:
-            object.click(timeout=5000)
+            object.click(timeout=10000)
             execute_criteria()
             sleep(.7)
             return
