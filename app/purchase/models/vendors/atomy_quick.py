@@ -47,7 +47,7 @@ ORDER_STATUSES = {
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
-def try_click(object: Locator, execute_criteria, retries=3, 
+def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")
     ### Last resort debugging screenshot
@@ -56,6 +56,11 @@ def try_click(object: Locator, execute_criteria, retries=3,
     #     full_page=True)
     for _ in range(retries):
         try:
+            popup = object.page.locator('[layer-role="close-button"]')
+            sleep(.5)
+            if popup.count() > 0 and  check_popups:
+                logger.debug("Closing unexpected popup")
+                popup.click()
             object.click(timeout=10000)
             execute_criteria()
             sleep(.7)
@@ -67,7 +72,8 @@ def try_click(object: Locator, execute_criteria, retries=3,
             else:
                 logger.debug(str(e))
             exception = e
-            logger.debug(f"Retrying click on {object}")
+            if _ < retries - 1:
+                logger.debug(f"Retrying click on {object}")
     raise exception
 
 def fill(object: Locator, data: str):
@@ -132,7 +138,8 @@ def create_address(page: Page, address: Address, phone: str):
     fill(page.locator('#dtlAddr'), address.address_2)
     page.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(page.locator('#btnSubmit'),
-        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'),
+        check_popups=False)
     while addresses_loc.count() == existing_addresses_count:
         sleep(1)
     return find_existing_address(page, address)
@@ -166,7 +173,7 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
         fill(edit_window.locator('#dtlAddr'), detailed_address)
         edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
-              lambda: expect(edit_window).not_to_be_attached())
+              lambda: expect(edit_window).not_to_be_attached(), check_popups=False)
     if is_name_changed:
         expect(address_element.locator('dt>b')).to_have_text(name)
 
@@ -302,10 +309,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.info('Changing language')
         page.evaluate('overpass.util.setLanguage("en");')
         page.wait_for_load_state("networkidle")
-        try:
-            page.locator('button[layer-role="close-button"]').click()
-        except Exception as e:
-            pass  # No popup to close
+        # try:
+        #     page.locator('button[layer-role="close-button"]').click()
+        # except Exception as e:
+        #     pass  # No popup to close
         self._logger.info('Opening Quick Order')
         try_click(page.locator('a[href^="javascript:overpass.cart.regist"]'),
                   lambda: page.wait_for_load_state())
@@ -327,7 +334,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         try_click(
             page.locator('[layer-role="close-button"]'),
             lambda: page.wait_for_selector('#schInput', state='detached'),
-            logger=self._logger)
+            check_popups=False, logger=self._logger)
 
     def __get_order_details(self, page: Page) -> dict[str, Any]:
         page.wait_for_load_state('networkidle')
@@ -616,7 +623,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
             try_click(combined_shipping,
                 lambda: page.wait_for_selector('[layer-role="close-button"]'))
             try_click(page.locator('[layer-role="close-button"]'),
-                lambda: page.wait_for_selector('[layer-role="close-button"]', state='detached'))
+                lambda: page.wait_for_selector('[layer-role="close-button"]', state='detached'),
+                check_popups=False)
             if not page.locator('#pay-dlv_ck0_1').is_checked():
                 raise Exception("Combined shipping is not set")
 
@@ -699,7 +707,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 try_click(page.locator('label[for="pay_important_ck_1"]'),
                         lambda: expect(confirm_button).to_be_enabled())
                 try_click(confirm_button,
-                        lambda: expect(confirm_button).not_to_be_attached())
+                        lambda: expect(confirm_button).not_to_be_attached(),
+                        check_popups=False)
                 self._logger.debug("Select New")
                 try_click(page.locator('label[for="cash-mth-taxes_rdo_1"]'),
                         lambda: page.wait_for_selector('#cash-mth-taxes-txt_0'))
@@ -725,6 +734,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Submitting order")
         page.locator('button[sheet-role="pay-button"]').click()
         message = page.locator('//p[@layer-role="message"]')
+        sleep(0.5)
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
             self._logger.error("Couldn't submit the order: %s", message.text_content())
