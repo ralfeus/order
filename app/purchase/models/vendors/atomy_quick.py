@@ -725,6 +725,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Submitting order")
         page.locator('button[sheet-role="pay-button"]').click()
         message = page.locator('//p[@layer-role="message"]')
+        self._logger.debug(message.inner_html())
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
             self._logger.error("Couldn't submit the order: %s", message.text_content())
