@@ -649,10 +649,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_mobile(self, page: Page, phone="     "):
         self._logger.debug("Setting receiver phone number to %s", phone)
         phone_loc = page.locator("#psn-txt_1_0")
-        # remove_popup(phone_loc, self._logger)
         phone_loc.fill(phone.replace('-', ''))
         phone_loc.press("Tab")
-        expect(phone_loc).to_have_value(phone)
+        try:
+            expect(phone_loc).to_have_value(phone)
+        except:
+            if phone_loc.input_value() == '':
+                self._logger.warning("Couldn't set receiver phone number. Retrying")
+                return self.__set_receiver_mobile(page, phone)
 
 
     def __set_receiver_address(self, page: Page, address: Address, phone: str):
