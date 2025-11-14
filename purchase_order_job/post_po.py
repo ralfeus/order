@@ -45,7 +45,7 @@ def try_evaluate(page: Page, script: str, retries=3):
             sleep(1)
     raise exception
 
-def try_click(object: Locator, execute_criteria, retries=3, 
+def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               base_logger: logging.Logger=logging.root):
     logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
@@ -56,14 +56,24 @@ def try_click(object: Locator, execute_criteria, retries=3,
             full_page=True)
     for _ in range(retries):
         try:
-            object.click()
+            popup = object.page.locator('[layer-role="close-button"]')
+            sleep(.5)
+            if popup.count() > 0 and  check_popups:
+                logger.debug("Closing unexpected popup")
+                popup.click()
+            object.click(timeout=10000)
             execute_criteria()
             sleep(.7)
             return
         except Exception as e:
-            logger.debug(f"Retrying click on {object}")
-            logger.debug(str(e))
+            if 'intercepts pointer events' in str(e):
+                logger.debug("Click intercepted by another element.")
+                object.page.locator('button[layer-role="close-button"]').click()
+            else:
+                logger.debug(str(e))
             exception = e
+            if _ < retries - 1:
+                logger.debug(f"Retrying click on {object}")
     raise exception
 
 def try_fill(object: Locator, data: str, retries: int=3, 

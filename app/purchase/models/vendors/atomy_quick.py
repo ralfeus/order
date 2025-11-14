@@ -133,7 +133,7 @@ def create_address(page: Page, address: Address, phone: str):
         if existing_address:
             try_click(
                 page.locator('//button[@id="btnSubmit"]/preceding-sibling::*[1]'),
-                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'), check_popups=False)
             return existing_address
     fill(page.locator('#dtlAddr'), address.address_2)
     page.locator('#dtlAddr').dispatch_event('keyup')          
@@ -661,7 +661,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 detailed_address=address.address_2,
                 logger=self._logger)
             try_click(address_element,
-                    lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'))
+                    lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
         except PurchaseOrderError:
             raise
         except Exception as e:
