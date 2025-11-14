@@ -47,6 +47,14 @@ ORDER_STATUSES = {
     "Cancel Order": PurchaseOrderStatus.cancelled,
 }
 
+def remove_popup(object: Locator, logger: logging.Logger=logging.root):
+        popup = object.page.locator('[layer-role="close-button"]')
+        sleep(.5)
+        if popup.count() > 0:
+            logger.debug("Closing unexpected popup")
+            popup.click()
+
+
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")
@@ -56,11 +64,8 @@ def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=T
     #     full_page=True)
     for _ in range(retries):
         try:
-            popup = object.page.locator('[layer-role="close-button"]')
-            sleep(.5)
-            if popup.count() > 0 and  check_popups:
-                logger.debug("Closing unexpected popup")
-                popup.click()
+            if check_popups:
+                remove_popup(object, logger)
             object.click(timeout=10000)
             execute_criteria()
             sleep(.7)
@@ -641,8 +646,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __set_receiver_mobile(self, page: Page, phone="     "):
         self._logger.debug("Setting receiver phone number to %s", phone)
         phone_loc = page.locator("#psn-txt_1_0")
+        # remove_popup(phone_loc, self._logger)
         phone_loc.fill(phone.replace('-', ''))
-        sleep(.5)
+        phone_loc.press("Tab")
         expect(phone_loc).to_have_value(phone)
 
 
