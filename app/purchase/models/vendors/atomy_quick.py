@@ -590,6 +590,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
                 self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
+                loc = page.locator('ul.slt-date')
+                self._logger.debug("Available dates: %s", loc.inner_html())
                 page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
 
                 raise PurchaseOrderError(self.__purchase_order, self,
