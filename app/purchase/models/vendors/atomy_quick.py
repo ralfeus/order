@@ -83,12 +83,12 @@ def fill(object: Locator, data: str):
 def find_address(page: Page, base_address: str):
     fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
     try_click(page.locator('button[address-role="search-button"]'),
-              lambda: page.wait_for_selector('[address-role="result"]'))
+              lambda: page.wait_for_selector('[address-role="result"]'), check_popups=False)
     found_addresses = page.locator('button[address-role="select-button"]')
     if found_addresses.count() < 1:
         raise Exception(f"The base address {base_address} is invalid")
     try_click(found_addresses.first,
-              lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
+              lambda: page.wait_for_selector('[address-role="result"]', state='detached'), check_popups=False)
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     addresses = page.locator('#dlvp_list > dl.lyr-address').all()
