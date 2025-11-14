@@ -567,7 +567,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting purchase date")
         if sale_date:
             # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-0.png')
-            self._logger.debug(page.locator('ul.slt-date').inner_html())
+            page.locator('ul.slt-date').count()
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             selector = f'ul.slt-date input[value="{sale_date_str}"] + label'
             sale_date_loc = page.locator(selector)
