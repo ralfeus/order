@@ -642,6 +642,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting receiver phone number to %s", phone)
         phone_loc = page.locator("#psn-txt_1_0")
         phone_loc.fill(phone.replace('-', ''))
+        sleep(.5)
         expect(phone_loc).to_have_value(phone)
 
 
