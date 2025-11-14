@@ -54,7 +54,6 @@ def remove_popup(object: Locator, logger: logging.Logger=logging.root):
             logger.debug("Closing unexpected popup")
             popup.click()
 
-
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")

@@ -45,10 +45,17 @@ def try_evaluate(page: Page, script: str, retries=3):
             sleep(1)
     raise exception
 
+def remove_popup(object: Locator, logger: logging.Logger=logging.root):
+        popup = object.page.locator('[layer-role="close-button"]')
+        sleep(.5)
+        if popup.count() > 0:
+            logger.debug("Closing unexpected popup")
+            popup.click()
+
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               base_logger: logging.Logger=logging.root):
-    logger = base_logger.getChild("try_click()")
     exception = Exception(f"Failed to click the object after {retries} retries.")
+    logger = base_logger.getChild("try_click()")
     ### Last resort debugging screenshot
     if __config.DEBUG_SCREENSHOTS:
         object.page.screenshot(
@@ -56,11 +63,8 @@ def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=T
             full_page=True)
     for _ in range(retries):
         try:
-            popup = object.page.locator('[layer-role="close-button"]')
-            sleep(.5)
-            if popup.count() > 0 and  check_popups:
-                logger.debug("Closing unexpected popup")
-                popup.click()
+            if check_popups:
+                remove_popup(object, logger)
             object.click(timeout=10000)
             execute_criteria()
             sleep(.7)
@@ -101,14 +105,14 @@ def try_fill(object: Locator, data: str, retries: int=3,
 def find_address(page: Page, base_address: str):
     try_fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
     try_click(page.locator('button[address-role="search-button"]'),
-              lambda: page.wait_for_selector('[address-role="result"]'))
+              lambda: page.wait_for_selector('[address-role="result"]'), check_popups=False)
     found_addresses = page.locator('button[address-role="select-button"]')
     if found_addresses.count() < 1:
         raise Exception(f"The base address {base_address} is invalid")
     if found_addresses.count() > 1:
         raise Exception("More than one address found")
-    try_click(found_addresses,
-              lambda: page.wait_for_selector('[address-role="result"]', state='detached'))
+    try_click(found_addresses.first,
+              lambda: page.wait_for_selector('[address-role="result"]', state='detached'), check_popups=False)
     
 def find_existing_address(page: Page, address: Address) -> Optional[Locator]:
     addresses = page.locator('#dlvp_list > dl.lyr-address').all()
@@ -153,12 +157,13 @@ def create_address(page: Page, address: Address, phone: str):
         if existing_address:
             try_click(
                 page.locator('//button[@id="btnSubmit"]/preceding-sibling::*[1]'),
-                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+                lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'), check_popups=False)
             return existing_address
     try_fill(page.locator('#dtlAddr'), address.address_2)
     page.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(page.locator('#btnSubmit'),
-        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'))
+        lambda: page.wait_for_selector('div.lyr-pay_addr_add', state='detached'),
+        check_popups=False)
     while addresses_loc.count() == existing_addresses_count:
         sleep(1)
     return find_existing_address(page, address)
@@ -179,15 +184,22 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
-    try_fill(edit_window.locator('#dlvpNm'), name)
+    is_name_changed = False
+    try:
+        try_fill(edit_window.locator('#dlvpNm'), name)
+        is_name_changed = True
+    except Exception as e:
+        logger.warning("Couldn't set the address name. Leaving as is")
+        logger.warning(str(e))
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
         try_fill(edit_window.locator('#dtlAddr'), detailed_address)
         edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
-              lambda: expect(edit_window).not_to_be_attached())
-    expect(address_element.locator('dt>b')).to_have_text(name)
+              lambda: expect(edit_window).not_to_be_attached(), check_popups=False)
+    if is_name_changed:
+        expect(address_element.locator('dt>b')).to_have_text(name)
 
 __config: Config
 def init_config():
