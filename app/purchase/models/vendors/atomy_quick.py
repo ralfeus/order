@@ -570,7 +570,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             sale_date_str = sale_date.strftime('%Y-%m-%d')
             sale_date_loc = page.locator(f'ul.slt-date input[value="{sale_date_str}"] + label')
             self._logger.debug(sale_date_loc.count())
-            self._logger.debug(sale_date_loc.inner_html())
+            try:
+                self._logger.debug(sale_date_loc.inner_html(timeout=1000))
+            except:
+                pass
             if sale_date_loc.count():
                 try:
                     try_click(sale_date_loc,
