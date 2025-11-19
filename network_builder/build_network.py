@@ -293,8 +293,6 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
             break
         except Exception as ex:
             # The exception is to be handled in the calling thread
-            logger.error(str(ex))
-            logger.error(traceback.format_exc())
             exceptions.put(BuildPageNodesException(node_id, ex)
                            .with_traceback(ex.__traceback__)) 
             # with lock:
@@ -327,7 +325,7 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
     except Exception as ex:
         logger.error(str(ex))
         logger.error(traceback.format_exc())
-        exceptions.put(BuildPageNodesException(node_id, ex))
+        exceptions.put(BuildPageNodesException(node_id, ex).with_traceback(ex.__traceback__))
     with lock:
         threads -= 1
 
