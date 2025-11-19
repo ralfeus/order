@@ -131,6 +131,8 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
         try:
             try: # Get exception from the threads
                 ex = exceptions.get(block=False)
+                logger.error(str(ex))
+                logger.error(ex.__traceback__)
                 raise ex.with_traceback(ex.__traceback__)
             except Empty:
                 pass

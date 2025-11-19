@@ -17,7 +17,7 @@ def build_network():
     sys.path.append('./network_builder')
     from network_builder.build_network import build_network
     build_network(user='S5832131', password='mkk03020529!!', max_threads=1, 
-                  last_updated=date(2030, 1, 4), profile=False, root_id='44300050')
+                  last_updated=date(2030, 1, 4), profile=False) #, root_id='44300050'
     # copy_subtree(root_id='S9945812')
     # cleanup_tree(date(2024, 11, 21), user='S5832131', password='mkk03020529!!', threads=50)
 
@@ -131,6 +131,6 @@ def import_products():
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    post_po()
+    # post_po()
     # import_products()
-    # build_network()
+    build_network()
