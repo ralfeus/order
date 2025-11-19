@@ -323,8 +323,6 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
         _save_child_nodes(nodes_to_save)
         logger.debug("Done building node %s", node_id)
     except Exception as ex:
-        logger.error(str(ex))
-        logger.error(traceback.format_exc())
         exceptions.put(BuildPageNodesException(node_id, ex).with_traceback(ex.__traceback__))
     with lock:
         threads -= 1
