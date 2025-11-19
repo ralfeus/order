@@ -465,8 +465,7 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
         with lock:
             if node_id not in traversing_nodes_set:
                 creds = _init_network(node_id)
-                if creds is not None:
-                    logger.info("The node %s credentials are %s", node_id, creds)
+                if creds is not None and len(creds) > 0:
                     creds = (creds[0][1], creds[0][2])
                 traversing_nodes_set.add(node_id)
                 traversing_nodes_list.append((node_id, creds or auth))
