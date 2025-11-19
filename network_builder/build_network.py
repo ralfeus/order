@@ -131,8 +131,6 @@ def build_network(user, password, root_id='S5832131', roots_file=None, active=Tr
         try:
             try: # Get exception from the threads
                 ex = exceptions.get(block=False)
-                logger.error(str(ex))
-                logger.error(ex.__traceback__)
                 raise ex.with_traceback(ex.__traceback__)
             except Empty:
                 pass
@@ -287,6 +285,8 @@ def _build_page_nodes(node_id: str, traversing_nodes_set: set[str],
                     tokens[user] = None
                 continue
         except BuildPageNodesException as ex:
+            logger.error(str(ex))
+            logger.error(ex.__traceback__)
             exceptions.put(ex) # The exception is to be handled in the calling thread
         except NoParentException as ex:
             logger.fine("The node %s wasn't found in the root's tree. Skipping...", 
