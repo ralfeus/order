@@ -467,8 +467,10 @@ def _get_children(node_id: str, traversing_nodes_set: set[str],
                 creds = _init_network(node_id)
                 if creds is not None and len(creds) > 0:
                     creds = (creds[0][1], creds[0][2])
+                else:
+                    creds = auth
                 traversing_nodes_set.add(node_id)
-                traversing_nodes_list.append((node_id, creds or auth))
+                traversing_nodes_list.append((node_id, creds))
     else:
         logger.debug("The node %s has no children on the page", node_id)
         # Determine if might have children. If the node has children, the parent
