@@ -30,9 +30,14 @@ def admin_get_shipping_methods():
 @bp_api_user.route("/<country_id>", defaults={"weight": None})
 @bp_api_user.route("/<country_id>/<int:weight>")
 @login_required
-@cache.cached(timeout=86400, query_string=True)
+# @cache.cached(timeout=86400, query_string=True)
 def get_shipping_methods(country_id, weight):
     """Returns shipping methods available for specific country and weight (if both provided)"""
+    cached_result = cache.get(f"shipping_methods_{country_id}_{weight}_{request.query_string}")
+    if cached_result:
+        logging.debug("Returning cached shipping methods for country_id=%s, weight=%s, query=%s", 
+                      country_id, weight, request.query_string)
+        return jsonify(cached_result)
     country_name = ""
     country: Optional[Country] = None
     if country_id:
@@ -59,11 +64,14 @@ def get_shipping_methods(country_id, weight):
     logging.debug(result)
     
     if len(result) > 0:
+        sorted_result = sorted(result, key=itemgetter("name"))
+        cache.set(f"shipping_methods_{country_id}_{weight}_{request.query_string}", 
+                  sorted_result, timeout=86400)
         logging.debug("Returning shipping methods")
         logging.debug("Parameters: country=%s, weight=%s", country_name, weight)
         logging.debug("Query string: %s", request.query_string)
-        logging.debug(sorted(result, key=itemgetter("name")))
-        return jsonify(sorted(result, key=itemgetter("name")))
+        logging.debug(sorted_result)
+        return jsonify(sorted_result)
     abort(
         Response(
             f"Couldn't find shipping method to send {weight}g parcel to {country_name}",
