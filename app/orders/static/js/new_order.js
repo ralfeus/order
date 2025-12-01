@@ -443,7 +443,7 @@ function product_code_autocomplete(target) {
         source: (query, response) => {
             var result = g_products.filter(product =>
                 product.value.includes(query.term)
-                || product.label.includes(query.term)
+                || (product.label && product.label.includes(query.term))
             );
             response(result);
         },
