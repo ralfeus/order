@@ -305,7 +305,7 @@ class EMS(Shipping):
         }
         logger.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/temp_orders",
+            url="https://myems.co.kr/api/v1/order/temp_orders/list",
             raw_data=json.dumps(request_payload),
         )
         # logger.debug(stdout)
