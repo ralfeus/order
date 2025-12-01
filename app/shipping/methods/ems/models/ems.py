@@ -357,7 +357,7 @@ class EMS(Shipping):
         if cache.get("ems_shipping_order") is None or force:
             try:
                 result: list[list] = get_json(
-                    "https://myems.co.kr/api/v1/order/temp_orders",
+                    "https://myems.co.kr/api/v1/order/temp_orders/list",
                     get_data=self.__invoke_curl,
                 ) #type: ignore
                 if result[0][0]["cnt"] == "0":
