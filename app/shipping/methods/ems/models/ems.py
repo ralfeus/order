@@ -367,8 +367,8 @@ class EMS(Shipping):
                 else:
                     id = result[1][0]["ems_code"]
             except Exception as e:
-                logger.warning("Couldn't get shipping order ID. Retrying...")
-                logger.warning(str(e))
+                logger.exception("Couldn't get shipping order ID. Retrying...")
+                logger.exception(str(e))
                 if attempts > 0:
                     time.sleep(2)
                     return self.__get_shipping_order(force=force, attempts=attempts-1)

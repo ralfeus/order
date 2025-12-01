@@ -97,9 +97,9 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
     """
     logger = logging.getLogger("get_shipping_rate()")
     logger.info("Calculating shipping rates to %s of weight %s", country, weight)
-    shipping_methods = Shipping.query
+    shipping_methods: list[Shipping] = Shipping.query
     if shipping_method_id:
-        shipping_methods = shipping_methods.filter_by(id=shipping_method_id)
+        shipping_methods = shipping_methods.filter_by(id=shipping_method_id) #type: ignore
 
     rates = {}
     for shipping_method in shipping_methods:
