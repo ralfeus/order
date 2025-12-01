@@ -343,9 +343,9 @@ class EMS(Shipping):
         """Return raw price structure from EMS"""
         logger = logging.getLogger("EMS::__get_rate()")
         try:
-            id = self.__get_shipping_order()
+            # id = self.__get_shipping_order()
             result = get_json(
-                f"https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N",
+                f"https://myems.co.kr/api/v1/order/calc_price/n_code/{country}/weight/{weight}/premium/N/document/N",
                 get_data=self.__invoke_curl,
             )
             return result
@@ -360,16 +360,16 @@ class EMS(Shipping):
         ex = Exception("Unknown error")
         for _ in range(attempts):
             try:
-                result: list[list] = get_json(
+                result: dict[str, Any] = get_json(
                     "https://myems.co.kr/api/v1/order/temp_orders/list",
                     get_data=self.__invoke_curl,
                 ) #type: ignore
-                if result[0][0]["cnt"] == "0":
+                if result["total"] == "0":
                     id, _ = self.__invoke_curl(
                         "https://myems.co.kr/api/v1/order/temp_orders/new"
                     )
                 else:
-                    id = result[1][0]["ems_code"]
+                    id = result['list'][0]["code"]
                 cache.set("ems_shipping_order", id, timeout=28800)
                 return id
             except Exception as e:
