@@ -354,7 +354,11 @@ class EMS(Shipping):
 
     def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger("EMS::__get_shipping_order()")
-        if cache.get("ems_shipping_order") is None or force:
+        if cache.get("ems_shipping_order") is not None and not force:
+            return cache.get("ems_shipping_order")
+
+        ex = Exception("Unknown error")
+        for _ in range(attempts):
             try:
                 result: list[list] = get_json(
                     "https://myems.co.kr/api/v1/order/temp_orders/list",
@@ -366,16 +370,14 @@ class EMS(Shipping):
                     )
                 else:
                     id = result[1][0]["ems_code"]
+                cache.set("ems_shipping_order", id, timeout=28800)
+                return id
             except Exception as e:
                 logger.exception("Couldn't get shipping order ID. Retrying...")
                 logger.exception(str(e))
-                if attempts > 0:
-                    time.sleep(2)
-                    return self.__get_shipping_order(force=force, attempts=attempts-1)
-                else:
-                    raise e
-            cache.set("ems_shipping_order", id, timeout=28800)
-        return cache.get("ems_shipping_order")
+                time.sleep(2)
+                ex = e
+        raise ex
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")
