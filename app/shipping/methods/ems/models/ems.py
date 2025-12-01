@@ -342,8 +342,8 @@ class EMS(Shipping):
     def __get_rate(self, country: str, weight: int) -> dict[str, Any]:
         """Return raw price structure from EMS"""
         logger = logging.getLogger("EMS::__get_rate()")
-        id = self.__get_shipping_order()
         try:
+            id = self.__get_shipping_order()
             result = get_json(
                 f"https://myems.co.kr/api/v1/order/calc_price/ems_code/{id}/n_code/{country}/weight/{weight}/premium/N",
                 get_data=self.__invoke_curl,
@@ -355,16 +355,25 @@ class EMS(Shipping):
     def __get_shipping_order(self, force=False, attempts=3):
         logger = logging.getLogger("EMS::__get_shipping_order()")
         if cache.get("ems_shipping_order") is None or force:
-            result: list[list] = get_json(
-                "https://myems.co.kr/api/v1/order/temp_orders",
-                get_data=self.__invoke_curl,
-            ) #type: ignore
-            if result[0][0]["cnt"] == "0":
-                id, _ = self.__invoke_curl(
-                    "https://myems.co.kr/api/v1/order/temp_orders/new"
-                )
-            else:
-                id = result[1][0]["ems_code"]
+            try:
+                result: list[list] = get_json(
+                    "https://myems.co.kr/api/v1/order/temp_orders",
+                    get_data=self.__invoke_curl,
+                ) #type: ignore
+                if result[0][0]["cnt"] == "0":
+                    id, _ = self.__invoke_curl(
+                        "https://myems.co.kr/api/v1/order/temp_orders/new"
+                    )
+                else:
+                    id = result[1][0]["ems_code"]
+            except Exception as e:
+                logger.warning("Couldn't get shipping order ID. Retrying...")
+                logger.warning(str(e))
+                if attempts > 0:
+                    time.sleep(2)
+                    return self.__get_shipping_order(force=force, attempts=attempts-1)
+                else:
+                    raise e
             cache.set("ems_shipping_order", id, timeout=28800)
         return cache.get("ems_shipping_order")
 
