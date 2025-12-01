@@ -250,7 +250,9 @@ def get_json(url, raw_data=None, headers: list=[], method='GET', retry=True,
     except:
         if re.search('HTTP.*? 401', stderr):
             raise HTTPError(401)
-        logging.exception("Couldn't get JSON out of response", stdout, stderr)
+        logging.exception("Couldn't get JSON out of response")
+        logging.exception(stdout)
+        logging.exception(stderr)
         raise Exception("Unknown error")
 
 def try_perform(action:Callable, attempts:int=3, logger:logging.Logger=logging.root) -> Any:
