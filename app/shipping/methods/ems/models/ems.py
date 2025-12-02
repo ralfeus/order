@@ -343,7 +343,6 @@ class EMS(Shipping):
         """Return raw price structure from EMS"""
         logger = logging.getLogger("EMS::__get_rate()")
         try:
-            # id = self.__get_shipping_order()
             result = get_json(
                 f"https://myems.co.kr/api/v1/order/calc_price/n_code/{country}/weight/{weight}/premium/N/document/N",
                 get_data=self.__invoke_curl,
@@ -351,33 +350,6 @@ class EMS(Shipping):
             return result
         except:
             raise NoShippingRateError()
-
-    def __get_shipping_order(self, force=False, attempts=3):
-        logger = logging.getLogger("EMS::__get_shipping_order()")
-        if cache.get("ems_shipping_order") is not None and not force:
-            return cache.get("ems_shipping_order")
-
-        ex = Exception("Unknown error")
-        for _ in range(attempts):
-            try:
-                result: dict[str, Any] = get_json(
-                    "https://myems.co.kr/api/v1/order/temp_orders/list",
-                    get_data=self.__invoke_curl,
-                ) #type: ignore
-                if result["total"] == "0":
-                    id, _ = self.__invoke_curl(
-                        "https://myems.co.kr/api/v1/order/temp_orders/new"
-                    )
-                else:
-                    id = result['list'][0]["code"]
-                cache.set("ems_shipping_order", id, timeout=28800)
-                return id
-            except Exception as e:
-                logger.exception("Couldn't get shipping order ID. Retrying...")
-                logger.exception(str(e))
-                time.sleep(2)
-                ex = e
-        raise ex
 
     def __login(self, force=False):
         logger = logging.getLogger("EMS::__login()")

@@ -30,10 +30,11 @@ def admin_get_shipping_methods():
 @bp_api_user.route("/<country_id>", defaults={"weight": None})
 @bp_api_user.route("/<country_id>/<int:weight>")
 @login_required
-# @cache.cached(timeout=86400, query_string=True)
 def get_shipping_methods(country_id, weight):
     """Returns shipping methods available for specific country and weight (if both provided)"""
-    cached_result = cache.get(f"shipping_methods_{country_id}_{weight}_{request.query_string}")
+    cached_result = cache.get("{}_shipping_methods_{}_{}_{}".format(
+        current_app.config['TENANT_NAME'], country_id, weight, request.query_string
+    ))
     if cached_result:
         logging.debug("Returning cached shipping methods for country_id=%s, weight=%s, query=%s", 
                       country_id, weight, request.query_string)
@@ -65,8 +66,11 @@ def get_shipping_methods(country_id, weight):
     
     if len(result) > 0:
         sorted_result = sorted(result, key=itemgetter("name"))
-        cache.set(f"shipping_methods_{country_id}_{weight}_{request.query_string}", 
-                  sorted_result, timeout=86400)
+        cache.set(
+            "{}_shipping_methods_{}_{}_{}".format(
+                current_app.config['TENANT_NAME'], country_id, weight, 
+                request.query_string), 
+            sorted_result, timeout=86400)
         logging.debug("Returning shipping methods")
         logging.debug("Parameters: country=%s, weight=%s", country_name, weight)
         logging.debug("Query string: %s", request.query_string)
@@ -80,13 +84,12 @@ def get_shipping_methods(country_id, weight):
     )
 
 
-@bp_api_user.route("/rate/<country>/<int:shipping_method_id>/<int:weight>")
+@bp_api_user.route("/rate/<country_id>/<int:shipping_method_id>/<int:weight>")
 @bp_api_user.route(
-    "/rate/<country>/<int:weight>", defaults={"shipping_method_id": None}
+    "/rate/<country_id>/<int:weight>", defaults={"shipping_method_id": None}
 )
 @login_required
-@cache.cached(timeout=86400)
-def get_shipping_rate(country, shipping_method_id: int, weight: int):
+def get_shipping_rate(country_id, shipping_method_id: int, weight: int):
     """
     Returns shipping cost for provided country and weight
     Accepts parameters:
@@ -96,7 +99,16 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
     Returns JSON
     """
     logger = logging.getLogger("get_shipping_rate()")
-    logger.info("Calculating shipping rates to %s of weight %s", country, weight)
+    cached_result = cache.get("{}_shipping_rate_{}_{}_{}".format(
+        current_app.config['TENANT_NAME'], country_id, shipping_method_id, weight, 
+        request.query_string
+    ))
+    if cached_result:
+        logging.debug("Returning cached shipping rate for country_id=%s, "
+                      "shipping_method_id=%s, weight=%s, query=%s", 
+                      country_id, shipping_method_id, weight, request.query_string)
+        return jsonify(cached_result)
+    logger.info("Calculating shipping rates to %s of weight %s", country_id, weight)
     shipping_methods: list[Shipping] = Shipping.query
     if shipping_method_id:
         shipping_methods = shipping_methods.filter_by(id=shipping_method_id) #type: ignore
@@ -108,19 +120,25 @@ def get_shipping_rate(country, shipping_method_id: int, weight: int):
         else:
             try:
                 rates[shipping_method.id] = shipping_method.get_shipping_cost(
-                    country, weight
+                    country_id, weight
                 )
             except NoShippingRateError:
                 pass
     if len(rates) > 0:
         if shipping_method_id:
-            return jsonify({"shipping_cost": rates[shipping_method_id]})
+            result = {"shipping_cost": rates[shipping_method_id]}
         else:
-            return jsonify(rates)
+            result = rates
+        cache.set(
+            "{}_shipping_rate_{}_{}_{}".format(
+                current_app.config['TENANT_NAME'], country_id, shipping_method_id, 
+                weight, request.query_string), 
+            result, timeout=86400)
+        return jsonify(result)
     else:
         abort(
             Response(
-                f"Couldn't find rate for {weight}g parcel to {country.title()}",
+                f"Couldn't find rate for {weight}g parcel to {country_id.title()}",
                 status=409,
             )
         )
