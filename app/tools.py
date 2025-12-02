@@ -191,7 +191,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         ['--socks5', current_app.config.get('SOCKS5_PROXY')] #type: ignore
             if use_proxy and current_app.config.get('SOCKS5_PROXY') is not None else [])
     ignore_ssl_check_param = ['-k'] if ignore_ssl_check else []
-    if raw_data:
+    if raw_data and method == 'GET':
         method = 'POST'
     run_params = [ #type: ignore
         '/usr/bin/curl',

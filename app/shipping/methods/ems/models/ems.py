@@ -102,7 +102,6 @@ class EMS(Shipping):
     def consign(self, sender: Address, sender_contact: ShippingContact, 
                 recipient: Address, rcpt_contact: ShippingContact,
                 items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]={}):
-        logger = logging.getLogger("EMS::consign()")
         try:
             if isinstance(config, dict) and \
             not (config.get('ems') is None or 
@@ -115,14 +114,14 @@ class EMS(Shipping):
             self.__save_consignment(consignment_id, sender, sender_contact, 
                                     recipient, rcpt_contact, items, boxes)
             self.__submit_consignment(consignment_id)
-            logger.info("The %s to %s is created", consignment_id, recipient)
+            logging.info("The %s to %s is created", consignment_id, recipient)
             return ConsignResult(
                 tracking_id=consignment_id, 
                 next_step_message="Finalize shipping order and print label",
                 next_step_url=f'{self._get_print_label_url()}?tracking_id={consignment_id}'
             )
         except EMSItemsException as e:
-            logger.warning(str(e))
+            logging.warning(str(e))
             raise OrderError("Couldn't get EMS items description from the order")
     
     def print(self, shipping_id: str, config: dict[str, Any]={}) -> dict[str, Any]:
@@ -141,17 +140,16 @@ class EMS(Shipping):
             self.__username = config['ems']['login']
             self.__password = config['ems']['password']
             self.__login(force=cache.get(f'{current_app.config.get("TENANT_NAME")}:ems_user') != self.__username)
-        logger = logging.getLogger("EMS::print()")
-        logger.info("Getting consignment %s", shipping_id)
+        logging.info("Getting consignment %s", shipping_id)
         try:
             code = self.__get_consignment_code(shipping_id)
-            logger.debug(code)
+            logging.debug(code)
             # uncomment for production, comment for development
             self.__print_label(code) 
             consignment = self.__get_consignment(code)
             return consignment
         except Exception as e:
-            logger.warning(f"Couldn't print label for shipment {shipping_id}")
+            logging.warning(f"Couldn't print label for shipment {shipping_id}")
             raise e
     
     def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
@@ -161,11 +159,10 @@ class EMS(Shipping):
         )
     
     def __get_consignments(self, url:str) -> list[dict[str, Any]]:
-        logger = logging.getLogger('EMS::__get_consignments()')
         consignments = get_json(url=url, get_data=self.__invoke_curl)
         if len(consignments) != 2:
-            logger.warning("Couldn't get consignment")
-            logger.warning(consignments)
+            logging.warning("Couldn't get consignment")
+            logging.warning(consignments)
             return []
         return consignments[1] #type: ignore
 
@@ -185,18 +182,16 @@ class EMS(Shipping):
         '''Submits request to print label. This makes the consignment obligatory 
         to be picked up and paid for
         :param consignment str: an internal code of a consignment to be printed'''
-        logger = logging.getLogger("EMS::__get_print_label()")
         output, _ = self.__invoke_curl(
             f'https://myems.co.kr/b2b/order_print.php?type=declaration&codes={consignment}')
         # logger.debug(output)
         # logger.debug(_)
 
     def __create_new_consignment(self) -> str:
-        logger = logging.getLogger("EMS::__create_new_consignment()")
         result, _ = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/temp_orders/new", method="PUT"
+            url="https://myems.co.kr/api/v1/order/temp_orders/new", method="POST"
         )
-        logger.info("The new consignment ID is: %s", result)
+        logging.info("The new consignment ID is: %s", result)
         return result[1:-1]
 
     def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
@@ -259,7 +254,9 @@ class EMS(Shipping):
         # items = self.get_shipping_items(items)
         sender_phone = sender_contact.phone.split("-")
         request_payload = {
-            "ems_code": consignment_id,
+            "code": consignment_id,
+            "premium": "false",
+            "document": "false",
             "user_select_date": None,
             "p_hp1": sender_phone[0],  # sender phone number
             "p_hp2": sender_phone[1],  # sender phone number
@@ -290,22 +287,22 @@ class EMS(Shipping):
             "item_name2": "",  # probably can be omited
             "item_name3": "",  # probably can be omited
             "p_weight": weight,  # overall weight of the content
-            "ems_price": "",  # leave empty
             "post_price": price["post_price"],  # get price from calculation service
             "n_code": recipient.country_id.upper(),  # recipient country
-            "extra_shipping_charge": price[
-                "extra_shipping_charge"
-            ],  # get additional fee from calculation service
+            "nation": recipient.country_id.upper(),  # recipient country
             "vol_weight1": box.width,  # width
             "vol_weight2": box.length,  # length
             "vol_weight3": box.height,  # height
             "vol_weight": volume_weight,  # volume translated to weight. Calculated as width * length * height / 6
-            # p_weight (above) is either itself of this value, if this value is bigger
+            "extra_shipping_charge": price[
+                "extra_shipping_charge"
+            ],  # get additional fee from calculation service
             "item_detailed": "31",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
         }
         logger.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/temp_orders/list",
+            url="https://myems.co.kr/api/v1/order/temp_orders",
+            method="PUT",
             raw_data=json.dumps(request_payload),
         )
         # logger.debug(stdout)
