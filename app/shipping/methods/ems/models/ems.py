@@ -113,12 +113,12 @@ class EMS(Shipping):
             consignment_id = self.__create_new_consignment()
             self.__save_consignment(consignment_id, sender, sender_contact, 
                                     recipient, rcpt_contact, items, boxes)
-            self.__submit_consignment(consignment_id)
+            tracking_id = self.__submit_consignment(consignment_id)
             logging.info("The %s to %s is created", consignment_id, recipient)
             return ConsignResult(
-                tracking_id=consignment_id, 
+                tracking_id=tracking_id, 
                 next_step_message="Finalize shipping order and print label",
-                next_step_url=f'{self._get_print_label_url()}?tracking_id={consignment_id}'
+                next_step_url=f'{self._get_print_label_url()}?tracking_id={tracking_id}'
             )
         except EMSItemsException as e:
             logging.warning(str(e))
@@ -236,13 +236,12 @@ class EMS(Shipping):
                            sender_contact: ShippingContact, recipient: Address, 
                            rcpt_contact: ShippingContact, items: list[ShippingItem], 
                            boxes: list[Box]):
-        logger = logging.getLogger("EMS::__save_consignment()")
-        logger.info("Saving a consignment %s", consignment_id)
+        logging.info("Saving a consignment %s", consignment_id)
         total_weight = sum([i.weight for i in items])
         volume_weight = 0
         box = boxes[0]
         if 0 in [box.length, box.width, box.height]:
-            logger.info("The box information is missing or incorrect. Using default values")
+            logging.info("The box information is missing or incorrect. Using default values")
             box.length = 42
             box.width = 30
             box.height = 19
@@ -299,23 +298,32 @@ class EMS(Shipping):
             ],  # get additional fee from calculation service
             "item_detailed": "31",  # type of parcel 1 - Merch, 31 - gift, 32 - sample
         }
-        logger.debug(request_payload)
+        logging.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
             url="https://myems.co.kr/api/v1/order/temp_orders",
             method="PUT",
             raw_data=json.dumps(request_payload),
         )
-        # logger.debug(stdout)
-        # logger.debug(stderr)
+        logging.debug(stdout)
+        # logging.debug(stderr)
 
     def __submit_consignment(self, consignment_id):
         logger = logging.getLogger("EMS::__submit_consignment")
         logger.info("Submitting consignment %s", consignment_id)
-        stdout, stderr = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]'
+        result = get_json(
+            url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]',
+            get_data=self.__invoke_curl
         )
-        logger.debug(stdout)
-        logger.debug(stderr)
+
+        logger.debug(result)
+        if result.get('success') and (isinstance(result['success'], list)) and len(result['success']) > 0:
+            logger.info("Consignment %s is submitted successfully. Tracking ID is %s", 
+                        consignment_id, result['success'][0]['emsCode'])
+            return result['success'][0]['emsCode']
+        else:
+            logger.warning("Couldn't submit consignment %s", consignment_id)
+            logger.warning(result)
+            raise Exception("Couldn't submit consignment to EMS")
 
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")
