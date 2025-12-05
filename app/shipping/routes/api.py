@@ -166,7 +166,8 @@ def admin_save_shipping_method(shipping_method_id):
     payload: dict[str, Any] = request.get_json() #type: ignore
     if shipping_method_id == "null":
         shipping_method = Shipping()
-        db.session.add(shipping_method)
+        shipping_method.when_created = db.func.now() #type: ignore
+        db.session.add(shipping_method) #type: ignore
     else:
         shipping_method = Shipping.query.get(shipping_method_id)
         if not shipping_method:
@@ -178,10 +179,10 @@ def admin_save_shipping_method(shipping_method_id):
     modify_object(
         shipping_method, payload, ["name", "enabled", "notification", "discriminator"]
     )
-    shipping_id = shipping_method.id
-    db.session.commit()
-    if shipping_id is not None:
-        shipping_method = Shipping.query.get(shipping_id)
+    db.session.commit() #type: ignore
+    id = shipping_method.id
+    db.session.expunge(shipping_method) #type: ignore
+    shipping_method = Shipping.query.get(id)
     return jsonify({"data": [shipping_method.to_dict()]})
 
 
@@ -194,8 +195,8 @@ def admin_delete_shipping_method(shipping_method_id):
         abort(
             Response(f"No shipping method <{shipping_method_id}> was found", status=404)
         )
-    db.session.delete(shipping_method)
-    db.session.commit()
+    db.session.delete(shipping_method) #type: ignore
+    db.session.commit() #type: ignore
     return jsonify({})
 
 
@@ -224,7 +225,7 @@ def consign_order(order_id: str):
             raw_items = [f"{op.product.name_english}/{op.quantity}/{int(op.price / 3)}" 
                          for op in order.order_products]
         items = order.shipping.get_shipping_items(raw_items)        
-        if order.boxes.count() > 0:
+        if order.boxes.count() > 0: #type: ignore
             boxes = [o for o in order.boxes]
         else:
             boxes = [default_box]
@@ -236,7 +237,7 @@ def consign_order(order_id: str):
         )
         order.tracking_id = result.tracking_id
         order.tracking_url = f'https://t.17track.net/en#nums={result.tracking_id}'
-        db.session.commit()
+        db.session.commit() #type: ignore
         return jsonify({
             "status": "next_step_available" if result.next_step_url else "success", 
             "consignment_id": result.tracking_id,

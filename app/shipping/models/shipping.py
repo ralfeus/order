@@ -161,7 +161,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         return {
             'id': self.id,
             'name': self.name,
-            'type': self.__mapper_args__['polymorphic_identity'],
+            'type': self.discriminator,
             'enabled': self.enabled,
             'is_consignable': self.is_consignable(),
             'notification': self.notification,

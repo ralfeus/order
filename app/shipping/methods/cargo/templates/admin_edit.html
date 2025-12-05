@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_edit.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>{{ shipping.name }}</h1>
+<form id="countries-form">
+    <div class="container-fluid">
+        <div id="countries-container" class="row">
+            <!-- Countries will be loaded here dynamically -->
+        </div>
+    </div>
+    <div class="container-fluid mt-3">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+    </div>
+</form>
+<input type="hidden" id="shipping_id" value="{{ shipping.id }}" />
+{% endblock %}

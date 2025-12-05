@@ -314,8 +314,8 @@ class EMS(Shipping):
         stdout, stderr = self.__invoke_curl(
             url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]'
         )
-        # logger.debug(stdout)
-        # logger.debug(stderr)
+        logger.debug(stdout)
+        logger.debug(stderr)
 
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")

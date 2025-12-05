@@ -7,7 +7,7 @@ bp_client_admin = Blueprint('shipping_cargo_client_admin', __name__,
                             static_folder='static',
                             template_folder='templates')
 
-# def register_blueprints(flask_app):
-#     from . import routes
-#     flask_app.register_blueprint(bp_api_admin)
-#     flask_app.register_blueprint(bp_client_admin)
+def register_blueprints(flask_app):
+    from . import routes
+    flask_app.register_blueprint(bp_api_admin)
+    flask_app.register_blueprint(bp_client_admin)

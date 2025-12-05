@@ -13,7 +13,25 @@ from exceptions import OrderError
 class Cargo(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'cargo'} #type: ignore
 
-    def get_customs_label(self, order: 'o.Order') -> tuple[_TemporaryFileWrapper, str]:
+    def get_edit_url(self):
+        from .. import bp_client_admin
+        return f"{bp_client_admin.url_prefix}/{self.id}"
+
+    def get_shipping_cost(self, destination, weight):
+        '''
+        Returns shipping cost for cargo - always 0 if country is allowed
+        '''
+        if isinstance(destination, str):
+            destination_id = destination
+        else:
+            destination_id = destination.id
+        rate = self.rates.filter_by(destination=destination_id).first()
+        if rate:
+            return 0
+        from exceptions import NoShippingRateError
+        raise NoShippingRateError()
+
+    def get_customs_label(self, order: 'o.Order') -> tuple[_TemporaryFileWrapper, str]: #type: ignore
         '''Generates an invoice in excel format. 
         
         :returns tuple[_TemporaryFileWrapper, str]: a temporary file object 
@@ -28,12 +46,12 @@ class Cargo(Shipping):
             method = self.__getattribute__(f'_Cargo__get_customs_label_for_{country}')
             return method(order)
         except AttributeError:
-            return self.__get_customs_label_generic(order)
+            return self.__get_customs_label_generic(order) #type: ignore
 
-    def __get_customs_label_generic(self, order: 'o.Order'):
+    def __get_customs_label_generic(self, order: 'o.Order'): #type: ignore
         return None, None
 
-    def __get_customs_label_for_uz(self, order: 'o.Order'):
+    def __get_customs_label_for_uz(self, order: 'o.Order'): #type: ignore
         package_path = os.path.dirname(__file__) + '/..'
         wb = openpyxl.open(f'{package_path}/templates/customs_label_uz.xlsx')
         ws = wb.worksheets[0]
