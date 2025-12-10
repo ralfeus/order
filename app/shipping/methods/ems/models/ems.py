@@ -45,6 +45,8 @@ hs_codes = {
     "_default_": "3304991000",
 }
 
+BASE_URL = "https://www.myems.co.kr/api/v1/"
+
 
 class EMS(Shipping):
     """EMS shipping"""
@@ -154,7 +156,7 @@ class EMS(Shipping):
     
     def __get_consignment(self, consignment_code: str) -> dict[str, Any]:
         return get_json(
-            url=f'https://myems.co.kr/api/v1/order/print/code/{consignment_code}',
+            url=f'{BASE_URL}/order/print/code/{consignment_code}',
             get_data=self.__invoke_curl
         )
     
@@ -169,9 +171,9 @@ class EMS(Shipping):
     def __get_consignment_code(self, consignment_id: str) -> str:
         consignments = \
             self.__get_consignments(
-                url='https://myems.co.kr/api/v1/order/orders/progress/A/offset/0') + \
+                url=f'{BASE_URL}/order/orders/progress/A/offset/0') + \
             self.__get_consignments(
-                url='https://myems.co.kr/api/v1/order/orders/progress/B/offset/0')
+                url=f'{BASE_URL}/order/orders/progress/B/offset/0')
         for consignment in consignments:
             if isinstance(consignment, dict) and \
                 consignment.get('ems_code') == consignment_id:
@@ -189,7 +191,7 @@ class EMS(Shipping):
 
     def __create_new_consignment(self) -> str:
         result, _ = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/temp_orders/new", method="POST"
+            url=f'{BASE_URL}/order/temp_orders/new', method="POST"
         )
         logging.info("The new consignment ID is: %s", result)
         return result[1:-1]
@@ -300,7 +302,7 @@ class EMS(Shipping):
         }
         logging.debug(request_payload)
         stdout, stderr = self.__invoke_curl(
-            url="https://myems.co.kr/api/v1/order/temp_orders",
+            url=f'{BASE_URL}/order/temp_orders',
             method="PUT",
             raw_data=json.dumps(request_payload),
         )
@@ -311,7 +313,7 @@ class EMS(Shipping):
         logger = logging.getLogger("EMS::__submit_consignment")
         logger.info("Submitting consignment %s", consignment_id)
         result = get_json(
-            url="https://myems.co.kr/api/v1/order/new", raw_data=f'["{consignment_id}"]',
+            url=f'{BASE_URL}/order/new', raw_data=f'["{consignment_id}"]',
             get_data=self.__invoke_curl
         )
 
@@ -349,7 +351,7 @@ class EMS(Shipping):
         logger = logging.getLogger("EMS::__get_rate()")
         try:
             result = get_json(
-                f"https://myems.co.kr/api/v1/order/calc_price/n_code/{country}/weight/{weight}/premium/N/document/N",
+                f'{BASE_URL}/order/calc_price/n_code/{country}/weight/{weight}/premium/N/document/N',
                 get_data=self.__invoke_curl,
             )
             return result
@@ -381,7 +383,7 @@ class EMS(Shipping):
             logger.info("Logging in to EMS as %s", self.__username)
             cache.set("ems_login_in_progress", True)
             result: list[dict] = get_json(
-                url="https://myems.co.kr/api/v1/login",
+                url=f'{BASE_URL}/login',
                 raw_data=f'{{"user":{{"userid":"{self.__username}","password":"{self.__password}"}}}}',
                 method="POST", ignore_ssl_check=True
             ) #type: ignore
@@ -420,12 +422,12 @@ def __get_rates(country, url: str) -> list[dict]:
 
 def get_rates(country):
     return __get_rates(
-        country, "https://myems.co.kr/api/v1/common/emsChargeList/type/EMS/country/{}"
+        country, f'{BASE_URL}/common/emsChargeList/type/EMS/country/{{}}'
     )
 
 
 def get_premium_rates(country):
     return __get_rates(
         country,
-        "https://myems.co.kr/api/v1/common/emsChargeList/type/PREMIUM/country/{}",
+        f'{BASE_URL}/common/emsChargeList/type/PREMIUM/country/{{}}',
     )
