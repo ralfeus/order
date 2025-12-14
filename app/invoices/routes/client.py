@@ -29,7 +29,7 @@ def get_invoice(invoice_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
-    if len([o for o in invoice.orders if o.user != current_user]) > 0:
+    if invoice.user != current_user:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
     usd_rate = Currency.query.get('USD').rate
     return render_template('invoice.html', context=invoice, usd_rate=usd_rate)

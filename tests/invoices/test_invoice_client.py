@@ -29,11 +29,18 @@ class TestInvoiceClient(BaseTestCase):
     def try_admin_operation(self, operation):
         return super().try_admin_operation(operation, 'user1', '1', 'root', '1')
     
-    def test_get_invoice(self):
+    def test_get_admin_invoice(self):
         self.try_add_entities([
             Invoice(id=1),
             Currency(code='USD', rate=1)
         ])
         self.try_admin_operation(
             lambda: self.client.get('/admin/invoices/1'))
-
+    
+    def test_get_user_invoice(self):
+        self.try_add_entities([
+            Invoice(id=1),
+            Currency(code='USD', rate=1)
+        ])
+        self.try_user_operation(
+            lambda: self.client.get('/invoices/1'))

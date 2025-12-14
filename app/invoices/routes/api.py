@@ -39,7 +39,7 @@ def create_invoice():
         orders = Order.query.filter(Order.id.in_(payload["order_ids"])).all()
     currency = Currency.query.get(payload["currency"])
     rate = currency.get_rate()
-    invoice = Invoice(currency_code=currency.code)
+    invoice = Invoice(currency_code=currency.code, user=current_user)
     # invoice_items = []
     invoice.when_created = datetime.now()  # type: ignore
     cumulative_order_products = map_reduce(
@@ -91,7 +91,7 @@ def get_invoices(invoice_id):
 
     invoices = Invoice.query
     if not current_user.has_role('admin'):
-        invoices = invoices.filter(~Invoice.orders.any(Order.user != current_user))
+        invoices = invoices.filter_by(user=current_user)
 
     if invoice_id is not None:
         invoices = invoices.filter_by(id=invoice_id)
@@ -279,8 +279,7 @@ def get_invoice_excel(invoice_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
-    if not current_user.has_role('admin') \
-        and len([o for o in invoice.orders if o.user != current_user]) > 0:
+    if not current_user.has_role('admin') and invoice.user != current_user:
         abort(Response(f"The invoice <{invoice_id}> does not belong to you", status=403))
     if invoice.invoice_items_count == 0:
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
@@ -309,8 +308,7 @@ def get_invoice_cumulative_excel():
     valid_invoices = []
     for invoice_id in request.args.getlist("invoices"):
         invoice = Invoice.query.get(invoice_id)
-        if invoice and (current_user.has_role('admin') \
-            or len([o for o in invoice.orders if o.user != current_user]) == 0):
+        if invoice and (current_user.has_role('admin') or invoice.user == current_user):
             valid_invoices.append(invoice)
             if not cumulative_invoice.customer:
                 cumulative_invoice.customer = invoice.customer

@@ -10,6 +10,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.shipping.models.shipping import Shipping
+from app.users.models.user import User
 
 class Invoice(db.Model):  # type: ignore
     '''
@@ -22,6 +23,8 @@ class Invoice(db.Model):  # type: ignore
     seq_num = Column(Integer)
     customer = Column(String(128))
     payee = Column(String(32))
+    user_id = Column(Integer, ForeignKey('users.id'))
+    user = relationship('User')
     orders = relationship('Order')
     export_id = Column(String(32))
     currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=False)

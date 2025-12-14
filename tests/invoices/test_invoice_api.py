@@ -119,6 +119,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0),
                     currency_code="USD",
+                    user=self.user,
                 ),
                 InvoiceItem(
                     invoice_id="INV-2020-00-00", product_id="0001", price=10, quantity=1
@@ -178,7 +179,8 @@ class TestInvoiceClient(BaseTestCase):
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0),
                     currency_code="USD",
-                ),
+                    user=self.user,
+               ),
                 Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
             ]
         )
@@ -235,7 +237,7 @@ class TestInvoiceClient(BaseTestCase):
         self.try_add_entities(
             [
                 Product(id=gen_id, weight=1),
-                Invoice(id=gen_id, country_id="c1", currency_code="USD"),
+                Invoice(id=gen_id, country_id="c1", currency_code="USD", user=self.user),
                 Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
                 InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
             ]
@@ -258,7 +260,7 @@ class TestInvoiceClient(BaseTestCase):
         self.try_add_entities(
             [
                 Product(id=gen_id, weight=1),
-                Invoice(id=gen_id, country_id="c1", currency_code="USD"),
+                Invoice(id=gen_id, country_id="c1", currency_code="USD", user=self.user),
                 Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
                 InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
             ]
@@ -392,6 +394,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0),
                     currency_code="USD",
+                    user=self.user,
                 ),
                 InvoiceItem(
                     invoice_id=gen_id, product_id="0001", price=10, quantity=1
@@ -406,7 +409,7 @@ class TestInvoiceClient(BaseTestCase):
             ]
         )
         res = self.try_user_operation(lambda: self.client.get("/api/v1/invoice"))
-        self.assertEqual(len(res.json), 1)  # type: ignore
+        assert len(res.json) == 1  # type: ignore
         assert res.json[0]["id"] == gen_id #type: ignore
 
     def test_get_invoices_as_user_non_owned(self):
@@ -422,6 +425,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_created=datetime(2020, 1, 1, 1, 0, 0),
                     when_changed=datetime(2020, 1, 1, 1, 0, 0),
                     currency_code="USD",
+                    user=self.admin,
                 ),
                 InvoiceItem(
                     invoice_id=gen_id, product_id="0001", price=10, quantity=1
