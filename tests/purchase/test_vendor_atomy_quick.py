@@ -65,16 +65,7 @@ def invoke_curl(url, **kwargs) -> tuple[str, str]:
 def get_html(url, **kwargs):
     return fromstring(invoke_curl(url, **kwargs)[0])
         
-@patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__login",
-        MagicMock(return_value=["JSESSIONID=token"]))
-@patch("app.purchase.models.vendors.atomy_quick:AtomyQuick._AtomyQuick__set_bu_place",
-        lambda _: None)
-@patch("app.purchase.models.vendors.atomy_quick.get_json",
-        MagicMock(side_effect=get_json))
-@patch("app.purchase.models.vendors.atomy_quick.invoke_curl",
-    MagicMock(side_effect=invoke_curl))
-@patch("app.purchase.models.vendors.atomy_quick.get_html",
-        MagicMock(side_effect=get_html))
+@patch("app.purchase.models.vendors.atomy_quick.sync_playwright", MagicMock())
 class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
     def setUp(self):
         super().setUp()

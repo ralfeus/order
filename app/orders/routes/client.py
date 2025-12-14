@@ -104,7 +104,7 @@ def user_get_order(order_id):
             profile['currency'] = currency.code
             current_user.profile = json.dumps(profile)
             from app import db
-            db.session.commit()
+            db.session.commit() #type: ignore
     if currency is None:
         currency = Currency.query.get('KRW')
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
@@ -119,7 +119,10 @@ def user_get_order(order_id):
 @login_required
 def get_orders():
     ''' Orders list for users '''
-    return render_template('orders.html')
+    currencies = Currency.query.filter(Currency.enabled).filter(Currency.code!='KRW').all()
+    for currency in currencies:
+        currency.display_rate = round(1 / currency.rate, 2)
+    return render_template('orders.html', currencies=currencies)
 
 @bp_client_user.route('/drafts')
 @login_required

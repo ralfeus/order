@@ -7,6 +7,21 @@
 
 {% block content %}
 {{ super() }}
+<li class="navbar-text ps-2" style="
+padding-top: 0px; padding-bottom: 0px;
+font-size: 0.7rem; text-align:right; font-weight: bolder;">
+<style>
+    .currency {
+        margin-right: 1em;
+    }
+</style>
+{% for currency in currencies %}
+    <span class="currency">
+        {{ currency.code }}:{{ currency.display_rate }}
+        <input type="hidden" id="{{currency.code}}-rate" value="{{ currency.rate }}" />
+    </span>
+{% endfor %}
+</li>
 <div class="container-fluid">
     <table id="orders" class="table">
         <thead>

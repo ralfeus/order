@@ -10,13 +10,13 @@ import openpyxl
 
 from flask import abort, current_app, jsonify, request
 from flask.wrappers import Response
-from flask_security import login_required, roles_required
+from flask_security import current_user, login_required, roles_required
 
 from sqlalchemy import or_
 
 from app import db
 from app.currencies.models.currency import Currency
-from app.invoices import bp_api_admin
+from app.invoices import bp_api_admin, bp_api_user
 from app.invoices.models.invoice import Invoice
 from app.invoices.models.invoice_item import InvoiceItem
 from app.invoices.validators.invoice import InvoiceValidator
@@ -24,8 +24,8 @@ from app.orders.models.order import Order
 from app.tools import modify_object, prepare_datatables_query, stream_and_close
 
 
-@bp_api_admin.route("/new", methods=["POST"])
-@roles_required("admin")
+@bp_api_user.route("/new", methods=["POST"])
+@login_required
 def create_invoice():
     """Creates invoice for provided orders"""
     with InvoiceValidator(request) as validator:
@@ -33,7 +33,10 @@ def create_invoice():
             return Response(f"Couldn't create an Invoice\n{validator.errors}", status=409)
 
     payload: dict[str, Any] = request.get_json() # type: ignore
-    orders = Order.query.filter(Order.id.in_(payload["order_ids"])).all()
+    if not current_user.has_role('admin'):
+        orders = Order.query.filter(Order.id.in_(payload["order_ids"]), Order.user == current_user).all()
+    else:
+        orders = Order.query.filter(Order.id.in_(payload["order_ids"])).all()
     currency = Currency.query.get(payload["currency"])
     rate = currency.get_rate()
     invoice = Invoice(currency_code=currency.code)
@@ -78,15 +81,17 @@ def create_invoice():
     return jsonify({"status": "success", "invoice_id": invoice.id})
 
 
-@bp_api_admin.route("/", defaults={"invoice_id": None}, strict_slashes=False)
-@bp_api_admin.route("/<invoice_id>")
-@roles_required("admin")
+@bp_api_user.route("/", defaults={"invoice_id": None}, strict_slashes=False)
+@bp_api_user.route("/<invoice_id>")
+@login_required
 def get_invoices(invoice_id):
     """
     Returns all or selected invoices in JSON:
     """
 
     invoices = Invoice.query
+    if not current_user.has_role('admin'):
+        invoices = invoices.filter(~Invoice.orders.any(Order.user != current_user))
 
     if invoice_id is not None:
         invoices = invoices.filter_by(id=invoice_id)
@@ -148,8 +153,8 @@ def get_invoice_order_products(invoice: Invoice):
     return result
 
 
-@bp_api_admin.route("/template")
-@roles_required("admin")
+@bp_api_user.route("/template")
+@login_required
 def get_templates():
     global_template_path = os.path.dirname(__file__) + "/../templates"
     local_template_path = current_app.config["INVOICE_TEMPLATES_PATH"]
@@ -265,8 +270,8 @@ def save_invoice(invoice_id):
     return jsonify({"data": [invoice.to_dict()]})
 
 
-@bp_api_admin.route("/<invoice_id>/excel")
-@roles_required("admin")
+@bp_api_user.route("/<invoice_id>/excel")
+@login_required
 def get_invoice_excel(invoice_id):
     """
     Generates an Excel file for an invoice
@@ -274,6 +279,9 @@ def get_invoice_excel(invoice_id):
     invoice = Invoice.query.get(invoice_id)
     if not invoice:
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
+    if not current_user.has_role('admin') \
+        and len([o for o in invoice.orders if o.user != current_user]) > 0:
+        abort(Response(f"The invoice <{invoice_id}> does not belong to you", status=403))
     if invoice.invoice_items_count == 0:
         abort(Response(f"The invoice <{invoice_id}> has no items", status=406))
 
@@ -289,8 +297,8 @@ def get_invoice_excel(invoice_id):
     )
 
 
-@bp_api_admin.route("/excel")
-@roles_required("admin")
+@bp_api_user.route("/excel")
+@login_required
 def get_invoice_cumulative_excel():
     """
     Returns cumulative Excel of several invoices
@@ -298,13 +306,17 @@ def get_invoice_cumulative_excel():
     Resulting Excel isn't saved anywhere
     """
     cumulative_invoice = Invoice()
+    valid_invoices = []
     for invoice_id in request.args.getlist("invoices"):
         invoice = Invoice.query.get(invoice_id)
-        if not cumulative_invoice.customer:
-            cumulative_invoice.customer = invoice.customer
-        if not cumulative_invoice.payee and invoice.payee:
-            cumulative_invoice.payee = invoice.payee
-        cumulative_invoice.orders += invoice.orders
+        if invoice and (current_user.has_role('admin') \
+            or len([o for o in invoice.orders if o.user != current_user]) == 0):
+            valid_invoices.append(invoice)
+            if not cumulative_invoice.customer:
+                cumulative_invoice.customer = invoice.customer
+            if not cumulative_invoice.payee and invoice.payee:
+                cumulative_invoice.payee = invoice.payee
+            cumulative_invoice.orders += invoice.orders
 
     file = create_invoice_excel(
         reference_invoice=cumulative_invoice, template=request.args.get("template") #type: ignore

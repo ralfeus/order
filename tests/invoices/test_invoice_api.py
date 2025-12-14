@@ -64,7 +64,7 @@ class TestInvoiceClient(BaseTestCase):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         id_prefix = datetime.now().strftime("INV-%Y-%m-")
         self.try_add_entities([Product(id=gen_id, name="Product 1", price=1)])
-        order = Order(id=gen_id)
+        order = Order(id=gen_id, user=self.user)
         suborder = Suborder(order=order)
         self.try_add_entities(
             [
@@ -73,14 +73,14 @@ class TestInvoiceClient(BaseTestCase):
                 OrderProduct(suborder=suborder, product_id=gen_id, quantity=1, price=1),
             ]
         )
-        res = self.try_admin_operation(
+        res = self.try_user_operation(
             lambda: self.client.post(
-                "/api/v1/admin/invoice/new",
+                "/api/v1/invoice/new",
                 json={"order_ids": [gen_id], "currency": "USD", "rate": 0.5},
             )
         )
-        self.assertEqual(res.json["invoice_id"], f"{id_prefix}0001")
-        invoice = Invoice.query.get(res.json["invoice_id"])
+        self.assertEqual(res.json["invoice_id"], f"{id_prefix}0001") # type: ignore
+        invoice = Invoice.query.get(res.json["invoice_id"]) # type: ignore
         self.assertEqual(len(invoice.orders), 1)
         self.assertEqual(invoice.invoice_items_count, 2)
 
@@ -128,14 +128,14 @@ class TestInvoiceClient(BaseTestCase):
                     invoice_id="INV-2020-00-00",
                     country_id="c1",
                     customer_name="Customer 1",
+                    user=self.user,
                 ),
             ]
         )
-        self.try_admin_operation(lambda: self.client.get("/api/v1/admin/invoice"))
-        res = self.client.get("/api/v1/admin/invoice/INV-2020-00-00")
+        self.try_user_operation(lambda: self.client.get("/api/v1/invoice"))
+        res = self.client.get("/api/v1/invoice/INV-2020-00-00")
         self.assertEqual(len(res.json), 1)  # type: ignore
-        self.assertEqual(
-            res.get_json()[0],
+        assert res.json[0] == ( #type: ignore
             {  # type: ignore
                 "address": None,
                 "country": "country1",
@@ -165,8 +165,7 @@ class TestInvoiceClient(BaseTestCase):
                 "weight": 10,
                 "when_changed": "2020-01-01 01:00:00",
                 "when_created": "2020-01-01 01:00:00",
-            },
-        )
+            })
 
     def test_get_old_invoice(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -180,7 +179,7 @@ class TestInvoiceClient(BaseTestCase):
                     when_changed=datetime(2020, 1, 1, 1, 0, 0),
                     currency_code="USD",
                 ),
-                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
             ]
         )
         suborder = Suborder(order_id=gen_id)
@@ -192,13 +191,13 @@ class TestInvoiceClient(BaseTestCase):
                 ),
             ]
         )
-        res = self.try_admin_operation(
-            lambda: self.client.get(f"/api/v1/admin/invoice/{gen_id}")
+        res = self.try_user_operation(
+            lambda: self.client.get(f"/api/v1/invoice/{gen_id}")
         )
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json), 1)
+        self.assertEqual(len(res.json), 1) # type: ignore
         self.assertEqual(
-            res.json[0],
+            res.json[0], # type: ignore
             {
                 "address": None,
                 "country": "country1",
@@ -237,20 +236,20 @@ class TestInvoiceClient(BaseTestCase):
             [
                 Product(id=gen_id, weight=1),
                 Invoice(id=gen_id, country_id="c1", currency_code="USD"),
-                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
                 InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
             ]
         )
-        self.try_admin_operation(
-            lambda: self.client.get(f"/api/v1/admin/invoice/{gen_id}/excel")
+        self.try_user_operation(
+            lambda: self.client.get(f"/api/v1/invoice/{gen_id}/excel")
         )
         self.client.get(
-            f"/api/v1/admin/invoice/{gen_id}/excel?template=[local]/tenant_specific.xlsx"
+            f"/api/v1/invoice/{gen_id}/excel?template=[local]/tenant_specific.xlsx"
         )
         self.assertRaises(
             FileNotFoundError,
             lambda: self.client.get(
-                f"/api/v1/admin/invoice/{gen_id}/excel?template=[local]/tenant_specific1.xlsx"
+                f"/api/v1/invoice/{gen_id}/excel?template=[local]/tenant_specific1.xlsx"
             ),
         )
 
@@ -260,20 +259,20 @@ class TestInvoiceClient(BaseTestCase):
             [
                 Product(id=gen_id, weight=1),
                 Invoice(id=gen_id, country_id="c1", currency_code="USD"),
-                Order(id=gen_id, invoice_id=gen_id, country_id="c1"),
+                Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
                 InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
             ]
         )
-        res = self.try_admin_operation(
+        res = self.try_user_operation(
             lambda: self.client.get(
-                f"/api/v1/admin/invoice/excel?invoices={gen_id}&invoices={gen_id}"
+                f"/api/v1/invoice/excel?invoices={gen_id}&invoices={gen_id}"
             )
         )
         self.assertTrue(res.status_code, 200)
 
     def test_create_invoice_item(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id)
+        order = Order(id=gen_id, user=self.admin)
         self.try_add_entities([Product(id=gen_id, name="Product 1")])
         self.try_add_entities(
             [
@@ -301,7 +300,7 @@ class TestInvoiceClient(BaseTestCase):
 
     def test_save_invoice_item(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id)
+        order = Order(id=gen_id, user=self.admin)
         self.try_add_entities([Product(id=gen_id, name="Product 1")])
         self.try_add_entities(
             [
@@ -328,7 +327,7 @@ class TestInvoiceClient(BaseTestCase):
 
     def test_delete_invoice_item(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id)
+        order = Order(id=gen_id, user=self.admin)
         self.try_add_entities([Product(id=gen_id, name="Product 1")])
         self.try_add_entities(
             [
@@ -351,9 +350,90 @@ class TestInvoiceClient(BaseTestCase):
         self.assertEqual(invoice_item, None)
 
     def test_get_invoice_templates(self):
-        res = self.try_admin_operation(
-            lambda: self.client.get("/api/v1/admin/invoice/template")
+        res = self.try_user_operation(
+            lambda: self.client.get("/api/v1/invoice/template")
         )
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json), 2)
-        self.assertEqual(res.json[1], "[local]/tenant_specific.xlsx")
+        self.assertEqual(len(res.json), 2) # type: ignore
+        self.assertEqual(res.json[1], "[local]/tenant_specific.xlsx") # type: ignore
+
+    def test_create_invoice_with_non_owned_order(self):
+        """Test creation of invoice with non-owned order should fail"""
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities([Product(id=gen_id, name="Product 1", price=1)])
+        order = Order(id=gen_id, user=self.admin)
+        suborder = Suborder(order=order)
+        self.try_add_entities(
+            [
+                order,
+                suborder,
+                OrderProduct(suborder=suborder, product_id=gen_id, quantity=1, price=1),
+            ]
+        )
+        res = self.try_user_operation(
+            lambda: self.client.post(
+                "/api/v1/invoice/new",
+                json={"order_ids": [gen_id], "currency": "USD", "rate": 0.5},
+            )
+        )
+        # Should fail because order is not owned by user
+        self.assertEqual(res.status_code, 409)
+
+    def test_get_invoices_as_user(self):
+        """Test getting invoices as user"""
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities(
+            [
+                Product(id="0001", name="Product 1", name_english="P1", weight=10),
+                Invoice(
+                    id=gen_id,
+                    country_id="c1",
+                    customer="Customer 1",
+                    when_created=datetime(2020, 1, 1, 1, 0, 0),
+                    when_changed=datetime(2020, 1, 1, 1, 0, 0),
+                    currency_code="USD",
+                ),
+                InvoiceItem(
+                    invoice_id=gen_id, product_id="0001", price=10, quantity=1
+                ),
+                Order(
+                    id=gen_id,
+                    invoice_id=gen_id,
+                    country_id="c1",
+                    customer_name="Customer 1",
+                    user=self.user,
+                ),
+            ]
+        )
+        res = self.try_user_operation(lambda: self.client.get("/api/v1/invoice"))
+        self.assertEqual(len(res.json), 1)  # type: ignore
+        assert res.json[0]["id"] == gen_id #type: ignore
+
+    def test_get_invoices_as_user_non_owned(self):
+        """Test getting invoices as user for non-owned invoice"""
+        gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
+        self.try_add_entities(
+            [
+                Product(id="0001", name="Product 1", name_english="P1", weight=10),
+                Invoice(
+                    id=gen_id,
+                    country_id="c1",
+                    customer="Customer 1",
+                    when_created=datetime(2020, 1, 1, 1, 0, 0),
+                    when_changed=datetime(2020, 1, 1, 1, 0, 0),
+                    currency_code="USD",
+                ),
+                InvoiceItem(
+                    invoice_id=gen_id, product_id="0001", price=10, quantity=1
+                ),
+                Order(
+                    id=gen_id,
+                    invoice_id=gen_id,
+                    country_id="c1",
+                    customer_name="Customer 1",
+                    user=self.admin,
+                ),
+            ]
+        )
+        res = self.try_user_operation(lambda: self.client.get("/api/v1/invoice"))
+        assert len(res.json) == 0 #type: ignore

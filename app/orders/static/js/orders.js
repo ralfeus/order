@@ -1,4 +1,5 @@
 var g_orders_table;
+var g_currencies;
 
 $.fn.dataTable.ext.buttons.copy = {
     action: function(e, dt, node, config) {
@@ -28,6 +29,7 @@ function format ( row, data ) {
 
 async function get_dictionaries() {
     g_order_statuses = await get_list('/api/v1/order/status');
+    g_currencies = (await get_list('/api/v1/currency')).data;
     g_filter_sources = {
         'status': g_order_statuses
     };
@@ -62,6 +64,17 @@ function init_orders_table() {
             dataSrc: 'data'
         },
         buttons: [
+            {
+                extend: 'collection',
+                text: 'Create invoice',
+                buttons: g_currencies.map(currency => ({
+                    extend: 'selected',
+                    text: currency.name,
+                    action: function (e, dt, node, config) {
+                        create_invoice(dt.rows({ selected: true }), currency.code);
+                    }
+                }))
+            },
             { extend: 'copy', text: 'Copy' }
         ],
         columns: [
@@ -134,8 +147,36 @@ function open_order(target) {
     window.location = g_orders_table.row($(target).parents('tr')).data().id;
 }
 
+function create_invoice(rows, currency) {
+    $('.wait').show();
+    const orders = rows.data().map(row => row.id).toArray();
+    $.ajax({
+        url: `/api/v1/invoice/new`,
+        method: 'post',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            order_ids: orders,
+            currency: currency,
+            rate: g_currencies[currency] || 1
+        }),
+        complete: function () {
+            $('.wait').hide();
+        },
+        success: function (data) {
+            modal(
+                'Invoice',
+                'Invoice <a href="/invoices/' + data.invoice_id + '">'
+                + data.invoice_id + '</a> is created for orders ' + orders.join());
+        },
+        error: function (ex) {
+            console.log(ex);
+        }
+    });
+}
+
 function open_order_invoice(target) {
-    window.location = '/orders/' + 
+    window.location = '/orders/' +
         g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
 }

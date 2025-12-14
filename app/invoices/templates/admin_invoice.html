@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_invoice.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>Invoice {{ id }}</h1>
+<div class="container row col-12">
+    <div class="col-8">
+        <table id="invoice-items" class="table" style="width: 100%;">
+            <thead>
+                <th scope="col">Product Code</th>
+                <th scope="col">Name</th>
+                <th scope="col">Price</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Subtotal</th>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <div class="container col-4">
+        <div id='customer-input-group' class="input-group input-group-sm mb-2">
+            <div class="input-group-prepend">
+                <label id="label" class="input-group-text" for="customer">Customer</label>
+            </div>
+            <input id="customer" class="form-control" aria-label="Small" 
+                aria-describedby="label" value="{{ context.customer }}" disabled/>
+        </div>
+        <div id='total-weight-input-group' class="input-group input-group-sm mb-2">
+            <div class="input-group-prepend">
+                <label id="label" class="input-group-text" for="total-weight">Total weight</label>
+            </div>
+            <input id="total-weight" class="form-control" aria-label="Small" aria-describedby="label" disabled/>
+            <div class="input-group-append">
+                <label class="input-group-text" for="total-weight">grams</label>
+            </div>
+        </div>
+        <div id='total-input-group' class="input-group input-group-sm mb-2">
+            <div class="input-group-prepend">
+                <label id="label" class="input-group-text" for="total">Total: (<span id="currency-code"></span>)</label>
+            </div>
+            <input id="total" class="form-control" aria-label="Small" aria-describedby="label" disabled/>
+        </div>
+        <div id='total-input-group' class="input-group input-group-sm mb-2">
+            <div class="input-group-prepend">
+                <label id="label" class="input-group-text" for="export-id">Export ID</label>
+            </div>
+            <input id="export-id" class="form-control" aria-label="Small" aria-describedby="label" disabled/>
+        </div>
+        <div>
+            <!-- <button class="btn btn-primary btn-block btn-save">Save</button> -->
+            <button class="btn btn-primary btn-block btn-save" onclick="get_excel()">Download</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

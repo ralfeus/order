@@ -1,6 +1,7 @@
 '''Validator for invoice creation input'''
 from app.orders.models.order import Order
 import re
+from flask_login import current_user
 from flask_inputs import Inputs
 from wtforms import ValidationError
 from wtforms.validators import DataRequired
@@ -8,7 +9,9 @@ from wtforms.validators import DataRequired
 from app.currencies.models.currency import Currency
 
 def _are_valid_orders(_form, field):
-    orders = Order.query.filter(Order.id.in_(field.raw_data)).all()
+    orders = Order.query.filter(Order.id.in_(field.raw_data)).all() \
+        if current_user.has_role('admin') else \
+            Order.query.filter(Order.id.in_(field.raw_data), Order.user == current_user).all()
     if not orders:
         raise ValidationError(f"{field.name}:No orders with provided IDs were found ")
 

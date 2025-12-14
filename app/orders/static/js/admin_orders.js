@@ -250,7 +250,7 @@ function create_invoice(rows, currency) {
     $('.wait').show();
     const orders = rows.data().map(row => row.id).toArray();
     $.ajax({
-        url: `/api/v1/admin/invoice/new`,
+        url: `/api/v1/invoice/new`,
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
@@ -265,7 +265,7 @@ function create_invoice(rows, currency) {
         success: function (data) {
             modal(
                 'Invoice',
-                'Invoice <a href="/admin/invoices/' + data.invoice_id + '">'
+                'Invoice <a href="/invoices/' + data.invoice_id + '">'
                 + data.invoice_id + '</a> is created for orders ' + orders.join());
         },
         error: function (ex) {

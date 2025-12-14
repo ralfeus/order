@@ -11,24 +11,6 @@ $(document).ready(function () {
 });
 
 function init_invoices_table() {
-    var editor = new $.fn.dataTable.Editor({
-        table: '#invoices',
-        idSrc: 'id',
-        fields: [
-            { label: "Customer name", name: 'customer' },
-            { label: "Export ID", name: "export_id" }
-        ],
-        ajax: {
-            edit: {
-                url: '/api/v1/admin/invoice/_id_',
-                method: 'post',
-                dataType: 'json',
-                contentType: 'application/json',
-                data: data => JSON.stringify(data.data[editor.ids()[0]])
-            }
-        }
-    });
-
     g_invoice_table = $('#invoices').DataTable({
         dom: 'lrBtip',
         ajax: {
@@ -41,8 +23,7 @@ function init_invoices_table() {
                 action: function (e, dt, _node, _config) {
                     get_excel(dt.rows({ selected: true }));
                 }
-            },
-            { extend: 'edit', text: 'Edit', editor: editor }
+            }
         ],
         columns: [
             {
