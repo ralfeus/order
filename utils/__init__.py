@@ -57,6 +57,7 @@ def invoke_curl(url: str, raw_data: str='', headers=[],
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
+    _logger.debug(' '.join(run_params))
     
     try:
         output = subprocess.run(run_params,
@@ -95,5 +96,5 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
         # logging.exception("Couldn't get JSON out of response")
         # logging.error("STDOUT: %s", stdout)
         # logging.error("STDERR: %s", stderr)
-        raise Exception("Uknown error", stdout, stderr)
+        raise Exception("Uknown error. Couldn't get JSON out of response", stdout, stderr)
 
