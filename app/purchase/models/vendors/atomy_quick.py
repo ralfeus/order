@@ -304,6 +304,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
+        page.locator('div.login_form').wait_for(state='detached', timeout=10000)
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
 
