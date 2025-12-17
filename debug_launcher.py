@@ -127,10 +127,11 @@ def multiple_request():
 
 def import_products():
     from app.jobs import import_products
+    current_app.config['IMPORT_URL'] = 'https://tr.atomy.com'
     import_products()
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    post_po()
-    # import_products()
+    # post_po()
+    import_products()
     # build_network()

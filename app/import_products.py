@@ -1,7 +1,7 @@
 import logging
 import math
 from typing import Any
-from lxml import etree
+from lxml import etree #type: ignore
 from lxml.cssselect import CSSSelector
 import re
 import subprocess
@@ -10,7 +10,7 @@ from tqdm import tqdm
 from app.tools import get_html, get_json
 from exceptions import HTTPError
 
-from utils.atomy import URL_BASE, URL_SUFFIX, atomy_login2
+from utils.atomy import URL_SUFFIX, atomy_login2
 
 sel_item = CSSSelector(".gdsList-wrap>li")
 sel_rows_per_page = CSSSelector("[name=rowsPerPage]")
@@ -60,18 +60,18 @@ def get_atomy_images(item_code):
     return image_url
 
 
-def get_atomy_products() -> list[dict[str, Any]]:
+def get_atomy_products(url_base: str) -> list[dict[str, Any]]:
     global URL_SUFFIX
     URL_SUFFIX = URL_SUFFIX.replace('ko-KR', 'en-KR')
     logger = logging.getLogger("get_atomy_products")
     jwt = atomy_login2("S5832131", "mkk03020529!!")
     logger.info("Getting core products list")
-    core_products = _get_products_list(jwt)
+    core_products = _get_products_list(url_base, jwt)
     logger.info("Got %s core products", len(core_products))
     result = []
     for core_product in tqdm(core_products):
         try:
-            options = _get_product_options(core_product['id'], jwt)
+            options = _get_product_options(core_product['id'], url_base, jwt)
             result += [core_product] if len(options) == 1 \
             else [{
                 "id": i['materialCode'],
@@ -89,19 +89,19 @@ def get_atomy_products() -> list[dict[str, Any]]:
 
     return result
 
-def _get_products_list(jwt):
+def _get_products_list(url_base: str, jwt: str) -> list[dict[str, Any]]:
     url_template = "{}/search/searchGoodsList?sortType=POPULAR&pageIdx={}"
     products = []
     try:
         doc = get_html(
-            url_template.format(URL_BASE, 1), headers=[{"Cookie": jwt}]
+            url_template.format(url_base, 1), headers=[{"Cookie": jwt}]
         )
         total = int(sel_total(doc)[0].attrib['value'])
         rows_per_page = int(sel_rows_per_page(doc)[0].attrib['value'])
         pages = math.ceil(total / rows_per_page)
         for page in tqdm(range (1, pages + 1)):
             products_page = get_html(
-                url_template.format(URL_BASE, page),
+                url_template.format(url_base, page),
                 headers=[{"Cookie": jwt}],
             )
             products += _get_products(products_page)
@@ -124,9 +124,9 @@ def _get_products(products_page: etree.Element): #type: ignore
     ]
 
 
-def _get_product_options(product_id, jwt):
+def _get_product_options(product_id, url_base: str, jwt):
     options = get_json(
-        f"{URL_BASE}/goods/itemStatus",
+        f"{url_base}/goods/itemStatus",
         headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-urlencoded'}],
         raw_data=f'goodsNo={product_id}&goodsTypeCd=101'
     )
@@ -158,4 +158,5 @@ def atomy_login(username="atomy1026", password="5714"):
 
 
 if __name__ == "__main__":
-    get_atomy_products()
+    from utils.atomy import URL_BASE
+    get_atomy_products(URL_BASE)
