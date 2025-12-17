@@ -69,20 +69,27 @@ def get_atomy_products(url_base: str) -> list[dict[str, Any]]:
     core_products = _get_products_list(url_base, jwt)
     logger.info("Got %s core products", len(core_products))
     result = []
+    id_set = set()
     for core_product in tqdm(core_products):
         try:
             options = _get_product_options(core_product['id'], url_base, jwt)
-            result += [core_product] if len(options) == 1 \
-            else [{
-                "id": i['materialCode'],
-                "atomy_id": i['materialCode'],
-                "name": i['itemNm'],
-                "name_english": i['itemNm'],
-                "price": i['custSalePrice'],
-                "points": i['pvPrice'],
-                "available": i['goodsStatNm'] == "goods.word.sale.normal",
-                "image_url": core_product['image_url'],
-            } for i in options]
+            if len(options) == 1:
+                to_add = [core_product]
+            else:
+                to_add = [{
+                    "id": i['materialCode'],
+                    "atomy_id": i['materialCode'],
+                    "name": i['itemNm'],
+                    "name_english": i['itemNm'],
+                    "price": i['custSalePrice'],
+                    "points": i['pvPrice'],
+                    "available": i['goodsStatNm'] == "goods.word.sale.normal",
+                    "image_url": core_product['image_url'],
+                } for i in options]
+            for to_add_item in to_add:
+                if to_add_item['id'] not in id_set:
+                    result.append(to_add_item)
+                    id_set.add(to_add_item['id'])
         except Exception as e:
             logger.warning(f"Couldn't add product {core_product}")
             logger.warning(str(e))

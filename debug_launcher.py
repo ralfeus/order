@@ -127,7 +127,7 @@ def multiple_request():
 
 def import_products():
     from app.jobs import import_products
-    current_app.config['IMPORT_URL'] = 'https://tr.atomy.com'
+    current_app.config['PRODUCT_IMPORT_URL'] = 'https://tr.atomy.com'
     import_products()
 
 with create_app().app_context():
