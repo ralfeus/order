@@ -35,8 +35,8 @@ var base_country = {{ base_country | tojson }};
                 <th scope="col" style="width: 2em;">Orders</th>
                 <th scope="col" style="width: 2em;">Method</th>
                 <th scope="col" style="width: 2em;">Amount</th>
-                <th scope="col" style="width: 2em;">Amount ({{ base_currency.code }})</th>
-                <th scope="col" style="width: 2em;">Amount received ({{ base_currency.code }})</th>
+                <th scope="col" style="width: 2em;">Amount ({{ base_country.currency_code }})</th>
+                <th scope="col" style="width: 2em;">Amount received ({{ base_country.currency_code }})</th>
                 <th scope="col" style="width: 2em;">Status</th>
                 <th scope="col" style="width: 8em;">When created</th>
                 <th scope="col" style="width: 8em;">When changed</th>
@@ -72,7 +72,7 @@ var base_country = {{ base_country | tojson }};
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <span class="input-group-text">Amount ({{ base_currency.code }})</span>
+                <span class="input-group-text">Amount ({{ base_country.currency_code }})</span>
             </div>
             <input id="amount_sent_krw" class="form-control" />
             <div class="input-group-append">
@@ -81,7 +81,7 @@ var base_country = {{ base_country | tojson }};
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <span class="input-group-text">Amount received ({{ base_currency.code }})</span>
+                <span class="input-group-text">Amount received ({{ base_country.currency_code }})</span>
             </div>
             <input id="amount_received_krw" class="form-control" />
             <div class="input-group-append">
