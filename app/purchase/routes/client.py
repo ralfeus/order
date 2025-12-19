@@ -2,6 +2,7 @@ import itertools
 from flask import render_template, send_file
 from flask_security import login_required, roles_required
 
+from app.models.country import Country
 from app.purchase import bp_client_admin, bp_client_user
 
 @bp_client_admin.route('/static/<path:file>')
@@ -30,7 +31,7 @@ def get_admin_purchase_orders_js():
     return render_template('purchase_orders.js', extension={
         'fields': extension_fields,
         'columns': extension_columns
-    })
+    }, base_country=Country.get_base_country().to_dict())
 
 
 @bp_client_admin.route('/companies')

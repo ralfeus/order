@@ -179,8 +179,8 @@ def admin_save_shipping_method(shipping_method_id):
     modify_object(
         shipping_method, payload, ["name", "enabled", "notification", "discriminator"]
     )
-    db.session.commit() #type: ignore
     id = shipping_method.id
+    db.session.commit() #type: ignore
     db.session.expunge(shipping_method) #type: ignore
     shipping_method = Shipping.query.get(id)
     return jsonify({"data": [shipping_method.to_dict()]})

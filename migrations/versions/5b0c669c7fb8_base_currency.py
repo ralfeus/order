@@ -22,9 +22,9 @@ def upgrade():
     op.execute("UPDATE currencies SET base = 1 WHERE code = 'KRW'")
     op.add_column('countries', sa.Column('currency_code', sa.String(length=3), nullable=True))
     op.add_column('countries', sa.Column('locale', sa.String(length=5), nullable=True))
-    op.execute("UPDATE countries SET currency_code = 'KRW', locale = 'ko-KR' WHERE code = 'KR'")
-    op.execute("UPDATE countries SET currency_code = 'USD', locale = 'en-US' WHERE code = 'US'")
-    op.execute("UPDATE countries SET currency_code = 'EUR', locale = 'de-DE' WHERE code = 'DE'")
+    op.execute("UPDATE countries SET currency_code = 'KRW', locale = 'ko-KR' WHERE id = 'KR'")
+    op.execute("UPDATE countries SET currency_code = 'USD', locale = 'en-US' WHERE id = 'US'")
+    op.execute("UPDATE countries SET currency_code = 'EUR', locale = 'de-DE' WHERE id = 'DE'")
     # ### end Alembic commands ###
 
 

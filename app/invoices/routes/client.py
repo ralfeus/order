@@ -3,6 +3,7 @@ from flask_login import current_user
 from flask_security import login_required, roles_required
 
 from app.currencies.models import Currency
+from app.models.country import Country
 from app.invoices import bp_client_admin, bp_client_user
 from app.invoices.models import Invoice
 
@@ -20,7 +21,7 @@ def admin_get_invoice(invoice_id):
         abort(Response(f"No invoice {invoice_id} was found", status=404))
 
     usd_rate = Currency.query.get('USD').rate
-    return render_template('admin_invoice.html', context=invoice, usd_rate=usd_rate)
+    return render_template('admin_invoice.html', context=invoice, usd_rate=usd_rate, base_country=Country.get_base_country().to_dict())
 
 
 @bp_client_user.route('/<invoice_id>')
@@ -32,7 +33,7 @@ def get_invoice(invoice_id):
     if invoice.user != current_user:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
     usd_rate = Currency.query.get('USD').rate
-    return render_template('invoice.html', context=invoice, usd_rate=usd_rate)
+    return render_template('invoice.html', context=invoice, usd_rate=usd_rate, base_country=Country.get_base_country().to_dict())
 
 @bp_client_admin.route('/')
 @login_required
@@ -43,7 +44,7 @@ def admin_get_invoices():
     '''
     usd_rate = Currency.query.get('USD').rate
     
-    return render_template('admin_invoices.html', usd_rate=usd_rate)
+    return render_template('admin_invoices.html', usd_rate=usd_rate, base_country=Country.get_base_country().to_dict())
 
 @bp_client_user.route('/')
 @login_required
@@ -53,4 +54,4 @@ def get_invoices():
     '''
     usd_rate = Currency.query.get('USD').rate
     
-    return render_template('invoices.html', usd_rate=usd_rate)
+    return render_template('invoices.html', usd_rate=usd_rate, base_country=Country.get_base_country().to_dict())

@@ -65,6 +65,7 @@ def create_app(config=None):
     security.init_app(app, SQLAlchemyUserDatastore(db, User, Role), login_form=LoginForm)
 
     register_components(app)
+
     # init_navbar(flask_app)
     # if app.config.get('DEBUG'):
     #     init_debug(app)

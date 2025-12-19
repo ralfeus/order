@@ -26,9 +26,10 @@ class TestOrdersClient(BaseTestCase):
             enabled=True, roles=[admin_role])
         self.try_add_entities([
             self.user, self.admin, admin_role,
+            Currency(code='KRW', rate=1, base=True),
             Currency(code='USD', rate=0.5),
             Currency(code='EUR', rate=0.5),
-            Country(id='c1', name='country1'),
+            Country(id='c1', name='country1', locale='ko-KR', currency_code='KRW'),
             Product(id='0000', name='Test product', price=10, weight=10),
         ])
     

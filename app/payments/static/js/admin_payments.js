@@ -165,7 +165,7 @@ function init_payments_table() {
                 options: g_currencies.map(c => c.code)
             },
             {label: 'Amount', name: 'amount_sent_original', def: 0},
-            {label: 'Amount (KRW)', name: 'amount_sent_krw', def: 0},
+            {label: `Amount (${g_base_currency.code})`, name: 'amount_sent_krw', def: 0},
             {label: 'Amount received', name: 'amount_received_krw', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
@@ -246,8 +246,8 @@ function init_payments_table() {
                 orderable: false
             },
             {data: 'amount_sent_original_string'},
-            {name: 'amount_sent_krw', data: 'amount_sent_krw'},
-            {data: 'amount_received_krw'},
+            {name: 'amount_sent_krw', data: 'amount_sent_krw', render: data => fmtCurr(base_country).format(data)},
+            {data: 'amount_received_krw', render: data => fmtCurr(base_country).format(data)},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}

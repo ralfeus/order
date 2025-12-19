@@ -4,6 +4,7 @@ from flask_security import current_user, login_required, roles_required
 from flask.globals import current_app
 import json
 
+from app.models.country import Country
 from app.payments import bp_client_admin, bp_client_user
 # from app.payments.models import Payment
 
@@ -34,7 +35,7 @@ def admin_payments():
     '''
     Payments management
     '''
-    return render_template('admin_payments.html')
+    return render_template('admin_payments.html', base_country=Country.get_base_country().to_dict())
 
 @bp_client_admin.route('/transactions')
 @login_required
@@ -48,4 +49,4 @@ def admin_transactions():
 @bp_client_user.route('/')
 @login_required
 def user_wallet():
-    return render_template('wallet.html', balance=current_user.balance)
+    return render_template('wallet.html', balance=current_user.balance, base_country=Country.get_base_country().to_dict())

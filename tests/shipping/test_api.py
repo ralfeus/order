@@ -47,7 +47,7 @@ class TestShippingAPI(BaseTestCase):
             enabled=True, roles=[admin_role])
         self.try_add_entities([
             self.user, self.admin, admin_role,
-            Country(id='c1', name='country1'),
+            Country(id='c1', name='country1', locale='ko-KR', currency_code='KRW'),
             p.Product(id='0000', name='Test product', price=10, weight=10),
             FakeShipping(id=1, name='Shipping1'),
         ])

@@ -10,6 +10,7 @@ var g_orders;
 var g_purchase_orders_table;
 var g_po_statuses;
 var g_vendors;
+var base_country = {{ base_country | tojson }};
 
 $.fn.dataTable.ext.buttons.repost = {
     extend: 'selected',
@@ -301,9 +302,9 @@ function init_table() {
                 }
             },
             {
-                data: 'total_krw', 
+                data: 'total_krw',
                 orderable: false,
-                render: (data, type, row, meta) => fmtKRW.format(data)
+                render: (data, type, row, meta) => fmtCurr(base_country).format(data)
             },
             {data: 'purchase_date', className: 'editable', orderable: false},
             {name: 'purchase_restricted', data: 'purchase_restricted_products'},

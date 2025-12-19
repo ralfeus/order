@@ -174,7 +174,7 @@ function init_payments_table() {
                 }
             },
             {data: 'amount_sent_original_string'},
-            {data: 'amount_krw'},
+            {data: 'amount_krw', render: data => fmtCurr(base_country).format(data)},
             {data: 'status'},
             {data: 'when_created'},
             {data: 'when_changed'}
@@ -241,8 +241,8 @@ function init_transactions_table() {
         },
         columns: [
             {data: 'id'},
-            {data: 'amount'},
-            {data: 'customer_balance'},
+            {data: 'amount', render: data => fmtCurr(base_country).format(data)},
+            {data: 'customer_balance', render: data => fmtCurr(base_country).format(data)},
             {data: 'created_by'},
             {data: 'when_created'}
         ],

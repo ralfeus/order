@@ -2,6 +2,9 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+var base_country = {{ base_country | tojson }};
+</script>
 <script src="static/js/admin_orders.js"></script>
 {% endblock %}
 
@@ -52,9 +55,9 @@ font-size: 0.7rem; text-align:right; font-weight: bolder;">
                 <th scope="col" style="width: 2em;">Order&nbsp;ID</th>
                 <th scope="col" style="width: 2em;">Creator</th>
                 <th scope="col" style="width: max-content;">Customer</th>
-                <th scope="col" style="width: 2em;">Subtotal (KRW)</th>
-                <th scope="col" style="width: 2em;">Shipping (KRW)</th>
-                <th scope="col" style="width: 2em;">Total (KRW)</th>
+                <th scope="col" style="width: 2em;">Subtotal ({{ base_country.currency_code }})</th>
+                <th scope="col" style="width: 2em;">Shipping ({{ base_country.currency_code }})</th>
+                <th scope="col" style="width: 2em;">Total ({{ base_country.currency_code }})</th>
                 <th scope="col" style="width: 2em;">Status</th>
                 <th scope="col" style="width: 2em;">Payment method</th>
                 <th scope="col" style="width: 2em;">Shipping method</th>

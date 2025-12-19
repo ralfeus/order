@@ -249,7 +249,7 @@ async function update_product(product_row, product, batch_load) {
     $('.item-name', product_row).html(
         "<a href='#' onclick=show_product('" + product.id + "')><font color=\"" + color + "\">"+(product.name_english == null ? product.name : product.name_english + " | " + product.name_russian)+"</a>" +
         "</font>");
-    $('.item-price', product_row).html(fmtKRW.format(product.price));
+    $('.item-price', product_row).html(fmtCurr(base_country).format(product.price));
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
     await update_item_subtotal(product_row, batch_load);
@@ -259,7 +259,7 @@ function show_product(product_id) {
     var product = g_products.filter(p => p.value == product_id)[0];
     modal(product.label,
     '<img src=' + product.image + ' width="250"; height=250; align="left";>' +    
-    'price: ' + fmtKRW.format(product.price) + '\n'+
+    'price: ' + fmtCurr(base_country).format(product.price) + '\n'+
     'points: '+product.points+'\n'+
     'available: '+(product.available ? 'available' : 'unavailable')
     );
@@ -642,9 +642,9 @@ async function update_all_totals() {
  * Updates grand totals of the cart
  */
 function update_grand_totals() {
-    $('#totalGrandTotalKRW').html(fmtKRW.format(round_up(
-        parseFloat($('#totalItemsCostKRW').html()) 
-        + parseFloat($('#totalShippingCostKRW').html()) 
+    $('#totalGrandTotalKRW').html(fmtCurr(base_country).format(round_up(
+        parseFloat($('#totalItemsCostKRW').html())
+        + parseFloat($('#totalShippingCostKRW').html())
         + SERVICE_FEE, 2)));
     $('#totalGrandTotalEUR').html(round_up(
         parseFloat($('#totalItemsCostEUR').html()) 
@@ -662,7 +662,7 @@ async function update_item_subtotal(item, batch_load=false) {
         g_cart[item.id].quantity = /^\d+$/.test($('input.item-quantity', item).val())
             ? parseInt($('input.item-quantity', item).val()) : 0;
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
-        $('td.cost-krw', item).html(fmtKRW.format(g_cart[item.id].costKRW));
+        $('td.cost-krw', item).html(fmtCurr(base_country).format(g_cart[item.id].costKRW));
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
         $('td.total-points', item).html(g_cart[item.id].points * g_cart[item.id].quantity);
     } else {
@@ -679,7 +679,7 @@ function update_item_total() {
         var item_id = $(this).parent().attr('id');
         if (g_cart[item_id]) {
             g_cart[item_id].totalKRW = g_cart[item_id].costKRW + g_cart[item_id].shippingCostKRW;
-            $(this).html(fmtKRW.format(g_cart[item_id].totalKRW));
+            $(this).html(fmtCurr(base_country).format(g_cart[item_id].totalKRW));
         } else {
             $(this).html('');
         }
@@ -728,7 +728,7 @@ function distribute_shipping_cost(cost) {
     }
     $('.shipping-cost-krw').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(fmtKRW.format(g_cart[$(this).parent().attr('id')].shippingCostKRW));
+            $(this).html(fmtCurr(base_country).format(g_cart[$(this).parent().attr('id')].shippingCostKRW));
         } else {
             $(this).html('');
         }
@@ -750,7 +750,7 @@ async function update_subcustomer_local_shipping(node, batch_load=false) {
     var local_shipping = 0;
     if (total_local_package_amount < FREE_LOCAL_SHIPPING_THRESHOLD) {
         $('.local-shipping', $(subcustomer_total)).html(
-            "(Local: " + fmtKRW.format(LOCAL_SHIPPING_COST) + ')');
+            "(Local: " + fmtCurr(base_country).format(LOCAL_SHIPPING_COST) + ')');
         local_shipping = LOCAL_SHIPPING_COST;
     } else {
         $('.local-shipping', $(subcustomer_total)).html("");
@@ -786,14 +786,14 @@ function update_subcustomer_totals() {
         var local_shipping = local_shipping_text
             ? parseInt(local_shipping_text[0])
             : 0;
-        $('#subtotalCostKRW', $(this)).html(fmtKRW.format(
+        $('#subtotalCostKRW', $(this)).html(fmtCurr(base_country).format(
             userProducts.reduce((acc, product) => acc + product.costKRW, 0)));
         $('#subtotalWeight', $(this)).html(
-            userProducts.reduce((acc, product) => 
+            userProducts.reduce((acc, product) =>
                 acc + product.weight * product.quantity, 0));
-        $('#subtotalShippingCostKRW', $(this)).html(fmtKRW.format(
+        $('#subtotalShippingCostKRW', $(this)).html(fmtCurr(base_country).format(
             userProducts.reduce((acc, product) => acc + product.shippingCostKRW, local_shipping)));
-        $('#subtotalTotalKRW', $(this)).html(fmtKRW.format(
+        $('#subtotalTotalKRW', $(this)).html(fmtCurr(base_country).format(
             userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping)));
         $('#subtotalTotalEUR', $(this)).html(
             round_up(userProducts.reduce((acc, product) => 

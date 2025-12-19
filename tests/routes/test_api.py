@@ -15,10 +15,10 @@ class TestClientApi(BaseTestCase):
             enabled=True)
         try:
             entities = [ self.user,
-                Country(id='c1', name='country1', capital='c1', first_zip='0'),
+                Country(id='c1', name='country1', capital='c1', first_zip='0', locale='en-US', currency_code='USD'),
                 Currency(code='USD', name='US Dollar', rate=1),
                 Currency(code='EUR', name='Euro', rate=1),
-                Country(id='c2', name='country2', capital='c2', first_zip='1'),
+                Country(id='c2', name='country2', capital='c2', first_zip='1', locale='en-US', currency_code='EUR'),
                 Shipping(id=1, name='Shipping1'),
                 Shipping(id=2, name='Shipping2'),
                 Shipping(id=3, name='Shipping3'),
@@ -43,8 +43,8 @@ class TestClientApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/country'))
         self.assertEqual(res.json, [
-            {'id': 'c1', 'name': 'country1', 'sort_order': 999, 'capital': 'c1', 'first_zip': '0'},
-            {'id': 'c2', 'name': 'country2', 'sort_order': 999, 'capital': 'c2', 'first_zip': '1'}
+            {'id': 'c1', 'name': 'country1', 'sort_order': 999, 'capital': 'c1', 'first_zip': '0', 'locale': 'en-US', 'currency_code': 'USD'},
+            {'id': 'c2', 'name': 'country2', 'sort_order': 999, 'capital': 'c2', 'first_zip': '1', 'locale': 'en-US', 'currency_code': 'EUR'}
         ])
 
     def test_get_shipping(self):

@@ -1,5 +1,6 @@
 var NO_SHIPPING_ID = 4;
-const fmtKRW = new Intl.NumberFormat('KR-kr', { style: 'currency', currency: 'KRW' });
+const fmtCurr = (country) => new Intl.NumberFormat(
+    country.locale, { style: 'currency', currency: country.currency_code });
 
 function round_up(number, signs) {
     return Math.ceil(number * Math.pow(10, signs)) / Math.pow(10, signs);

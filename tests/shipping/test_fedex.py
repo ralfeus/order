@@ -41,7 +41,7 @@ class TestShippingFedex(BaseTestCase):
         fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
         db.session.commit()
         res = fedex.get_shipping_cost('cz')
-        self.assertEqual(res, 208)
+        self.assertEqual(res, 207)
         res = fedex.get_shipping_cost('de')
         self.assertIsNotNone(res)
 

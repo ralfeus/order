@@ -5,9 +5,11 @@ from flask import Response, abort, current_app, request, render_template, send_f
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
 import markupsafe
+from markupsafe import escape
 
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
+from app.models.country import Country
 from app.settings.models import Setting
 from app.tools import stream_and_close
 from exceptions import OrderError
@@ -74,7 +76,8 @@ def user_new_order():
         order_id=request.args.get('from_order'),
         make_copy=request.args.get('from_order') is not None,
         hide_krw=current_app.config.get('HIDE_KRW', False),
-        service_fee=current_app.config.get('SERVICE_FEE', 0))
+        service_fee=current_app.config.get('SERVICE_FEE', 0),
+        base_country=Country.get_base_country().to_dict())
 
 @bp_client_user.route('/<order_id>')
 @login_required
@@ -91,11 +94,12 @@ def user_get_order(order_id):
     order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     if order.status == OrderStatus.draft:
         return render_template('new_order.html',
-            order_id=order.id,        
+            order_id=order.id,
             check_subcustomers=Setting.get('order.new.check_subcustomers'),
             free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
             local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
             service_fee=current_app.config.get('SERVICE_FEE', 0),
+            base_country=Country.get_base_country().to_dict(),
         )
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
@@ -106,7 +110,7 @@ def user_get_order(order_id):
             from app import db
             db.session.commit() #type: ignore
     if currency is None:
-        currency = Currency.query.get('KRW')
+        currency = Currency.get_base_currency()
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
                   for c in Currency.query if c.enabled]
     rate = currency.get_rate(order.when_created)
@@ -119,16 +123,16 @@ def user_get_order(order_id):
 @login_required
 def get_orders():
     ''' Orders list for users '''
-    currencies = Currency.query.filter(Currency.enabled).filter(Currency.code!='KRW').all()
+    currencies = Currency.query.filter(Currency.enabled).filter(~Currency.base).all()
     for currency in currencies:
         currency.display_rate = round(1 / currency.rate, 2)
-    return render_template('orders.html', currencies=currencies)
+    return render_template('orders.html', currencies=currencies, base_country=Country.get_base_country().to_dict())
 
 @bp_client_user.route('/drafts')
 @login_required
 def get_order_drafts():
     ''' Order drafts list for users '''
-    return render_template('order_drafts.html')
+    return render_template('order_drafts.html', base_country=Country.get_base_country().to_dict())
 
 @bp_client_admin.route('/')
 @login_required
@@ -137,11 +141,10 @@ def admin_get_orders():
     '''
     Order management
     '''
-    # usd_rate = Currency.query.get('USD').rate
-    currencies = Currency.query.filter(Currency.enabled).filter(Currency.code!='KRW').all()
+    currencies = Currency.query.filter(Currency.enabled).filter(~Currency.base).all()
     for currency in currencies:
         currency.display_rate = round(1 / currency.rate, 2)
-    return render_template('admin_orders.html', currencies=currencies,)
+    return render_template('admin_orders.html', currencies=currencies, base_country=Country.get_base_country().to_dict())
 
 @bp_client_admin.route('/<order_id>')
 @login_required
@@ -153,7 +156,7 @@ def admin_get_order(order_id):
     if request.values.get('view') == 'print':
         language = request.values.get('language') or 'en'
         return render_template('order_print_view.html', order=order,
-            currency=Currency.query.get('KRW'), rate=1, currencies=[], mode='print',
+            currency=Currency.get_base_currency(), rate=1, currencies=[], mode='print',
             language=language,
             languages=current_app.config.get('LANGUAGES', ['en', 'ru']),
             t=translations[language])
@@ -166,7 +169,8 @@ def admin_get_order(order_id):
         order_id=order_id,
         free_local_shipping_threshold=current_app.config['FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD'],
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
-        service_fee=current_app.config.get('SERVICE_FEE', 0))
+        service_fee=current_app.config.get('SERVICE_FEE', 0),
+        base_country=Country.get_base_country().to_dict())
 
 
 @bp_client_user.route('/<order_id>/excel')

@@ -101,7 +101,7 @@ function add_product(product_row, product) {
             ? product.name
             : product.name_english + " | " + product.name_russian) +
         "</font>");
-    $('.item-price', product_row).html(fmtKRW.format(product.price));
+    $('.item-price', product_row).html(fmtCurr(base_country).format(product.price));
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
     update_item_subtotal(product_row)
@@ -112,7 +112,7 @@ function update_item_subtotal(item) {
         g_cart[item.id].user = '';
         g_cart[item.id].quantity = parseInt($('input.item-quantity', item).val());
         g_cart[item.id].costKRW = g_cart[item.id].price * g_cart[item.id].quantity;
-        $('td.cost-krw', item).html(fmtKRW.format(g_cart[item.id].costKRW));
+        $('td.cost-krw', item).html(fmtCurr(base_country).format(g_cart[item.id].costKRW));
         $('td.total-item-weight', item).html(g_cart[item.id].weight * g_cart[item.id].quantity);
         $('td.total-points', item).html(g_cart[item.id].points * g_cart[item.id].quantity);
     } else {

@@ -2,6 +2,9 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+var base_country = {{ base_country | tojson }};
+</script>
 <script src="static/js/orders.js"></script>
 {% endblock %}
 
@@ -42,7 +45,7 @@ font-size: 0.7rem; text-align:right; font-weight: bolder;">
                 <th></th>
                 <th scope="col" style="width: 2em;">Order ID</th>
                 <th scope="col" style="width: 100%;">Customer name</th>
-                <th scope="col" style="width: 2em;">Total (KRW)</th>
+                <th scope="col" style="width: 2em;">Total ({{ base_country.currency_code }})</th>
                 <th scope="col" style="width: 2em;">Total (EUR)</th>
                 <th scope="col" style="width: 2em;">Total (USD)</th>
                 <th scope="col" style="width: 2em;">Status</th>

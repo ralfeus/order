@@ -294,7 +294,7 @@ class Order(db.Model, BaseModel): # type: ignore
         return \
             self.shipping_cur1 if currency and currency.code == 'USD' \
             else self.shipping_cur2 if currency and currency.code == 'EUR' \
-            else self.shipping_krw if currency and currency.code == 'KRW' \
+            else self.shipping_krw if currency and currency.base \
             else round(self.shipping_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.shipping_krw
 
@@ -303,7 +303,7 @@ class Order(db.Model, BaseModel): # type: ignore
         return \
             self.subtotal_cur1 if currency and currency.code == 'USD' \
             else self.subtotal_cur2 if currency and currency.code == 'EUR' \
-            else self.subtotal_krw if currency and currency.code == 'KRW' \
+            else self.subtotal_krw if currency and currency.base \
             else round(self.subtotal_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.subtotal_krw
 
@@ -312,7 +312,7 @@ class Order(db.Model, BaseModel): # type: ignore
         return \
             self.total_cur1 if currency and currency.code == 'USD' \
             else self.total_cur2 if currency and currency.code == 'EUR' \
-            else self.total_krw if currency and currency.code == 'KRW' \
+            else self.total_krw if currency and currency.base \
             else round(self.total_krw * currency.rate, currency.decimal_places or 0) if currency \
             else self.total_krw
 
@@ -454,8 +454,8 @@ class Order(db.Model, BaseModel): # type: ignore
         for suborder in self.suborders:
             suborder.update_total()
             logger.debug("The suborder %s:", suborder.id)
-            logger.debug("\tLocal shipping (KRW): %s", suborder.local_shipping)
-            logger.debug("\tSubtotal (KRW): %s", suborder.get_subtotal())
+            logger.debug("\tLocal shipping (base): %s", suborder.local_shipping)
+            logger.debug("\tSubtotal (base): %s", suborder.get_subtotal())
             logger.debug("\tTotal weight: %s", suborder.get_total_weight())
 
         order_weight = reduce(lambda acc, sub: acc + sub.get_total_weight(),
@@ -500,12 +500,12 @@ class Order(db.Model, BaseModel): # type: ignore
         self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None,
             self.total_weight + self.shipping_box_weight)))
-        logger.debug("Shipping (KRW): %s", self.shipping_krw)
+        logger.debug("Shipping (base): %s", self.shipping_krw)
         self.shipping_cur2 = self.shipping_krw * float(rate_eur)
         self.shipping_cur1 = self.shipping_krw * float(Currency.query.get('USD').rate)
         logger.debug("Service fee: %s", self.service_fee)
         self.total_krw = self.subtotal_krw + self.shipping_krw + self.service_fee
-        logger.debug("Total (KRW): %s", self.total_krw)
+        logger.debug("Total (base): %s", self.total_krw)
         self.total_cur2 = self.subtotal_cur2 + self.shipping_cur2
         self.total_cur1 = self.subtotal_cur1 + self.shipping_cur1
 

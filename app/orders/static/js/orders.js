@@ -99,7 +99,7 @@ function init_orders_table() {
             },
             {data: 'id'},
             {data: 'customer_name'},
-            {data: 'total_krw'},
+            {data: 'total_krw', render: data => fmtCurr(base_country).format(data)},
             {data: 'total_cur2'},
             {data: 'total_cur1'},
             {data: 'status'},

@@ -63,7 +63,7 @@ class TestPaymentApi(BaseTestCase):
         ])
         res = self.try_admin_operation(
             lambda: self.client.post('/api/v1/admin/payment/0', json={
-                'user_id': self.user.id,
+                'user_id': self.user.id, # type: ignore
                 'amount_received_krw': 100,
                 'sender_name': 'Test',
                 'payment_method': {'id': gen_id_int},
@@ -72,7 +72,7 @@ class TestPaymentApi(BaseTestCase):
         self.assertEqual(res.json['data'][0]['amount_received_krw'], 100)
 
     def test_approve_payment_no_received_krw(self):
-        currency = Currency(code='KRW', rate=1)
+        currency = Currency(code='KRW', rate=1, base=True)
         transaction = Payment(amount_sent_original=100, currency=currency,
             user=self.user, status=PaymentStatus.pending)
         self.try_add_entities([currency, transaction])
@@ -84,7 +84,7 @@ class TestPaymentApi(BaseTestCase):
     
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        currency = Currency(code='KRW', rate=1)
+        currency = Currency(code='KRW', rate=1, base=True)
         order = Order(id=gen_id, total_krw=90, user=self.user,
                       status=OrderStatus.pending)
         payment = Payment(amount_sent_original=100, currency=currency,
@@ -102,7 +102,7 @@ class TestPaymentApi(BaseTestCase):
 
     def test_pay_po_created_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
-        currency = Currency(code='KRW', rate=1)
+        currency = Currency(code='KRW', rate=1, base=True)
         order = Order(id=gen_id, total_krw=90, user=self.user,
                       status=OrderStatus.po_created)
         payment = Payment(amount_sent_original=100, currency=currency,
@@ -125,8 +125,8 @@ class TestPaymentApi(BaseTestCase):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/payment/method'))
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json), 1)
-        self.assertEqual(res.json[0]['name'], 'Payment method 1')
+        self.assertEqual(len(res.json), 1) #type: ignore
+        self.assertEqual(res.json[0]['name'], 'Payment method 1') #type: ignore
 
 
     def test_create_payment_method(self):

@@ -134,7 +134,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
 
     def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''
-        Returns shipping cost in KRW to provided destination for provided weight
+        Returns shipping cost in base currency to provided destination for provided weight
 
         :param destination: destination (mostly country)
         :param weight: shipment weight in grams

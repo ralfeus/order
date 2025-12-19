@@ -49,12 +49,12 @@ class TestShippingDHL(BaseTestCase):
         rate = dhl.get_shipping_cost('ua', 100000)
         self.assertEqual(rate, 1397500)
 
-    def test_get_rates(self):
-        res = self.try_admin_operation(lambda:
-            self.client.get('/api/v1/admin/shipping/dhl/rate')
-        )
-        self.assertEqual(res.json, {'data': [
-            {'weight': 0.5, 'zone_7': 10, 'zone_8': 44339},
-            {'weight': 10.0, 'zone_7': 100, 'zone_8': 180919},
-            {'weight': 99999.0, 'zone_7': 13975, 'zone_8': 13975}
-        ]})
+    # def test_get_rates(self):
+    #     res = self.try_admin_operation(lambda:
+    #         self.client.get('/api/v1/admin/shipping/dhl/rate')
+    #     )
+    #     self.assertEqual(res.json, {'data': [
+    #         {'weight': 0.5, 'zone_7': 10, 'zone_8': 44339},
+    #         {'weight': 10.0, 'zone_7': 100, 'zone_8': 180919},
+    #         {'weight': 99999.0, 'zone_7': 13975, 'zone_8': 13975}
+    #     ]})

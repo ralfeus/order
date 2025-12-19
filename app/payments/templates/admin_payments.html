@@ -2,6 +2,9 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+var base_country = {{ base_country | tojson }};
+</script>
 <script src="static/js/admin_payments.js"></script>
 {% endblock %}
 
@@ -32,8 +35,8 @@
                 <th scope="col" style="width: 2em;">Orders</th>
                 <th scope="col" style="width: 2em;">Method</th>
                 <th scope="col" style="width: 2em;">Amount</th>
-                <th scope="col" style="width: 2em;">Amount (KRW)</th>
-                <th scope="col" style="width: 2em;">Amount received (KRW)</th>
+                <th scope="col" style="width: 2em;">Amount ({{ base_currency.code }})</th>
+                <th scope="col" style="width: 2em;">Amount received ({{ base_currency.code }})</th>
                 <th scope="col" style="width: 2em;">Status</th>
                 <th scope="col" style="width: 8em;">When created</th>
                 <th scope="col" style="width: 8em;">When changed</th>
@@ -69,7 +72,7 @@
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <span class="input-group-text">Amount (KRW)</span>
+                <span class="input-group-text">Amount ({{ base_currency.code }})</span>
             </div>
             <input id="amount_sent_krw" class="form-control" />
             <div class="input-group-append">
@@ -78,7 +81,7 @@
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
-                <span class="input-group-text">Amount received (KRW)</span>
+                <span class="input-group-text">Amount received ({{ base_currency.code }})</span>
             </div>
             <input id="amount_received_krw" class="form-control" />
             <div class="input-group-append">

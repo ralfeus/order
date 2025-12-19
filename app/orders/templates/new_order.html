@@ -11,6 +11,7 @@
     const FREE_LOCAL_SHIPPING_THRESHOLD = {{ free_local_shipping_threshold }};
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
     const SERVICE_FEE = {{ service_fee }};
+    var base_country = {{ base_country | tojson }};
 </script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
@@ -95,7 +96,7 @@
                     <tbody>
                         {% if not hide_krw %}
                         <tr>
-                            <td>KRW</td>
+                            <td>{{ base_country.currency_code }}</td>
                             <td id="totalItemsCostKRW"></td>
                             <td class="total-weight hide-on-small"></td>
                             <td id="totalShippingCostKRW"></td>
@@ -188,7 +189,7 @@
                                 <th scope="col" style="min-width: 5rem; max-width: 5rem; width: 5rem;">Items cost</th>
                                 <th scope="col" style="width: 0em;" class="hide-on-mobile">Weight</th>
                                 <th scope="col" style="width: 5rem;" class="hide-on-mobile">Shipping</th>
-                                <th scope="col">Total (KRW)</th>
+                                <th scope="col">Total ({{ base_country.currency_code }})</th>
                                 <th scope="col" class="hide-on-mobile">Total (EUR)</th>
                                 <th scope="col" class="hide-on-mobile">Total (USD)</th>
                                 <th scope="col" class="hide-on-mobile">Item points</th>
