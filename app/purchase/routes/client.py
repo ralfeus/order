@@ -35,7 +35,7 @@ def get_admin_purchase_orders_js():
             'columns': extension_columns
         }, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 
 @bp_client_admin.route('/companies')

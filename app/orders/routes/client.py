@@ -78,7 +78,7 @@ def user_new_order():
         hide_krw=current_app.config.get('HIDE_KRW', False),
         service_fee=current_app.config.get('SERVICE_FEE', 0),
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 @bp_client_user.route('/<order_id>')
 @login_required
@@ -101,7 +101,7 @@ def user_get_order(order_id):
             local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
             service_fee=current_app.config.get('SERVICE_FEE', 0),
             base_country=Country.get_base_country(
-                current_app.config.get('TENANT', 'default')).to_dict(),
+                current_app.config.get('TENANT_NAME', 'default')).to_dict(),
         )
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
@@ -112,7 +112,7 @@ def user_get_order(order_id):
             from app import db
             db.session.commit() #type: ignore
     if currency is None:
-        currency = Currency.get_base_currency(current_app.config.get('TENANT', 'default'))
+        currency = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
     currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
                   for c in Currency.query if c.enabled]
     rate = currency.get_rate(order.when_created)
@@ -132,7 +132,7 @@ def get_orders():
         'orders.html', 
         currencies=currencies, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 @bp_client_user.route('/drafts')
 @login_required
@@ -141,7 +141,7 @@ def get_order_drafts():
     return render_template(
         'order_drafts.html', 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 @bp_client_admin.route('/')
 @login_required
@@ -157,7 +157,7 @@ def admin_get_orders():
         'admin_orders.html', 
         currencies=currencies, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 @bp_client_admin.route('/<order_id>')
 @login_required
@@ -170,7 +170,7 @@ def admin_get_order(order_id):
         language = request.values.get('language') or 'en'
         return render_template('order_print_view.html', order=order,
             currency=Currency.get_base_currency(
-                current_app.config.get('TENANT', 'default')), 
+                current_app.config.get('TENANT_NAME', 'default')), 
             rate=1, currencies=[], mode='print',
             language=language,
             languages=current_app.config.get('LANGUAGES', ['en', 'ru']),
@@ -186,7 +186,7 @@ def admin_get_order(order_id):
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
         service_fee=current_app.config.get('SERVICE_FEE', 0),
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')).to_dict())
 
 
 @bp_client_user.route('/<order_id>/excel')
