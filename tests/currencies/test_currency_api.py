@@ -30,15 +30,16 @@ class TestCurrencyClient(BaseTestCase):
 
     def test_get_currencies(self):
         self.try_add_entities([
-            Currency(code='0001', name='Currency_1', rate=1, enabled=True)
+            Currency(code='0001', name='Currency_1', rate=1, enabled=True, base=True)
         ])
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/currency'))
-        self.assertEqual(res.json['data'][0], {
+        self.assertEqual(res.json['data'][0], { #type: ignore
             'code': '0001',
             'name': 'Currency_1',
             'rate': 1.0,
-            'enabled': True
+            'enabled': True,
+            'base': True
         })
     def test_save_currency(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'

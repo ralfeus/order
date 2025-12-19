@@ -31,10 +31,11 @@ class Country(db.Model): # type: ignore
         }
 
     @classmethod
-    def get_base_country(cls) -> 'Country':
+    def get_base_country(cls, tenant) -> 'Country':
         ''' Get base country '''
-        if cache.get('base_country') is None:
+        if cache.get(f'{tenant}-base_country') is None:
             from app.currencies.models.currency import Currency
-            base_country = Country.query.filter_by(currency_code=Currency.get_base_currency().code).first()
-            cache.set('base_country', base_country, timeout=3600)
-        return cache.get('base_country')
+            base_country = Country.query.filter_by(
+                currency_code=Currency.get_base_currency(tenant).code).first()
+            cache.set(f'{tenant}-base_country', base_country, timeout=3600)
+        return cache.get(f'{tenant}-base_country')

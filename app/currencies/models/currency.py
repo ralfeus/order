@@ -22,13 +22,13 @@ class Currency(db.Model): #type: ignore
     decimal_places = Column(Integer)
 
     @classmethod
-    def get_base_currency(cls) -> 'Currency':
+    def get_base_currency(cls, tenant) -> 'Currency':
         ''' Get base currency '''
-        if cache.get('base_currency') is None:
+        if cache.get(f'{tenant}-base_currency') is None:
             base_currency = Currency.query.filter_by(base=True).first()
-            cache.set('base_currency', base_currency, timeout=3600)
-        return cache.get('base_currency')
-    
+            cache.set(f'{tenant}-base_currency', base_currency, timeout=3600)
+        return cache.get(f'{tenant}-base_currency')
+
     def __repr__(self):
         return "<Currency: {}>".format(self.code)
 
@@ -53,5 +53,6 @@ class Currency(db.Model): #type: ignore
             'code': self.code,
             'name': self.name,
             'enabled': self.enabled,
-            'rate': float(self.rate)
+            'rate': float(self.rate),
+            'base': self.base,
         }

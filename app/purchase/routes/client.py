@@ -1,5 +1,5 @@
 import itertools
-from flask import render_template, send_file
+from flask import current_app, render_template, send_file
 from flask_security import login_required, roles_required
 
 from app.models.country import Country
@@ -28,10 +28,14 @@ def get_admin_purchase_orders_js():
         extension[1]['fields'] for extension in extensions]))
     extension_columns = list(itertools.chain(*[
         extension[1]['columns'] for extension in extensions]))
-    return render_template('purchase_orders.js', extension={
-        'fields': extension_fields,
-        'columns': extension_columns
-    }, base_country=Country.get_base_country().to_dict())
+    return render_template(
+        'purchase_orders.js', 
+        extension={
+            'fields': extension_fields,
+            'columns': extension_columns
+        }, 
+        base_country=Country.get_base_country(
+            current_app.config.get('TENANT', 'default')).to_dict())
 
 
 @bp_client_admin.route('/companies')

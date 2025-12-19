@@ -35,7 +35,10 @@ def admin_payments():
     '''
     Payments management
     '''
-    return render_template('admin_payments.html', base_country=Country.get_base_country().to_dict())
+    return render_template(
+        'admin_payments.html', 
+        base_country=Country.get_base_country(
+            current_app.config.get('TENANT', 'default')).to_dict())
 
 @bp_client_admin.route('/transactions')
 @login_required
@@ -49,4 +52,8 @@ def admin_transactions():
 @bp_client_user.route('/')
 @login_required
 def user_wallet():
-    return render_template('wallet.html', balance=current_user.balance, base_country=Country.get_base_country().to_dict())
+    return render_template(
+        'wallet.html', 
+        balance=current_user.balance, 
+        base_country=Country.get_base_country(
+            current_app.config.get('TENANT', 'default')).to_dict())

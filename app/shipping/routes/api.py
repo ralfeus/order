@@ -181,6 +181,8 @@ def admin_save_shipping_method(shipping_method_id):
     )
     id = shipping_method.id
     db.session.commit() #type: ignore
+    if id == None:
+        id = shipping_method.id
     db.session.expunge(shipping_method) #type: ignore
     shipping_method = Shipping.query.get(id)
     return jsonify({"data": [shipping_method.to_dict()]})
