@@ -165,7 +165,7 @@ function init_payments_table() {
                 options: g_currencies.map(c => c.code)
             },
             {label: 'Amount', name: 'amount_sent_original', def: 0},
-            {label: `Amount (${g_base_currency.code})`, name: 'amount_sent_krw', def: 0},
+            {label: `Amount (${base_country.currency_code})`, name: 'amount_sent_krw', def: 0},
             {label: 'Amount received', name: 'amount_received_krw', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
             {
