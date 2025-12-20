@@ -61,7 +61,7 @@ class TestOrdersClient(BaseTestCase):
     def test_user_get_order(self):
         self.try_add_entities([
             Product(id='0001', name='Product 1', price=10, weight=10),
-            Country(id='c1', name='country1'),
+            Country(id='c1', name='country1', locale='cz-CZ', currency_code='CZK'),
             Currency(code='CZK', rate=1)
         ])
         res = self.try_user_operation(
@@ -84,7 +84,7 @@ class TestOrdersClient(BaseTestCase):
                 ]
         }))
         self.assertEqual(res.status_code, 200)
-        created_order_id = res.json['order_id']
+        created_order_id = res.json['order_id'] #type: ignore
         res = self.client.get(f'/orders/{created_order_id}?currency=CZK')
 
 

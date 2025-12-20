@@ -24,10 +24,10 @@ class Currency(db.Model): #type: ignore
     @classmethod
     def get_base_currency(cls, tenant) -> 'Currency':
         ''' Get base currency '''
-        if cache.get(f'{tenant}-base_currency') is None:
-            base_currency = Currency.query.filter_by(base=True).first()
-            cache.set(f'{tenant}-base_currency', base_currency, timeout=3600)
-        return cache.get(f'{tenant}-base_currency')
+        # if cache.get(f'{tenant}-base_currency') is None:
+        return Currency.query.filter_by(base=True).first()
+            # cache.set(f'{tenant}-base_currency', base_currency, timeout=3600)
+        # return cache.get(f'{tenant}-base_currency')
 
     def __repr__(self):
         return "<Currency: {}>".format(self.code)

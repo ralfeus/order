@@ -26,7 +26,7 @@ def admin_get_invoice(invoice_id):
         context=invoice, 
         usd_rate=usd_rate, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')))
 
 
 @bp_client_user.route('/<invoice_id>')
@@ -43,7 +43,7 @@ def get_invoice(invoice_id):
         context=invoice, 
         usd_rate=usd_rate, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')))
 
 @bp_client_admin.route('/')
 @login_required
@@ -58,7 +58,7 @@ def admin_get_invoices():
         'admin_invoices.html', 
         usd_rate=usd_rate, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')))
 
 @bp_client_user.route('/')
 @login_required
@@ -72,4 +72,4 @@ def get_invoices():
         'invoices.html', 
         usd_rate=usd_rate, 
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')).to_dict())
+            current_app.config.get('TENANT_NAME', 'default')))
