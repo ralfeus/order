@@ -173,7 +173,7 @@ class Payment(db.Model, BaseModel):
         '''
         if not self.amount_sent_original:
             self.amount_sent_original = 0
-            db.session.commit()
+            db.session.commit() #type: ignore
         return {
             'id': self.id,
             'orders': [order.id for order in self.orders],

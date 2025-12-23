@@ -1,4 +1,5 @@
 '''PayPal checkout page'''
+from app.currencies.models.currency import Currency
 from app.payments.models.payment import PaymentStatus
 import logging
 
@@ -27,9 +28,14 @@ def user_create_paypal_order(payment_id):
     from paypalcheckoutsdk.orders import OrdersCreateRequest
     from app.payments.models.payment import Payment
     from app.settings.models.setting import Setting
-    payment = Payment.query.get(payment_id)
+    payment: Payment = Payment.query.get(payment_id)
     if payment is None:
         abort(404)
+    # Calculate total with PayPal fees
+    payment_currency = Currency.query.get(payment.currency_code)
+    usd = Currency.query.get('USD')
+    fixed_fee = 0.3 / usd.get_rate() * payment_currency.get_rate()
+    amount_total = float(payment.amount_sent_original) * 1.044 + fixed_fee
     client_id = Setting.get('payment.paypal.client_id')
     client_secret = Setting.get('payment.paypal.client_secret')
     assert client_id and client_secret
@@ -44,7 +50,7 @@ def user_create_paypal_order(payment_id):
         'purchase_units': [{
             'amount': {
               'currency_code': "RUB" if payment.currency_code == "RUR" else payment.currency_code,
-              'value': float(payment.amount_sent_original)
+              'value': amount_total
             },
             'reference_id': payment.id
         }]

@@ -16,6 +16,7 @@ mysqlclient==2.2.4
 neomodel
 openpyxl==3.0.10
 pandas
+paypal-checkout-serversdk
 playwright
 psutil
 pytz
