@@ -675,7 +675,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
                 detailed_address=address.address_2,
                 logger=self._logger)
-            try_click(address_element,
+            self._logger.debug("Choosing the address. Expect the address list to be closed")
+            try_click(address_element.locator('label[for="rdo-address-selected-0"]'),
                     lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
         except PurchaseOrderError:
             raise

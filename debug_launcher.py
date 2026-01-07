@@ -32,8 +32,8 @@ def post_po():
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    po.customer.username = '23426444'
-    po.customer.password = 'atomy#01'     
+    po.customer.username = '45642967' #'23426444'
+    po.customer.password = 'ATOMY74!'#'atomy#01'     
     # po.customer.username = '35744761'
     # po.customer.password = 'bs0105'    
     po.purchase_date = datetime.now()
@@ -132,6 +132,6 @@ def import_products():
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    # post_po()
-    import_products()
+    post_po()
+    # import_products()
     # build_network()
