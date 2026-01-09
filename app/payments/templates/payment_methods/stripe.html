@@ -1,0 +1,140 @@
+<!-- templates/custom_checkout.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Payment</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f6f9fc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { color: #32325d; font-size: 24px; margin-bottom: 20px; }
+        .product-info {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 30px;
+        }
+        .product-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #525f7f;
+        }
+        .product-line.total {
+            font-weight: bold;
+            font-size: 18px;
+            color: #32325d;
+            padding-top: 10px;
+            border-top: 2px solid #e6ebf1;
+            margin-top: 10px;
+        }
+        #payment-element { margin: 20px 0; }
+        button {
+            background: #635bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) { background: #4f46e5; }
+        button:disabled { background: #a5b4fc; cursor: not-allowed; }
+        .message { margin-top: 20px; padding: 15px; border-radius: 6px; }
+        .message.error { background: #fee; color: #c33; }
+        .message.success { background: #efe; color: #3c3; }
+        .hidden { display: none; }
+        .confirmation-box {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Complete Your Payment</h1>
+        
+        <div class="product-info">
+            <div class="product-line">
+                <span>Payment ID</span>
+                <span>#{{ payment.id }}</span>
+            </div>
+            <div class="product-line">
+                <span>Base Amount</span>
+                <span id="base-amount">{{ payment.currency_code }} {{ payment.amount_sent_original }}</span>
+            </div>
+            <div class="product-line hidden" id="service-fee-line">
+                <span>Processing & Transfer Fee</span>
+                <span id="service-fee-amount">--</span>
+            </div>
+            <div class="product-line total">
+                <span>Total Amount</span>
+                <span id="total-amount">{{ payment.currency_code }} {{ payment.amount_sent_original }}</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Card Entry -->
+        <div id="card-entry-section">
+            <form id="card-form">
+                <div id="payment-element"></div>
+                <button type="submit" id="card-submit">Continue</button>
+            </form>
+        </div>
+
+        <!-- Step 2: Confirmation -->
+        <div id="confirmation-section" class="hidden">
+            <div class="confirmation-box">
+                <h3 style="margin-top: 0; color: #166534;">Confirm Your Payment</h3>
+                <p><strong>Card Type:</strong> <span id="card-type-display"></span></p>
+                <p><strong>Total Charge:</strong> <span id="confirm-amount"></span></p>
+                <button id="confirm-button">Confirm Payment</button>
+                <button id="back-button" style="background: #6b7c93; margin-top: 10px;">Change Card</button>
+            </div>
+        </div>
+
+        <div id="message" class="message hidden"></div>
+    </div>
+    <!-- Add near the card input field -->
+    <div class="security-info">
+        <p class="security-text">
+            🔒 Your payment information is secured by <strong>Stripe</strong> payment provider<br>
+            Card data is transmitted directly to Stripe. 
+            We never store or see your full card number.
+        </p>
+        <a href="https://stripe.com" target="_blank" rel="noopener noreferrer">
+            <img src="/payments/static/images/powered_by_stripe.svg" 
+                alt="Powered by Stripe"
+                width="200">
+        </a>        
+    </div>
+
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        const PAYMENT_ID = '{{ payment.id }}';
+        const CURRENCY = '{{ payment.currency_code }}';
+        const BASE_AMOUNT = parseFloat('{{ payment.amount_sent_original }}');
+        const STRIPE_KEY = '{{ stripe_key }}';
+        const STRIPE_PAYMENT_KEY = '{{ stripe_payment_key }}';
+    </script>
+    <script lang="javascript" src="/payments/static/js/stripe.js"></script>
+
+</body>
+</html>

@@ -29,6 +29,9 @@ class NoShippingRateError(Exception):
 class OrderError(Exception):
     pass
 
+class PaymentError(Exception):
+    pass
+
 class PaymentNoReceivedAmountException(Exception):
     pass
 

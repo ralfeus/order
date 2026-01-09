@@ -45,11 +45,13 @@ def favicon():
 @client.route('/upload/<path:path>')
 @login_required
 def send_from_upload(path):
-    logger = logging.getLogger(f'{__file__}:send_from upload()')
+    # logger = logging.getLogger(f'{__file__}:send_from upload()')
+    file = os.path.join(current_app.config.root_path, 
+                        current_app.config['UPLOAD_PATH'], path)
     try:
-        return send_file(os.path.join(os.getcwd(), current_app.config['UPLOAD_PATH'], path))
+        return send_file(file)
     except FileNotFoundError:
-        logger.warn("Couldn't find file <%s>", path)
+        logging.warning("Couldn't find file <%s>", file)
         abort(404)
 
 @client.route('/upload/tmp/<file_id>')

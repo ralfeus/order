@@ -150,9 +150,9 @@ def user_get_payments(payment_id):
 def user_create_payment():
     logger = logging.getLogger('user_create_payment')
     user = None
-    payload = request.get_json()
-    if not current_user.has_role('admin') or 'user_id' not in request.json.keys():
-        request.json['user_id'] = current_user.id
+    payload: dict[str, Any] = request.get_json() or {}
+    if not current_user.has_role('admin') or 'user_id' not in payload.keys():
+        payload['user_id'] = current_user.id
         user = current_user
     elif payload.get('user_id') is not None \
         and int(payload['user_id']) == current_user.id:
@@ -190,16 +190,16 @@ def user_create_payment():
         orders=Order.query.filter(Order.id.in_(payload['orders'])).all() if payload.get('orders') else [],
         currency=currency,
         amount_sent_original=payload.get('amount_sent_original'),
-        amount_sent_krw=float(payload.get('amount_sent_original')) / float(currency.rate),
-        payment_method_id=payload.get('payment_method').get('id'),
+        amount_sent_krw=float(payload.get('amount_sent_original', 0)) / float(currency.rate),
+        payment_method_id=payload.get('payment_method', {}).get('id'),
         additional_info=payload.get('additional_info'),
         evidences=evidences,
         status=PaymentStatus.pending,
         when_created=datetime.now()
     )
 
-    db.session.add(payment)
-    db.session.commit()
+    db.session.add(payment) #type: ignore
+    db.session.commit() #type: ignore
     payment_execution_result = payment.execute_payment()
     extra_action = {'extra_action': payment_execution_result} \
         if payment_execution_result is not None else {}

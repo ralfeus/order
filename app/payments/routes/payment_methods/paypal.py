@@ -56,7 +56,7 @@ def user_create_paypal_order(payment_id):
         }]
     })
     response = paypal_client.execute(order_request)
-    return jsonify(response.result.dict()), 201
+    return jsonify(response.result.dict()), 201 #type: ignore
 
 @bp_api_user.route('/paypal/capture', methods=['POST'])
 def user_capture_paypal_order():
@@ -75,9 +75,9 @@ def user_capture_paypal_order():
     capture_request = OrdersCaptureRequest(request.args['order_id'])
     try:
         result = paypal_client.execute(capture_request).result
-        if result.status == 'COMPLETED':
+        if result.status == 'COMPLETED': #type: ignore
             approve_payment(result)
-        return jsonify(result.dict()), 201
+        return jsonify(result.dict()), 201 #type: ignore
     except IOError as ioe:
         if isinstance(ioe, HttpError):
             # Something went wrong server-side
@@ -108,5 +108,5 @@ def approve_payment(capture_result):
     net_amount = int(float(net_amount.value) / float(received_currency.get_rate()))
     payment.amount_received_krw = net_amount
     payment.set_status(PaymentStatus.approved)
-    db.session.commit()
+    db.session.commit() #type: ignore
    
