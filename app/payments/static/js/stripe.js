@@ -64,11 +64,9 @@ document.getElementById('card-form').addEventListener('submit', async (e) => {
             return;
         }
 
-        currentFees = data.fees;
-
         // Update UI with fees
         document.getElementById('service-fee-amount').textContent = 
-            `${CURRENCY} ${data.fees.total_service_fee.toFixed(2)}`;
+            `${CURRENCY} ${data.fees.toFixed(2)}`;
         document.getElementById('service-fee-line').classList.remove('hidden');
         document.getElementById('total-amount').textContent = 
             `${CURRENCY} ${data.total_amount.toFixed(2)}`;

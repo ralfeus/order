@@ -1,11 +1,13 @@
-# stripe_custom.py (or add to your existing stripe.py)
-
+from datetime import datetime
+from decimal import Decimal
 import logging
+import math
 from typing import Any
 from flask import request, jsonify, render_template
 import stripe
 import requests
 from app import app, db
+from app.currencies.models.currency import Currency
 from app.payments import bp_api_user, bp_client_user
 from app.payments.models.payment import Payment, PaymentStatus
 from app.models.file import File
@@ -39,13 +41,50 @@ class FeeStructure:
         return cls(**{
             attr: json.get(attr, 0) for attr in cls.__dict__
         })
+    
+
+
+class ExchangeRateManager:
+    def __init__(self):
+        self.cache = {}
+        self.cache_time = {}
+    
+    def get_rate(self, base, target) -> float:
+        """
+        Get current exchange rate from Frankfurter API (free, no auth required)
+        Returns float rate or None on error
+        """
+        cache_key = f"{base}_{target}"
+        
+        # Return cached if fresh (< 5 minutes)
+        if cache_key in self.cache:
+            if (datetime.now() - self.cache_time[cache_key]).seconds < 300:
+                return self.cache[cache_key]
+        
+        try:
+            url = f'https://api.frankfurter.app/latest?from={base}&to={target}'
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            
+            data = response.json()
+            rate = data['rates'][target]
+            
+            # Cache it
+            self.cache[cache_key] = rate
+            self.cache_time[cache_key] = datetime.now()
+            
+            return rate
+            
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"Error fetching {base}/{target} rate: {e}")
+            return 0
 
 # Fee configuration (same as before)
 FEES = {
     'USD': {
         'domestic': {'percentage': 0.015, 'fixed': 0.31},
         'international': {'percentage': 0.0325, 'fixed': 0.31},
-        'stripe-wise': 0.005,
+        'stripe-wise': 0.01,
         'swift': 0.005,
         'service': 0.02
     },
@@ -64,30 +103,37 @@ EEA_COUNTRIES = {
     'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO'
 }
 
-def calculate_service_fee(base_amount, card_country, currency):
+def calculate_base_amount(payment: Payment) -> float:
+    om_rate = Currency.query.get(payment.currency_code).rate
+    fx_rate = om_rate
+    try:
+        fx_rate = ExchangeRateManager().get_rate(
+            Currency.get_base_currency(app.config['TENANT_NAME']).code, 
+            payment.currency_code)
+    except:
+        pass # Just use same rate as in a system
+    return float(payment.amount_sent_original * Decimal(fx_rate) / om_rate)
+
+def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     """Calculate service fee based on card country"""
     is_domestic = card_country.upper() in EEA_COUNTRIES
     stripe_fee = 'domestic' if is_domestic else 'international'
     fee_config = FEES[currency]
     
     f = FeeStructure()
-    f.send_to_bank = base_amount / (1 - fee_config['swift'])
+    f.send_to_bank = math.ceil(base_amount / (1 - fee_config['swift']) * 100) / 100
     f.wise_fee = f.send_to_bank - base_amount
-    f.send_to_wise = f.send_to_bank / (1 - fee_config['stripe-wise'])
+    f.send_to_wise = math.ceil(f.send_to_bank / (1 - fee_config['stripe-wise']) * 100) / 100
     f.stripe_wise_fee = f.send_to_wise - f.send_to_bank
-    f.service_fee = base_amount * fee_config['service']
+    f.service_fee = math.ceil(base_amount * fee_config['service'] * 100) / 100
     at_stripe = f.send_to_wise + f.service_fee
-    f.send_to_stripe = at_stripe / (1 - fee_config[stripe_fee]['percentage']) + fee_config[stripe_fee]['fixed']
+    f.send_to_stripe = round(at_stripe / (1 - fee_config[stripe_fee]['percentage']) + 
+                             fee_config[stripe_fee]['fixed'], 2)
     f.stripe_fee = f.send_to_stripe * fee_config[stripe_fee]['percentage'] + fee_config[stripe_fee]['fixed']
     
     f.total_service_fee = f.wise_fee + f.stripe_wise_fee + f.service_fee + f.stripe_fee
     
-    return {
-        'total_service_fee': round(f.total_service_fee, 2),
-        'is_domestic': is_domestic,
-        'card_type': 'EEA Card' if is_domestic else 'International Card',
-        'breakdown': f
-    }
+    return f
 
 @bp_client_user.route('/<int:payment_id>/stripe/checkout')
 def checkout(payment_id):
@@ -200,16 +246,18 @@ def detect_card():
         if not payment:
             return jsonify({'error': 'Payment not found'}), 404
         
-        base_amount = float(payment.amount_sent_original)
-        
+        # Calculate base amount taking into consideration skewed currency rates
+        base_amount = calculate_base_amount(payment)
         # Calculate fees
         fees = calculate_service_fee(base_amount, card_country, payment.currency_code)
+        if fees.send_to_stripe < payment.amount_sent_original:
+            fees.send_to_stripe = float(payment.amount_sent_original)
         
         return jsonify({
             'card_country': card_country,
-            'fees': fees,
-            'base_amount': base_amount,
-            'total_amount': base_amount + fees['total_service_fee']
+            'fees': fees.send_to_stripe - float(payment.amount_sent_original),
+            'base_amount': float(payment.amount_sent_original),
+            'total_amount': fees.send_to_stripe
         })
         
     except stripe.error.StripeError as e: #type: ignore
@@ -226,18 +274,23 @@ def create_payment_intent():
         payment_method_id = data.get('payment_method_id')
         if not payment_method_id:
             raise PaymentError("Stripe: Couldn't get payment method ID")
-        fees = FeeStructure.from_dict(data.get('fees', {}).get('breakdown', {}))
         
         # Configure Stripe
         stripe.api_key = app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
         
+        # Retrieve payment method to get card country
+        payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
+        if payment_method.type == 'card' and payment_method.card:
+            card_country = payment_method.card.country
+
         # Get payment from database
-        payment = Payment.query.get(payment_id)
+        payment: Payment = Payment.query.get(payment_id)
         if not payment:
             return jsonify({'error': 'Payment not found'}), 404
         
-        base_amount = float(payment.amount_sent_original)
-        total_amount = base_amount + fees.total_service_fee
+        base_amount = calculate_base_amount(payment)
+        fees = calculate_service_fee(base_amount, card_country, payment.currency_code)
+        total_amount = fees.send_to_stripe
         
         # Convert to cents (or keep as-is for zero-decimal currencies)
         zero_decimal_currencies = {
@@ -258,7 +311,8 @@ def create_payment_intent():
             metadata={
                 'project': 'order_master',
                 'payment_id': str(payment_id),
-                'base_amount': str(base_amount),
+                'base_amount': str(payment.amount_sent_original),
+                'base_amount_fx_rate_compensated': str(base_amount),
                 'service_fee': str(fees.service_fee),
                 'send_to_wise': str(fees.send_to_wise),
                 'send_to_bank': str(fees.send_to_bank)
