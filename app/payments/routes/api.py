@@ -347,12 +347,18 @@ def user_upload_payment_evidence(payment_id):
 @login_required
 def user_get_payment_methods():
     payment_methods = PaymentMethod.query.filter_by(enabled=True)
-    return jsonify([pm.to_dict() for pm in payment_methods])
+    pms = [pm.to_dict() for pm in payment_methods]
+    # Ensure Stripe is on the top of the list
+    for i, pm in enumerate(pms):
+        if pm['name'] == 'Stripe':
+            pms.insert(0, pms.pop(i))
+            break
+    return jsonify(pms)
 
 @bp_api_admin.route('/method')
 @login_required
 def admin_get_payment_methods():
-    payment_methods = PaymentMethod.query
+    payment_methods: list[PaymentMethod] = PaymentMethod.query
     return jsonify([pm.to_dict() for pm in payment_methods])
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['POST'])
