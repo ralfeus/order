@@ -167,7 +167,7 @@ class Payment(db.Model, BaseModel):
         '''
         return self.payment_method.execute_payment(self)
 
-    def to_dict(self):
+    def to_dict(self, **kwargs):
         '''
         Get representation of the payment as dictionary for JSON conversion
         '''

@@ -10,13 +10,14 @@ from functools import reduce
 import os
 import os.path
 import re
-from typing import T, Any, Callable # type: ignore
 import lxml
-from lxml import etree
+from lxml import etree #type:ignore
+import tempfile
 from time import sleep
-from werkzeug.datastructures import MultiDict
+from typing import T, Any, Callable # type: ignore
 
 from flask import current_app
+from werkzeug.datastructures import MultiDict
 
 from exceptions import FilterError, HTTPError
 
@@ -35,7 +36,8 @@ __app_abs_dir_name = os.path.abspath(os.path.dirname(__file__))
 #         i += 1
 #     return os.path.join(os.path.dirname(path), free_path)
 def get_tmp_file_by_id(file_id):
-    files = glob(f'/tmp/*{file_id}*')
+    tmp = tempfile.gettempdir()
+    files = glob(f'{tmp}/*{file_id}*')
     if len(files) == 0:
         raise FileNotFoundError
     return files[0]
@@ -49,7 +51,7 @@ def rm(path, not_exist_raise=False):
             raise e
 
 def write_to_file(path, data):
-    abspath = os.path.join(__app_abs_dir_name, path[1:])
+    abspath = os.path.join(os.getcwd(), path)
     os.makedirs(os.path.dirname(abspath), exist_ok=True)
     with open(abspath, 'wb') as file:
         file.write(data)

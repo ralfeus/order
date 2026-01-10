@@ -1,7 +1,5 @@
-import stripe
-from app import app
-from .payment import Payment
-from .payment_method import PaymentMethod
+from app.payments.models.payment import Payment
+from app.payments.models.payment_method import PaymentMethod
 
 
 class Stripe(PaymentMethod):
@@ -12,5 +10,4 @@ class Stripe(PaymentMethod):
 
     def execute_payment(self, payment: Payment):
         """Return custom checkout URL instead of Checkout Session"""
-        base_url = app.config.get('BASE_URL', 'http://localhost:5000')
         return {'url': f'{payment.id}/stripe/checkout'}

@@ -3,10 +3,10 @@ from decimal import Decimal
 import logging
 import math
 from typing import Any
-from flask import request, jsonify, render_template
+from flask import current_app, jsonify, render_template, request
 import stripe
 import requests
-from app import app, db
+from app import db
 from app.currencies.models.currency import Currency
 from app.payments import bp_api_user, bp_client_user
 from app.payments.models.payment import Payment, PaymentStatus
@@ -108,7 +108,7 @@ def calculate_base_amount(payment: Payment) -> float:
     fx_rate = om_rate
     try:
         fx_rate = ExchangeRateManager().get_rate(
-            Currency.get_base_currency(app.config['TENANT_NAME']).code, 
+            Currency.get_base_currency(current_app.config['TENANT_NAME']).code, 
             payment.currency_code)
     except:
         pass # Just use same rate as in a system
@@ -152,75 +152,8 @@ def checkout(payment_id):
 
     return render_template('payment_methods/stripe.html',
                           payment=payment,
-                          stripe_key=app.config.get('PAYMENT', {}).get('stripe', {}).get('api_key'),
-                          stripe_payment_key=app.config.get('PAYMENT', {}).get('stripe', {}).get('api_payment_key'))
-
-@bp_client_user.route('<int:payment_id>/stripe/success')
-def success(payment_id: int):
-    """Handle Stripe payment success redirect"""
-    try:
-        # Get payment_intent from query parameters
-        payment_intent_id = request.args.get('payment_intent')
-        if not payment_intent_id:
-            logging.warning("No payment intent ID is provided")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Configure Stripe
-        stripe.api_key = app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
-
-        # Retrieve PaymentIntent from Stripe to verify status
-        intent = stripe.PaymentIntent.retrieve(payment_intent_id, 
-                                               expand=['latest_charge'])
-
-        # Verify payment is successful using Stripe's data
-        if intent.status != 'succeeded':
-            logging.info(f"Payment status is '{intent.status}'")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Get payment_id from metadata
-        payment_id_from_stripe = int(intent.metadata.get('payment_id', '0')) \
-            if intent.metadata.get('payment_id', '0').isnumeric() else 0
-        if payment_id != payment_id_from_stripe:
-            logging.info(f"The payment ID doesn't match ({payment_id} is provided, "
-                         f"{payment_id_from_stripe} is in Stripe payment)")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Find payment entity
-        payment = Payment.query.get(int(payment_id))
-        if not payment:
-            logging.info(f"No payment ID {payment_id} was found")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Change payment status to approved
-        logging.info(f"Approving payment {payment_id}")
-        payment.amount_received_krw = payment.amount_sent_krw
-        payment.set_status(PaymentStatus.approved)
-        db.session.commit()  # type: ignore
-
-        # Download and save receipt
-        try:
-            if intent.latest_charge and hasattr(intent.latest_charge, 'receipt_url') \
-                and intent.latest_charge.receipt_url: #type: ignore
-                response = requests.get(intent.latest_charge.receipt_url) #type: ignore
-                if response.status_code == 200:
-                    filename = f"{intent.id}.html"
-                    upload_path = app.config.get('UPLOAD_PATH', 'upload')
-                    path = f"/{upload_path}/{filename}"
-                    write_to_file(path, response.content)
-                    file_obj = File(file_name=filename, path=path[1:])
-                    payment.evidences.append(file_obj)
-                    db.session.add(file_obj) #type: ignore
-                    db.session.commit() #type: ignore
-        except Exception as e:
-            logging.warning(f"Failed to download and save receipt for payment {payment_id}: {e}")
-
-        # Return success template
-        return render_template('payment_methods/stripe_success.html', success=True)
-
-    except Exception as e:
-        # Log error but still close window to avoid confusion
-        logging.exception(f"Error in Stripe success handler: {e}")
-        return render_template('payment_methods/stripe_success.html', success=False)
+                          stripe_key=current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_key'),
+                          stripe_payment_key=current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_payment_key'))
 
 @bp_api_user.route('/stripe/detect-card', methods=['POST'])
 def detect_card():
@@ -234,7 +167,7 @@ def detect_card():
             return jsonify({'error': 'Missing payment method'}), 400
         
         # Configure Stripe
-        stripe.api_key = app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
+        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
         
         # Retrieve payment method to get card country
         payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
@@ -276,7 +209,7 @@ def create_payment_intent():
             raise PaymentError("Stripe: Couldn't get payment method ID")
         
         # Configure Stripe
-        stripe.api_key = app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
+        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
         
         # Retrieve payment method to get card country
         payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
@@ -328,3 +261,70 @@ def create_payment_intent():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@bp_client_user.route('<int:payment_id>/stripe/success')
+def success(payment_id: int):
+    """Handle Stripe payment success redirect"""
+    try:
+        # Get payment_intent from query parameters
+        payment_intent_id = request.args.get('payment_intent')
+        if not payment_intent_id:
+            logging.warning("No payment intent ID is provided")
+            return render_template('payment_methods/stripe_success.html', success=False)
+
+        # Configure Stripe
+        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
+
+        # Retrieve PaymentIntent from Stripe to verify status
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id, 
+                                               expand=['latest_charge'])
+
+        # Verify payment is successful using Stripe's data
+        if intent.status != 'succeeded':
+            logging.info(f"Payment status is '{intent.status}'")
+            return render_template('payment_methods/stripe_success.html', success=False)
+
+        # Get payment_id from metadata
+        payment_id_from_stripe = int(intent.metadata.get('payment_id', '0')) \
+            if intent.metadata.get('payment_id', '0').isnumeric() else 0
+        if payment_id != payment_id_from_stripe:
+            logging.info(f"The payment ID doesn't match ({payment_id} is provided, "
+                         f"{payment_id_from_stripe} is in Stripe payment)")
+            return render_template('payment_methods/stripe_success.html', success=False)
+
+        # Find payment entity
+        payment = Payment.query.get(int(payment_id))
+        if not payment:
+            logging.info(f"No payment ID {payment_id} was found")
+            return render_template('payment_methods/stripe_success.html', success=False)
+
+        # Change payment status to approved
+        logging.info(f"Approving payment {payment_id}")
+        payment.amount_received_krw = payment.amount_sent_krw
+        payment.set_status(PaymentStatus.approved)
+        db.session.commit()  # type: ignore
+
+        # Download and save receipt
+        try:
+            if intent.latest_charge and hasattr(intent.latest_charge, 'receipt_url') \
+                and intent.latest_charge.receipt_url: #type: ignore
+                response = requests.get(intent.latest_charge.receipt_url) #type: ignore
+                if response.status_code == 200:
+                    filename = f"{intent.id}.html"
+                    upload_path = current_app.config.get('UPLOAD_PATH', 'upload')
+                    path = f"{upload_path}/{filename}"
+                    write_to_file(path, response.content)
+                    file_obj = File(file_name=filename, path=path)
+                    payment.evidences.append(file_obj)
+                    db.session.add(file_obj) #type: ignore
+                    db.session.commit() #type: ignore
+        except Exception as e:
+            logging.warning(f"Failed to download and save receipt for payment {payment_id}: {e}")
+
+        # Return success template
+        return render_template('payment_methods/stripe_success.html', success=True)
+
+    except Exception as e:
+        # Log error but still close window to avoid confusion
+        logging.exception(f"Error in Stripe success handler: {e}")
+        return render_template('payment_methods/stripe_success.html', success=False)

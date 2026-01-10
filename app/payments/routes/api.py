@@ -43,7 +43,7 @@ def admin_get_payments(payment_id):
             Payment.orders.has(Order.id == request.values['order_id']))
 
     if request.values.get('status'):
-        payments = payments.filter_by(status=PaymentStatus[request.args['status']].payment_id)
+        payments = payments.filter_by(status=PaymentStatus[request.args['status']])
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_payments(payments, request.values)
     if payments.count() == 0:
@@ -103,18 +103,17 @@ def admin_save_payment(payment_id):
             payment.when_changed = datetime.now()
         evidences = {e.path: e for e in payment.evidences}
         payment.evidences = []
-        if payload.get('evidences') and isinstance(payload['evidences'], list):
-            for evidence in payload.get('evidences'):
-                if evidence.get('id'):
-                    payment.evidences.append(File(
-                        file_name=evidence['file_name'],
-                        path=_move_uploaded_file(evidence['id'])
-                    ))
-                elif evidence.get('path'):
-                    payment.evidences.append(evidences[evidence['path']])
+        for evidence in payload.get('evidences', []):
+            if evidence.get('id'):
+                payment.evidences.append(File(
+                    file_name=evidence['file_name'],
+                    path=_move_uploaded_file(evidence['id'])
+                ))
+            elif evidence.get('path'):
+                payment.evidences.append(evidences[evidence['path']])
         if payload.get('orders'):
             payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
-    db.session.commit()
+    db.session.commit() #type:ignore
     return jsonify({'data': [payment.to_dict()], 'message': messages})
 
 @bp_api_user.route('', defaults={'payment_id': None})
@@ -134,7 +133,7 @@ def user_get_payments(payment_id):
             Payment.orders.any(Order.id == request.values['order_id']))
 
     if request.values.get('status'):
-        payments = payments.filter_by(status=PaymentStatus[request.args['status']].payment_id)
+        payments = payments.filter_by(status=PaymentStatus[request.args['status']])
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return filter_payments(payments, request.values)
     if payments.count() == 0:
@@ -176,12 +175,11 @@ def user_create_payment():
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
     evidences = []
-    if payload.get('evidences'):
-        for evidence in payload['evidences']:
-            evidences.append(File(
-                file_name=evidence['file_name'],
-                path=_move_uploaded_file(evidence['id'])
-            ))
+    for evidence in payload.get('evidences', []):
+        evidences.append(File(
+            file_name=evidence['file_name'],
+            path=_move_uploaded_file(evidence['id'])
+        ))
 
     payment = Payment(
         user=user,
@@ -217,13 +215,14 @@ def user_delete_payment(payment_id):
             'error': f"Can't cancel payment in state [{payment.status}]"
         })
     payment.status = PaymentStatus.cancelled
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({})
 
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
-    evidence_file = f"{current_app.config['UPLOAD_PATH']}/{os.path.basename(evidence_src_file)}"
-    shutil.move(evidence_src_file, os.path.abspath(evidence_file))
+    evidence_file = os.path.join(current_app.config['UPLOAD_PATH'],
+                                 os.path.basename(evidence_src_file))
+    shutil.move(evidence_src_file, os.path.join(os.getcwd(), evidence_file))
     return evidence_file
 
 # @bp_api_user.route('/<int:payment_id>', methods=['POST'])
@@ -247,7 +246,7 @@ def user_save_payment(payment_id):
         #     'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
         #                     for message in payload.errors]
         # })
-    payload = request.get_json()
+    payload = request.get_json() or {}
     if current_user.has_role('admin'):
         modify_object(payment, payload,
             ['additional_info', 'amount_sent_krw', 'amount_sent_original', 'amount_received_krw',
@@ -258,7 +257,7 @@ def user_save_payment(payment_id):
             payment.when_changed = datetime.now()
         evidences = {e.path: e for e in payment.evidences}
         payment.evidences = []
-        for evidence in payload.get('evidences'):
+        for evidence in payload.get('evidences', []):
             if evidence.get('id'):
                 payment.evidences.append(File(
                     file_name=evidence['file_name'],
@@ -277,13 +276,13 @@ def user_save_payment(payment_id):
         modify_object(payment, payload, ['status'])
 
     payment.changed_by = current_user
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [payment.to_dict()]})
 
 
-def _upload_payment_evidence():
+def _upload_payment_evidence() -> tuple[list, dict]:
     if not request.files or len(request.files) == 0:
-        return
+        return [], {}
 
     file_ids = []
     file_names = {}
@@ -291,7 +290,7 @@ def _upload_payment_evidence():
         # file_id = None
         file = NamedTemporaryFile()
         # file_id = f'{session_id}-{file_num}'
-        file_name = file.name + os.path.splitext(uploaded_file[1].filename)[1]
+        file_name = file.name + os.path.splitext(str(uploaded_file[1].filename))[1]
         file_id = os.path.basename(file.name)
         uploaded_file[1].save(dst=file_name)
         file_ids.append(file_id)
@@ -323,19 +322,22 @@ def user_upload_payment_evidence(payment_id):
             f"Can't update payment in state <{payment.status}>", status=409))
     if request.files and request.files['file'] and request.files['file'].filename:
         file = request.files['file']
-        rm(payment.proof_image)
         image_data = file.read()
         file_name = os.path.join(
             current_app.config['UPLOAD_PATH'],
             str(current_user.id),
             datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
-            ''.join(os.path.splitext(file.filename)[1:])
+            ''.join(os.path.splitext(str(file.filename))[1:])
         write_to_file(file_name, image_data)
-    
-        payment.proof_image = file_name
+
+        new_evidence = File(
+            file_name=file.filename,
+            path=file_name
+        )
+        payment.evidences.append(new_evidence)
         payment.when_changed = datetime.now()
         payment.changed_by = current_user
-        db.session.commit()
+        db.session.commit() #type: ignore
     else:
         from pprint import pformat
         logger.warning("Payment %s upload evidence: no file was uploaded", payment_id)
@@ -372,12 +374,12 @@ def save_payment_method(payment_method_id):
             abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
     else:
         payment_method = PaymentMethod()
-        db.session.add(payment_method)
+        db.session.add(payment_method) #type: ignore
     payload = request.get_json()
     if not payload:
         abort(Response("No payment method details are provided", status=400))
     modify_object(payment_method, payload, ['name', 'payee_id', 'instructions', 'enabled'])
-    db.session.commit()
+    db.session.commit() #type: ignore
     return jsonify({'data': [payment_method.to_dict()]})
 
 @bp_api_admin.route('/method/<payment_method_id>', methods=['DELETE'])
@@ -388,8 +390,8 @@ def delete_payment_method(payment_method_id):
     if not payment_method:
         abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
     try:
-        db.session.delete(payment_method)
-        db.session.commit()
+        db.session.delete(payment_method) #type: ignore
+        db.session.commit() #type: ignore
         return jsonify({'status': 'success'})
     except:
         abort(Response("Can't delete the payment method <{payment_method}> as it's used",

@@ -1,16 +1,12 @@
 '''
 Contains client routes of the application
 '''
-from datetime import datetime
 from glob import glob
 import logging
 import os, os.path
-from flask import Blueprint, abort, current_app, redirect, render_template, \
-    send_from_directory, send_file, flash, url_for
-from flask_security import login_required, roles_required, current_user, \
-    login_user, logout_user
-
-from app import db, security
+from flask import Blueprint, abort, current_app, redirect, \
+    send_from_directory, send_file
+from flask_security import login_required, roles_required, current_user
 
 client = Blueprint('client', __name__, url_prefix='/')
 
@@ -46,7 +42,9 @@ def favicon():
 @login_required
 def send_from_upload(path):
     # logger = logging.getLogger(f'{__file__}:send_from upload()')
-    file = os.path.join(current_app.config.root_path, 
+    # Must use os.getcwd() because it refers to tenant's home folder
+    # app.root_path refers to application root, which is common for all tenants
+    file = os.path.join(os.getcwd(), 
                         current_app.config['UPLOAD_PATH'], path)
     try:
         return send_file(file)
