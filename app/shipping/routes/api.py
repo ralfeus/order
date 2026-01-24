@@ -1,4 +1,5 @@
 from __future__ import annotations
+from hashlib import md5
 import logging
 from operator import itemgetter
 from typing import Any, Optional
@@ -33,7 +34,8 @@ def admin_get_shipping_methods():
 def get_shipping_methods(country_id, weight):
     """Returns shipping methods available for specific country and weight (if both provided)"""
     cached_result = cache.get("{}_shipping_methods_{}_{}_{}".format(
-        current_app.config['TENANT_NAME'], country_id, weight, request.query_string
+        current_app.config['TENANT_NAME'], country_id, weight, 
+        md5(request.query_string).hexdigest()
     ))
     if cached_result:
         logging.debug("Returning cached shipping methods for country_id=%s, weight=%s, query=%s", 
@@ -69,7 +71,7 @@ def get_shipping_methods(country_id, weight):
         cache.set(
             "{}_shipping_methods_{}_{}_{}".format(
                 current_app.config['TENANT_NAME'], country_id, weight, 
-                request.query_string), 
+                md5(request.query_string).hexdigest()), 
             sorted_result, timeout=86400)
         logging.debug("Returning shipping methods")
         logging.debug("Parameters: country=%s, weight=%s", country_name, weight)
@@ -101,7 +103,7 @@ def get_shipping_rate(country_id, shipping_method_id: int, weight: int):
     logger = logging.getLogger("get_shipping_rate()")
     cached_result = cache.get("{}_shipping_rate_{}_{}_{}".format(
         current_app.config['TENANT_NAME'], country_id, shipping_method_id, weight, 
-        request.query_string
+        md5(request.query_string).hexdigest()
     ))
     if cached_result:
         logging.debug("Returning cached shipping rate for country_id=%s, "
@@ -132,7 +134,7 @@ def get_shipping_rate(country_id, shipping_method_id: int, weight: int):
         cache.set(
             "{}_shipping_rate_{}_{}_{}".format(
                 current_app.config['TENANT_NAME'], country_id, shipping_method_id, 
-                weight, request.query_string), 
+                weight, md5(request.query_string).hexdigest()), 
             result, timeout=86400)
         return jsonify(result)
     else:

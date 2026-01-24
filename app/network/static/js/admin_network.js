@@ -25,6 +25,7 @@ $(document).ready(() => {
         }
     });
     $('#nodes-count-input').appendTo('.btn-group');
+    updateBuilderStatus();
     setInterval(updateBuilderStatus, 60000);
 });
 
