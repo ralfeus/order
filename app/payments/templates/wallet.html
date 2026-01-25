@@ -4,6 +4,7 @@
 {{ super() }}
 <script>
 var base_country = {{ base_country | tojson }};
+var current_username = {{ username | tojson }};
 </script>
 <script src="static/js/wallet.js"></script>
 {% endblock %}

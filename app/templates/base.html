@@ -153,6 +153,11 @@
       </ul>
     </div>
     <ul id="infobar" class="navbar-nav ms-auto">
+      {% if not current_user.has_role('admin') %}
+      <li class="nav-item d-flex align-items-center">
+        <a class="btn btn-primary btn-sm me-2" href="/payments/?create=1" role="button">Make Payment</a>
+      </li>
+      {% endif %}
       <li class="navbar-text px-2" style="
         padding-top: 0px; padding-bottom: 0px;
         font-size: 0.7rem; text-align:right; font-weight: bolder;">

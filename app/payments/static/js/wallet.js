@@ -5,12 +5,25 @@ var g_amount_set_manually = false;
 var g_filter_sources;
 var g_payment_methods;
 var g_payment_statuses;
+var g_auto_triggered = false;
 
 $(document).ready( function () {
     get_dictionaries()
     .then(() => {
         init_payments_table();
         init_transactions_table();
+        // Auto-trigger create dialog if ?create=1 in URL
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('create') == '1') {
+            // Remove URL parameter immediately
+            history.replaceState({}, '', '/payments/');
+            // Mark as auto-triggered
+            g_auto_triggered = true;
+            // Open the create dialog
+            setTimeout(() => {
+                $('#payments').DataTable().button(0).trigger();            
+            }, 100);        
+        }
     });
 });
 
@@ -121,7 +134,8 @@ function init_payments_table() {
             },
             {
                 name: 'payment_method.instructions',
-                type: 'hidden'
+                type: 'hidden',
+                label: false
             },
             {label: 'Amount', name: 'amount_sent_original', def: 0},
             {label: 'Additional info', name: 'additional_info', type: 'textarea'},
@@ -301,4 +315,19 @@ function on_amount_sent_original_blur(data) {
 function on_editor_open() {
     g_amount_set_manually = false;
     get_orders_to_pay();
+    if (g_auto_triggered) {
+        // Pre-fill fields during open event
+        editor.field('sender_name').set(current_username);
+        editor.field('currency_code').set('EUR');
+        // Find Stripe payment method by name
+        var stripe_method = g_payment_methods.find(pm => pm.label === 'Stripe');
+        if (stripe_method) {
+            editor.field('payment_method.id').set(stripe_method.value);
+            on_payment_method_change(null, stripe_method.value);
+        }
+        setTimeout(() => {
+            editor.field('amount_sent_original').input().focus();
+        }, 450);        
+        g_auto_triggered = false;
+    }
 }

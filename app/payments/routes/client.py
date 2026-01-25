@@ -55,5 +55,6 @@ def user_wallet():
     return render_template(
         'wallet.html', 
         balance=current_user.balance, 
+        username=current_user.username,
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))
