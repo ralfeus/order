@@ -678,6 +678,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.debug("Choosing the address. Expect the address list to be closed")
             try_click(address_element.locator('label[for^="rdo-address-selected-"]'),
                     lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
+            # Need to ensure the address is shown
+            self._logger.debug("Waiting for the address to appear")
+            page.wait_for_selector('.address-base', state='visible')
         except PurchaseOrderError:
             raise
         except Exception as e:
