@@ -378,11 +378,24 @@ function init_orders_table() {
                 }
             },
             {
-                extend: 'selected',
-                text: 'Customs label',
-                action: function (e, dt, node, config) {
-                    open_order_customs_label(dt.rows({ selected: true }));
-                }
+                extend: 'collection',
+                text: 'Create document',
+                buttons: [
+                    {
+                        extend: 'selected',
+                        text: 'Customs label',
+                        action: function (e, dt, node, config) {
+                            open_order_customs_label(dt.rows({ selected: true }));
+                        }
+                    },
+                    {
+                        extend: 'selected',
+                        text: 'Distribution list',
+                        action: function (e, dt, node, config) {
+                            open_distribution_list(dt.rows({ selected: true }));
+                        }
+                    }
+                ]
             },
             {
                 extend: 'collection',
@@ -561,6 +574,14 @@ function open_order_customs_label(target) {
     for (let i = 0; i < target.count(); i++) {
         window.open(target.data()[i].id + '/customs_label');
     }
+}
+
+function open_distribution_list(target) {
+    let order_ids = [];
+    for (let i = 0; i < target.count(); i++) {
+        order_ids.push(target.data()[i].id);
+    }
+    window.open('distribution_list?order_ids=' + order_ids.join(','));
 }
 
 function open_order_invoice(target) {

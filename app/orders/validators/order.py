@@ -51,6 +51,10 @@ def _is_valid_string_field(form, field):
         raise ValidationError(
             f'{field.name}:Field value must not be longer than {field_length}')
 
+def _is_valid_email(_form, field):
+    if field.data and not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', field.data):
+        raise ValidationError('email:Invalid email format')
+
 def _is_valid_country(_form, field):
     country = Country.query.get(field.data)
     if not country:
@@ -66,7 +70,8 @@ class OrderValidator(Inputs):
         'phone': [_is_valid_string_field],
         'shipping': [DataRequired("shipping:Field is required")],
         'suborders': [DataRequired("suborders:Field is required"), _are_suborders_valid],
-        'zip': [_is_valid_string_field]
+        'zip': [_is_valid_string_field],
+        'email': [_is_valid_email]
     }
 
     def __enter__(self):

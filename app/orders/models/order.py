@@ -75,6 +75,7 @@ class Order(db.Model, BaseModel): # type: ignore
     country: Country = relationship(Country, foreign_keys=[country_id]) # type: ignore
     zip = Column(String(15))
     phone = Column(String(64))
+    email = Column(String(64))
     comment = Column(String(65536))
     boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan") # type: ignore
     shipping_box_weight = Column(Integer())
@@ -395,6 +396,7 @@ class Order(db.Model, BaseModel): # type: ignore
             'country': self.country.to_dict() if self.country else None,
             'zip': self.zip,
             'phone': self.phone,
+            'email': self.email,
             'comment': self.comment,
             'invoice_id': self.invoice_id,
             'invoice': self.invoice.to_dict() if self.invoice is not None else None,

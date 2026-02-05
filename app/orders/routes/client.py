@@ -1,11 +1,13 @@
 ''' Client routes for order related activities '''
 import itertools
 import json
+import os
 from flask import Response, abort, current_app, request, render_template, send_file
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
 import markupsafe
 from markupsafe import escape
+import openpyxl
 
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
@@ -142,6 +144,70 @@ def get_order_drafts():
         'order_drafts.html', 
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))
+
+@bp_client_admin.route('/distribution_list')
+@login_required
+@roles_required('admin')
+def admin_get_distribution_list():
+    '''
+    Generates a distribution list for selected orders
+    '''
+    order_ids = request.values.get('order_ids', '').split(',')
+    # applicable_shipping_ids = current_app.config.get('DISTRIBUTION_LIST_SHIPPING_IDS', [])
+    orders = Order.query.filter(Order.id.in_(order_ids)) 
+        # .filter(Order.shipping_id.in_(applicable_shipping_ids)) \
+        # .all()
+    try:
+        file = _get_dl_excel(orders)
+        return current_app.response_class(stream_and_close(file), headers={
+            'Content-Disposition': f'attachment; filename="distribution_list.xlsx"',
+            'Content-Type': file_types['xlsx']
+        })
+    except OrderError as ex:
+        abort(Response(
+            f"Couldn't generate a distribution list Excel due to following error: {';'.join(ex.args)}"))
+
+def _get_dl_excel(orders: list[Order]):
+    ''' Generates a distribution list Excel file for given orders '''
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+
+    package_path = os.path.dirname(__file__) + '/..'
+    dl_wb = openpyxl.open(f'{package_path}/templates/distribution_list.xlsx')
+    ws = dl_wb['список']
+    if ws is None:
+        raise OrderError("Couldn't open the distribution list Excel template")
+
+    for i, order in enumerate(orders):
+        address = f'{order.customer_name}\n' \
+                f'{order.email or ""} ' \
+                f'{order.phone}\n' \
+                f'{order.address} {order.zip} {order.city_eng}\n' \
+                f'{order.country.name}'
+        row = [
+            order.country.name,
+            address,
+            order.boxes.count() or 1, #type: ignore
+            order.id[9:],
+            order.total_weight / 1000,
+            '\n'.join([f'{b.length}-{b.width}-{b.height}' for b in order.boxes]),
+            order.total_krw,
+            '',
+            '',
+            '',
+            address
+        ]
+        ws.append(row)
+    ws.delete_rows(2, 1)  # remove template row
+
+    # for col_num, _ in enumerate(headers, 1):
+    #     column_letter = get_column_letter(col_num)
+    #     ws.column_dimensions[column_letter].width = 15
+
+    file_stream = BytesIO()
+    dl_wb.save(file_stream)
+    file_stream.seek(0)
+    return file_stream            
 
 @bp_client_admin.route('/')
 @login_required

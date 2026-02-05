@@ -567,6 +567,7 @@ function submit_changes(_sender, draft=false) {
             zip: $('#zip').val(),
             shipping: $('#shipping').val(),
             phone: $('#phone').val(),
+            email: $('#email').val(),
             comment: $('#comment').val(),
             draft: draft,
             attached_orders: $('#attached_orders').val(),

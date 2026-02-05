@@ -205,7 +205,7 @@ def user_create_order():
     result = {}
     shipping = Shipping.query.get(payload['shipping'])
     country = Country.query.get(payload['country'])
-    with db.session.no_autoflush:
+    with db.session.no_autoflush: # type: ignore
         order = Order(
             user=current_user,
             customer_name=payload['customer_name'],
@@ -216,6 +216,7 @@ def user_create_order():
             zip=payload['zip'],
             shipping=shipping,
             phone=payload['phone'],
+            email=payload.get('email'),
             comment=payload.get('comment'),
             subtotal_krw=0,
             status=OrderStatus.pending,
@@ -228,7 +229,7 @@ def user_create_order():
                     current_user, payload)
 
         order.attach_orders(payload.get('attached_orders'))
-        db.session.add(order)
+        db.session.add(order) # type: ignore
         errors = []
         if payload.get('params') is not None and \
            payload['params'].get('shipping') is not None:
