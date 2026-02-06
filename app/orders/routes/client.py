@@ -191,7 +191,7 @@ def _get_dl_excel(orders: list[Order]):
             order.id[9:],
             order.total_weight / 1000,
             '\n'.join([f'{b.length}-{b.width}-{b.height}' for b in order.boxes]),
-            order.total_krw,
+            '',
             '',
             '',
             '',
