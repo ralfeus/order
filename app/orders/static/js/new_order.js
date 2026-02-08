@@ -593,14 +593,14 @@ async function createStripePayment(orderId, paymentMethod) {
         $('.wait').show();
 
         // Fetch order details to get the EUR amount
-        const orderResponse = await $.ajax({
+        const order = await $.ajax({
             url: `/api/v1/order/${orderId}`,
             method: 'GET',
             dataType: 'json'
         });
 
         // Get the order's total in EUR (total_cur2)
-        const amountEUR = orderResponse.total_cur2 || 0;
+        const amountEUR = round_up(parseFloat(order.total_cur2) || 0, 0);
 
         if (amountEUR <= 0) {
             $('.wait').hide();
@@ -615,6 +615,7 @@ async function createStripePayment(orderId, paymentMethod) {
             dataType: 'json',
             contentType: 'application/json',
             data: JSON.stringify({
+                sender_name: order.customer_name,
                 currency_code: 'EUR',
                 payment_method: { id: paymentMethod.id },
                 orders: [orderId],
@@ -630,7 +631,7 @@ async function createStripePayment(orderId, paymentMethod) {
 
             // If there's an extra action (Stripe checkout URL), open it
             if (paymentResponse.extra_action && paymentResponse.extra_action.url) {
-                window.open(paymentResponse.extra_action.url, '_blank');
+                window.open(`/payments/${paymentResponse.extra_action.url}`, '_blank');
 
                 // Close the modal
                 $('.modal').modal('hide');

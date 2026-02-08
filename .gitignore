@@ -66,6 +66,7 @@ config.json
 pylintrc
 
 app/config-test.json
+app/config-default.json
 
 profile-*
 include/*
