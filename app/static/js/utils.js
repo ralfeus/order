@@ -17,10 +17,10 @@ function modals_on() {
 
 var modalPromises = [];
 var modalShown = false;
-async function modal(title, text, type = 'info', params = []) {
+async function modal(title, text, type = 'info', params = [], customButtons = []) {
     var promise = $.Deferred();
     promise.id = text;
-    modalPromises.push(() => showModal(promise, title, text, type, params));
+    modalPromises.push(() => showModal(promise, title, text, type, params, customButtons));
     if (!modalShown) {
         modalShown = true;
         showModals();
@@ -38,7 +38,7 @@ async function modal(title, text, type = 'info', params = []) {
         modalShown = false;
     }
 
-    function showModal(promise, title, text, type, params) {
+    function showModal(promise, title, text, type, params, customButtons) {
         if (!is_modals_on) {
             return promise.resolve(false);
         }
@@ -73,9 +73,27 @@ async function modal(title, text, type = 'info', params = []) {
             });
             $('.modal-footer #btn-cancel').on('click', () => promise.resolve());
         } else {
-            $('.modal-footer').html(
-                '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>'
-            );
+            // Default info type - show Close button and any custom buttons
+            var buttonsHtml = '';
+            if (customButtons && customButtons.length > 0) {
+                customButtons.forEach((btn, idx) => {
+                    var dismissAttr = btn.dismissModal !== false ? 'data-bs-dismiss="modal"' : '';
+                    buttonsHtml += `<button type="button" id="btn-custom-${idx}" class="${btn.className || 'btn btn-primary'}" ${dismissAttr}>${btn.text}</button>`;
+                });
+            }
+            buttonsHtml += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>';
+            $('.modal-footer').html(buttonsHtml);
+
+            // Attach click handlers for custom buttons
+            if (customButtons && customButtons.length > 0) {
+                customButtons.forEach((btn, idx) => {
+                    $(`#btn-custom-${idx}`).on('click', () => {
+                        if (btn.onClick) {
+                            btn.onClick();
+                        }
+                    });
+                });
+            }
         }
         $('.modal').on('hide.bs.modal', _ => {
             if (type == 'info') {

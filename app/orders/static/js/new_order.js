@@ -550,6 +550,120 @@ function show_shipping_notification() {
     modal("Shipping", $('#shipping')[0].selectedOptions[0].dataset.notification);
 }
 
+/**
+ * Checks if Stripe payment method is available and returns custom buttons for modal
+ * @param {string} orderId - The ID of the newly created order
+ * @returns {Promise<Array>} Array of custom button objects
+ */
+async function getPaymentButtons(orderId) {
+    try {
+        // Fetch available payment methods
+        const response = await $.ajax({
+            url: '/api/v1/payment/method',
+            method: 'GET',
+            dataType: 'json'
+        });
+
+        // Check if Stripe is available
+        const stripeMethod = response.find(pm => pm.name === 'Stripe' && pm.enabled);
+
+        if (stripeMethod) {
+            return [{
+                text: 'Pay the order',
+                className: 'btn btn-primary',
+                dismissModal: false,
+                onClick: () => createStripePayment(orderId, stripeMethod)
+            }];
+        }
+    } catch (error) {
+        console.error('Error fetching payment methods:', error);
+    }
+
+    return [];
+}
+
+/**
+ * Creates a Stripe payment for the order and opens the payment window
+ * @param {string} orderId - The ID of the order to pay
+ * @param {Object} paymentMethod - The Stripe payment method object
+ */
+async function createStripePayment(orderId, paymentMethod) {
+    try {
+        // Show loading indicator
+        $('.wait').show();
+
+        // Fetch order details to get the EUR amount
+        const orderResponse = await $.ajax({
+            url: `/api/v1/order/${orderId}`,
+            method: 'GET',
+            dataType: 'json'
+        });
+
+        // Get the order's total in EUR (total_cur2)
+        const amountEUR = orderResponse.total_cur2 || 0;
+
+        if (amountEUR <= 0) {
+            $('.wait').hide();
+            modal('Error', 'Order amount must be greater than zero to create a payment.');
+            return;
+        }
+
+        // Create payment with Stripe in EUR
+        const paymentResponse = await $.ajax({
+            url: '/api/v1/payment',
+            method: 'POST',
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                currency_code: 'EUR',
+                payment_method: { id: paymentMethod.id },
+                orders: [orderId],
+                amount_sent_original: amountEUR
+            })
+        });
+
+        $('.wait').hide();
+
+        // Check if payment was created successfully
+        if (paymentResponse.data && paymentResponse.data.length > 0) {
+            const payment = paymentResponse.data[0];
+
+            // If there's an extra action (Stripe checkout URL), open it
+            if (paymentResponse.extra_action && paymentResponse.extra_action.url) {
+                window.open(paymentResponse.extra_action.url, '_blank');
+
+                // Close the modal
+                $('.modal').modal('hide');
+            } else if (payment.id) {
+                // Fallback: construct the Stripe checkout URL manually
+                const checkoutUrl = `/payments/${payment.id}/stripe/checkout`;
+                window.open(checkoutUrl, '_blank');
+
+                // Close the modal
+                $('.modal').modal('hide');
+            } else {
+                modal('Error', 'Payment was created but checkout URL is not available.');
+            }
+        } else {
+            modal('Error', 'Failed to create payment. Please try again.');
+        }
+    } catch (error) {
+        $('.wait').hide();
+        console.error('Error creating Stripe payment:', error);
+
+        let errorMessage = 'Failed to create payment. ';
+        if (error.responseJSON && error.responseJSON.error) {
+            errorMessage += error.responseJSON.error;
+        } else if (error.responseText) {
+            errorMessage += error.responseText;
+        } else {
+            errorMessage += 'Please try again.';
+        }
+
+        modal('Error', errorMessage);
+    }
+}
+
 function submit_changes(_sender, draft=false) {
     $('.wait').show();
     $.ajax({
@@ -587,9 +701,11 @@ function submit_changes(_sender, draft=false) {
         complete: function() {
             $('.wait').hide();
         },
-        success: function(data, _status, _xhr) {
+        success: async function(data, _status, _xhr) {
             if (data.status === 'success') {
-                modal('Success!', "The request is posted. The request ID is " + data.order_id);
+                // Check if Stripe is available and show payment button if it is
+                const customButtons = await getPaymentButtons(data.order_id);
+                modal('Success!', "The request is posted. The request ID is " + data.order_id, 'info', [], customButtons);
                 clear_form();
             } else if (data.status === 'updated') {
                 modal('Order update', "The request is updated. The request ID is " + data.order_id);
