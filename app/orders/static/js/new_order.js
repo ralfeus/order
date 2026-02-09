@@ -610,7 +610,7 @@ async function createStripePayment(orderId, paymentMethod) {
 
         // Create payment with Stripe in EUR
         const paymentResponse = await $.ajax({
-            url: '/api/v1/payment',
+            url: '/api/v1/payment?comment=from-order',
             method: 'POST',
             dataType: 'json',
             contentType: 'application/json',

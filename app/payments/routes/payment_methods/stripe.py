@@ -6,7 +6,7 @@ from typing import Any
 from flask import current_app, jsonify, render_template, request
 import stripe
 import requests
-from app import db
+from app import db, cache
 from app.currencies.models.currency import Currency
 from app.payments import bp_api_user, bp_client_user
 from app.payments.models.payment import Payment, PaymentStatus
@@ -15,7 +15,7 @@ from app.tools import write_to_file
 from exceptions import PaymentError
 
 class FeeStructure:
-    send_to_stripe = 0 # Step 1
+    send_to_stripe = 0.0 # Step 1
     stripe_fee = 0 # Step 2
     service_fee = 0 # Step 3
     send_to_wise = 0 # Step 4
@@ -54,24 +54,39 @@ class ExchangeRateManager:
         Get current exchange rate from Frankfurter API (free, no auth required)
         Returns float rate or None on error
         """
-        cache_key = f"{base}_{target}"
+        cache_key = f"{current_app.config.get('TENANT_NAME', 'default')}_{base}_{target}"
         
         # Return cached if fresh (< 5 minutes)
-        if cache_key in self.cache:
-            if (datetime.now() - self.cache_time[cache_key]).seconds < 300:
-                return self.cache[cache_key]
+        if cache.has(cache_key):
+            return cache.get(cache_key)
         
         try:
-            url = f'https://api.frankfurter.app/latest?from={base}&to={target}'
-            response = requests.get(url, timeout=5)
+            from lxml.cssselect import CSSSelector
+            from lxml import etree #type: ignore
+            # Now it's specific for Kookmin bank of Korea
+            # url = f'https://api.frankfurter.app/latest?from={base}&to={target}'
+            date = datetime.now().strftime('%Y%m%d')
+            url = 'https://omoney.kbstar.com/quics?chgCompId=b104602&baseCompId=b104602&page=C102554&cc=b104602:b104602'
+            data= f'%EB%93%B1%EB%A1%9D%ED%9A%8C%EC%B0%A8=1083&searchDate={date}'
+            response = requests.post(url, data, timeout=5)
             response.raise_for_status()
-            
-            data = response.json()
-            rate = data['rates'][target]
+
+            rate = 0
+            doc = etree.fromstring(response.content.decode(), parser=etree.HTMLParser())
+            rows = CSSSelector('#inqueryTable table tbody tr')(doc)
+            for row in rows:
+                cols = row.cssselect('td')
+                currency = etree.tostring(cols[0], method='text', encoding='unicode').strip()
+                if currency == target:
+                    rate = 1 / float(cols[4].text.strip().replace(',',''))
+                    break
+            if rate == 0:
+                raise Exception("Couldn't find target rate")
+            # data = response.json()
+            # rate = data['rates'][target]
             
             # Cache it
-            self.cache[cache_key] = rate
-            self.cache_time[cache_key] = datetime.now()
+            cache.set(cache_key, rate, timeout=600)
             
             return rate
             
