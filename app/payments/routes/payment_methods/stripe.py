@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+import json
 import logging
 import math
 from typing import Any
@@ -36,6 +37,9 @@ class FeeStructure:
                 if not (attr.startswith('__') or callable(getattr(self, attr)))
         }
     
+    def __str__(self):
+        return json.dumps(self.to_dict())
+    
     @classmethod
     def from_dict(cls, json):
         return cls(**{
@@ -58,7 +62,9 @@ class ExchangeRateManager:
         
         # Return cached if fresh (< 5 minutes)
         if cache.has(cache_key):
-            return cache.get(cache_key)
+            rate = cache.get(cache_key)
+            logging.debug(f"Got {cache_key} rate {rate} from the cache")
+            return rate
         
         try:
             from lxml.cssselect import CSSSelector
@@ -84,7 +90,7 @@ class ExchangeRateManager:
                 raise Exception("Couldn't find target rate")
             # data = response.json()
             # rate = data['rates'][target]
-            
+            logging.debug(f"Got {cache_key} rate {rate} from Kookmin")
             # Cache it
             cache.set(cache_key, rate, timeout=600)
             
@@ -127,7 +133,14 @@ def calculate_base_amount(payment: Payment) -> float:
             payment.currency_code)
     except:
         pass # Just use same rate as in a system
-    return float(payment.amount_sent_original * Decimal(fx_rate) / om_rate)
+    logging.debug(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
+    logging.debug(f"Site's {payment.currency_code} rate: {om_rate}")
+    logging.debug(f"Bank's {payment.currency_code} rate: {fx_rate}")
+    adjustment_quoefficient = Decimal(fx_rate) / om_rate
+    logging.debug(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
+    adjusted_amount = math.ceil(float(payment.amount_sent_original * adjustment_quoefficient) * 100) / 100
+    logging.debug(f"Adjusted base amount: {adjusted_amount}")
+    return adjusted_amount
 
 def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     """Calculate service fee based on card country"""
@@ -139,7 +152,7 @@ def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     f.send_to_bank = math.ceil(base_amount / (1 - fee_config['swift']) * 100) / 100
     f.wise_fee = f.send_to_bank - base_amount
     f.send_to_wise = math.ceil(f.send_to_bank / (1 - fee_config['stripe-wise']) * 100) / 100
-    f.stripe_wise_fee = f.send_to_wise - f.send_to_bank
+    f.stripe_wise_fee = math.ceil((f.send_to_wise - f.send_to_bank) * 100) / 100
     f.service_fee = math.ceil(base_amount * fee_config['service'] * 100) / 100
     at_stripe = f.send_to_wise + f.service_fee
     f.send_to_stripe = round(at_stripe / (1 - fee_config[stripe_fee]['percentage']) + 
@@ -147,7 +160,7 @@ def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     f.stripe_fee = f.send_to_stripe * fee_config[stripe_fee]['percentage'] + fee_config[stripe_fee]['fixed']
     
     f.total_service_fee = f.wise_fee + f.stripe_wise_fee + f.service_fee + f.stripe_fee
-    
+    logging.debug(f"Fees structure: {f}")
     return f
 
 @bp_client_user.route('/<int:payment_id>/stripe/checkout')
