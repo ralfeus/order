@@ -136,6 +136,8 @@ def calculate_base_amount(payment: Payment) -> float:
     logging.debug(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
     logging.debug(f"Site's {payment.currency_code} rate: {om_rate}")
     logging.debug(f"Bank's {payment.currency_code} rate: {fx_rate}")
+    fx_rate *= 1.01
+    logging.debug(f"Bank's {payment.currency_code} currency risk compensated rate: {fx_rate}")
     adjustment_quoefficient = Decimal(fx_rate) / om_rate
     logging.debug(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
     adjusted_amount = math.ceil(float(payment.amount_sent_original * adjustment_quoefficient) * 100) / 100
