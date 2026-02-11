@@ -10,10 +10,13 @@ import requests
 from app import db, cache
 from app.currencies.models.currency import Currency
 from app.payments import bp_api_user, bp_client_user
+from app.payments.logging import get_logger
 from app.payments.models.payment import Payment, PaymentStatus
 from app.models.file import File
 from app.tools import write_to_file
 from exceptions import PaymentError
+
+log = get_logger()
 
 class FeeStructure:
     send_to_stripe = 0.0 # Step 1
@@ -63,7 +66,7 @@ class ExchangeRateManager:
         # Return cached if fresh (< 5 minutes)
         if cache.has(cache_key):
             rate = cache.get(cache_key)
-            logging.debug(f"Got {cache_key} rate {rate} from the cache")
+            log.debug(f"Got {cache_key} rate {rate} from the cache")
             return rate
         
         try:
@@ -90,14 +93,14 @@ class ExchangeRateManager:
                 raise Exception("Couldn't find target rate")
             # data = response.json()
             # rate = data['rates'][target]
-            logging.debug(f"Got {cache_key} rate {rate} from Kookmin")
+            log.debug(f"Got {cache_key} rate {rate} from Kookmin")
             # Cache it
             cache.set(cache_key, rate, timeout=600)
             
             return rate
             
         except requests.exceptions.RequestException as e:
-            logging.warning(f"Error fetching {base}/{target} rate: {e}")
+            log.warning(f"Error fetching {base}/{target} rate: {e}")
             return 0
 
 # Fee configuration (same as before)
@@ -125,6 +128,7 @@ EEA_COUNTRIES = {
 }
 
 def calculate_base_amount(payment: Payment) -> float:
+    log.set_payment_id(payment.id)
     om_rate = Currency.query.get(payment.currency_code).rate
     fx_rate = om_rate
     try:
@@ -133,15 +137,15 @@ def calculate_base_amount(payment: Payment) -> float:
             payment.currency_code)
     except:
         pass # Just use same rate as in a system
-    logging.debug(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
-    logging.debug(f"Site's {payment.currency_code} rate: {om_rate}")
-    logging.debug(f"Bank's {payment.currency_code} rate: {fx_rate}")
+    log.debug(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
+    log.debug(f"Site's {payment.currency_code} rate: {om_rate}")
+    log.debug(f"Bank's {payment.currency_code} rate: {fx_rate}")
     fx_rate *= 1.01
-    logging.debug(f"Bank's {payment.currency_code} currency risk compensated rate: {fx_rate}")
+    log.debug(f"Bank's {payment.currency_code} currency risk compensated rate: {fx_rate}")
     adjustment_quoefficient = Decimal(fx_rate) / om_rate
-    logging.debug(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
+    log.debug(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
     adjusted_amount = math.ceil(float(payment.amount_sent_original * adjustment_quoefficient) * 100) / 100
-    logging.debug(f"Adjusted base amount: {adjusted_amount}")
+    log.debug(f"Adjusted base amount: {adjusted_amount}")
     return adjusted_amount
 
 def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
@@ -162,12 +166,13 @@ def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     f.stripe_fee = f.send_to_stripe * fee_config[stripe_fee]['percentage'] + fee_config[stripe_fee]['fixed']
     
     f.total_service_fee = f.wise_fee + f.stripe_wise_fee + f.service_fee + f.stripe_fee
-    logging.debug(f"Fees structure: {f}")
+    log.debug(f"Fees structure: {f}")
     return f
 
 @bp_client_user.route('/<int:payment_id>/stripe/checkout')
 def checkout(payment_id):
     """Render custom checkout page"""
+    log.set_payment_id(payment_id)
     # Load payment from database
     payment = Payment.query.get(payment_id)
     if not payment:
@@ -192,6 +197,7 @@ def detect_card():
         data: dict[str, Any] = request.get_json() #type: ignore
         payment_method_id = data.get('payment_method_id')
         payment_id = data.get('payment_id')
+        log.set_payment_id(payment_id)
         
         if not payment_method_id:
             return jsonify({'error': 'Missing payment method'}), 400
@@ -234,6 +240,7 @@ def create_payment_intent():
     try:
         data: dict[str, Any] = request.get_json() #type: ignore
         payment_id = data.get('payment_id')
+        log.set_payment_id(payment_id)
         payment_method_id = data.get('payment_method_id')
         if not payment_method_id:
             raise PaymentError("Stripe: Couldn't get payment method ID")
@@ -295,11 +302,12 @@ def create_payment_intent():
 @bp_client_user.route('<int:payment_id>/stripe/success')
 def success(payment_id: int):
     """Handle Stripe payment success redirect"""
+    log.set_payment_id(payment_id)
     try:
         # Get payment_intent from query parameters
         payment_intent_id = request.args.get('payment_intent')
         if not payment_intent_id:
-            logging.warning("No payment intent ID is provided")
+            log.warning("No payment intent ID is provided")
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Configure Stripe
@@ -311,25 +319,25 @@ def success(payment_id: int):
 
         # Verify payment is successful using Stripe's data
         if intent.status != 'succeeded':
-            logging.info(f"Payment status is '{intent.status}'")
+            log.info(f"Payment status is '{intent.status}'")
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Get payment_id from metadata
         payment_id_from_stripe = int(intent.metadata.get('payment_id', '0')) \
             if intent.metadata.get('payment_id', '0').isnumeric() else 0
         if payment_id != payment_id_from_stripe:
-            logging.info(f"The payment ID doesn't match ({payment_id} is provided, "
+            log.info(f"The payment ID doesn't match ({payment_id} is provided, "
                          f"{payment_id_from_stripe} is in Stripe payment)")
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Find payment entity
         payment = Payment.query.get(int(payment_id))
         if not payment:
-            logging.info(f"No payment ID {payment_id} was found")
+            log.info(f"No payment ID {payment_id} was found")
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Change payment status to approved
-        logging.info(f"Approving payment {payment_id}")
+        log.info(f"Approving payment {payment_id}")
         payment.amount_received_krw = payment.amount_sent_krw
         payment.set_status(PaymentStatus.approved)
         db.session.commit()  # type: ignore
@@ -349,12 +357,12 @@ def success(payment_id: int):
                     db.session.add(file_obj) #type: ignore
                     db.session.commit() #type: ignore
         except Exception as e:
-            logging.warning(f"Failed to download and save receipt for payment {payment_id}: {e}")
+            log.warning(f"Failed to download and save receipt for payment {payment_id}: {e}")
 
         # Return success template
         return render_template('payment_methods/stripe_success.html', success=True)
 
     except Exception as e:
         # Log error but still close window to avoid confusion
-        logging.exception(f"Error in Stripe success handler: {e}")
+        log.exception(f"Error in Stripe success handler: {e}")
         return render_template('payment_methods/stripe_success.html', success=False)
