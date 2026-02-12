@@ -304,7 +304,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
-        page.locator('div.login_form').wait_for(state='detached', timeout=10000)
+        try:
+            page.locator('div.login_form').wait_for(state='detached', timeout=10000)
+        except:
+            if page.locator('div#layer_alert').is_visible(timeout=5000):
+                raise AtomyLoginError(username=purchase_order.customer.username,
+                                      password=purchase_order.customer.password)
+            raise
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
 
@@ -825,11 +831,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
             headers=session_headers + [{"Cookie": "KR_language=en"}],
         )
 
-        orders = [
-            {
+        orders = []
+        for element in res.cssselect("div.my_odr_gds>ul>li"):
+            status_element = element.cssselect("span.m-stat")
+            if len(status_element) == 0:
+                status_element = element.cssselect("div.txt-state span:first-child")
+            orders.append({
                 "id": element.cssselect("input[name='hSaleNum']")[0].attrib["value"],
-                "status": element.cssselect("span.m-stat")[0].text.strip(),
-            }
-            for element in res.cssselect("div.my_odr_gds li")
-        ]
+                "status": status_element[0].text.strip(),
+            })
         return orders
