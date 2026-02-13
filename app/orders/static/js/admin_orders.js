@@ -618,7 +618,13 @@ function open_distribution_list() {
     // for (let i = 0; i < target.count(); i++) {
     //     order_ids.push(target.data()[i].id);
     // }
-    window.open('distribution_list?order_ids=' + Array.from(g_selected_orders).join(','));
+    modal('Distribution List URL', null, 'form', [
+        { name: 'url', label: 'Distribution List URL', value: '' }
+    ]).then((result) => {
+        if (result && result.url) {
+            window.open('distribution_list?order_ids=' + Array.from(g_selected_orders).join(',') + '&url=' + encodeURIComponent(result.url));
+        }
+    });
 }
 
 function open_order_invoice(target) {

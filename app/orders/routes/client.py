@@ -153,12 +153,13 @@ def admin_get_distribution_list():
     Generates a distribution list for selected orders
     '''
     order_ids = request.values.get('order_ids', '').split(',')
+    url = request.values.get('url', '')
     # applicable_shipping_ids = current_app.config.get('DISTRIBUTION_LIST_SHIPPING_IDS', [])
-    orders = Order.query.filter(Order.id.in_(order_ids)) 
+    orders = Order.query.filter(Order.id.in_(order_ids))
         # .filter(Order.shipping_id.in_(applicable_shipping_ids)) \
         # .all()
     try:
-        file = _get_dl_excel(orders)
+        file = _get_dl_excel(orders, url)
         return current_app.response_class(stream_and_close(file), headers={
             'Content-Disposition': f'attachment; filename="distribution_list.xlsx"',
             'Content-Type': file_types['xlsx']
@@ -167,7 +168,7 @@ def admin_get_distribution_list():
         abort(Response(
             f"Couldn't generate a distribution list Excel due to following error: {';'.join(ex.args)}"))
 
-def _get_dl_excel(orders: list[Order]):
+def _get_dl_excel(orders: list[Order], url: str = ''):
     ''' Generates a distribution list Excel file for given orders '''
     from openpyxl.utils import get_column_letter
     from io import BytesIO
@@ -195,7 +196,8 @@ def _get_dl_excel(orders: list[Order]):
             '',
             '',
             '',
-            address
+            address,
+            url
         ]
         ws.append(row)
     ws.delete_rows(2, 1)  # remove template row

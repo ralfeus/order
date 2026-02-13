@@ -101,3 +101,53 @@ class TestOrdersClient(BaseTestCase):
             lambda: self.client.get(f'/orders/{order.id}/excel')
         )
         self.assertEqual(res.status_code, 200)
+
+    def test_admin_get_distribution_list(self):
+        # Create test orders with necessary data for distribution list
+        order1 = Order(
+            id='ORD-DL-001',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 1',
+            email='customer1@test.com',
+            phone='123456789',
+            address='123 Test Street',
+            zip='12345',
+            city_eng='Test City 1',
+            total_weight=1000
+        )
+        order2 = Order(
+            id='ORD-DL-002',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 2',
+            email='customer2@test.com',
+            phone='987654321',
+            address='456 Test Avenue',
+            zip='54321',
+            city_eng='Test City 2',
+            total_weight=2000
+        )
+        self.try_add_entities([order1, order2])
+
+        # Test without URL parameter (includes authorization checks)
+        res = self.try_admin_operation(
+            lambda: self.client.get(
+                f'/admin/orders/distribution_list?order_ids={order1.id},{order2.id}'
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+        # Test with URL parameter (already logged in as admin)
+        res = self.client.get(
+            f'/admin/orders/distribution_list?order_ids={order1.id},{order2.id}&url=https://example.com/tracking'
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        # Verify we got a non-empty Excel file
+        self.assertGreater(len(res.data), 0)
