@@ -816,7 +816,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 po for po in purchase_orders if po and po.vendor_po_id == o["id"]
             ]
             try:
-                filtered_po[0].set_status(ORDER_STATUSES[o["status"]])
+                po = filtered_po[0]
+                status = ORDER_STATUSES[o["status"]]
+                self._logger.debug(f"Setting {po.id} status to <{status}>")
+                po.set_status(status)
             except IndexError:
                 self._logger.warning(
                     "No corresponding purchase order for Atomy PO <%s> was found",

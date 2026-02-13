@@ -5,6 +5,7 @@ let g_order_statuses;
 let g_orders_table;
 let g_payment_methods;
 let g_shipping_methods;
+let g_selected_orders = new Set();
 // var g_boxes;
 
 $(document).ready(function () {
@@ -36,6 +37,20 @@ $(document).ready(function () {
         }
     });
 });
+
+function add_clear_selection_button() {
+    const headerRow = $('#orders thead tr:first-child');
+    const firstHeaders = headerRow.find('td').slice(0,3);
+    firstHeaders.wrapAll('<th colspan="3" class="clear-header"></th>');
+    firstHeaders.hide(); 
+    $('.clear-header').html('<input type="button" value="Clear selection" class="clear-btn"/>');
+    $('.clear-btn').on('click', clear_selection);
+}
+
+function clear_selection() {
+    g_selected_orders.clear();
+    g_orders_table.rows().deselect();
+}
 
 function consign(target) {
     const order = target.row(target).data().id;
@@ -248,14 +263,15 @@ async function format(row, data) {
 
 function create_invoice(rows, currency) {
     $('.wait').show();
-    const orders = rows.data().map(row => row.id).toArray();
+    // const orders = rows.data().map(row => row.id).toArray();
     $.ajax({
         url: `/api/v1/invoice/new`,
         method: 'post',
         dataType: 'json',
         contentType: 'application/json',
         data: JSON.stringify({ 
-            order_ids: orders,
+            // order_ids: orders,
+            order_ids: Array.from(g_selected_orders),
             currency: currency,
             rate: $(`#${currency}-rate`).val() || 1
         }),
@@ -266,7 +282,7 @@ function create_invoice(rows, currency) {
             modal(
                 'Invoice',
                 'Invoice <a href="/invoices/' + data.invoice_id + '">'
-                + data.invoice_id + '</a> is created for orders ' + orders.join());
+                + data.invoice_id + '</a> is created for orders ' + Array.from(g_selected_orders).join(','));
         },
         error: function (ex) {
             console.log(ex);
@@ -392,7 +408,7 @@ function init_orders_table() {
                         extend: 'selected',
                         text: 'Distribution list',
                         action: function (e, dt, node, config) {
-                            open_distribution_list(dt.rows({ selected: true }));
+                            open_distribution_list();
                         }
                     }
                 ]
@@ -544,24 +560,45 @@ function init_orders_table() {
         select: true,
         serverSide: true,
         processing: true,
-        createdRow: (row, data) => {
+        createdRow: function (row, data) {
             if (data.status != 'packed') {
                 $('.btn-shipment', row).remove();
+            }
+            if (g_selected_orders.has(data.id)) {
+                this.api().row(`#${data.id}`).select();
             }
         },
         initComplete: function () {
             const table = this;
             this.api().buttons().container().appendTo('#orders_wrapper .col-sm-12:eq(0)');
             init_search(table, g_filter_sources)
-                .then(() => init_table_filter(table));
+                .then(() => init_table_filter(table))
+                .then(add_clear_selection_button);
         }
     })
     .on('select', function(e, dt, type, indexes) {
+        // Sync our tracked set with DataTables selection
+        if (type === 'row') {
+            const rows = g_orders_table.rows(indexes);
+            rows.data().each(function(data) {
+                g_selected_orders.add(data.id);
+            });
+        }
+
         const order = g_orders_table.rows(indexes).data()[0];
         if (order.shipping.is_consignable && order.status == 'packed') {
             g_orders_table.button('shipping:name').enable();
         } else {
             g_orders_table.button('shipping:name').disable();
+        }
+    })
+    .on('deselect', function(e, dt, type, indexes) {
+        // Sync our tracked set with DataTables deselection
+        if (type === 'row') {
+            const rows = g_orders_table.rows(indexes);
+            rows.data().each(function(data) {
+                g_selected_orders.delete(data.id);
+            });
         }
     });
 }
@@ -576,12 +613,12 @@ function open_order_customs_label(target) {
     }
 }
 
-function open_distribution_list(target) {
-    let order_ids = [];
-    for (let i = 0; i < target.count(); i++) {
-        order_ids.push(target.data()[i].id);
-    }
-    window.open('distribution_list?order_ids=' + order_ids.join(','));
+function open_distribution_list() {
+    // let order_ids = [];
+    // for (let i = 0; i < target.count(); i++) {
+    //     order_ids.push(target.data()[i].id);
+    // }
+    window.open('distribution_list?order_ids=' + Array.from(g_selected_orders).join(','));
 }
 
 function open_order_invoice(target) {
