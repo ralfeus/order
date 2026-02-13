@@ -1,5 +1,6 @@
 translations = {
     'en': {
+        'Email': 'e-mail',
         'Shipping method': 'Shipping method',
         'Parcel weight': 'Parcel weight',
         'Address': 'Address',
@@ -22,6 +23,7 @@ translations = {
         'Private comment': 'Private comment'
     },
     'ru': {
+        'Email': 'e-mail',
         'Shipping method': 'Способ доставки',
         'Parcel weight': 'Вес посылки',
         'Address': 'Адрес',
@@ -44,6 +46,7 @@ translations = {
         'Private comment': 'Приватный комментарий'
     },
     'ua': {
+        'Email': 'e-mail',
         'Shipping method': 'Спосіб доставки',
         'Parcel weight': 'Вага посилки',
         'Address': 'Адреса',

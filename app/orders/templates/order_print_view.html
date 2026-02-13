@@ -74,7 +74,13 @@
         {{ order.zip }}<br />
         {{ order.country.name }}
       </td>
-      <td>{{ order.phone }}</td>
+      <td>
+        <table>
+          <tr><td>{{ order.phone }}</td></tr>
+          <tr><td><h5>{{t['Email']}}</h5></td></tr>
+          <tr><td>{{ order.email }}</td></tr>
+        </table>
+      </td>
     </tr>
     <tr>
       <td colspan="3"><h5>{{t['Counterpart company']}}</h5>:</td>

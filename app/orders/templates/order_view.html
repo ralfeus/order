@@ -73,7 +73,13 @@
         {{ order.zip }}<br />
         {{ order.country.name }}
       </td>
-      <td>{{ order.phone }}</td>
+      <td>       
+       <table>
+          <tr><td>{{ order.phone }}</td></tr>
+          <tr><td><h5>Email</h5></td></tr>
+          <tr><td>{{ order.email }}</td></tr>
+        </table>
+      </td>
       <td><div style="white-space: normal;">{{ order.comment }}</div></td>
     </tr>
     <tr>

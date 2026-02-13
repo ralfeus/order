@@ -39,6 +39,7 @@ async function populate_order(order_data) {
         g_order.params.shipping = {};
     }
     $('#name').val(order_data.customer_name);
+    $('#email').val(order_data.email);
     $('#comment').val(order_data.comment);
     $('#address').val(order_data.address);
     $('#city_eng').val(order_data.city_eng);
