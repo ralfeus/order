@@ -101,7 +101,7 @@ class ExchangeRateManager:
             
         except requests.exceptions.RequestException as e:
             log.warning(f"Error fetching {base}/{target} rate: {e}")
-            return 0
+            raise
 
 # Fee configuration (same as before)
 FEES = {
@@ -174,7 +174,7 @@ def find_or_create_customer(payment: Payment) -> str:
     Find existing customer by email, create if not found
     """
     email = payment.orders[0].email \
-        if payment.orders and payment.orders[0].email else None
+        if payment.orders.count() and payment.orders[0].email else None
     name = payment.sender_name or f"Payer {payment.id}"
     if email:
         # Search for existing customer by email
