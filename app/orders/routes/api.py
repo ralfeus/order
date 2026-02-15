@@ -371,12 +371,12 @@ def user_save_order(order_id):
                 current_user, payload)
     if not payload.get('draft') and order.status == OrderStatus.draft:
         order.delete()
-        db.session.flush()
+        db.session.flush() # type: ignore
         # db.session.delete(order)
         return user_create_order()
 
     errors = []
-    with db.session.no_autoflush:
+    with db.session.no_autoflush: # type: ignore
         _update_order(order, payload)
 
         # Edit or add order products
@@ -384,7 +384,7 @@ def user_save_order(order_id):
             order_products = list(order.order_products)
             for suborder_data in payload['suborders']:
                 _update_suborder(order, order_products, suborder_data, errors)
-            db.session.flush()
+            db.session.flush() # type: ignore
         
             # Remove order products
             for order_product in order_products:
@@ -398,8 +398,8 @@ def user_save_order(order_id):
                 if suborder.order_products.count() == 0:
                     current_app.logger.info("Removing suborder %s as it has no products.",
                         suborder.id)
-                    db.session.delete(suborder)
-        db.session.flush()
+                    db.session.delete(suborder) # type: ignore
+        db.session.flush() # type: ignore
         if payload.get('params') is not None and \
            payload['params'].get('shipping') is not None:
             _set_shipping_params(order, payload['params']['shipping'])
@@ -411,7 +411,7 @@ def user_save_order(order_id):
 
     result = None
     try:
-        db.session.commit()
+        db.session.commit() # type: ignore
         result = {
             'status': 'warning' if len(errors) > 0 else 'updated',
             'order_id': order.id,
@@ -427,6 +427,8 @@ def user_save_order(order_id):
 def _update_order(order: Order, payload):
     if payload.get('customer_name') and order.customer_name != payload['customer_name']:
         order.customer_name = payload['customer_name']
+    if payload.get('email') and order.email != payload['email']:
+        order.email = payload['email']
     if payload.get('address') and order.address != payload['address']:
         order.address = payload['address']
     if payload.get('city_eng') and order.city_eng != payload['city_eng']:
@@ -649,7 +651,7 @@ def admin_save_order(order_id):
             logger.info(str(ex))
             abort(Response(str(ex), status=409))
 
-    db.session.commit()
+    db.session.commit() # type: ignore
     return jsonify({'data': [order.to_dict()]})
 
 def update_order_boxes(order:Order, boxes_input):
