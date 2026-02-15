@@ -62,10 +62,16 @@ async function get_dictionaries() {
 }
 
 function get_orders_to_pay() {
+    editor.field('orders').disable();
+    editor.field('orders').message('<i class="fa fa-spinner fa-spin"></i> Loading orders...');
     $.ajax({
         url: '/api/v1/order?status=pending',
         success: data => {
             editor.field('orders').update(data.map(o => o.id));
+        },
+        complete: () => {
+            editor.field('orders').message('');
+            editor.field('orders').enable();
         }
     })
 }
@@ -300,7 +306,7 @@ function on_currency_change() {
         var currency_code = editor.field('currency_code').val();
         var currency = g_currencies.filter(c => c.code == currency_code)[0]
         if (!g_amount_set_manually) {
-            editor.field('amount_sent_original').val(g_amount * currency.rate);
+            editor.field('amount_sent_original').val(round_up(g_amount * currency.rate, 0));
         }
     }
     return {};

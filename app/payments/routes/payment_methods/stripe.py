@@ -169,6 +169,39 @@ def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
     log.debug(f"Fees structure: {f}")
     return f
 
+def find_or_create_customer(payment: Payment) -> str:
+    """
+    Find existing customer by email, create if not found
+    """
+    email = payment.orders[0].email \
+        if payment.orders and payment.orders[0].email else None
+    name = payment.sender_name or f"Payer {payment.id}"
+    if email:
+        # Search for existing customer by email
+        customers = stripe.Customer.search(
+            query=f"email:'{email}'",
+            limit=1
+        )
+    elif name:
+        # Search for existing customer by name (not ideal, but fallback if email is not provided)
+        customers = stripe.Customer.search(
+            query=f"name:'{name}'",
+            limit=1
+        )
+        
+    if not customers.is_empty:
+        logging.info(f"Found existing customer: {customers.data[0].id}")
+        return customers.data[0].id
+    
+    # No existing customer found, create new
+    logging.info("Creating new customer")
+    customer = stripe.Customer.create(
+        name=name,
+        email=email or '',
+        metadata={"created_via": "payment_processor"}
+    )
+    return customer.id
+
 @bp_client_user.route('/<int:payment_id>/stripe/checkout')
 def checkout(payment_id):
     """Render custom checkout page"""
@@ -270,11 +303,15 @@ def create_payment_intent():
         
         is_zero_decimal = payment.currency_code.upper() in zero_decimal_currencies
         amount_in_cents = int(total_amount) if is_zero_decimal else int(total_amount * 100)
+
+        # Create or retrieve Stripe customer
+        customer_id = find_or_create_customer(payment)
         
         # Create PaymentIntent
         intent = stripe.PaymentIntent.create(
             amount=amount_in_cents,
             currency=payment.currency_code.lower(),
+            customer=customer_id,
             payment_method=payment_method_id,
             confirmation_method='automatic',
             confirm=False,
