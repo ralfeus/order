@@ -53,7 +53,8 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
             "autoLogin": False,
             "recaptcha": "",
         }),
-        socks5_proxy=socks5_proxy
+        socks5_proxy=socks5_proxy,
+        retries=0
     )
     if re.search('HTTP.*200', stderr) is  None:
         logger.debug("Couldn't log in to Atomy.")
