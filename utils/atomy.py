@@ -56,6 +56,9 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
         socks5_proxy=socks5_proxy
     )
     if re.search('HTTP.*200', stderr) is  None:
+        logger.debug("Couldn't log in to Atomy.")
+        logger.debug("STDERR: %s", stderr)
+        logger.debug("STDOUT: %s", stdout)
         raise AtomyLoginError(username)
     result = json.loads(stdout)
     if result.get('code') != '0000':
