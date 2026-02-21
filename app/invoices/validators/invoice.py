@@ -29,8 +29,8 @@ def _is_valid_currency(_form, field):
         raise ValidationError(f"{field.name}:Invalid currency code")
     if not currency.enabled:
         raise ValidationError(f"{field.name}:Currency is not enabled")
-    if currency.code == 'KRW':
-        raise ValidationError(f"{field.name}:Korean Won is not allowed for invoices")
+    # if currency.code == 'KRW':
+    #     raise ValidationError(f"{field.name}:Korean Won is not allowed for invoices")
 
 class InvoiceValidator(Inputs):
     '''Validator for invoice creation input'''
