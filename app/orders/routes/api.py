@@ -650,6 +650,10 @@ def admin_save_order(order_id):
         except UnfinishedOrderError as ex:
             logger.info(str(ex))
             abort(Response(str(ex), status=409))
+        except NoShippingRateError:
+            msg = f'No shipping rate available for order {order_id}'
+            logger.info(msg)
+            abort(Response(msg, status=409))
 
     db.session.commit() # type: ignore
     return jsonify({'data': [order.to_dict()]})

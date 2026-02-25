@@ -137,7 +137,8 @@ class Order(db.Model, BaseModel): # type: ignore
 
     def set_status(self, value, actor):
         ''' Sets status of the order '''
-        logger = logging.getLogger(f'orders.models.Order::set_status():{self.id}')
+        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
+        logger = logging.getLogger(f'set_status():{self.id}')
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
@@ -145,6 +146,22 @@ class Order(db.Model, BaseModel): # type: ignore
 
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
+        if value == OrderStatus.packed and isinstance(self.shipping, SeparateShipping):
+            from app.currencies.models.currency import Currency
+            from decimal import Decimal
+            shipping_krw = int(Decimal(self.shipping.get_actual_shipping_cost(
+                self.country.id if self.country else None,
+                self.total_weight + (self.shipping_box_weight or 0)
+            )))
+            self.shipping_krw = shipping_krw
+            curr_eur = Currency.query.get('EUR')
+            rate_eur = curr_eur.rate if curr_eur is not None else 0
+            self.shipping_cur2 = shipping_krw * float(rate_eur)
+            self.shipping_cur1 = shipping_krw * float(Currency.query.get('USD').rate)
+            self.total_krw = self.subtotal_krw + shipping_krw + self.service_fee
+            self.total_cur1 = float(self.subtotal_cur1 or 0) + self.shipping_cur1
+            self.total_cur2 = float(self.subtotal_cur2 or 0) + self.shipping_cur2
+            logger.info("SeparateShipping: calculated shipping cost %s KRW for %s", shipping_krw, self.id)
         if value == OrderStatus.shipped:
             from app.orders.models.order_product import OrderProductStatus
             unfinished_ops = []
