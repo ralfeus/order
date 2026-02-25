@@ -619,10 +619,11 @@ function open_distribution_list() {
     //     order_ids.push(target.data()[i].id);
     // }
     modal('Distribution List URL', null, 'form', [
-        { name: 'url', label: 'Distribution List URL', value: '' }
+        { name: 'url', label: 'Distribution List URL', value: '' },
+        { name: 'tracking_url', label: 'Tracking URL', value: '' }
     ]).then((result) => {
         if (result && result.url) {
-            window.open('distribution_list?order_ids=' + Array.from(g_selected_orders).join(',') + '&url=' + encodeURIComponent(result.url));
+            window.open(`distribution_list?order_ids=${Array.from(g_selected_orders).join(',')}&url=${encodeURIComponent(result.url)}&tracking_url=${encodeURIComponent(result.tracking_url)}`);
         }
     });
 }
@@ -667,7 +668,7 @@ function set_status(target, new_status) {
                                 }
                             })
                             .fail((xhr, status, error) => {
-                                alert(xhr.responseText);
+                                modal('Order status change error', xhr.responseText);
                             })
                             .done((data, status, xhr) => {
                                 g_orders_table.row("#" + data.data[0].id).data(data.data[0]).draw();

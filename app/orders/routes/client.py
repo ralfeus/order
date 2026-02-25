@@ -5,7 +5,6 @@ import os
 from flask import Response, abort, current_app, request, render_template, send_file
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
-import markupsafe
 from markupsafe import escape
 import openpyxl
 
@@ -154,12 +153,17 @@ def admin_get_distribution_list():
     '''
     order_ids = request.values.get('order_ids', '').split(',')
     url = request.values.get('url', '')
+    tracking_url = request.values.get('tracking_url', '')
     # applicable_shipping_ids = current_app.config.get('DISTRIBUTION_LIST_SHIPPING_IDS', [])
-    orders = Order.query.filter(Order.id.in_(order_ids))
+    orders: list[Order] = Order.query.filter(Order.id.in_(order_ids))
         # .filter(Order.shipping_id.in_(applicable_shipping_ids)) \
         # .all()
     try:
         file = _get_dl_excel(orders, url)
+        for order in orders:
+            order.tracking_url = tracking_url
+        from app import db
+        db.session.commit() #type: ignore
         return current_app.response_class(stream_and_close(file), headers={
             'Content-Disposition': f'attachment; filename="distribution_list.xlsx"',
             'Content-Type': file_types['xlsx']
