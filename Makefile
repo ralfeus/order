@@ -20,5 +20,7 @@ analyze:
 	rm coverage.xml
 
 network-manager-docker:
+	$(eval TAG := b$(shell date +%Y%m%d%H%M))
 	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
-	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:stable . -f network_builder/Dockerfile
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:stable -t ralfeus/network-manager:$(TAG) . -f network_builder/Dockerfile.manager
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-builder:stable -t ralfeus/network-builder:$(TAG) . -f network_builder/Dockerfile.builder

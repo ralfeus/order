@@ -25,7 +25,7 @@ class JSONEncoder(json.JSONEncoder):
             if isinstance(obj, (decimal.Decimal, uuid.UUID)):
                 return str(obj)
             if dataclasses and dataclasses.is_dataclass(obj):
-                return dataclasses.asdict(obj)
+                return dataclasses.asdict(obj) #type: ignore
             if hasattr(obj, "__html__"):
                 return str(obj.__html__())
             return super().default(obj)

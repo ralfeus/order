@@ -4,8 +4,6 @@ import re
 from time import sleep
 from typing import Any
 
-from flask import current_app
-
 from . import invoke_curl, get_json
 from exceptions import AtomyLoginError, HTTPError
 
@@ -16,8 +14,9 @@ URL_NETWORK_MANAGER = 'http://localhot:5001'
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 try:
+    from flask import current_app
     logger = current_app.logger
-except:
+except Exception:
     pass
 
 #TODO: remove and replace with app.tools.try_perform

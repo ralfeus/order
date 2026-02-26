@@ -73,13 +73,15 @@ class AtomyPerson(StructuredNode):
         return person
 
     def _set_relatives(self):
-        relatives = self.cypher('''
+        rel_obj = self.cypher('''
             MATCH (n:AtomyPerson) WHERE id(n) = $self
             OPTIONAL MATCH (n)-[:PARENT]->(p) 
             OPTIONAL MATCH (n)-[:LEFT_CHILD]->(l)
             OPTIONAL MATCH (n)-[:RIGHT_CHILD]->(r)
             RETURN p.atomy_id, l.atomy_id, r.atomy_id
-        ''')[0][0]
+        ''')
+        if rel_obj and rel_obj[0]:
+            relatives = rel_obj[0]
         self._parent_id = relatives[0]
         self._left_id = relatives[1]
         self._right_id = relatives[2]

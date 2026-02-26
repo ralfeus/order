@@ -56,6 +56,18 @@
             ],
             "jinja": true,
             "justMyCode": false
+        },
+        {
+            "name": "network_builder",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "build_network",
+            "cwd": "${workspaceFolder}/network_builder",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "jinja": true,
+            "justMyCode": false
         }
     ]
 }

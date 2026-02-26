@@ -2,15 +2,13 @@
 from datetime import date, timedelta
 import json
 import logging
-from multiprocessing import Process, active_children
 from multiprocessing.pool import ThreadPool
-from os import getcwd, environ
-import psutil
+from os import environ
 from random import random
-import subprocess
-import sys
 from time import sleep
 
+import docker
+import docker.errors
 from flask import Response, abort, jsonify, request
 from neomodel import db
 from werkzeug.exceptions import BadRequest
@@ -18,21 +16,24 @@ from werkzeug.exceptions import BadRequest
 from netman_app import app
 from model import AtomyPerson
 
-PROCESS_NAME = 'build_network.py'
+BUILDER_CONTAINER_NAME = 'network-builder'
+BUILDER_IMAGE = environ.get('BUILDER_IMAGE', 'ralfeus/network-builder:stable')
+BUILDER_NETWORK = environ.get('BUILDER_NETWORK', 'order')
+
 logging.getLogger('neo4j').setLevel(logging.INFO)
 
-def _get_builder_process():
-    processes = psutil.process_iter(['pid', 'cmdline'])
-    for p in processes:
-        p_dict = p.as_dict()
-        if p_dict is None:
-            continue
-        cmdline = p_dict.get('cmdline')
-        if cmdline is None:
-            continue
-        if PROCESS_NAME in cmdline:
-            return p
+
+def _get_builder_container():
+    """Returns the running builder container, or None if not running."""
+    try:
+        client = docker.from_env()
+        container = client.containers.get(BUILDER_CONTAINER_NAME)
+        if container.status == 'running':
+            return container
+    except (docker.errors.NotFound, docker.errors.DockerException):
+        pass
     return None
+
 
 def _test_db_connection():
     try:
@@ -41,59 +42,79 @@ def _test_db_connection():
     except Exception:
         return False
 
+
 @app.before_request
 def test_db_connection():
     if not _test_db_connection():
         response = jsonify(status="error", description="Neo4j isn't available")
         response.status_code = 500
         return response
-    
+
+
 @app.route('/api/v1/builder/status')
 def get_builder_status():
-    if _get_builder_process() is not None:
+    if _get_builder_container() is not None:
         return jsonify({'status': 'running'})
     else:
         return jsonify({'status': 'not running'})
+
 
 @app.route('/api/v1/builder/start')
 def start_builder():
     logging.info("Wait for another request to start building")
     sleep(random() * 5)
-    process = _get_builder_process()
-    if process is not None:
+    if _get_builder_container() is not None:
         return jsonify({'status': 'already running'})
+
     days = int(request.args.get('days') or 0)
     threads = request.args.get('threads') or '60'
     last_updated = date.today() - timedelta(days=days)
     try:
-        cwd = getcwd()
-        params = [sys.executable, PROCESS_NAME, 
-                    '--max-threads', threads, '--user', 'S5832131',
-                    '--password', "mkk03020529!!", '--root', 'S5832131',
-                    '--nodes', request.args.get('nodes') or '0',
-                    '--last-updated', last_updated.strftime('%Y-%m-%d'),
-                    '--socks5_proxy', environ.get('SOCKS5_PROXY') or '']
-        p = subprocess.Popen(params,
-                        env={
-                            'PYTHONPATH': cwd[:cwd.rfind('/')], 
-                            **environ
-                        },
-                        start_new_session=True,
-                        stderr=subprocess.STDOUT)
-        logging.info("Started process %s", p.pid)
+        client = docker.from_env()
+
+        # Remove stale container from a previous run if present
+        try:
+            old = client.containers.get(BUILDER_CONTAINER_NAME)
+            old.remove(force=True)
+        except docker.errors.NotFound:
+            pass
+
+        client.containers.run(
+            BUILDER_IMAGE,
+            command=[
+                '--user', 'S5832131',
+                '--password', 'mkk03020529!!',
+                '--root', 'S5832131',
+                '--max-threads', threads,
+                '--nodes', request.args.get('nodes') or '0',
+                '--last-updated', last_updated.strftime('%Y-%m-%d'),
+                '--socks5_proxy', environ.get('SOCKS5_PROXY') or '',
+                '--repeat',
+            ],
+            name=BUILDER_CONTAINER_NAME,
+            environment={
+                'NEO4J_URL': environ.get('NEO4J_URL', ''),
+                'SOCKS5_PROXY': environ.get('SOCKS5_PROXY', ''),
+            },
+            network=BUILDER_NETWORK,
+            extra_hosts={'host.docker.internal': 'host-gateway'},
+            detach=True,
+        )
+        logging.info("Started builder container %s", BUILDER_CONTAINER_NAME)
         return jsonify({'status': 'started'})
     except Exception as e:
         logging.exception(e)
         return jsonify({'status': "couldn't start"})
 
+
 @app.route('/api/v1/builder/stop')
 def stop_builder():
-    process = _get_builder_process()
-    if process is not None:
-        process.kill()
+    container = _get_builder_container()
+    if container is not None:
+        container.stop()
         return jsonify({'status': 'stopped'})
-    return jsonify(
-        {'status': "didn't stop - not running"})
+    return jsonify({'status': "didn't stop - not running"})
+
 
 @app.route('/api/v1/node', defaults={'node_id': None})
 @app.route('/api/v1/node/<node_id>')
@@ -133,14 +154,14 @@ def get_nodes(node_id):
     logger.info(body)
     if node_id is not None:
         query = '''
-            MATCH (n:AtomyPerson {atomy_id: $atomy_id}) 
-            OPTIONAL MATCH (c:Center {name: n.center}) 
+            MATCH (n:AtomyPerson {atomy_id: $atomy_id})
+            OPTIONAL MATCH (c:Center {name: n.center})
             RETURN n, c.code
         '''
         result = db.cypher_query(query, params={'atomy_id': node_id})
         if len(result[0]) == 0:
             abort(Response(
-                json.dumps({'description': f"Node with ID {node_id} not found", 'status': 404}), 
+                json.dumps({'description': f"Node with ID {node_id} not found", 'status': 404}),
                 status=404, content_type='application/json'))
         node = AtomyPerson.inflate(result[0][0][0], lazy=False)
         response = node.to_dict()
@@ -159,23 +180,13 @@ def get_nodes(node_id):
         root_id = db.cypher_query(query)[0][0][0]
     query_params = {'root_id': root_id, 'test': 'test'}
     #################################################
-    # total = db.cypher_query(f'''
-    #     MATCH (n:AtomyPerson)
-    #     RETURN COUNT(n)
-    # ''')[0][0]
     logger.info("Getting total number of nodes")
     total_thread = ThreadPool().apply_async(get_total, args=(query_params,))
     filtered_thread = total_thread
     if request_params is not None:
         if request_params.get('filter') is not None:
             query_filter = _get_filter(request_params['filter'])
-            # query_params.update(request_params['filter'])
             query_params = {**query_params, **request_params['filter']}
-            # filtered = db.cypher_query(f'''
-            #     MATCH (n:AtomyPerson)
-            #     {query_filter}
-            #     RETURN COUNT(n)
-            # ''', params=query_params)[0][0]
             logger.info("Getting number of filtered nodes")
             filtered_thread = ThreadPool().apply_async(get_filtered, args=(query_filter, query_params))
         if request_params.get('start') is not None and request_params.get('limit') is not None:
@@ -189,11 +200,6 @@ def get_nodes(node_id):
             except:
                 pass
 
-    # query = f'''
-    #     MATCH (n:AtomyPerson)
-    #     {query_filter}
-    #     RETURN n {paging["start"]} {paging["limit"]}
-    # '''
     query = f'''
         MATCH (:AtomyPerson {{atomy_id: $root_id}})<-[:PARENT*0..]-(n:AtomyPerson)
         {query_filter}
@@ -210,6 +216,7 @@ def get_nodes(node_id):
         'records_filtered': filtered,
         'data': [AtomyPerson.inflate(item[0]) for item in result]
     })
+
 
 @app.route('/api/v1/node/<node_id>', methods=['patch'])
 def update_node(node_id):
@@ -230,11 +237,13 @@ def update_node(node_id):
     node.save()
     return jsonify(node.to_dict())
 
+
 @app.route('/api/v1/node/<node_id>', methods=['put'])
 def save_node(node_id):
-    payload = {}
     try:
         payload = request.get_json()
+        if payload is None:
+            raise BadRequest()
     except BadRequest:
         abort(400, jsonify(description="No JSON body"))
     node:AtomyPerson = AtomyPerson.nodes.get_or_none(atomy_id=node_id)
@@ -245,38 +254,57 @@ def save_node(node_id):
     node.save()
     return jsonify(node.to_dict())
 
+
 @app.route('/api/v1/node/<node_id>/update', methods=['post'])
 def fetch_node_from_atomy(node_id):
-    process = Process(target=_run_node_update, args=(node_id,))
-    process.start()
-    db.cypher_query(f'''
-        MERGE (p:UpdateProcess {{node_id: '{node_id}'}})
-        ON CREATE SET p.pid = {process.pid}
-        ON MATCH SET p.pid = {process.pid}
-    ''')
-    return {'status': 'success'}, 200
+    container_name = f'network-builder-{node_id}'
+    try:
+        client = docker.from_env()
+        try:
+            old = client.containers.get(container_name)
+            if old.status == 'running':
+                return {'status': 'already running'}, 200
+            old.remove(force=True)
+        except docker.errors.NotFound:
+            pass
+        client.containers.run(
+            BUILDER_IMAGE,
+            command=[
+                '--user', 'S5832131',
+                '--password', 'mkk03020529!!',
+                '--max-threads', '50',
+                '--root', node_id,
+            ],
+            name=container_name,
+            environment={
+                'NEO4J_URL': environ.get('NEO4J_URL', ''),
+                'SOCKS5_PROXY': environ.get('SOCKS5_PROXY', ''),
+            },
+            network=BUILDER_NETWORK,
+            extra_hosts={'host.docker.internal': 'host-gateway'},
+            detach=True,
+        )
+        return {'status': 'success'}, 200
+    except Exception as e:
+        logging.exception(e)
+        return {'status': 'error'}, 500
 
-def _run_node_update(node_id):
-    from build_network import build_network
-    build_network(user='S5832131', password='mkk03020529!!', max_threads=50, root_id=node_id)
 
 @app.route('/api/v1/node/<node_id>/update')
 def get_node_fetch_status(node_id):
-    process, _ = db.cypher_query(f'''
-        MATCH (p:UpdateProcess {{node_id: '{node_id}'}})
-        RETURN p
-    ''')
-    if len(process) > 0:
-        pid = process[0][0]['pid']
-        processes = active_children()
-        if len([process for process in processes if process.pid == pid]) > 0:
+    container_name = f'network-builder-{node_id}'
+    try:
+        client = docker.from_env()
+        container = client.containers.get(container_name)
+        if container.status == 'running':
             return {'status': 'running'}, 200
-        db.cypher_query(f'''
-            MATCH (p:UpdateProcess {{node_id: '{node_id}'}})
-            DELETE p
-        ''')
+        container.remove()
         return {'status': 'finished'}, 200
-    return {'status': 'not running'}, 200
+    except docker.errors.NotFound:
+        return {'status': 'not running'}, 200
+    except Exception:
+        return {'status': 'not running'}, 200
+
 
 def _get_filter(filter_params):
     query_filter = []

@@ -1,5 +1,12 @@
 version: '3.5'
 
+networks:
+  order:
+    name: order
+
+volumes:
+  builder-output:
+
 services:
   neo4j:
     image: neo4j:4.4.2
@@ -13,6 +20,8 @@ services:
       - /var/lib/neo4j/plugins:/plugins
     environment:
       - NEO4J_dbms_default__advertised__address=neo4j
+    networks:
+      - order
 
   network-manager:
     depends_on:
@@ -23,17 +32,42 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - /var/www/order/network_builder/config.json:/app/config.json
-    environment: 
+      - builder-output:/app/output
+    environment:
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
       - SOCKS5_PROXY=host.docker.internal:9050
+      - BUILDER_IMAGE=ralfeus/network-builder:stable
+      - BUILDER_NETWORK=order
     privileged: true
+    networks:
+      - order
+
+  # network-builder is a one-shot job container started on demand by network-manager
+  # or manually: docker run --network order -e NEO4J_URL=bolt://neo4j:1@neo4j:7687 \
+  #                ralfeus/network-builder:stable --user S5832131 --password ... --root S5832131
+  network-builder:
+    image: ralfeus/network-builder:stable
+    profiles:
+      - builder
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - builder-output:/app/output
+    environment:
+      - NEO4J_URL=bolt://neo4j:1@neo4j:7687
+      - SOCKS5_PROXY=host.docker.internal:9050
+    networks:
+      - order
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
     - "5672:5672"
     - "15672:15672"
+    networks:
+      - order
 
   metabase:
     image: metabase/metabase:latest
@@ -46,9 +80,11 @@ services:
       - MB_DB_TYPE=mysql
       - MB_DB_CONNECTION_URI=jdbc:mysql://172.17.0.1:3306/metabase?user=metabase&password=metabase
       - JAVA_TIMEZONE=Asia/Seoul
+    networks:
+      - order
 
-     # celery:
-     #  image: ralfeus/order-master
-     #  depends_on:
-     #    - rabbitmq
-     #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
+   # celery:
+   #  image: ralfeus/order-master
+   #  depends_on:
+   #    - rabbitmq
+   #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
