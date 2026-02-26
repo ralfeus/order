@@ -1,5 +1,3 @@
-version: '3.5'
-
 networks:
   order:
     name: order
@@ -48,6 +46,8 @@ services:
   # or manually: docker run --network order -e NEO4J_URL=bolt://neo4j:1@neo4j:7687 \
   #                ralfeus/network-builder:stable --user S5832131 --password ... --root S5832131
   network-builder:
+    depends_on:
+      - neo4j
     image: ralfeus/network-builder:stable
     profiles:
       - builder

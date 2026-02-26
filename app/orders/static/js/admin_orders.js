@@ -42,9 +42,23 @@ function add_clear_selection_button() {
     const headerRow = $('#orders thead tr:first-child');
     const firstHeaders = headerRow.find('td').slice(0,3);
     firstHeaders.wrapAll('<th colspan="3" class="clear-header"></th>');
-    firstHeaders.hide(); 
-    $('.clear-header').html('<input type="button" value="Clear selection" class="clear-btn"/>');
+    firstHeaders.hide();
+    $('.clear-header').html('<input type="button" value="Clear selection" class="clear-btn" disabled/>');
     $('.clear-btn').on('click', clear_selection);
+}
+
+function update_clear_button() {
+    const count = g_selected_orders.size;
+    const btn = $('.clear-btn');
+    if (count === 0) {
+        btn.val('Clear selection');
+        btn.prop('disabled', true);
+        btn.removeClass('clear-btn-active');
+    } else {
+        btn.val(`Clear selection (${count})`);
+        btn.prop('disabled', false);
+        btn.addClass('clear-btn-active');
+    }
 }
 
 function clear_selection() {
@@ -583,6 +597,7 @@ function init_orders_table() {
             rows.data().each(function(data) {
                 g_selected_orders.add(data.id);
             });
+            update_clear_button();
         }
 
         const order = g_orders_table.rows(indexes).data()[0];
@@ -599,6 +614,7 @@ function init_orders_table() {
             rows.data().each(function(data) {
                 g_selected_orders.delete(data.id);
             });
+            update_clear_button();
         }
     });
 }
