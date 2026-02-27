@@ -34,6 +34,7 @@ URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_BAD_ACCOUNT = "Unverified distributor cannot purchase."
 ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
+ERROR_SHIPPING_INFO = "Shipping information does not exist."
 PRODUCTS_ADDED_TO_CART = 'The product has been added.'
 
 
@@ -54,6 +55,22 @@ def remove_popup(object: Locator, logger: logging.Logger=logging.root):
             logger.debug("Closing unexpected popup")
             popup.click()
 
+def triage_error(message: Locator, page: Page, logger: logging.Logger=logging.root):
+    text = message.text_content() or ''
+    if ERROR_SHIPPING_INFO in text:
+        cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
+        deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
+        myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
+        logger.error("The shipping information is missing.")
+        logger.error("address-base:")
+        logger.error(page.evaluate("$('.address-base').css('display')"))
+        logger.error("cartGroup:")
+        logger.error(cartGroup)
+        logger.error(f"deliForm: {deliForm}")
+        logger.error(f"VD_VEND_DELI_FORM_CD_MY_CENTER: {myCenter}")
+        logger.error("deliCostAmt (expected to be > 0 if deliForm == myCenter):")
+        logger.error(cartGroup.get('dlvpCartGroupList', [{}])[0].get('deliPriceList', [{}])[0].get('deliCostAmt', 'Not found'))
+    return
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")
@@ -762,6 +779,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         sleep(0.5)
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
+            triage_error(message, page)
             self._logger.error("Couldn't submit the order: %s", message.text_content())
             raise PurchaseOrderError(self.__purchase_order, self,
                 message.text_content() or "Unknown error", screenshot=True, retry=True)
