@@ -55,17 +55,19 @@ def remove_popup(object: Locator, logger: logging.Logger=logging.root):
             logger.debug("Closing unexpected popup")
             popup.click()
 
-def triage_error(message: Locator, page: Page, logger: logging.Logger=logging.root):
-    text = message.text_content() or ''
-    if ERROR_SHIPPING_INFO in text:
+def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
+    if ERROR_SHIPPING_INFO in message:
+        address = page.evaluate("$('.address-base').css('display')")
         cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
         deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
         myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
         logger.error("The shipping information is missing.")
-        logger.error("address-base:")
-        logger.error(page.evaluate("$('.address-base').css('display')"))
-        logger.error("cartGroup:")
-        logger.error(cartGroup)
+        logger.error(f"address-base: {address}")
+        logger.error("cartGroup-..->deliPriceList(s):")
+        logger.error(",".join([
+            str(len(l.get('deliPriceList', []))) 
+            for l in cartGroup.get('dlvpCartGroupList', [])
+        ]))
         logger.error(f"deliForm: {deliForm}")
         logger.error(f"VD_VEND_DELI_FORM_CD_MY_CENTER: {myCenter}")
         logger.error("deliCostAmt (expected to be > 0 if deliForm == myCenter):")
@@ -771,6 +773,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.debug("Tax information is set")
 
     def __submit_order(self, page: Page):
+        triage_error(ERROR_SHIPPING_INFO, page)
         self._logger.debug("Agreeing to terms")
         page.locator('label[for="fxd-agr_ck_2502000478"]').click()
         self._logger.debug("Submitting order")
@@ -779,7 +782,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         sleep(1)
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
-            triage_error(message, page)
+            triage_error(message.text_content() or '', page)
             self._logger.error("Couldn't submit the order: %s", message.text_content())
             raise PurchaseOrderError(self.__purchase_order, self,
                 message.text_content() or "Unknown error", screenshot=True, retry=True)
