@@ -773,7 +773,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.debug("Tax information is set")
 
     def __submit_order(self, page: Page):
-        triage_error(ERROR_SHIPPING_INFO, page)
+        # triage_error(ERROR_SHIPPING_INFO, page)
         self._logger.debug("Agreeing to terms")
         page.locator('label[for="fxd-agr_ck_2502000478"]').click()
         self._logger.debug("Submitting order")
