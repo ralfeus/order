@@ -4,7 +4,6 @@ using quick order"""
 from functools import reduce
 from time import sleep
 from typing import Any, Optional
-from venv import logger
 
 from app.models.address import Address
 from app.purchase.models.company import Company
@@ -37,6 +36,7 @@ ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
 ERROR_SHIPPING_INFO = "Shipping information does not exist."
 PRODUCTS_ADDED_TO_CART = 'The product has been added.'
+MESSAGE_INACTIVE = "12개월 무실적 회원으로 일괄정리 대상자입니다. 상품 구매시 대상자에서 제외 됩니다."
 
 
 ORDER_STATUSES = {
@@ -172,7 +172,15 @@ def ensure_address_set(page, address_element, logger):
             page.locator('button[data-owns="lyr_pay_addr_lst"]'),
             lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
         select_address(page, address_element, logger)
+        sleep(2)
 
+def handle_login_alert(page: Page, logger: logging.Logger=logging.root):
+    message = page.locator('div#layer_alert p').text_content() or ''
+    if MESSAGE_INACTIVE in message:
+        logger.warning("The account is inactive. Can proceed")
+        page.locator('[layer-role="confirm-button"]').click()
+        return
+    raise AtomyLoginError(message=message)
 
 def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     order_id_parts = purchase_order.id[8:].split("-")
@@ -213,13 +221,15 @@ def verify_address_set(page: Page, logger: logging.Logger):
         cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
         deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
         myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
+        mbrInfo = page.evaluate('() => new Promise(r => overpass.require.load(["mbrInfo"], r))')
         assert address != 'none', "The address block is not shown"
         deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
-        assert deliForm == myCenter \
-            or cartGroup.get('dlvpCartGroupList', [{}])[0].get('deliPriceList', [{}])[0].get('deliCostAmt', 0) > 0, \
-            "deliCostAmt is 0 while the delivery form is not 'my center', " \
-            "probably because the shipping information is not set"
+        if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
+            or deliPriceLists[0].get('deliCostAmt', 0) > 0:
+            raise Exception(f"deliCostAmt is {deliPriceLists[0].get('deliCostAmt', 0)} "
+                            "while the deliForm == myCenter and site is KZ or UZ")
+        
         return True
     except Exception as e:
         logger.warning("The shipping information is not properly set.")
@@ -351,11 +361,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
         try:
+            if page.locator('div#layer_alert').is_visible(timeout=5000):
+                handle_login_alert(page, self._logger)
             page.locator('div.login_form').wait_for(state='detached', timeout=10000)
         except:
-            if page.locator('div#layer_alert').is_visible(timeout=5000):
-                raise AtomyLoginError(username=purchase_order.customer.username,
-                                      password=purchase_order.customer.password)
             raise
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
