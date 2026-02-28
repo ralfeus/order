@@ -55,24 +55,21 @@ def remove_popup(object: Locator, logger: logging.Logger=logging.root):
             logger.debug("Closing unexpected popup")
             popup.click()
 
+def select_address(page: Page, address_element: Locator, logger: logging.Logger=logging.root):
+    logger.debug("Choosing the address. Expect the address list to be closed")
+    try_click(address_element.locator('label[for^="rdo-address-selected-"]'),
+            lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
+    # Need to ensure the address is shown
+    logger.debug("Waiting for the address to appear")
+    page.wait_for_selector('.address-base', state='visible')
+
+
 def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
     if ERROR_SHIPPING_INFO in message:
-        address = page.evaluate("$('.address-base').css('display')")
-        cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
-        deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
-        myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
-        logger.error("The shipping information is missing.")
-        logger.error(f"address-base: {address}")
-        logger.error("cartGroup-..->deliPriceList(s):")
-        logger.error(",".join([
-            str(len(l.get('deliPriceList', []))) 
-            for l in cartGroup.get('dlvpCartGroupList', [])
-        ]))
-        logger.error(f"deliForm: {deliForm}")
-        logger.error(f"VD_VEND_DELI_FORM_CD_MY_CENTER: {myCenter}")
-        logger.error("deliCostAmt (expected to be > 0 if deliForm == myCenter):")
-        logger.error(cartGroup.get('dlvpCartGroupList', [{}])[0].get('deliPriceList', [{}])[0].get('deliCostAmt', 'Not found'))
+        logger.info("The shipping information is missing.")
+        verify_address_set(page, logger)
     return
+
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
     exception = Exception(f"Failed to click the object after {retries} retries.")
@@ -200,6 +197,24 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     if is_name_changed:
         expect(address_element.locator('dt>b')).to_have_text(name)
 
+def verify_address_set(page: Page, logger: logging.Logger):
+    try:
+        address = page.evaluate("$('.address-base').css('display')")
+        cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
+        deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
+        myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
+        assert address != 'none', "The address block is not shown"
+        deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
+        assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
+        assert deliForm == myCenter \
+            or cartGroup.get('dlvpCartGroupList', [{}])[0].get('deliPriceList', [{}])[0].get('deliCostAmt', 0) > 0, \
+            "deliCostAmt is 0 while the delivery form is not 'my center', " \
+            "probably because the shipping information is not set"
+        return True
+    except Exception as e:
+        logger.warning("The shipping information is not properly set.")
+        logger.warning(str(e))
+        return False
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
 
@@ -700,12 +715,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
                 detailed_address=address.address_2,
                 logger=self._logger)
-            self._logger.debug("Choosing the address. Expect the address list to be closed")
-            try_click(address_element.locator('label[for^="rdo-address-selected-"]'),
-                    lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
-            # Need to ensure the address is shown
-            self._logger.debug("Waiting for the address to appear")
-            page.wait_for_selector('.address-base', state='visible')
+            select_address(page, address_element, self._logger)
+            if not verify_address_set(page, self._logger):
+                self._logger.warning("Address was not set properly. Retrying...")
+                try_click(
+                    page.locator('button[data-owns="lyr_pay_addr_lst"]'),
+                    lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
+                select_address(page, address_element, self._logger)
+
         except PurchaseOrderError:
             raise
         except Exception as e:
