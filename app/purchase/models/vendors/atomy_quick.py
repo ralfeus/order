@@ -224,7 +224,7 @@ def verify_address_set(page: Page, logger: logging.Logger):
         mbrInfo = page.evaluate('() => new Promise(r => overpass.require.load(["mbrInfo"], r))')
         assert address != 'none', "The address block is not shown"
         deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
-        logger.debug(f"Delivery price lists: {deliPriceLists}")
+        # logger.debug(f"Delivery price lists: {deliPriceLists}")
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
         if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
             or deliPriceLists[0][0].get('deliCostAmt', 0) > 0:
@@ -322,7 +322,6 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__set_local_shipment(page, ordered_products)
                 self.__set_payment_params(page, purchase_order)
                 self.__set_tax_info(page, purchase_order)
-                ensure_address_set(page, self._logger)
                 po_params = self.__submit_order(page)
                 self._logger.info("Created order %s", po_params[0])
                 purchase_order.vendor_po_id = po_params[0]
