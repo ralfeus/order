@@ -151,3 +151,95 @@ class TestOrdersClient(BaseTestCase):
         self.assertEqual(res.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         # Verify we got a non-empty Excel file
         self.assertGreater(len(res.data), 0)
+
+    def test_distribution_list_saves_tracking_url(self):
+        '''Tracking URL provided in the request is persisted on all specified orders'''
+        order1 = Order(
+            id='ORD-TRK-001',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 1',
+            email='customer1@test.com',
+            phone='123456789',
+            address='123 Test Street',
+            zip='12345',
+            city_eng='Test City 1',
+            total_weight=1000
+        )
+        order2 = Order(
+            id='ORD-TRK-002',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 2',
+            email='customer2@test.com',
+            phone='987654321',
+            address='456 Test Avenue',
+            zip='54321',
+            city_eng='Test City 2',
+            total_weight=2000
+        )
+        self.try_add_entities([order1, order2])
+
+        tracking_url = 'https://tracking.example.com/track/12345'
+        self.login(self.admin.username, '1')
+        res = self.client.get(
+            f'/admin/orders/distribution_list'
+            f'?order_ids={order1.id},{order2.id}'
+            f'&tracking_url={tracking_url}'
+        )
+        self.assertEqual(res.status_code, 200)
+
+        db.session.expire_all()
+        updated_order1 = Order.query.get(order1.id)
+        updated_order2 = Order.query.get(order2.id)
+        self.assertEqual(updated_order1.tracking_url, tracking_url)
+        self.assertEqual(updated_order2.tracking_url, tracking_url)
+
+    def test_distribution_list_tracking_url_not_applied_to_other_orders(self):
+        '''Tracking URL is only saved on the orders specified in order_ids'''
+        order_in = Order(
+            id='ORD-TRK-IN',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer In',
+            email='in@test.com',
+            phone='111111111',
+            address='1 Main St',
+            zip='10000',
+            city_eng='City In',
+            total_weight=500
+        )
+        order_out = Order(
+            id='ORD-TRK-OUT',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer Out',
+            email='out@test.com',
+            phone='222222222',
+            address='2 Side St',
+            zip='20000',
+            city_eng='City Out',
+            total_weight=600
+        )
+        self.try_add_entities([order_in, order_out])
+
+        tracking_url = 'https://tracking.example.com/track/99999'
+        self.login(self.admin.username, '1')
+        res = self.client.get(
+            f'/admin/orders/distribution_list'
+            f'?order_ids={order_in.id}'
+            f'&tracking_url={tracking_url}'
+        )
+        self.assertEqual(res.status_code, 200)
+
+        db.session.expire_all()
+        self.assertEqual(Order.query.get(order_in.id).tracking_url, tracking_url)
+        self.assertIsNone(Order.query.get(order_out.id).tracking_url)

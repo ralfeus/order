@@ -32,8 +32,8 @@ def post_po():
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    po.customer.username = '23426444'
-    po.customer.password = 'atomy#01'     
+    po.customer.username = '26046834'#'33191422'#
+    po.customer.password = 'IJ7492!!'#'LL7492!!'#
     po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
@@ -128,9 +128,64 @@ def import_products():
     current_app.config['PRODUCT_IMPORT_URL'] = 'https://tr.atomy.com'
     import_products()
 
+def test_atomy_login():
+    """Tests the __login logic from AtomyQuick for three credential scenarios.
+    Never submits an order."""
+    from types import SimpleNamespace
+    from playwright.sync_api import sync_playwright
+    from app.purchase.models.vendors.atomy_quick import handle_login_alert, URL_BASE
+    from exceptions import AtomyLoginError
+
+    SCENARIOS = [
+        ('23426444', 'atomy#01',  'clean login — no alerts expected, should succeed'),
+        ('33191422', 'LL7492!!',  'registration-required alert — should raise AtomyLoginError'),
+        ('baduser',  'badpass',   'wrong credentials — should fail'),
+    ]
+
+    logger = logging.getLogger('test_atomy_login')
+    logger.setLevel(logging.DEBUG)
+
+    with sync_playwright() as p:
+        browser = p.chromium.connect_over_cdp('http://localhost:9222')
+        for username, password, description in SCENARIOS:
+            logger.info("--- Scenario: %s ---", description)
+            context = browser.new_context()
+            page = context.new_page()
+            try:
+                page.goto(f"{URL_BASE}/login")
+                page.fill("#login_id", username)
+                page.fill("#login_pw", password)
+                page.click(".login_btn button")
+
+                triggered = page.wait_for_function(
+                    """() => {
+                        const form  = document.querySelector('div.login_form');
+                        if (!form || form.offsetParent === null) return 'form_gone';
+                        const alert = document.querySelector('div#layer_alert, div#lyr_login_allowance');
+                        if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
+                        return false;
+                    }""",
+                    timeout=15000
+                ).json_value()
+
+                if triggered == 'alert':
+                    user = SimpleNamespace(username=username, password=password)
+                    handle_login_alert(user, page, logger)
+                    page.locator('div.login_form').wait_for(state='detached', timeout=10000)
+
+                page.wait_for_load_state()
+                logger.info("PASS: logged in as %s (triggered=%s, url=%s)", username, triggered, page.url)
+            except AtomyLoginError as e:
+                logger.info("PASS (expected error): %s — %s", username, e)
+            except Exception as e:
+                logger.error("FAIL: %s — %s: %s", username, type(e).__name__, e)
+            finally:
+                context.close()
+
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    post_po()
+    test_atomy_login()
+    # post_po()
     # update_purchase_orders_status()
     # import_products()
     # build_network()

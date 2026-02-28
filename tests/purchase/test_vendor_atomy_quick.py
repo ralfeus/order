@@ -1,3 +1,5 @@
+import logging
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from lxml.etree import fromstring
@@ -14,7 +16,7 @@ import app.products.models as pr
 import app.purchase.models as p
 from app.purchase.models.vendors.atomy_quick import AtomyQuick
 from app.users.models import Role, User
-from exceptions import PurchaseOrderError
+from exceptions import AtomyLoginError, PurchaseOrderError
 
 
 def get_json(url, **kwargs):
@@ -177,3 +179,46 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         po = p.PurchaseOrder(suborder=suborder, vendor_po_id='7012504030031927', customer=subcustomer)
         self.try_add_entities([subcustomer, suborder, po])
         AtomyQuick(config=current_app.config).update_purchase_order_status(po)
+
+
+class TestAtomyQuickLogin(BaseTestCase):
+    """Integration tests for AtomyQuick login using real headless Playwright.
+    No order is posted; only the login flow is exercised."""
+
+    # (username, password, expect_success, label)
+    SCENARIOS = [
+        ("23426444", "atomy#01", True,  "clean login"),
+        ("33191422", "LL7492!!", False, "registration-required alert"),
+        ("baduser",  "badpass",  False, "wrong credentials"),
+    ]
+
+    def test_login(self):
+        from playwright.sync_api import sync_playwright
+
+        vendor = AtomyQuick(logger=logging.getLogger(self.__class__.__name__))
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                for username, password, expect_success, label in self.SCENARIOS:
+                    with self.subTest(label=label):
+                        context = browser.new_context()
+                        page = context.new_page()
+                        try:
+                            po = SimpleNamespace(
+                                customer=SimpleNamespace(username=username, password=password)
+                            )
+                            vendor._AtomyQuick__login(page, po)
+                            self.assertTrue(
+                                expect_success,
+                                f"[{label}] expected AtomyLoginError but login succeeded",
+                            )
+                        except AtomyLoginError:
+                            self.assertFalse(
+                                expect_success,
+                                f"[{label}] expected login to succeed but got AtomyLoginError",
+                            )
+                        finally:
+                            context.close()
+            finally:
+                browser.close()

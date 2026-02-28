@@ -8,6 +8,7 @@ from typing import Any, Optional
 from app.models.address import Address
 from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
+# from app.orders.models.subcustomer import Subcustomer
 from app.tools import get_html, try_perform
 from utils.atomy import atomy_login2
 from datetime import date, datetime, timedelta
@@ -37,7 +38,7 @@ ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불�
 ERROR_SHIPPING_INFO = "Shipping information does not exist."
 PRODUCTS_ADDED_TO_CART = 'The product has been added.'
 MESSAGE_INACTIVE = "12개월 무실적 회원으로 일괄정리 대상자입니다. 상품 구매시 대상자에서 제외 됩니다."
-
+MESSAGE_REGISTRATION_NEEDED = "수당발생 안내"
 
 ORDER_STATUSES = {
     "Order Placed": PurchaseOrderStatus.posted,
@@ -184,15 +185,20 @@ def ensure_address_set(page, address_element, logger):
         select_address(page, address_element, logger)
         sleep(2)
 
-def handle_login_alert(page: Page, logger: logging.Logger=logging.root):
-    message = page.locator('div#layer_alert p').text_content() or ''
+def handle_login_alert(user, page: Page, logger: logging.Logger=logging.root):
+    sleep(1)
+    message = page.locator('div#layer_alert, div#lyr_login_allowance').first.text_content() or ''
     if MESSAGE_INACTIVE in message:
         logger.warning("The account is inactive. Can proceed")
-        try_click(
-            page.locator('button[layer-role="confirm-button"]'),
-            lambda: page.wait_for_selector('div#layer_alert', state='detached'))
-        return
-    raise AtomyLoginError(message=message)
+        # try_click(
+        #     page.locator('button[layer-role="confirm-button"]'),
+        #     lambda: page.wait_for_selector('div#layer_alert', state='detached'))
+    elif MESSAGE_REGISTRATION_NEEDED in message:
+        logger.warning("The account needs additional registration. Can proceed")
+        raise AtomyLoginError(username=user.username, message=message)
+    else:
+        raise AtomyLoginError(username=user.username, password=user.password, message=message)
+    page.goto(f"{URL_BASE}/main")
 
 def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     order_id_parts = purchase_order.id[8:].split("-")
@@ -369,23 +375,30 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # Only way to reach here is the retry is needed
         return self.post_purchase_order(purchase_order)
 
-    def __login(self, page: Page, purchase_order):
+    def __login(self, page: Page, purchase_order: PurchaseOrder):
         self._logger.info("Logging in as %s", purchase_order.customer.username)
         page.goto(f"{URL_BASE}/login")
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
-        # Race: wait for either an alert to appear OR the login form to disappear.
-        page.wait_for_function(
+        # Race: resolve when alert appears OR login form disappears.
+        # Returns 'alert' or 'form_gone' so we know which condition triggered
+        # without relying on page.url (which may still be /login during navigation).
+        # Use specific login-alert IDs to avoid matching promotional/next-page popups.
+        # div#layer_alert   → wrong credentials / inactive account
+        # div#lyr_login_allowance → registration required
+        triggered = page.wait_for_function(
             """() => {
-                const alert = document.getElementById('layer_alert');
                 const form  = document.querySelector('div.login_form');
-                return (alert && alert.getBoundingClientRect().height > 0) || !form || form.offsetParent === null;
+                if (!form || form.offsetParent === null) return 'form_gone';
+                const alert = document.querySelector('div#layer_alert, div#lyr_login_allowance');
+                if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
+                return false;
             }""",
-            timeout=150000
-        )
-        if page.locator('div#layer_alert').is_visible():
-            handle_login_alert(page, self._logger)
+            timeout=15000
+        ).json_value()
+        if triggered == 'alert':
+            handle_login_alert(purchase_order.customer, page, self._logger)
             page.locator('div.login_form').wait_for(state='detached', timeout=10000)
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
