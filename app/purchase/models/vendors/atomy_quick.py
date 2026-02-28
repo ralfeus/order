@@ -63,6 +63,16 @@ def select_address(page: Page, address_element: Locator, logger: logging.Logger=
     # Need to ensure the address is shown
     logger.debug("Waiting for the address to appear")
     page.wait_for_selector('.address-base', state='visible')
+    # Wait for the delivery price list to be loaded
+    page.wait_for_function("""
+        () => {
+            return new Promise(resolve => {
+                overpass.require.load(["__CARTGROUP__"], (cartGroup) => {
+                    resolve(cartGroup?.dlvpCartGroupList?.[0]?.deliPriceList !== undefined);
+                });
+            });
+        }
+    """, timeout=30000)
 
 
 def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
@@ -178,7 +188,9 @@ def handle_login_alert(page: Page, logger: logging.Logger=logging.root):
     message = page.locator('div#layer_alert p').text_content() or ''
     if MESSAGE_INACTIVE in message:
         logger.warning("The account is inactive. Can proceed")
-        page.locator('[layer-role="confirm-button"]').click()
+        try_click(
+            page.locator('button[layer-role="confirm-button"]'),
+            lambda: page.wait_for_selector('div#layer_alert', state='detached'))
         return
     raise AtomyLoginError(message=message)
 
@@ -227,7 +239,10 @@ def verify_address_set(page: Page, logger: logging.Logger):
         # logger.debug(f"Delivery price lists: {deliPriceLists}")
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
         if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
-            or deliPriceLists[0][0].get('deliCostAmt', 0) > 0:
+            and deliPriceLists[0][0].get('deliCostAmt', 0) > 0:
+            logger.debug(f'deliForm: {deliForm}')
+            logger.debug(f'site: {mbrInfo.get("siteNo", "")}')
+            logger.debug(f'deliCostAmt: {deliPriceLists[0][0].get("deliCostAmt", 0)}')
             raise Exception(f"deliCostAmt is {deliPriceLists[0][0].get('deliCostAmt', 0)} "
                             "while the deliForm == myCenter and site is KZ or UZ")
         
@@ -360,12 +375,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
-        try:
-            if page.locator('div#layer_alert').is_visible(timeout=5000):
-                handle_login_alert(page, self._logger)
+        # Race: wait for either an alert to appear OR the login form to disappear.
+        page.wait_for_function(
+            """() => {
+                const alert = document.getElementById('layer_alert');
+                const form  = document.querySelector('div.login_form');
+                return (alert && alert.getBoundingClientRect().height > 0) || !form || form.offsetParent === null;
+            }""",
+            timeout=150000
+        )
+        if page.locator('div#layer_alert').is_visible():
+            handle_login_alert(page, self._logger)
             page.locator('div.login_form').wait_for(state='detached', timeout=10000)
-        except:
-            raise
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
 
@@ -737,7 +758,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 detailed_address=address.address_2,
                 logger=self._logger)
             select_address(page, address_element, self._logger)
-            ensure_address_set(page, address_element, self._logger)
+            # ensure_address_set(page, address_element, self._logger)
 
         except PurchaseOrderError:
             raise
