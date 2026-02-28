@@ -4,6 +4,7 @@ using quick order"""
 from functools import reduce
 from time import sleep
 from typing import Any, Optional
+from venv import logger
 
 from app.models.address import Address
 from app.purchase.models.company import Company
@@ -164,6 +165,15 @@ def create_address(page: Page, address: Address, phone: str):
         sleep(1)
     return find_existing_address(page, address)
 
+def ensure_address_set(page, address_element, logger):
+    while not verify_address_set(page, logger):
+        logger.warning("Address was not set properly. Retrying...")
+        try_click(
+            page.locator('button[data-owns="lyr_pay_addr_lst"]'),
+            lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
+        select_address(page, address_element, logger)
+
+
 def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     order_id_parts = purchase_order.id[8:].split("-")
     parts = {
@@ -215,6 +225,7 @@ def verify_address_set(page: Page, logger: logging.Logger):
         logger.warning("The shipping information is not properly set.")
         logger.warning(str(e))
         return False
+    
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
 
@@ -300,6 +311,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self.__set_local_shipment(page, ordered_products)
                 self.__set_payment_params(page, purchase_order)
                 self.__set_tax_info(page, purchase_order)
+                ensure_address_set(page, self._logger)
                 po_params = self.__submit_order(page)
                 self._logger.info("Created order %s", po_params[0])
                 purchase_order.vendor_po_id = po_params[0]
@@ -716,12 +728,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 detailed_address=address.address_2,
                 logger=self._logger)
             select_address(page, address_element, self._logger)
-            if not verify_address_set(page, self._logger):
-                self._logger.warning("Address was not set properly. Retrying...")
-                try_click(
-                    page.locator('button[data-owns="lyr_pay_addr_lst"]'),
-                    lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
-                select_address(page, address_element, self._logger)
+            ensure_address_set(page, address_element, self._logger)
 
         except PurchaseOrderError:
             raise
