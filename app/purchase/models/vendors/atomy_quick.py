@@ -227,8 +227,8 @@ def verify_address_set(page: Page, logger: logging.Logger):
         logger.debug(f"Delivery price lists: {deliPriceLists}")
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
         if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
-            or deliPriceLists[0].get('deliCostAmt', 0) > 0:
-            raise Exception(f"deliCostAmt is {deliPriceLists[0].get('deliCostAmt', 0)} "
+            or deliPriceLists[0][0].get('deliCostAmt', 0) > 0:
+            raise Exception(f"deliCostAmt is {deliPriceLists[0][0].get('deliCostAmt', 0)} "
                             "while the deliForm == myCenter and site is KZ or UZ")
         
         return True
