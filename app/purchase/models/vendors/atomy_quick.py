@@ -224,6 +224,7 @@ def verify_address_set(page: Page, logger: logging.Logger):
         mbrInfo = page.evaluate('() => new Promise(r => overpass.require.load(["mbrInfo"], r))')
         assert address != 'none', "The address block is not shown"
         deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
+        logger.debug(f"Delivery price lists: {deliPriceLists}")
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
         if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
             or deliPriceLists[0].get('deliCostAmt', 0) > 0:
