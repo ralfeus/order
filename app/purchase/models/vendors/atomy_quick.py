@@ -771,7 +771,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 detailed_address=address.address_2,
                 logger=self._logger)
             select_address(page, address_element, self._logger)
-            # ensure_address_set(page, address_element, self._logger)
+            ensure_address_set(page, address_element, self._logger)
 
         except PurchaseOrderError:
             raise
