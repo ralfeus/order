@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Order Master (main app)",
+      "runtimeExecutable": "flask",
+      "runtimeArgs": ["run"],
+      "port": 5000,
+      "env": {
+        "FLASK_APP": "app:create_app()",
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1",
+        "OM_APP_NAME": "order_master",
+        "OM_CONFIG_FILE": "config-default.json"
+      }
+    },
+    {
+      "name": "Network Manager",
+      "runtimeExecutable": "flask",
+      "runtimeArgs": ["run", "--host", "0.0.0.0", "--port", "5001"],
+      "port": 5001,
+      "cwd": "network_builder",
+      "env": {
+        "FLASK_APP": "netman_app",
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1"
+      }
+    }
+  ]
+}
