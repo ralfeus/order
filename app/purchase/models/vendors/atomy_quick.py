@@ -65,6 +65,7 @@ def select_address(page: Page, address_element: Locator, logger: logging.Logger=
     logger.debug("Waiting for the address to appear")
     page.wait_for_selector('.address-base', state='visible')
     # Wait for the delivery price list to be loaded
+    logger.debug("Waiting for the delivery price list to be loaded")
     page.wait_for_function("""
         () => {
             return new Promise(resolve => {
@@ -74,6 +75,7 @@ def select_address(page: Page, address_element: Locator, logger: logging.Logger=
             });
         }
     """, timeout=30000)
+    logger.debug("Address should be set now")
 
 
 def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
