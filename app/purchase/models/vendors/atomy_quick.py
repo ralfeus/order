@@ -37,6 +37,7 @@ ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
 ERROR_SHIPPING_INFO = "Shipping information does not exist."
 PRODUCTS_ADDED_TO_CART = 'The product has been added.'
+ERROR_AFFILIATED_BRANCH = "at you affiliated branch"
 MESSAGE_INACTIVE = "12개월 무실적 회원으로 일괄정리 대상자입니다. 상품 구매시 대상자에서 제외 됩니다."
 MESSAGE_REGISTRATION_NEEDED = "수당발생 안내"
 
@@ -70,7 +71,7 @@ def select_address(page: Page, address_element: Locator, logger: logging.Logger=
         () => {
             return new Promise(resolve => {
                 overpass.require.load(["__CARTGROUP__"], (cartGroup) => {
-                    resolve(cartGroup?.dlvpCartGroupList?.[0]?.deliPriceList !== undefined);
+                    resolve(cartGroup?.dlvpCartGroupList?.[0]?.deliPriceList?.length > 0);
                 });
             });
         }
@@ -421,15 +422,58 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]').count() > 0:
             raise PurchaseOrderError(self.__purchase_order, self, ERROR_BAD_ACCOUNT)
         
-    def __register_cart(self, page: Page) -> None:
-        """Registers the cart with the products to be ordered
+    def __remove_cart_item_by_name(self, page: Page, product_name: str) -> Optional[str]:
+        """Finds a cart item by product name and removes it.
 
-        :returns str: cart number"""
+        :returns: the goods-cart-role value (product ID) if removed, None otherwise"""
+        cart_items = page.locator('li[goods-cart-role]')
+        for item in cart_items.all():
+            if product_name in (item.text_content() or ''):
+                cart_id = item.get_attribute('goods-cart-role')
+                self._logger.info("Removing cart item '%s' (id: %s)", product_name, cart_id)
+                item.locator('div.cls button[item-role="delete-button"]').click()
+                return cart_id
+        self._logger.warning("Cart item '%s' not found for removal", product_name)
+        return None
+
+    def __register_cart(self, page: Page,
+                        _previously_removed: dict[str, str] | None = None) -> dict[str, str]:
+        """Registers the cart with the products to be ordered.
+
+        :returns: dict of {cart_product_id: reason} for products removed as unavailable"""
         self._logger.info("Registering cart")
         try_click(page.locator('[cart-role="quick-cart-send"]'),
             lambda: page.wait_for_selector('button[layer-role="close-button"]'),
             logger=self._logger)
         message = page.locator('//p[@layer-role="message"]').all_text_contents()
+        affiliated_branch_errors = [
+            m for m in message if ERROR_AFFILIATED_BRANCH in m
+        ]
+        if affiliated_branch_errors:
+            try_click(
+                page.locator('[layer-role="close-button"]'),
+                lambda: page.wait_for_selector('[cart-role="quick-cart-send"]'),
+                check_popups=False, logger=self._logger)
+            removed_products = {}
+            for error_msg in affiliated_branch_errors:
+                match = re.search(
+                    r"Please p(?:u|ur)chase (.+?) at you?r? affiliated branch",
+                    error_msg
+                )
+                if match:
+                    product_id = self.__remove_cart_item_by_name(page, match.group(1))
+                    if product_id:
+                        removed_products[product_id] = error_msg
+            all_removed = {**(_previously_removed or {}), **removed_products}
+            if page.locator('li[goods-cart-role]').count() == 0:
+                raise PurchaseOrderError(
+                    self.__purchase_order, self,
+                    f"No products left in cart after removing unavailable products: "
+                    f"{list(all_removed.keys())}"
+                )
+            more_removed = self.__register_cart(page, all_removed)
+            removed_products.update(more_removed)
+            return removed_products
         if PRODUCTS_ADDED_TO_CART not in message:
             raise PurchaseOrderError(self.__purchase_order, self,
                 message, screenshot=True)
@@ -437,6 +481,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             page.locator('[layer-role="close-button"]'),
             lambda: page.wait_for_selector('#schInput', state='detached'),
             check_popups=False, logger=self._logger)
+        return {}
 
     def __get_order_details(self, page: Page) -> dict[str, Any]:
         page.wait_for_load_state('networkidle')
@@ -522,8 +567,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 f"No available products are in the PO. Unavailable products:\n{unavailable_products}",
             )
         # Register the cart with the products to be ordered
-        self.__register_cart(page)
-        # Set the cart number in the goods list
+        cart_unavailable = self.__register_cart(page)
+        for product_id, reason in cart_unavailable.items():
+            matched = next(
+                (t for t in ordered_products if t[0].product_id.zfill(6) == product_id),
+                None
+            )
+            if matched:
+                unavailable_products[matched[0].product_id] = reason
+                ordered_products.remove(matched)
+            else:
+                self._logger.warning(
+                    "Couldn't match cart item %s to an ordered product", product_id
+                )
         return ordered_products, unavailable_products
 
     def __get_product_by_id(self, page: Page, product_id):

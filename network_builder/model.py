@@ -81,7 +81,7 @@ class AtomyPerson(StructuredNode):
             RETURN p.atomy_id, l.atomy_id, r.atomy_id
         ''')
         if rel_obj and rel_obj[0]:
-            relatives = rel_obj[0]
+            relatives = rel_obj[0][0]
         self._parent_id = relatives[0]
         self._left_id = relatives[1]
         self._right_id = relatives[2]

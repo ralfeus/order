@@ -4,7 +4,9 @@
       "Bash(python3:*)",
       "Bash(python:*)",
       "Bash(docker:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(lsof -i :5001)",
+      "Bash(lsof -i :5000)"
     ]
   }
 }

@@ -32,8 +32,8 @@ def post_po():
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    po.customer.username = '26046834'#'33191422'#
-    po.customer.password = 'IJ7492!!'#'LL7492!!'#
+    po.customer.username = '23426444'#'26046834'#'33191422'#
+    po.customer.password = 'atomy#01'#'IJ7492!!'#'LL7492!!'#
     po.purchase_date = datetime.now()
     db.session.flush()
     post_purchase_orders(po_id=po_id)
@@ -184,8 +184,8 @@ def test_atomy_login():
 
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
-    test_atomy_login()
-    # post_po()
+    # test_atomy_login()
+    post_po()
     # update_purchase_orders_status()
     # import_products()
     # build_network()
