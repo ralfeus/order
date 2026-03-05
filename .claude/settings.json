@@ -6,7 +6,13 @@
       "Bash(docker:*)",
       "Bash(curl:*)",
       "Bash(lsof -i :5001)",
-      "Bash(lsof -i :5000)"
+      "Bash(lsof -i :5000)",
+      "Bash(ls -la /Users/ralfeus/Projects/order/network_builder/*.py)",
+      "Bash(make network-manager-docker)",
+      "Bash(pip show docker)",
+      "Bash(pip install docker)",
+      "Bash(pip show flask werkzeug)",
+      "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)"
     ]
   }
 }

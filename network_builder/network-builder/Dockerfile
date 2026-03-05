@@ -6,8 +6,8 @@ RUN pip install requests tqdm-loggable
 COPY ./utils /app/utils
 COPY ./network_builder /app
 COPY ./exceptions.py /app
-RUN chmod +x /app/entrypoint.sh
+RUN chmod +x /app/network-builder/entrypoint.sh
 
 WORKDIR "/app"
 VOLUME ["/app/output"]
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/network-builder/entrypoint.sh"]

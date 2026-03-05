@@ -12,5 +12,5 @@ COPY ./exceptions.py /app
 EXPOSE 5001
 
 WORKDIR "/app"
-ENV FLASK_APP=netman_app
+ENV FLASK_APP=network-manager/netman_app.py
 ENTRYPOINT ["flask", "run", "--host", "0.0.0.0", "--port", "5001"]

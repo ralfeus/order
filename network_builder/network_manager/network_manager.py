@@ -7,6 +7,8 @@ from os import environ
 from random import random
 from time import sleep
 
+import re
+
 import docker
 import docker.errors
 from flask import Response, abort, jsonify, request
@@ -53,8 +55,17 @@ def test_db_connection():
 
 @app.route('/api/v1/builder/status')
 def get_builder_status():
-    if _get_builder_container() is not None:
-        return jsonify({'status': 'running'})
+    container = _get_builder_container()
+    if container is not None:
+        response = {'status': 'running'}
+        logs = container.logs(tail=100).decode('utf-8', errors='replace')
+        for line in reversed(logs.splitlines()):
+            nodes_match = re.search(r'Progress on:(\d+) nodes updated', line)
+            elapsed_match = re.search(r'elapsed:([^\s]+)', line)
+            if nodes_match and elapsed_match:
+                response['progress'] = f"elapsed:{elapsed_match.group(1)}; {nodes_match.group(1)} nodes updated"
+                break
+        return jsonify(response)
     else:
         return jsonify({'status': 'not running'})
 
@@ -102,6 +113,12 @@ def start_builder():
         )
         logging.info("Started builder container %s", BUILDER_CONTAINER_NAME)
         return jsonify({'status': 'started'})
+    except docker.errors.DockerException as e:
+        if isinstance(e.__cause__, (FileNotFoundError, ConnectionError)):
+            logging.error("Docker is not available: %s", e)
+            return jsonify({'status': 'error', 'description': 'Docker is not available'}), 503
+        logging.exception(e)
+        return jsonify({'status': "couldn't start"})
     except Exception as e:
         logging.exception(e)
         return jsonify({'status': "couldn't start"})

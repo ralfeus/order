@@ -9,9 +9,12 @@ Usage::
     python test_runner.py
 """
 
+import os
 import sys
 import time
 from datetime import date
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'network-builder'))
 
 from neomodel import config, db
 

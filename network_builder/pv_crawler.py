@@ -1,7 +1,12 @@
 from calendar import monthrange
 from datetime import datetime
 import json
+import os
+import sys
 import requests
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'network-builder'))
+
 from model import AtomyPerson
 from app.utils.atomy import SessionManager
 

@@ -7,7 +7,14 @@ import decimal
 import json
 import logging
 import os
+import sys
 import uuid
+
+_dir = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(_dir)
+sys.path.insert(0, _dir)                                     # network-manager/ for import network_manager
+sys.path.insert(0, os.path.join(_root, 'network-builder'))  # network-builder/ for model imports
+sys.path.insert(0, _root)                                    # app root for utils, exceptions
 
 from flask import Flask
 from neomodel import config
@@ -34,7 +41,7 @@ class JSONEncoder(json.JSONEncoder):
 
 app = Flask(__name__)
 app.json_encoder = JSONEncoder #type:ignore
-app.config.from_file('config.json', load=json.load)
+app.config.from_file(os.path.join(_root, 'config.json'), load=json.load)
 app.config['JSON_AS_ASCII'] = False
 config.DATABASE_URL = os.environ.get('NEO4J_URL') or app.config['NEO4J_URL']
 config.ENCRYPTED = False
