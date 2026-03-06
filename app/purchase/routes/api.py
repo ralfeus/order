@@ -16,8 +16,8 @@ from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from app.purchase.po_manager import create_purchase_orders
-from exceptions import AtomyLoginError, PurchaseOrderError
-from utils.atomy import atomy_login2
+from common.exceptions import AtomyLoginError, PurchaseOrderError
+from common.utils.atomy import atomy_login2
 
 from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 

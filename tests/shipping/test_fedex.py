@@ -10,7 +10,7 @@ from app.shipping.methods.fedex.models.fedex_setting import FedexSetting
 from app.shipping.models.box import default_box
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
-from exceptions import ShippingException
+from common.exceptions import ShippingException
 
 class TestShippingFedex(BaseTestCase):
     def setUp(self):

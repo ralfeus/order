@@ -8,7 +8,7 @@ import math
 from sqlalchemy.orm import relationship
 
 from app.models import Country
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 from app.shipping.models.shipping import Shipping
 from .weight_based_rate import WeightBasedRate
 

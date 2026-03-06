@@ -5,7 +5,7 @@ from time import sleep
 from typing import Any
 
 from . import invoke_curl, get_json
-from exceptions import AtomyLoginError, HTTPError
+from common.exceptions import AtomyLoginError, HTTPError
 
 URL_BASE = 'https://kr.atomy.com'
 URL_SUFFIX = '_siteId=kr&_deviceType=pc&locale=ko-KR'
@@ -62,9 +62,9 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
         raise AtomyLoginError(username)
     result = json.loads(stdout)
     if result.get('code') != '0000':
-        raise AtomyLoginError(username=username, password=password, 
+        raise AtomyLoginError(username=username, password=password,
                               message=result.get('message'))
-    
+
     logger.info(f"Logged in successfully as {username}")
     jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1) # type: ignore
     return jwt
@@ -72,10 +72,10 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
 def get_bu_place_from_network(username) -> str:
     result = get_json(
         url=f"{URL_NETWORK_MANAGER}/api/v1/node/{username}",
-        get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check: 
+        get_data=lambda url, method, raw_data, headers, retries, ignore_ssl_check:
             invoke_curl(url, raw_data, headers, method, False, retries, ignore_ssl_check),)
     return result['center_code']
-    
+
 def get_bu_place_from_page(username, password) -> str:
     """Gets buPlace from the page. If not found, raises an exception.
 
@@ -111,4 +111,3 @@ def get_bu_place_from_page(username, password) -> str:
     except:
         message = "Couldn't get buPlace from Atomy server."
     raise Exception(message)
-    

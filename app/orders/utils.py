@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.exc import DataError
 
-from exceptions import SubcustomerParseError
+from common.exceptions import SubcustomerParseError
 from .models.subcustomer import Subcustomer
 
 def parse_subcustomer(subcustomer_data) -> tuple[Subcustomer, bool]:

@@ -19,7 +19,7 @@ from typing import T, Any, Callable # type: ignore
 from flask import current_app
 from werkzeug.datastructures import MultiDict
 
-from exceptions import FilterError, HTTPError
+from common.exceptions import FilterError, HTTPError
 
 from app.models.base import BaseModel
 

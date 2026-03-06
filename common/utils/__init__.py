@@ -7,7 +7,7 @@ from time import sleep
 from typing import Any, Callable
 from xml.etree.ElementTree import fromstring
 
-from exceptions import AtomyLoginError, HTTPError
+from common.exceptions import AtomyLoginError, HTTPError
 
 def get_document_from_url(url, headers=[], raw_data: str=''):
     logger = logging.getLogger('utils.get_document_from_url')
@@ -58,11 +58,11 @@ def invoke_curl(url: str, raw_data: str='', headers=[],
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     _logger.debug(' '.join(run_params))
-    
+
     try:
         output = subprocess.run(run_params,
             encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        if ('Could not resolve host' in output.stderr 
+        if ('Could not resolve host' in output.stderr
             or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
             _logger.warning("Server side error occurred. Will try in 30 seconds. (%s)", url)
             _logger.warning(output.stderr)
@@ -73,20 +73,22 @@ def invoke_curl(url: str, raw_data: str='', headers=[],
         _logger.exception(run_params)
         return '', ''
 
-    
-def get_json(url, raw_data=None, headers=[], method='GET', retries=0, 
+
+def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
              get_data: Callable=invoke_curl, ignore_ssl_check=False,
              socks5_proxy=''
              ):
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
-        headers=headers + [{'Content-Type': 'application/json'}], 
-        retries=retries, 
+        headers=headers + [{'Content-Type': 'application/json'}],
+        retries=retries,
         ignore_ssl_check=ignore_ssl_check, socks5_proxy=socks5_proxy)
     try:
         return json.loads(stdout)
     except json.JSONDecodeError:
-        status = re.search(r'HTTP.*? (\d+)', stderr).groups()[0]
+        match = re.search(r'HTTP.*? (\d+)', stderr)
+        status = match.groups()[0] if match else ''
         if status != '200':
+            logging.debug(status)
             raise HTTPError(status)
         if retries > 0:
             logging.warning("Couldn't get json from URL %s. Will retry %s more time%s",

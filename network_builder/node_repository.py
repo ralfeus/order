@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime
 from typing import Optional
 
-import utils.logging as logging
+import common.utils.logging as logging
 from neomodel import db
 
 from nb_exceptions import NoParentException

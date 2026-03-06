@@ -5,7 +5,7 @@ from sqlalchemy.sql.elements import Null
 from tqdm import tqdm
 from app.models.file import File
 from app import celery, db
-from utils.atomy import URL_BASE
+from common.utils.atomy import URL_BASE
 
 @celery.on_after_finalize.connect #type: ignore
 def setup_periodic_tasks(sender, **kwargs):

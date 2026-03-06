@@ -16,7 +16,7 @@ from app import db
 from app.models.address import Address
 from app.models.country import Country
 from app.models.base import BaseModel
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 
 from .box import Box
 from .consign_result import ConsignResult

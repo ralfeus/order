@@ -11,9 +11,9 @@ from flask_security import current_user, login_required, roles_required
 from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
-from exceptions import AtomyLoginError, HTTPError
-from utils.atomy import atomy_login2
-from utils import get_json
+from common.exceptions import AtomyLoginError, HTTPError
+from common.utils.atomy import atomy_login2
+from common.utils import get_json
 
 from .. import bp_api_admin, bp_api_user
 from ..models import PVStat

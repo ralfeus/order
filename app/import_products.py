@@ -8,9 +8,9 @@ import subprocess
 from tqdm import tqdm
 
 from app.tools import get_html, get_json
-from exceptions import HTTPError
+from common.exceptions import HTTPError
 
-from utils.atomy import URL_SUFFIX, atomy_login2
+from common.utils.atomy import URL_SUFFIX, atomy_login2
 
 sel_item = CSSSelector(".gdsList-wrap>li")
 sel_rows_per_page = CSSSelector("[name=rowsPerPage]")
@@ -165,5 +165,5 @@ def atomy_login(username="atomy1026", password="5714"):
 
 
 if __name__ == "__main__":
-    from utils.atomy import URL_BASE
+    from common.utils.atomy import URL_BASE
     get_atomy_products(URL_BASE)

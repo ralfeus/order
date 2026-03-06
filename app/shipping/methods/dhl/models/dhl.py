@@ -5,7 +5,7 @@ from operator import attrgetter
 from app import db
 from app.models import BaseModel, Country
 from app.shipping.models.shipping import Shipping
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 
 from .dhl_country import DHLCountry
 from .dhl_rate import DHLRate

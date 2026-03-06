@@ -10,11 +10,10 @@ import os
 import sys
 import uuid
 
-_dir = os.path.dirname(os.path.abspath(__file__))
-_root = os.path.dirname(_dir)
-sys.path.insert(0, _dir)                                     # network-manager/ for import network_manager
-sys.path.insert(0, os.path.join(_root, 'network-builder'))  # network-builder/ for model imports
-sys.path.insert(0, _root)                                    # app root for utils, exceptions
+_dir = os.path.dirname(os.path.abspath(__file__))   # network_manager/ (local) or /app/ (Docker)
+_root = os.path.dirname(_dir)                         # project root (local) or / (Docker)
+sys.path.insert(0, _dir)    # Docker: /app/ has common/ → works
+sys.path.insert(0, _root)   # local: project root has common/ → works
 
 from flask import Flask
 from neomodel import config
@@ -41,7 +40,7 @@ class JSONEncoder(json.JSONEncoder):
 
 app = Flask(__name__)
 app.json_encoder = JSONEncoder #type:ignore
-app.config.from_file(os.path.join(_root, 'config.json'), load=json.load)
+app.config.from_file(os.path.join(_dir, 'config.json'), load=json.load)
 app.config['JSON_AS_ASCII'] = False
 config.DATABASE_URL = os.environ.get('NEO4J_URL') or app.config['NEO4J_URL']
 config.ENCRYPTED = False

@@ -9,7 +9,7 @@ from time import sleep
 import lxml.html
 from flask import current_app
 
-from exceptions import AtomyLoginError
+from common.exceptions import AtomyLoginError
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

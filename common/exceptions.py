@@ -17,8 +17,11 @@ class FilterError(Exception):
 
 class HTTPError(Exception):
     def __init__(self, status=None):
-        super().__init__()
+        super().__init__(status)
         self.status = status
+
+    def __str__(self):
+        return f"HTTP {self.status}"
 
 class NoPurchaseOrderError(Exception):
     pass

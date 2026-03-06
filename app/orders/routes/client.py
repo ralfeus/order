@@ -13,7 +13,7 @@ from app.currencies.models import Currency
 from app.models.country import Country
 from app.settings.models import Setting
 from app.tools import stream_and_close
-from exceptions import OrderError
+from common.exceptions import OrderError
 
 from ..models.order import Order
 from ..models.order_status import OrderStatus

@@ -1,5 +1,5 @@
 from app.purchase.models.vendors.atomy_center import AtomyCenter
-from exceptions import AtomyLoginError
+from common.exceptions import AtomyLoginError
 
 from tests import BaseTestCase
 

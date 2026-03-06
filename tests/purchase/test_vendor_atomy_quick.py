@@ -16,7 +16,7 @@ import app.products.models as pr
 import app.purchase.models as p
 from app.purchase.models.vendors.atomy_quick import AtomyQuick
 from app.users.models import Role, User
-from exceptions import AtomyLoginError, PurchaseOrderError
+from common.exceptions import AtomyLoginError, PurchaseOrderError
 
 
 def get_json(url, **kwargs):

@@ -16,7 +16,7 @@ from neomodel import db
 from werkzeug.exceptions import BadRequest
 
 from netman_app import app
-from model import AtomyPerson
+from common.model import AtomyPerson
 
 BUILDER_CONTAINER_NAME = 'network-builder'
 BUILDER_IMAGE = environ.get('BUILDER_IMAGE', 'ralfeus/network-builder:stable')
@@ -110,6 +110,7 @@ def start_builder():
             network=BUILDER_NETWORK,
             extra_hosts={'host.docker.internal': 'host-gateway'},
             detach=True,
+            auto_remove=True,
         )
         logging.info("Started builder container %s", BUILDER_CONTAINER_NAME)
         return jsonify({'status': 'started'})
@@ -273,7 +274,7 @@ def save_node(node_id):
 
 
 @app.route('/api/v1/node/<node_id>/update', methods=['post'])
-def fetch_node_from_atomy(node_id):
+def update_node_from_atomy(node_id):
     container_name = f'network-builder-{node_id}'
     try:
         client = docker.from_env()

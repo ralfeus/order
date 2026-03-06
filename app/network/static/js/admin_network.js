@@ -34,7 +34,7 @@ function updateBuilderStatus() {
         url: '/api/v1/admin/network/builder/status',
         success: data => {
             if (data['status'] === 'running') {
-                set_builder_active();
+                set_builder_active(data);
             } else if (data['status'] === 'not running') {
                 set_builder_inactive();
             } else {
@@ -47,9 +47,10 @@ function updateBuilderStatus() {
     });
 }
 
-function set_builder_active() {
+function set_builder_active(data) {
     $('#green-circle').show();
     $('#red-circle').hide();
+    $('#builder-status').attr('data-tooltip', data && data.progress ? data.progress : 'running');
     $('#build').text('Stop');
     $('#build').off('click');
     $('#build').on('click', stop_builder);
@@ -59,6 +60,7 @@ function set_builder_active() {
 function set_builder_inactive() {
     $('#green-circle').hide();
     $('#red-circle').show();
+    $('#builder-status').attr('data-tooltip', 'not running');
     $('#build').text('Update');
     $('#build').off('click');
     $('#build').on('click', start_builder);

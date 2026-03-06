@@ -8,7 +8,7 @@ import openpyxl
 
 import app.orders.models as o
 from app.shipping.models.shipping import Shipping
-from exceptions import OrderError
+from common.exceptions import OrderError
 
 class Cargo(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'cargo'} #type: ignore
@@ -28,7 +28,7 @@ class Cargo(Shipping):
         rate = self.rates.filter_by(destination=destination_id).first()
         if rate:
             return 0
-        from exceptions import NoShippingRateError
+        from common.exceptions import NoShippingRateError
         raise NoShippingRateError()
 
     def get_customs_label(self, order: 'o.Order') -> tuple[_TemporaryFileWrapper, str]: #type: ignore

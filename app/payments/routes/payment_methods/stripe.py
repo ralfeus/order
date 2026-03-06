@@ -14,7 +14,7 @@ from app.payments.logging import get_logger
 from app.payments.models.payment import Payment, PaymentStatus
 from app.models.file import File
 from app.tools import write_to_file
-from exceptions import PaymentError
+from common.exceptions import PaymentError
 
 log = get_logger()
 

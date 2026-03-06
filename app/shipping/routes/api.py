@@ -16,9 +16,9 @@ from app.shipping.models.box import default_box
 from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.tools import modify_object
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 
-from exceptions import OrderError
+from common.exceptions import OrderError
 
 
 @bp_api_admin.route("")

@@ -29,7 +29,7 @@ import app.purchase.models as p
 from app.settings.models.setting import Setting
 from app.shipping.models.shipping import Shipping
 from app.users.models.user import User
-from exceptions import OrderError, UnfinishedOrderError
+from common.exceptions import OrderError, UnfinishedOrderError
 
 from .order_product import OrderProduct
 from .order_status import OrderStatus

@@ -1,8 +1,8 @@
 from tests import BaseTestCase
 from unittest.mock import patch
 
-from exceptions import AtomyLoginError
-from utils.atomy import atomy_login2, get_bu_place_from_network, invoke_curl, get_bu_place_from_page
+from common.exceptions import AtomyLoginError
+from common.utils.atomy import atomy_login2, get_bu_place_from_network, invoke_curl, get_bu_place_from_page
 
 class AtomyTest(BaseTestCase):
     def test_login2(self):

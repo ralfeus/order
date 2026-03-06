@@ -10,7 +10,7 @@ from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
 # from app.orders.models.subcustomer import Subcustomer
 from app.tools import get_html, try_perform
-from utils.atomy import atomy_login2
+from common.utils.atomy import atomy_login2
 from datetime import date, datetime, timedelta
 import json
 import logging
@@ -19,7 +19,7 @@ import re
 from playwright.sync_api import Locator, Page, expect, sync_playwright
 
 from app import db
-from exceptions import (
+from common.exceptions import (
     AtomyLoginError,
     NoPurchaseOrderError,
     ProductNotAvailableError,

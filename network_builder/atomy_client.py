@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from time import sleep
 from typing import Callable, Optional
 
-import utils.logging as logging
-from utils import get_json
-from utils.atomy import atomy_login2
-from exceptions import AtomyLoginError, HTTPError
+import common.utils.logging as logging
+from common.utils import get_json
+from common.utils.atomy import atomy_login2
+from common.exceptions import AtomyLoginError, HTTPError
 from nb_exceptions import NoParentException
 
 TITLES = {

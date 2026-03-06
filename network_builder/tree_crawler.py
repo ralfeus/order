@@ -10,7 +10,7 @@ from typing import Optional
 
 from tqdm_loggable.auto import tqdm
 
-import utils.logging as logging
+import common.utils.logging as logging
 from atomy_client import AtomyClient, TITLES
 from nb_exceptions import BuildPageNodesException, NoParentException
 from node_repository import NodeRepository

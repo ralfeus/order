@@ -11,7 +11,7 @@ from flask_security import current_user, login_required, roles_required
 from sqlalchemy import and_, not_, or_ # type: ignore
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
-from exceptions import EmptySuborderError, NoShippingRateError, \
+from common.exceptions import EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 
 from app import db

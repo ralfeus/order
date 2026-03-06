@@ -10,11 +10,10 @@ Or call :func:`build_network` programmatically from other modules.
 import os
 import sys
 
-_here = os.path.dirname(os.path.abspath(__file__))   # .../network-builder/
-_nb   = os.path.dirname(_here)                        # .../network_builder/ (local) or /app (Docker)
-_root = os.path.dirname(_nb)                          # project root (local) or / (Docker)
-sys.path.insert(0, _nb)    # Docker: /app has utils/; covers that case
-sys.path.insert(0, _root)  # local: project root has utils/
+_here   = os.path.dirname(os.path.abspath(__file__))  # network_builder/ (local) or /app/ (Docker)
+_parent = os.path.dirname(_here)                       # project root (local) or / (Docker)
+sys.path.insert(0, _here)    # Docker: /app/ has common/ → works
+sys.path.insert(0, _parent)  # local: project root has common/ → works
 
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -22,7 +21,7 @@ from typing import Optional
 from neomodel import config
 from tqdm_loggable.tqdm_logging import tqdm_logging
 
-import utils.logging as logging
+import common.utils.logging as logging
 from atomy_client import AtomyClient, TITLES, TokenManager
 from node_repository import NodeRepository
 from state_server import StateServer

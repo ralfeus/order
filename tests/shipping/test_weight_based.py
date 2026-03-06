@@ -28,7 +28,7 @@ class TestShippingWeightBased(BaseTestCase):
         ])
 
     def test_get_rate(self):
-        from exceptions import NoShippingRateError
+        from common.exceptions import NoShippingRateError
         shipping = WeightBased.query.get(1)
         rate = shipping.get_shipping_cost('ua', 100)
         self.assertEqual(rate, 1000)

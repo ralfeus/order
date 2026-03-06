@@ -19,7 +19,7 @@ def _stub_module(name, **attrs):
     return mod
 
 _stub_module('neomodel', db=MagicMock(), config=MagicMock())
-_stub_module('model', AtomyPerson=MagicMock())
+_stub_module('common.model', AtomyPerson=MagicMock())
 
 # netman_app must expose a real Flask app so that @app.route decorators work
 from flask import Flask
@@ -27,7 +27,7 @@ _flask_app = Flask(__name__)
 _flask_app.config['TESTING'] = True
 _stub_module('netman_app', app=_flask_app)
 
-from ..network_manager import network_manager  # noqa: E402 – registers routes on _flask_app
+import network_manager.network_manager  # noqa: E402 – registers routes on _flask_app
 
 
 class TestStartBuilderDockerUnavailable(unittest.TestCase):
@@ -46,10 +46,10 @@ class TestStartBuilderDockerUnavailable(unittest.TestCase):
     # ------------------------------------------------------------------
     # Reproduces the reported bug: Docker socket missing → must get 503
     # ------------------------------------------------------------------
-    @patch('network_manager._test_db_connection', return_value=True)
-    @patch('network_manager._get_builder_container', return_value=None)
-    @patch('network_manager.sleep')
-    @patch('network_manager.docker.from_env')
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    @patch('network_manager.network_manager._get_builder_container', return_value=None)
+    @patch('network_manager.network_manager.sleep')
+    @patch('network_manager.network_manager.docker.from_env')
     def test_503_when_docker_socket_missing(
             self, mock_from_env, _sleep, _get_container, _db):
         mock_from_env.side_effect = self._make_docker_unavailable_exc()
@@ -64,10 +64,10 @@ class TestStartBuilderDockerUnavailable(unittest.TestCase):
     # ------------------------------------------------------------------
     # Happy path: Docker available → builder starts
     # ------------------------------------------------------------------
-    @patch('network_manager._test_db_connection', return_value=True)
-    @patch('network_manager._get_builder_container', return_value=None)
-    @patch('network_manager.sleep')
-    @patch('network_manager.docker.from_env')
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    @patch('network_manager.network_manager._get_builder_container', return_value=None)
+    @patch('network_manager.network_manager.sleep')
+    @patch('network_manager.network_manager.docker.from_env')
     def test_started_when_docker_available(
             self, mock_from_env, _sleep, _get_container, _db):
         mock_client = MagicMock()
@@ -81,11 +81,33 @@ class TestStartBuilderDockerUnavailable(unittest.TestCase):
         self.assertEqual(data['status'], 'started')
 
     # ------------------------------------------------------------------
+    # Container must be started with auto_remove=True so it is removed
+    # after execution without manual cleanup
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    @patch('network_manager.network_manager._get_builder_container', return_value=None)
+    @patch('network_manager.network_manager.sleep')
+    @patch('network_manager.network_manager.docker.from_env')
+    def test_container_auto_removed_after_execution(
+            self, mock_from_env, _sleep, _get_container, _db):
+        mock_client = MagicMock()
+        mock_from_env.return_value = mock_client
+        mock_client.containers.get.side_effect = docker.errors.NotFound('not found')
+
+        self.client.get('/api/v1/builder/start')
+
+        _, kwargs = mock_client.containers.run.call_args
+        self.assertTrue(
+            kwargs.get('auto_remove'),
+            "Container must be started with auto_remove=True so it is cleaned up after execution",
+        )
+
+    # ------------------------------------------------------------------
     # Already running: must short-circuit before touching Docker
     # ------------------------------------------------------------------
-    @patch('network_manager._test_db_connection', return_value=True)
-    @patch('network_manager._get_builder_container')
-    @patch('network_manager.sleep')
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    @patch('network_manager.network_manager._get_builder_container')
+    @patch('network_manager.network_manager.sleep')
     def test_already_running(self, _sleep, mock_get_container, _db):
         mock_get_container.return_value = MagicMock()  # container is running
 

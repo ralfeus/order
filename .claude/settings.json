@@ -12,7 +12,8 @@
       "Bash(pip show docker)",
       "Bash(pip install docker)",
       "Bash(pip show flask werkzeug)",
-      "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)"
+      "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)",
+      "Bash(xargs -r docker stop)"
     ]
   }
 }
