@@ -566,6 +566,37 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
 
+    def test_save_order_no_shipping_rate(self):
+        order = Order(user=self.user, country_id="c1", shipping_method_id=1)
+        subcustomer = Subcustomer(name="A001", username="A001")
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        self.try_add_entities([
+            Product(id="heavy", name="Heavy product", price=10, weight=10000),
+            order,
+            subcustomer,
+            suborder,
+        ])
+        self.try_add_entities([
+            OrderProduct(suborder=suborder, product_id="heavy", price=10, quantity=2),
+        ])
+        res = self.try_admin_operation(
+            admin_only=True,
+            operation=lambda: self.client.post(
+                f"/api/v1/admin/order/{order.id}",
+                json={
+                    "address": "Address1",
+                    "city_eng": "City1",
+                    "country": "c1",
+                    "customer_name": "Customer1",
+                    "phone": "1",
+                    "zip": "1",
+                    "shipping": "1",
+                },
+            ),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('error', res.get_json())
+
     def test_save_order_add_suborder(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         self.try_add_entities([Order(id=gen_id, user=self.user)])

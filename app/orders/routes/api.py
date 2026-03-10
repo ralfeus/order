@@ -643,7 +643,10 @@ def admin_save_order(order_id):
         order.total_weight_set_manually = True
     modify_object(order, payload, ['tracking_id', 'tracking_url'])
     if order.need_to_update_total(payload):
-        order.update_total()
+        try:
+            order.update_total()
+        except NoShippingRateError as ex:
+            return jsonify({'error': f'No shipping rate available. {str(ex)}'})
     if payload.get('status'):
         try:
             order.set_status(payload['status'], current_user)
