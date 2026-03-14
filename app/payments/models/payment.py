@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from common.exceptions import PaymentNoReceivedAmountException
+from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
 from app.models.base import BaseModel
 
 payments_orders = db.Table('payments_orders',
@@ -100,6 +100,9 @@ class Payment(db.Model, BaseModel):
             value = PaymentStatus(value)
 
         if value == PaymentStatus.approved:
+            if self.status != PaymentStatus.pending:
+                raise PaymentStatusTransitionError(
+                    f"Payment <{self.id}> cannot be approved from status <{self.status.name}>")
             if not self.amount_received_krw:
                 raise PaymentNoReceivedAmountException(
                     f"No received amount is set for payment <{self.id}>")
