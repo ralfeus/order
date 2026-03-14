@@ -368,7 +368,7 @@ def success(payment_id: int):
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Find payment entity
-        payment = Payment.query.get(int(payment_id))
+        payment: Payment = Payment.query.get(int(payment_id))
         if not payment:
             log.info(f"No payment ID {payment_id} was found")
             return render_template('payment_methods/stripe_success.html', success=False)
