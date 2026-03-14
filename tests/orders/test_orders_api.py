@@ -754,7 +754,7 @@ class TestOrdersApi(BaseTestCase):
 
     def test_get_order(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id, user=self.user)
+        order = Order(id=gen_id, user=self.user, currency_code='USD')
         suborder = Suborder(order=order)
         self.try_add_entities([Product(id=gen_id, price=10, weight=10)])
         self.try_add_entities(
@@ -771,8 +771,11 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.get(f"/api/v1/order/{gen_id}")
         )
         self.assertEqual(res.json["total"], 2600)
-        self.assertEqual(res.json["total_cur2"], 1300.0)
-        self.assertEqual(res.json["total_cur1"], 1300.0)
+        # total_user_currency is the user-selected currency amount (USD, rate=0.5)
+        self.assertAlmostEqual(res.json["total_user_currency"], 1300.0, places=2)
+        self.assertEqual(res.json["currency_code"], 'USD')
+        self.assertNotIn("total_cur1", res.json)
+        self.assertNotIn("total_cur2", res.json)
         self.assertEqual(res.json["user"], self.user.username)
         self.assertEqual(len(res.json["order_products"]), 1)
         res = self.client.get("/api/v1/order")

@@ -14,17 +14,7 @@
       "Bash(pip show flask werkzeug)",
       "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)",
       "Bash(xargs -r docker stop)",
-      "Bash(mysql -BN -e \"SHOW DATABASES LIKE ''talya%'';\")",
-      "Bash(mysql -BN -e \"SHOW TABLES FROM talya_test;\")",
-      "Bash(mysql -BN -e \"SHOW TABLES FROM talya;\")",
-      "Bash(mysql -BN -e \"SHOW TABLES FROM talya_test_archive;\")",
-      "Bash(mysql -BN -e \"SELECT COUNT\\(*\\) FROM talya_test_archive.orders;\")",
-      "Bash(mysql -BN -e \"SELECT COUNT\\(*\\) FROM talya.orders; SELECT MIN\\(when_created\\), MAX\\(when_created\\) FROM talya.orders;\")",
-      "Bash(mysqldump --single-transaction talya)",
-      "Bash(mysql talya_test)",
-      "Bash(mysql -BN -e \"SELECT COUNT\\(*\\) FROM talya_test.orders;\")",
-      "Bash(mysql -e \"DROP DATABASE talya_test_archive;\")",
-      "Bash(bash tools/archive_talya.sh -s talya_test 2026-01-01)"
+      "/Users/ralfeus/.virtualenvs/order/bin/python -m pytest*"
     ]
   }
 }
