@@ -67,7 +67,14 @@ def invoke_curl(url, **kwargs) -> tuple[str, str]:
 def get_html(url, **kwargs):
     return fromstring(invoke_curl(url, **kwargs)[0])
         
-@patch("app.purchase.models.vendors.atomy_quick.sync_playwright", MagicMock())
+_PW_MOCK = MagicMock()
+# count() must return an int so `count() > 0` doesn't raise TypeError
+_PW_MOCK.return_value.__enter__.return_value.chromium.launch.return_value \
+    .new_page.return_value.locator.return_value.count.return_value = 0
+_PW_MOCK.return_value.__enter__.return_value.chromium.connect_over_cdp.return_value \
+    .new_page.return_value.locator.return_value.count.return_value = 0
+
+@patch("app.purchase.models.vendors.atomy_quick.sync_playwright", _PW_MOCK)
 class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -179,6 +186,43 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
         po = p.PurchaseOrder(suborder=suborder, vendor_po_id='7012504030031927', customer=subcustomer)
         self.try_add_entities([subcustomer, suborder, po])
         AtomyQuick(config=current_app.config).update_purchase_order_status(po)
+
+
+class TestAtomyQuickLoginUnit(BaseTestCase):
+    """Unit tests for __login — no real browser required."""
+
+    def _make_page_mock(self, has_popup: bool):
+        page = MagicMock()
+        close_btn_locator = MagicMock()
+        close_btn_locator.count.return_value = 1 if has_popup else 0
+        form_locator = MagicMock()
+
+        def locator_side_effect(selector):
+            if 'close-button' in selector:
+                return close_btn_locator
+            return form_locator
+
+        page.locator.side_effect = locator_side_effect
+        wff_result = MagicMock()
+        wff_result.json_value.return_value = 'form_gone'
+        page.wait_for_function.return_value = wff_result
+        return page, close_btn_locator
+
+    def test_login_dismisses_popup_when_present(self):
+        """Regression: popup close-button must be clicked before the login
+        button; without this the click is intercepted and wait_for_function
+        times out."""
+        page, close_btn = self._make_page_mock(has_popup=True)
+        po = SimpleNamespace(customer=SimpleNamespace(username='u', password='p'))
+        AtomyQuick(config=current_app.config)._AtomyQuick__login(page, po)
+        close_btn.first.click.assert_called_once()
+
+    def test_login_no_popup(self):
+        """Login must succeed without error when no popup is present."""
+        page, close_btn = self._make_page_mock(has_popup=False)
+        po = SimpleNamespace(customer=SimpleNamespace(username='u', password='p'))
+        AtomyQuick(config=current_app.config)._AtomyQuick__login(page, po)
+        close_btn.first.click.assert_not_called()
 
 
 class TestAtomyQuickLogin(BaseTestCase):

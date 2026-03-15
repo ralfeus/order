@@ -381,6 +381,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __login(self, page: Page, purchase_order: PurchaseOrder):
         self._logger.info("Logging in as %s", purchase_order.customer.username)
         page.goto(f"{URL_BASE}/login")
+        # Wait for the login form to be fully rendered before interacting
+        page.locator("div.login_form").wait_for(state="visible")
+        # Dismiss any promotional popup that might intercept the login button click
+        close_btn = page.locator('button[layer-role="close-button"]')
+        if close_btn.count() > 0:
+            try:
+                close_btn.first.click(timeout=3000)
+            except Exception:
+                pass
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
@@ -398,7 +407,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
                 return false;
             }""",
-            timeout=15000
+            timeout=30000
         ).json_value()
         if triggered == 'alert':
             handle_login_alert(purchase_order.customer, page, self._logger)
