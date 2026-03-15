@@ -100,7 +100,7 @@ class Payment(db.Model, BaseModel):
             value = PaymentStatus(value)
 
         if value == PaymentStatus.approved:
-            if self.status != PaymentStatus.pending:
+            if self.status not in (PaymentStatus.pending, PaymentStatus.rejected):
                 raise PaymentStatusTransitionError(
                     f"Payment <{self.id}> cannot be approved from status <{self.status.name}>")
             if not self.amount_received_krw:
