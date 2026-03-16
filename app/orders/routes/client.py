@@ -67,6 +67,10 @@ def user_new_order():
     '''New order form'''
     from ..signals import user_create_sale_order_rendering
     extensions = user_create_sale_order_rendering.send()
+    base_country = Country.get_base_country(current_app.config.get('TENANT_NAME', 'default'))
+    user_currency = Currency.query.get(current_user.currency_code) \
+        if current_user.currency_code else Currency.get_base_currency(
+            current_app.config.get('TENANT_NAME', 'default'))
     return render_template('new_order.html',
         load_excel=request.args.get('upload') is not None,
         can_create_po=current_user.has_role('allow_create_po'),
@@ -78,8 +82,8 @@ def user_new_order():
         make_copy=request.args.get('from_order') is not None,
         hide_krw=current_app.config.get('HIDE_KRW', False),
         service_fee=current_app.config.get('SERVICE_FEE', 0),
-        base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')))
+        base_country=base_country,
+        user_currency=user_currency)
 
 @bp_client_user.route('/<order_id>')
 @login_required
@@ -95,6 +99,9 @@ def user_get_order(order_id):
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     if order.status == OrderStatus.draft:
+        user_currency = Currency.query.get(current_user.currency_code) \
+            if current_user.currency_code else Currency.get_base_currency(
+                current_app.config.get('TENANT_NAME', 'default'))
         return render_template('new_order.html',
             order_id=order.id,
             check_subcustomers=Setting.get('order.new.check_subcustomers'),
@@ -103,6 +110,7 @@ def user_get_order(order_id):
             service_fee=current_app.config.get('SERVICE_FEE', 0),
             base_country=Country.get_base_country(
                 current_app.config.get('TENANT_NAME', 'default')),
+            user_currency=user_currency,
         )
     currency = Currency.query.get(profile.get('currency'))
     if 'currency' in request.values:
@@ -251,6 +259,7 @@ def admin_get_order(order_id):
     if request.values.get('view') == 'customs_label':
         return render_template(order.shipping.customs_label_template_name, order=order)
     
+    user_currency = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
     return render_template('new_order.html',
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
         order_id=order_id,
@@ -258,7 +267,8 @@ def admin_get_order(order_id):
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
         service_fee=current_app.config.get('SERVICE_FEE', 0),
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')))
+            current_app.config.get('TENANT_NAME', 'default')),
+        user_currency=user_currency)
 
 
 @bp_client_user.route('/<order_id>/excel')

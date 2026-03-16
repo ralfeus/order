@@ -12,6 +12,7 @@
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
     const SERVICE_FEE = {{ service_fee }};
     var base_country = {{ base_country | tojson }};
+    var USER_CURRENCY_CODE = "{{ user_currency.code if user_currency else '' }}";
 </script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
@@ -104,20 +105,15 @@
                             <td id="totalGrandTotalKRW"></td>
                         </tr>
                         {% endif %}
+                        {% if user_currency and not user_currency.base %}
                         <tr>
-                            <td>EUR</td>
-                            <td id="totalItemsCostEUR"></td>
+                            <td>{{ user_currency.code }}</td>
+                            <td id="totalItemsCostUser"></td>
                             <td class="total-weight hide-on-small"></td>
-                            <td id="totalShippingCostEUR"></td>
-                            <td id="totalGrandTotalEUR"></td>
+                            <td id="totalShippingCostUser"></td>
+                            <td id="totalGrandTotalUser"></td>
                         </tr>
-                        <tr>
-                            <td>USD</td>
-                            <td id="totalItemsCostUSD"></td>
-                            <td class="total-weight hide-on-small"></td>
-                            <td id="totalShippingCostUSD"></td>
-                            <td id="totalGrandTotalUSD"></td>
-                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -191,8 +187,7 @@
                                 <th scope="col" style="width: 0em;" class="hide-on-mobile">Weight</th>
                                 <th scope="col" style="width: 5rem;" class="hide-on-mobile">Shipping</th>
                                 <th scope="col">Total ({{ base_country.currency_code }})</th>
-                                <th scope="col" class="hide-on-mobile">Total (EUR)</th>
-                                <th scope="col" class="hide-on-mobile">Total (USD)</th>
+                                <th scope="col" class="hide-on-mobile">Total ({{ user_currency.code if user_currency and not user_currency.base else '' }})</th>
                                 <th scope="col" class="hide-on-mobile">Item points</th>
                                 <th scope="col" class="hide-on-mobile">Total points</th>
                             </tr>
@@ -211,8 +206,7 @@
                                 <td class="total-item-weight hide-on-mobile"></td>
                                 <td class="shipping-cost-krw hide-on-mobile"></td>
                                 <td class="total-krw"></td>
-                                <td class="total-eur hide-on-mobile"></td>
-                                <td class="total-usd hide-on-mobile"></td>
+                                <td class="total-user hide-on-mobile"></td>
                                 <td class="item-points hide-on-mobile"></td>
                                 <td class="total-points hide-on-mobile"></td>
                             </tr>
@@ -234,8 +228,7 @@
                                     <div id="subtotalShippingCostKRW"></div>
                                 </td>
                                 <td id="subtotalTotalKRW"></td>
-                                <td id="subtotalTotalEUR" class="hide-on-mobile"></td>
-                                <td id="subtotalTotalUSD" class="hide-on-mobile"></td>
+                                <td id="subtotalTotalUser" class="hide-on-mobile"></td>
                                 <td class="hide-on-mobile"></td>
                                 <td id="subtotalTotalPoints" class="hide-on-mobile"></td>
                             </tr>
