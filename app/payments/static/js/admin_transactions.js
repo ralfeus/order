@@ -41,6 +41,10 @@ function init_transactions_table() {
             {
                 label: 'Amount',
                 name: 'amount'
+            },
+            {
+                label: 'Comment',
+                name: 'comment'
             }
         ]
     });
@@ -57,7 +61,8 @@ function init_transactions_table() {
             {data: 'amount'},
             {data: 'customer_balance'},
             {data: 'created_by'},
-            {data: 'when_created'}
+            {data: 'when_created'},
+            {data: 'comment'}
         ],
         order: [[6, 'desc']],
         select: true,

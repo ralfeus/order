@@ -145,6 +145,7 @@ class Order(db.Model, BaseModel): # type: ignore
         if value not in [OrderStatus.pending, OrderStatus.can_be_paid]:
             self.purchase_date_sort = datetime(9999, 12, 31)
         if value == OrderStatus.shipped:
+            # Deduct points from user balance and mark order products as purchased
             from app.orders.models.order_product import OrderProductStatus
             unfinished_ops = []
             for suborder in self.suborders:
@@ -219,7 +220,8 @@ class Order(db.Model, BaseModel): # type: ignore
         transaction = Transaction(
             amount=-self.total_krw,
             customer=self.user,
-            user=actor
+            user=actor,
+            comment=f'Deduction for order {self.id}'
         )
         self.transaction = transaction
         db.session.add(transaction)

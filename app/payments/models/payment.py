@@ -121,7 +121,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
@@ -133,7 +134,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=-self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Revert of payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
