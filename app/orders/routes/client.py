@@ -91,7 +91,6 @@ def user_get_order(order_id):
     ''' Existing order view '''
     logger = current_app.logger.getChild('user_get_order')
     order = Order.query
-    profile = json.loads(current_user.profile)
     if not current_user.has_role('admin'):
         order = order.filter_by(user=current_user)
     order = order.filter_by(id=order_id).first()
@@ -112,22 +111,13 @@ def user_get_order(order_id):
                 current_app.config.get('TENANT_NAME', 'default')),
             user_currency=user_currency,
         )
-    currency = Currency.query.get(profile.get('currency'))
-    if 'currency' in request.values:
-        currency = Currency.query.get(request.values['currency'])
-        if currency is not None:
-            profile['currency'] = currency.code
-            current_user.profile = json.dumps(profile)
-            from app import db
-            db.session.commit() #type: ignore
-    if currency is None:
-        currency = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
-    currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
-                  for c in Currency.query if c.enabled]
-    rate = Currency.query.get(currency.code).get_rate(order.when_created)
+    currency = Currency.query.get(current_user.currency_code) \
+        if current_user.currency_code else \
+        Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
+    rate = currency.get_rate(order.when_created)
     logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
     return render_template('order_view.html', order=order,
-        currency=currency, currencies=currencies, rate=rate, mode='view',
+        currency=currency, rate=rate, mode='view',
         service_fee=current_app.config.get('SERVICE_FEE', 0))
 
 @bp_client_user.route('/')
