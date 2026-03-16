@@ -187,7 +187,9 @@
                                 <th scope="col" style="width: 0em;" class="hide-on-mobile">Weight</th>
                                 <th scope="col" style="width: 5rem;" class="hide-on-mobile">Shipping</th>
                                 <th scope="col">Total ({{ base_country.currency_code }})</th>
-                                <th scope="col" class="hide-on-mobile">Total ({{ user_currency.code if user_currency and not user_currency.base else '' }})</th>
+                                {% if user_currency and not user_currency.base %}
+                                <th scope="col" class="hide-on-mobile">Total ({{ user_currency.code }})</th>
+                                {% endif %}
                                 <th scope="col" class="hide-on-mobile">Item points</th>
                                 <th scope="col" class="hide-on-mobile">Total points</th>
                             </tr>
@@ -206,7 +208,7 @@
                                 <td class="total-item-weight hide-on-mobile"></td>
                                 <td class="shipping-cost-krw hide-on-mobile"></td>
                                 <td class="total-krw"></td>
-                                <td class="total-user hide-on-mobile"></td>
+                                {% if user_currency and not user_currency.base %}<td class="total-user hide-on-mobile"></td>{% endif %}
                                 <td class="item-points hide-on-mobile"></td>
                                 <td class="total-points hide-on-mobile"></td>
                             </tr>
@@ -228,7 +230,7 @@
                                     <div id="subtotalShippingCostKRW"></div>
                                 </td>
                                 <td id="subtotalTotalKRW"></td>
-                                <td id="subtotalTotalUser" class="hide-on-mobile"></td>
+                                {% if user_currency and not user_currency.base %}<td id="subtotalTotalUser" class="hide-on-mobile"></td>{% endif %}
                                 <td class="hide-on-mobile"></td>
                                 <td id="subtotalTotalPoints" class="hide-on-mobile"></td>
                             </tr>
