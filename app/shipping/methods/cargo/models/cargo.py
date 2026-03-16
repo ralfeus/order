@@ -7,6 +7,7 @@ from tempfile import _TemporaryFileWrapper, NamedTemporaryFile
 import openpyxl
 
 import app.orders.models as o
+from app.currencies.models import Currency
 from app.shipping.models.shipping import Shipping
 from common.exceptions import OrderError
 
@@ -64,7 +65,8 @@ class Cargo(Shipping):
         ws.cell(82, 4, datetime.date(datetime.now()))
         row = 13
         total_quantity = total_weight = total_amount = 0
-        currency_rate = order.total_krw / order.total_usd
+        usd = Currency.query.get('USD')
+        currency_rate = usd.rate  # base currency units per 1 USD
         for op in order.order_products:
             ws.cell(row, 3, op.product.name_english)
             ws.cell(row, 4, op.quantity)
