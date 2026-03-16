@@ -136,12 +136,16 @@ class TestOrderModelCurrency(BaseTestCase):
         self.assertIn('total_user_currency', result)
         self.assertAlmostEqual(result['total_user_currency'], 100.0, places=2)
 
-    def test_to_dict_does_not_include_hardcoded_cur1_cur2(self):
-        """to_dict() must not contain the old hardcoded total_cur1 / total_cur2 keys."""
+    def test_to_dict_includes_backward_compat_aliases(self):
+        """to_dict() includes total_cur1/total_cur2 aliases for frontend backward compatibility."""
         order = self._make_order(user_currency_code='USD', total_base_currency=100000, total_user_currency=100.0)
         result = order.to_dict()
-        self.assertNotIn('total_cur1', result)
-        self.assertNotIn('total_cur2', result)
+        self.assertIn('total_cur1', result)
+        self.assertAlmostEqual(result['total_cur1'], 100.0, places=2)
+        self.assertIn('total_cur2', result)
+        self.assertAlmostEqual(result['total_cur2'], 100.0, places=2)
+        self.assertIn('total_krw', result)
+        self.assertEqual(result['total_krw'], 100000)
 
     # --- update_total() tests ---
 
