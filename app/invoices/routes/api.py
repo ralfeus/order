@@ -72,7 +72,7 @@ def create_invoice():
             invoice=invoice,
             product_id="SHIPPING",
             price=round(
-                reduce(lambda acc, o: acc + o.shipping_krw * rate, orders, 0), 2
+                reduce(lambda acc, o: acc + o.shipping_base_currency * rate, orders, 0), 2
             ),
             quantity=1,
         )

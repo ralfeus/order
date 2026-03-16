@@ -99,7 +99,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
         order = Order.query.get(created_order_id)
-        self.assertEqual(order.total_krw, 2620)
+        self.assertEqual(order.total_base_currency, 2620)
         self.assertEqual(order.shipping.name, "Shipping1")
 
     def test_create_weightless_order(self):
@@ -701,7 +701,7 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         order = Order.query.get(order.id)
-        self.assertEqual(order.total_krw, 30000)
+        self.assertEqual(order.total_base_currency, 30000)
 
     def test_get_orders(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -754,7 +754,7 @@ class TestOrdersApi(BaseTestCase):
 
     def test_get_order(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id, user=self.user, currency_code='USD')
+        order = Order(id=gen_id, user=self.user, user_currency_code='USD')
         suborder = Suborder(order=order)
         self.try_add_entities([Product(id=gen_id, price=10, weight=10)])
         self.try_add_entities(
@@ -773,7 +773,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.json["total"], 2600)
         # total_user_currency is the user-selected currency amount (USD, rate=0.5)
         self.assertAlmostEqual(res.json["total_user_currency"], 1300.0, places=2)
-        self.assertEqual(res.json["currency_code"], 'USD')
+        self.assertEqual(res.json["user_currency_code"], 'USD')
         self.assertNotIn("total_cur1", res.json)
         self.assertNotIn("total_cur2", res.json)
         self.assertEqual(res.json["user"], self.user.username)
@@ -830,7 +830,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.json["quantity"], 100)
 
         res = self.client.get(f"/api/v1/admin/order/{gen_id}")
-        self.assertTrue(res.json["total_krw"], 1010)
+        self.assertTrue(res.json["total_base_currency"], 1010)
 
     def test_get_order_product_status_history(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -986,8 +986,8 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         order = Order.query.get(res.json["order_id"])
         self.assertEqual(order.attached_orders.count(), 1)
-        self.assertEqual(order.shipping_krw, 200)
-        self.assertEqual(order.total_krw, 3700)
+        self.assertEqual(order.shipping_base_currency, 200)
+        self.assertEqual(order.total_base_currency, 3700)
         self.client.post(
             f"/api/v1/order/{order.id}",
             json={
@@ -1008,8 +1008,8 @@ class TestOrdersApi(BaseTestCase):
             },
         )
         self.assertEqual(order.attached_orders.count(), 2)
-        self.assertEqual(order.shipping_krw, 200)
-        self.assertEqual(order.total_krw, 3700)
+        self.assertEqual(order.shipping_base_currency, 200)
+        self.assertEqual(order.total_base_currency, 3700)
 
     def test_pay_order(self):
         self.user.balance = 2600
@@ -1173,7 +1173,7 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         order = Order.query.get(gen_id)
-        self.assertEqual(order.total_krw, 2620)
+        self.assertEqual(order.total_base_currency, 2620)
         self.assertEqual(order.get_total_points(), 20)
 
     def test_delete_last_order_item_in_suborder(self):
@@ -1304,7 +1304,7 @@ class TestOrdersApi(BaseTestCase):
                     user=self.user,
                     status=OrderStatus.pending,
                     country_id="c1",
-                    total_krw=1000,
+                    total_base_currency=1000,
                 )
             ]
         )

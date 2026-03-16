@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from common.exceptions import PaymentNoReceivedAmountException
+from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
 from app.models.base import BaseModel
 
 payments_orders = db.Table('payments_orders',
@@ -100,6 +100,9 @@ class Payment(db.Model, BaseModel):
             value = PaymentStatus(value)
 
         if value == PaymentStatus.approved:
+            if self.status not in (PaymentStatus.pending, PaymentStatus.rejected):
+                raise PaymentStatusTransitionError(
+                    f"Payment <{self.id}> cannot be approved from status <{self.status.name}>")
             if not self.amount_received_krw:
                 raise PaymentNoReceivedAmountException(
                     f"No received amount is set for payment <{self.id}>")
@@ -118,7 +121,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
@@ -130,7 +134,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=-self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Revert of payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
@@ -146,7 +151,7 @@ class Payment(db.Model, BaseModel):
                          self.orders, ""))
         from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
-            lambda acc, o: acc + o.total_krw,
+            lambda acc, o: acc + o.total_base_currency,
             self.orders.filter_by(status=OrderStatus.pending), 0
         )
 #        if self.amount_received_krw >= total_orders_amount:

@@ -218,7 +218,7 @@ def user_create_order():
             phone=payload['phone'],
             email=payload.get('email'),
             comment=payload.get('comment'),
-            subtotal_krw=0,
+            subtotal_base_currency=0,
             status=OrderStatus.pending,
             when_created=datetime.now(),
             service_fee=current_app.config.get('SERVICE_FEE', 0),
@@ -582,7 +582,7 @@ def add_order_product(suborder, item, errors):
             # db.session.add(order_product)
             suborder.order_products.append(order_product)
             suborder.order.total_weight += product.weight * order_product.quantity
-            suborder.order.subtotal_krw += product.price * order_product.quantity
+            suborder.order.subtotal_base_currency += product.price * order_product.quantity
             return order_product
         raise ProductNotFoundError(item['item_code'])
     except Exception as ex:

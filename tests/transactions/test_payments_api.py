@@ -85,7 +85,7 @@ class TestPaymentApi(BaseTestCase):
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         currency = Currency(code='KRW', rate=1, base=True)
-        order = Order(id=gen_id, total_krw=90, user=self.user,
+        order = Order(id=gen_id, total_base_currency=90, user=self.user,
                       status=OrderStatus.pending)
         payment = Payment(amount_sent_original=100, currency=currency,
             amount_received_krw=100,
@@ -103,7 +103,7 @@ class TestPaymentApi(BaseTestCase):
     def test_pay_po_created_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         currency = Currency(code='KRW', rate=1, base=True)
-        order = Order(id=gen_id, total_krw=90, user=self.user,
+        order = Order(id=gen_id, total_base_currency=90, user=self.user,
                       status=OrderStatus.po_created)
         payment = Payment(amount_sent_original=100, currency=currency,
             amount_received_krw=100,
