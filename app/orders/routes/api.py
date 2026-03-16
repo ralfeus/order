@@ -15,6 +15,7 @@ from common.exceptions import EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 
 from app import db
+from app.currencies.models import Currency
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
@@ -206,6 +207,11 @@ def user_create_order():
     shipping = Shipping.query.get(payload['shipping'])
     country = Country.query.get(payload['country'])
     with db.session.no_autoflush: # type: ignore
+        if current_user.currency_code:
+            user_currency_code = current_user.currency_code
+        else:
+            base = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
+            user_currency_code = base.code if base else None
         order = Order(
             user=current_user,
             customer_name=payload['customer_name'],
@@ -219,6 +225,7 @@ def user_create_order():
             email=payload.get('email'),
             comment=payload.get('comment'),
             subtotal_base_currency=0,
+            user_currency_code=user_currency_code,
             status=OrderStatus.pending,
             when_created=datetime.now(),
             service_fee=current_app.config.get('SERVICE_FEE', 0),
