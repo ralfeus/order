@@ -15,7 +15,17 @@
       "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)",
       "Bash(xargs -r docker stop)",
       "/Users/ralfeus/.virtualenvs/order/bin/python -m pytest*",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(mysql -u root -e \"SHOW DATABASES LIKE ''talya%'';\")",
+      "Bash(mysql -u root -e \"SELECT COUNT\\(*\\) FROM talya.orders;\")",
+      "Bash(mysql -u root -e \"DROP DATABASE IF EXISTS talya_test; CREATE DATABASE talya_test;\")",
+      "Bash(mysqldump -u root --single-transaction --routines --triggers talya)",
+      "Bash(mysql -u root talya_test)",
+      "Bash(mysql -u root -e \"SELECT COUNT\\(*\\) FROM talya_test.orders;\")",
+      "Bash(bash tools/archive_db.sh -u root -s talya_test -t talya_test_archive 2025-01-01)",
+      "Bash(mysql -u root -e \"SELECT MIN\\(when_created\\), MAX\\(when_created\\) FROM talya_test.orders;\")",
+      "Bash(mysql -u root -e \"DROP DATABASE IF EXISTS talya_test_archive;\")",
+      "Bash(bash tools/archive_db.sh -u root -s talya_test -t talya_test_archive 2026-03-01)"
     ]
   }
 }

@@ -87,11 +87,30 @@ M="mysql${MYSQL_CONN_OPTS}"
 log()  { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die()  { printf '\nERROR: %s\n' "$*" >&2; exit 2; }
 
-# Run SQL and return result (single value)
-qval() { $M -BN -e "$1" 2>/dev/null; }
+# Run SQL and return result (single value); print stderr only on failure
+qval() {
+    local tmp out rc
+    tmp=$(mktemp)
+    out=$($M -BN -e "$1" 2>"$tmp"); rc=$?
+    if (( rc != 0 )); then
+        printf '\nMySQL error (exit %s):\n%s\nQuery: %s\n' "$rc" "$(cat "$tmp")" "$1" >&2
+        rm -f "$tmp"; return $rc
+    fi
+    rm -f "$tmp"
+    printf '%s' "$out"
+}
 
-# Run SQL (no return value needed)
-run()  { $M -e "$1" 2>/dev/null; }
+# Run SQL (no return value needed); print stderr only on failure
+run() {
+    local tmp rc
+    tmp=$(mktemp)
+    $M -e "$1" 2>"$tmp"; rc=$?
+    if (( rc != 0 )); then
+        printf '\nMySQL error (exit %s):\n%s\nQuery: %s\n' "$rc" "$(cat "$tmp")" "$1" >&2
+        rm -f "$tmp"; return $rc
+    fi
+    rm -f "$tmp"
+}
 
 # Count rows in a table with optional WHERE clause
 cnt() {
@@ -140,7 +159,7 @@ step1_schema() {
 
     # All base tables (not views, not network_nodes which is pure master data)
     local tables=(
-        addresses alembic_version clicks companies countries currencies
+        addresses alembic_version companies countries currencies
         currency_history dhl_countries dhl_rates dhl_zones fedex_setting files
         invoice_items invoices notifications order_boxes order_packers
         order_params order_product_status_history order_products
@@ -245,14 +264,23 @@ step3_archive() {
     log "Step 3: Copying transactional data to archive"
 
     # -- 1. invoices (parent: referenced by orders.invoice_id) ---------------
+    # Only archive an invoice when NO non-candidate order still references it;
+    # otherwise the delete in step 5 would hit a FK constraint from that order.
     run "INSERT IGNORE INTO \`${ARCHIVE_DB}\`.\`invoices\`
          SELECT i.* FROM \`${ONLINE_DB}\`.\`invoices\` i
          WHERE
-             -- Normal case: referenced by a candidate order
-             i.id IN (
-                 SELECT invoice_id FROM \`${ONLINE_DB}\`.\`orders\`
-                 WHERE id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`_candidate_orders\`)
-                   AND invoice_id IS NOT NULL
+             -- Normal case: referenced by a candidate order AND not by any non-candidate order
+             (
+                 i.id IN (
+                     SELECT invoice_id FROM \`${ONLINE_DB}\`.\`orders\`
+                     WHERE id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`_candidate_orders\`)
+                       AND invoice_id IS NOT NULL
+                 )
+                 AND i.id NOT IN (
+                     SELECT invoice_id FROM \`${ONLINE_DB}\`.\`orders\`
+                     WHERE id NOT IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`_candidate_orders\`)
+                       AND invoice_id IS NOT NULL
+                 )
              )
              -- Orphan invoices: not referenced by any order anywhere, archive by date
              OR (
@@ -451,13 +479,7 @@ step3_archive() {
          WHERE order_id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`orders\`);"
     log "    archived warehouse_orders"
 
-    # -- 19. clicks (independent; date-anchored) --------------------------------
-    run "INSERT IGNORE INTO \`${ARCHIVE_DB}\`.\`clicks\`
-         SELECT * FROM \`${ONLINE_DB}\`.\`clicks\`
-         WHERE when_created < '${CUTOFF}';"
-    log "    archived clicks"
-
-    # -- 20. notifications (independent; date-anchored) ------------------------
+    # -- 19. notifications (independent; date-anchored) ------------------------
     run "INSERT IGNORE INTO \`${ARCHIVE_DB}\`.\`notifications\`
          SELECT * FROM \`${ONLINE_DB}\`.\`notifications\`
          WHERE when_created < '${CUTOFF}';"
@@ -505,9 +527,6 @@ step4_verify() {
     v_composite purchase_order_warehouses purchase_order_id purchase_orders
     v_composite warehouse_orders order_id orders
 
-    verify clicks \
-        "when_created < '${CUTOFF}'" \
-        "when_created < '${CUTOFF}'"
     verify notifications \
         "when_created < '${CUTOFF}'" \
         "when_created < '${CUTOFF}'"
@@ -591,12 +610,15 @@ step5_delete() {
         "invoice_id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`invoices\`)"
 
     # invoices (orders referencing them are now deleted)
+    # Safety net: skip any invoice still referenced by a non-candidate order
+    # (can only happen if step 3 guard was somehow bypassed on a prior partial run)
     chunk_delete invoices \
-        "id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`invoices\`)"
-
-    # clicks (independent)
-    chunk_delete clicks \
-        "id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`clicks\`)"
+        "id IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`invoices\`)
+         AND id NOT IN (
+             SELECT invoice_id FROM \`${ONLINE_DB}\`.\`orders\`
+             WHERE id NOT IN (SELECT id FROM \`${ARCHIVE_DB}\`.\`_candidate_orders\`)
+               AND invoice_id IS NOT NULL
+         )"
 
     # notifications (independent)
     chunk_delete notifications \
@@ -613,7 +635,7 @@ step6_summary() {
 
     local tables=(
         orders suborders order_products invoices invoice_items
-        transactions payments purchase_orders clicks notifications
+        transactions payments purchase_orders notifications
     )
     printf '\n%-35s %12s %12s\n' "Table" "Online" "Archive"
     printf '%-35s %12s %12s\n' "-----" "------" "-------"
