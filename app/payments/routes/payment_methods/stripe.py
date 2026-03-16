@@ -368,12 +368,15 @@ def success(payment_id: int):
             return render_template('payment_methods/stripe_success.html', success=False)
 
         # Find payment entity
-        payment = Payment.query.get(int(payment_id))
+        payment: Payment = Payment.query.get(int(payment_id))
         if not payment:
             log.info(f"No payment ID {payment_id} was found")
             return render_template('payment_methods/stripe_success.html', success=False)
 
-        # Change payment status to approved
+        # Change payment status to approved — only if still pending
+        if payment.status != PaymentStatus.pending:
+            log.info(f"Payment {payment_id} is in status {payment.status}, skipping")
+            return render_template('payment_methods/stripe_success.html', success=False)
         log.info(f"Approving payment {payment_id}")
         payment.amount_received_krw = payment.amount_sent_krw
         payment.set_status(PaymentStatus.approved)

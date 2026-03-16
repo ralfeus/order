@@ -16,11 +16,16 @@ def _is_valid_user(_form, field):
     if User.query.get(field.data) is None:
         raise ValidationError(f'{field.id}: Is not a valid user')
 
+def _is_non_empty(_form, field):
+    if not field.data or not str(field.data).strip():
+        raise ValidationError(f'{field.id}: Must not be empty')
+
 class TransactionValidator(Inputs):
     '''Validator for transaction input'''
     json = {
         'customer_id': [_is_valid_user],
         'amount': [_is_int],
+        'comment': [_is_non_empty],
     }
 
     def __enter__(self):

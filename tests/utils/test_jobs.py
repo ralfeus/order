@@ -14,7 +14,7 @@ class TestJobs(BaseTestCase):
         db.create_all()
 
     @patch('app.jobs.save_image')
-    @patch('utils.atomy.atomy_login2')
+    @patch('common.utils.atomy.atomy_login2')
     @patch('app.tools.get_json')
     @patch('app.tools.get_html')
     def test_import_products(self, get_html, get_json, atomy_login2, save_image):

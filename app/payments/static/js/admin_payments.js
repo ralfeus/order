@@ -392,6 +392,14 @@ function on_orders_change() {
  * @param {string} status - new status
  */
 async function set_status(target, newStatus) {
+    const rows = target.data().toArray();
+    const normalizedStatus = newStatus.toLowerCase();
+    const needsConfirm =
+        (normalizedStatus === 'rejected' && rows.some(r => r.status === 'approved')) ||
+        (normalizedStatus === 'approved' && rows.some(r => r.status === 'rejected'));
+    if (needsConfirm && !confirm(`Are you sure you want to set status to "${newStatus}"? This will revert the payment transaction.`)) {
+        return;
+    }
     $('.wait').show();
     var errors = '';
     var successful = '';

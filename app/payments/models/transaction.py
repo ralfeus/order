@@ -3,14 +3,14 @@ User's financial transaction of any kind
 '''
 import logging
 
-from sqlalchemy import Column, ForeignKey, Integer
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app import db
 from app.models.base import BaseModel
 from app.users.models.user import User
 
-class Transaction(BaseModel, db.Model):
+class Transaction(BaseModel, db.Model): #type: ignore
     __tablename__ = 'transactions'
 
     customer_id = Column(Integer(), ForeignKey('users.id'))
@@ -21,6 +21,7 @@ class Transaction(BaseModel, db.Model):
     user = relationship('User', foreign_keys=[user_id])
     order = relationship('Order', uselist=False)
     payment = relationship('Payment', uselist=False)
+    comment = Column(String(255))
 
     def __init__(self, amount, customer_id=None, customer=None, user_id=None,
                  user=None, **kwargs):
@@ -70,6 +71,7 @@ class Transaction(BaseModel, db.Model):
             'amount': self.amount,
             'customer_balance': self.customer_balance,
             'created_by': self.user.username,
+            'comment': self.comment,
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') \
                 if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') \

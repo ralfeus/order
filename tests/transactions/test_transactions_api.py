@@ -50,6 +50,7 @@ class TestTransactionApi(BaseTestCase):
         transaction = Transaction.query.first()
         self.assertEqual(transaction.amount, 2600)
         self.assertEqual(self.user.balance, 2600)
+        self.assertEqual(transaction.comment, f'Payment {gen_id_int}')
 
     def test_create_pay_order_transaction(self):
         self.user.balance = 2600
@@ -79,6 +80,26 @@ class TestTransactionApi(BaseTestCase):
         transaction = Transaction.query.first()
         self.assertEqual(transaction.amount, -2600)
         self.assertEqual(self.user.balance, 0)
+        self.assertEqual(transaction.comment, f'Deduction for order {order.id}')
+
+    def test_create_manual_transaction_without_comment(self):
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/payment/transaction', json={
+                'customer_id': self.user.id,
+                'amount': 100
+            }))
+        self.assertIsNotNone(res.get_json().get('error'))
+
+    def test_create_manual_transaction_with_comment(self):
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/payment/transaction', json={
+                'customer_id': self.user.id,
+                'amount': 100,
+                'comment': 'Manual adjustment'
+            }))
+        self.assertIsNone(res.get_json().get('error'))
+        transaction = Transaction.query.first()
+        self.assertEqual(transaction.comment, 'Manual adjustment')
 
     def test_get_transactions(self):
         res = self.try_admin_operation(

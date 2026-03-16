@@ -165,6 +165,89 @@ class TestPaymentsApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(self.user.balance, -10) #type:ignore
 
+    def test_approve_pending_payment_succeeds(self):
+        currency = Currency.query.get('USD')
+        payment = Payment(
+            user_id=self.user.id, #type:ignore
+            amount_sent_original=10,
+            currency=currency,
+            amount_received_krw=10,
+            status=PaymentStatus.pending,
+            when_created=datetime.now(),
+            payment_method_id=1,
+        )
+        self.try_add_entities([payment])
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                f"/api/v1/admin/payment/{payment.id}", json={"status": "approved"}
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.get_json().get('error'))
+        self.assertEqual(Payment.query.get(payment.id).status, PaymentStatus.approved)
+
+    def test_approve_rejected_payment_succeeds(self):
+        currency = Currency.query.get('USD')
+        payment = Payment(
+            user_id=self.user.id, #type:ignore
+            amount_sent_original=10,
+            currency=currency,
+            amount_received_krw=10,
+            status=PaymentStatus.rejected,
+            when_created=datetime.now(),
+            payment_method_id=1,
+        )
+        self.try_add_entities([payment])
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                f"/api/v1/admin/payment/{payment.id}", json={"status": "approved"}
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.get_json().get('error'))
+        self.assertEqual(Payment.query.get(payment.id).status, PaymentStatus.approved)
+
+    def test_approve_rejected_payment_without_received_amount_fails(self):
+        currency = Currency.query.get('USD')
+        payment = Payment(
+            user_id=self.user.id, #type:ignore
+            amount_sent_original=10,
+            currency=currency,
+            amount_received_krw=0,
+            status=PaymentStatus.rejected,
+            when_created=datetime.now(),
+            payment_method_id=1,
+        )
+        self.try_add_entities([payment])
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                f"/api/v1/admin/payment/{payment.id}", json={"status": "approved"}
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.get_json().get('error'))
+        self.assertEqual(Payment.query.get(payment.id).status, PaymentStatus.rejected)
+
+    def test_approve_already_approved_payment_fails(self):
+        currency = Currency.query.get('USD')
+        payment = Payment(
+            user_id=self.user.id, #type:ignore
+            amount_sent_original=10,
+            currency=currency,
+            amount_received_krw=10,
+            status=PaymentStatus.approved,
+            when_created=datetime.now(),
+            payment_method_id=1,
+        )
+        self.try_add_entities([payment])
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                f"/api/v1/admin/payment/{payment.id}", json={"status": "approved"}
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNotNone(res.get_json().get('error'))
+
     def test_user_get_payments(self):
         # Test regular user gets only their payments
         res = self.try_user_operation(

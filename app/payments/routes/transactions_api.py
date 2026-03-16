@@ -79,7 +79,8 @@ def admin_save_transaction():
         customer_balance=customer.balance + int(payload['amount']),
         amount=int(payload['amount']),
         user=current_user,
-        when_created=datetime.now()
+        when_created=datetime.now(),
+        comment=payload['comment']
     )
 
     db.session.add(transaction)

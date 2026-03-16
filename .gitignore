@@ -79,5 +79,4 @@ upload
 app/static/invoices/
 cache/
 tenants/
-tools/
 temp.json

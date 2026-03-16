@@ -38,6 +38,9 @@ class PaymentError(Exception):
 class PaymentNoReceivedAmountException(Exception):
     pass
 
+class PaymentStatusTransitionError(Exception):
+    pass
+
 class PurchaseOrderError(Exception):
     def __init__(self, po=None, vendor=None, message=None, retry=False, screenshot=False):
         super().__init__()

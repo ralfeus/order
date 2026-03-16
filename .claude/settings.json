@@ -14,7 +14,8 @@
       "Bash(pip show flask werkzeug)",
       "Bash(grep -n \"from exceptions\\\\|from utils\\\\|import exceptions\\\\|import utils\" /Users/ralfeus/Projects/order/network_builder/network_manager/*.py)",
       "Bash(xargs -r docker stop)",
-      "/Users/ralfeus/.virtualenvs/order/bin/python -m pytest*"
+      "/Users/ralfeus/.virtualenvs/order/bin/python -m pytest*",
+      "Bash(git stash:*)"
     ]
   }
 }

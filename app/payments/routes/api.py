@@ -22,7 +22,7 @@ from app.payments.validators.payment import PaymentValidator
 from app.models.file import File
 from app.users.models.user import User
 
-from common.exceptions import PaymentNoReceivedAmountException
+from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
 from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
 from app.tools import prepare_datatables_query, stream_and_close
 
@@ -78,11 +78,11 @@ def admin_save_payment(payment_id):
     if payload.get('status'):
         try:
             payment.set_status(payload['status'].lower(), messages)
-        except PaymentNoReceivedAmountException as ex:
+        except (PaymentNoReceivedAmountException, PaymentStatusTransitionError) as ex:
             return jsonify({
                     'data': [],
                     'error': str(ex)
-                })   
+                })
     else:
         with PaymentValidator(request) as validator:
             if not validator.validate():
