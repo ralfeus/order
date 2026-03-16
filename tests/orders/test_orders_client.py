@@ -199,6 +199,76 @@ class TestOrdersClient(BaseTestCase):
         self.assertEqual(updated_order1.tracking_url, tracking_url)
         self.assertEqual(updated_order2.tracking_url, tracking_url)
 
+    def test_new_order_stores_user_currency(self):
+        '''Creating an order stores the user preferred currency on the order'''
+        from app.shipping.models.shipping import NoShipping
+        self.try_add_entities([
+            NoShipping(id=1),
+            Country(id='c2', name='country2', locale='en-US', currency_code='USD'),
+        ])
+        self.user.currency_code = 'USD'
+        db.session.commit()
+        self.login(self.user.username, '1')
+        res = self.client.post('/api/v1/order', json={
+            'customer_name': 'User1',
+            'address': 'Address1',
+            'city_eng': 'City1',
+            'country': 'c2',
+            'zip': '0000',
+            'shipping': '1',
+            'phone': '1',
+            'suborders': [{'subcustomer': 'A001, Sub1, P@ssw0rd',
+                           'items': [{'item_code': '0000', 'quantity': '1'}]}]
+        })
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(res.json['order_id'])
+        self.assertEqual(order.user_currency_code, 'USD')
+
+    def test_new_order_falls_back_to_base_currency(self):
+        '''Creating an order with no user currency preference uses base currency'''
+        from app.shipping.models.shipping import NoShipping
+        self.try_add_entities([
+            NoShipping(id=2),
+            Country(id='c3', name='country3', locale='en-US', currency_code='USD'),
+        ])
+        self.user.currency_code = None
+        db.session.commit()
+        self.login(self.user.username, '1')
+        res = self.client.post('/api/v1/order', json={
+            'customer_name': 'User1',
+            'address': 'Address1',
+            'city_eng': 'City1',
+            'country': 'c3',
+            'zip': '0000',
+            'shipping': '2',
+            'phone': '1',
+            'suborders': [{'subcustomer': 'A002, Sub2, P@ssw0rd',
+                           'items': [{'item_code': '0000', 'quantity': '1'}]}]
+        })
+        self.assertEqual(res.status_code, 200)
+        order = Order.query.get(res.json['order_id'])
+        self.assertEqual(order.user_currency_code, 'KRW')
+
+    def test_user_currency_preference_stored_in_column(self):
+        '''User.currency_code column stores and retrieves currency preference'''
+        self.user.currency_code = 'EUR'
+        db.session.commit()
+        db.session.expire(self.user)
+        self.assertEqual(self.user.currency_code, 'EUR')
+
+    def test_get_profile_includes_currency_from_column(self):
+        '''get_profile() includes currency_code when not in profile JSON'''
+        self.user.currency_code = 'USD'
+        self.user.profile = '{}'
+        db.session.commit()
+        profile = self.user.get_profile()
+        self.assertEqual(profile.get('currency'), 'USD')
+
+    def test_set_profile_updates_currency_column(self):
+        '''set_profile() with currency key updates currency_code column'''
+        self.user.set_profile({'currency': 'EUR'})
+        self.assertEqual(self.user.currency_code, 'EUR')
+
     def test_distribution_list_tracking_url_not_applied_to_other_orders(self):
         '''Tracking URL is only saved on the orders specified in order_ids'''
         order_in = Order(

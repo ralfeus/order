@@ -1,5 +1,6 @@
 """Fills and submits purchase order at Atomy
 using quick order"""
+from __future__ import annotations
 
 from functools import reduce
 from time import sleep

@@ -83,14 +83,14 @@ class Order(db.Model, BaseModel): # type: ignore
     total_weight_set_manually = Column(Boolean, default=False)
     shipping_method_id = Column(Integer, ForeignKey('shipping.id'))
     shipping: Shipping = relationship('Shipping', foreign_keys=[shipping_method_id]) # type: ignore
-    subtotal_krw = Column(Integer(), default=0)
+    subtotal_base_currency = Column(Integer(), default=0)
     subtotal_user_currency = Column(Numeric(10, 2), default=0)
-    shipping_krw = Column(Integer(), default=0)
+    shipping_base_currency = Column(Integer(), default=0)
     shipping_user_currency = Column(Numeric(10, 2), default=0)
-    total_krw = Column(Integer(), default=0)
+    total_base_currency = Column(Integer(), default=0)
     total_user_currency = Column(Numeric(10, 2), default=0)
-    currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=True)
-    user_currency: Currency = relationship(Currency, foreign_keys=[currency_code])
+    user_currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=True)
+    user_currency: Currency = relationship(Currency, foreign_keys=[user_currency_code])
     status = Column(Enum(OrderStatus), default='pending')
     tracking_id = Column(String(64))
     tracking_url:str = Column(String(256)) # type: ignore
@@ -183,7 +183,7 @@ class Order(db.Model, BaseModel): # type: ignore
         self.seq_num, self.id = self.get_new_id()
 
         self.total_weight = 0
-        self.total_krw = 0
+        self.total_base_currency = 0
         self.when_created = datetime.now()
 
         attributes = [a[0] for a in type(self).__dict__.items()
@@ -214,11 +214,11 @@ class Order(db.Model, BaseModel): # type: ignore
         logger = logging.getLogger('Order.__pay')
         from app.payments.models.transaction import Transaction
         #TODO: wrong approach
-        if not self.total_krw:
+        if not self.total_base_currency:
             logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         transaction = Transaction(
-            amount=-self.total_krw,
+            amount=-self.total_base_currency,
             customer=self.user,
             user=actor,
             comment=f'Deduction for order {self.id}'
@@ -293,25 +293,25 @@ class Order(db.Model, BaseModel): # type: ignore
     
     def _get_in_currency(self, base_amount, user_amount, currency: Optional[Currency]):
         '''Returns amount in the requested currency.
-        Uses pre-computed user_amount if the currency matches order.currency_code,
+        Uses pre-computed user_amount if the currency matches order.user_currency_code,
         otherwise converts from base (KRW) on the fly.'''
         if not currency or currency.base:
             return base_amount
-        if currency.code == self.currency_code and user_amount:
+        if currency.code == self.user_currency_code and user_amount:
             return user_amount
         return round(base_amount * float(currency.rate), currency.decimal_places or 0)
 
     def get_shipping(self, currency: Optional[Currency]=None):
         ''' Returns shipping cost in currency provided '''
-        return self._get_in_currency(self.shipping_krw, self.shipping_user_currency, currency)
+        return self._get_in_currency(self.shipping_base_currency, self.shipping_user_currency, currency)
 
     def get_subtotal(self, currency: Optional[Currency]=None):
         '''Returns subtotal of the order - sum of cost of all order products'''
-        return self._get_in_currency(self.subtotal_krw, self.subtotal_user_currency, currency)
+        return self._get_in_currency(self.subtotal_base_currency, self.subtotal_user_currency, currency)
 
     def get_total(self, currency: Optional[Currency]=None):
         '''Returns total of the order - subtotal plus shipping costs plus service fee'''
-        return self._get_in_currency(self.total_krw, self.total_user_currency, currency)
+        return self._get_in_currency(self.total_base_currency, self.total_user_currency, currency)
 
     def get_total_points(self):
         return reduce(
@@ -322,7 +322,7 @@ class Order(db.Model, BaseModel): # type: ignore
         return self.status in [OrderStatus.draft]
 
     def need_to_update_total(self, payload):
-        return len({'subtotal_krw', 'total_weight', 'shipping_krw', 'country', 'suborders'} &
+        return len({'subtotal_base_currency', 'total_weight', 'shipping_base_currency', 'country', 'suborders'} &
                    set(payload.keys())) > 0
 
     def to_dict(self, details=False, partial=None):
@@ -350,16 +350,16 @@ class Order(db.Model, BaseModel): # type: ignore
         from app.purchase.models.purchase_order import PurchaseOrder
         from .suborder import Suborder
         is_order_updated = False
-        if not self.total_krw:
+        if not self.total_base_currency:
             logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
             is_order_updated = True
-        if not self.total_user_currency and self.currency_code:
+        if not self.total_user_currency and self.user_currency_code:
             logger.debug("%s total in user currency (%s) is undefined. Updating...",
-                         self.id, self.currency_code)
-            user_currency = Currency.query.get(self.currency_code)
+                         self.id, self.user_currency_code)
+            user_currency = Currency.query.get(self.user_currency_code)
             if user_currency and not user_currency.base:
-                self.total_user_currency = self.total_krw * user_currency.rate
+                self.total_user_currency = self.total_base_currency * user_currency.rate
                 is_order_updated = True
         if is_order_updated:
             db.session.commit()
@@ -393,14 +393,14 @@ class Order(db.Model, BaseModel): # type: ignore
             'comment': self.comment,
             'invoice_id': self.invoice_id,
             'invoice': self.invoice.to_dict() if self.invoice is not None else None,
-            'subtotal_krw': self.subtotal_krw,
+            'subtotal_base_currency': self.subtotal_base_currency,
             'total_weight': self.total_weight,
             'shipping_box_weight': self.shipping_box_weight,
-            'shipping_krw': self.shipping_krw,
-            'total': self.total_krw,
-            'total_krw': self.total_krw,
+            'shipping_base_currency': self.shipping_base_currency,
+            'total': self.total_base_currency,
+            'total_base_currency': self.total_base_currency,
             'total_user_currency': float(self.total_user_currency) if self.total_user_currency else None,
-            'currency_code': self.currency_code,
+            'user_currency_code': self.user_currency_code,
             'shipping': self.shipping.to_dict() if self.shipping else None,
             'boxes': [box.to_dict() for box in self.boxes],
             'status': self.status.name if self.status else None,
@@ -484,23 +484,23 @@ class Order(db.Model, BaseModel): # type: ignore
             logger.debug("Total weight (set manually): %s", self.total_weight)
         # self.subtotal_krw = reduce(lambda acc, op: acc + op.price * op.quantity,
         #                            self.order_products, 0)
-        self.subtotal_krw = reduce(
+        self.subtotal_base_currency = reduce(
             lambda acc, sub: acc + sub.get_subtotal() + sub.local_shipping, self.suborders, 0)
-        logger.debug("Subtotal: %s", self.subtotal_krw)
+        logger.debug("Subtotal: %s", self.subtotal_base_currency)
 
-        user_currency = Currency.query.get(self.currency_code) if self.currency_code else None
+        user_currency = Currency.query.get(self.user_currency_code) if self.user_currency_code else None
         user_rate = float(user_currency.rate) if user_currency and not user_currency.base else None
 
-        self.subtotal_user_currency = self.subtotal_krw * user_rate if user_rate is not None else 0
+        self.subtotal_user_currency = self.subtotal_base_currency * user_rate if user_rate is not None else 0
 
-        self.shipping_krw = int(Decimal(self.shipping.get_shipping_cost(
+        self.shipping_base_currency = int(Decimal(self.shipping.get_shipping_cost(
             self.country.id if self.country else None,
             self.total_weight + self.shipping_box_weight)))
-        logger.debug("Shipping (base): %s", self.shipping_krw)
-        self.shipping_user_currency = self.shipping_krw * user_rate if user_rate is not None else 0
+        logger.debug("Shipping (base): %s", self.shipping_base_currency)
+        self.shipping_user_currency = self.shipping_base_currency * user_rate if user_rate is not None else 0
         logger.debug("Service fee: %s", self.service_fee)
-        self.total_krw = self.subtotal_krw + self.shipping_krw + self.service_fee
-        logger.debug("Total (base): %s", self.total_krw)
+        self.total_base_currency = self.subtotal_base_currency + self.shipping_base_currency + self.service_fee
+        logger.debug("Total (base): %s", self.total_base_currency)
         self.total_user_currency = self.subtotal_user_currency + self.shipping_user_currency
 
 
@@ -509,7 +509,7 @@ class Order(db.Model, BaseModel): # type: ignore
         logger = logging.getLogger('Order.get_order_excel')
         if len(self.order_products) == 0:
             raise OrderError("The order has no products")
-        if not self.total_krw:
+        if not self.total_base_currency:
             logger.debug("%s totals are undefined. Updating...", self.id)
             self.update_total()
         package_path = os.path.dirname(__file__) + '/..'
@@ -528,10 +528,10 @@ class Order(db.Model, BaseModel): # type: ignore
         ws.cell(8, 5, float(1 / Currency.query.get('EUR').rate))
         ws.cell(9, 5, float(1 / Currency.query.get('USD').rate))
 
-        ws.cell(6, 6, self.subtotal_krw)
+        ws.cell(6, 6, self.subtotal_base_currency)
         ws.cell(6, 7, self.total_weight + self.shipping_box_weight)
-        ws.cell(6, 8, self.shipping_krw)
-        ws.cell(6, 9, self.total_krw)
+        ws.cell(6, 8, self.shipping_base_currency)
+        ws.cell(6, 9, self.total_base_currency)
         ws.cell(6, 13, reduce(lambda acc, op: acc + op.product.points,
                               self.order_products, 0))
         # Set shipping
@@ -587,7 +587,7 @@ class Order(db.Model, BaseModel): # type: ignore
         # # Compensate rounding error
         if len(op_shipping) > 0 \
             and self.attached_order is None and self.attached_orders.count() == 0: #type: ignore
-            diff = self.shipping_krw - \
+            diff = self.shipping_base_currency - \
                 reduce(lambda acc, op_ship: acc + op_ship[1], op_shipping.items(), 0)
             if op_shipping.get(row) is None:
                 row -= 1
@@ -611,10 +611,10 @@ class Order(db.Model, BaseModel): # type: ignore
         if isinstance(self.shipping, PostponeShipping):
             return self.attached_order._get_shipping_per_product(op)
 
-        return round(self.shipping_krw / self.total_weight *
+        return round(self.shipping_base_currency / self.total_weight *
             op.product.weight * op.quantity) \
                 if self.total_weight > 0 else \
-                    round(self.shipping_krw / self.total_krw *
+                    round(self.shipping_base_currency / self.total_base_currency *
                         op.price * op.quantity)
 
 class OrderParam(db.Model, BaseModel): # type: ignore

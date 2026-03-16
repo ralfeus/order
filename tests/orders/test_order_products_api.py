@@ -93,13 +93,13 @@ class TestOrderProductsApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         orders = Order.query.all()
         self.assertEqual(len(orders), 3)
-        self.assertEqual(orders[0].total_krw, 2610)
-        self.assertEqual(orders[2].total_krw, 2510)
+        self.assertEqual(orders[0].total_base_currency, 2610)
+        self.assertEqual(orders[2].total_base_currency, 2510)
         self.client.post(f'/api/v1/order/product/{op_id + 1}/postpone')
         orders = Order.query.all()
         self.assertEqual(len(orders), 3)
-        self.assertEqual(orders[0].total_krw, 2610)
-        self.assertEqual(orders[2].total_krw, 5020)
+        self.assertEqual(orders[0].total_base_currency, 2610)
+        self.assertEqual(orders[2].total_base_currency, 5020)
 
     def test_set_order_product_status(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -136,4 +136,4 @@ class TestOrderProductsApi(BaseTestCase):
         self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/product/{op_id + 1}/status/unavailable'))
         order = Order.query.get(gen_id)
-        self.assertEqual(order.subtotal_krw, 2600)
+        self.assertEqual(order.subtotal_base_currency, 2600)

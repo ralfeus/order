@@ -151,7 +151,7 @@ class Payment(db.Model, BaseModel):
                          self.orders, ""))
         from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
-            lambda acc, o: acc + o.total_krw,
+            lambda acc, o: acc + o.total_base_currency,
             self.orders.filter_by(status=OrderStatus.pending), 0
         )
 #        if self.amount_received_krw >= total_orders_amount:
