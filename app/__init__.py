@@ -64,10 +64,25 @@ def create_app(config=None):
 
     register_components(app)
 
+    @app.context_processor
+    def inject_nav_currencies():
+        from flask_security import current_user
+        from app.currencies.models import Currency
+        try:
+            if not current_user.is_authenticated:
+                return {}
+            currencies = Currency.query.filter_by(enabled=True).all()
+            user_currency = Currency.query.get(current_user.currency_code) \
+                if current_user.currency_code else \
+                Currency.get_base_currency(app.config.get('TENANT_NAME', 'default'))
+            return {'nav_currencies': currencies, 'nav_user_currency': user_currency}
+        except Exception:
+            return {}
+
     # init_navbar(flask_app)
     # if app.config.get('DEBUG'):
     #     init_debug(app)
-   
+
     logging.info("The application is started")
     return app
 

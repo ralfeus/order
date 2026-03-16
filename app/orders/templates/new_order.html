@@ -12,6 +12,7 @@
     const LOCAL_SHIPPING_COST = {{ local_shipping_cost }};
     const SERVICE_FEE = {{ service_fee }};
     var base_country = {{ base_country | tojson }};
+    var USER_CURRENCY_CODE = "{{ user_currency.code if user_currency else '' }}";
 </script>
 <script src="static/js/bootstrap-maxlength.js"></script>
 <script src="static/js/new_order.js"></script>
@@ -77,49 +78,44 @@
             {% endif %}
             {{ extensions|safe }}
         </div>
-        <div class="col-md-6 col-lg-3 cart">
-            <div class="table-responsive">
-                <table class="table-sm table-bordered table-light table-striped table-condensed" style="width:100%;">
-                    <thead>
-                        <th></th>
-                        <th>Subtotal</th>
-                        <th class="hide-on-small">Weight</th>
-                        <th>Shipping</th>
-                        <th>Total</th>
-                    </thead>
-                    <colgroup>
-                        <col style="background-color: rgb(240, 240, 240);" />
-                        <col />
-                        <col class="hide-on-small" />
-                        <col />
-                        <col />
-                    </colgroup>
-                    <tbody>
-                        {% if not hide_krw %}
-                        <tr>
-                            <td>{{ base_country.currency_code }}</td>
-                            <td id="totalItemsCostKRW"></td>
-                            <td class="total-weight hide-on-small"></td>
-                            <td id="totalShippingCostKRW"></td>
-                            <td id="totalGrandTotalKRW"></td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <td>EUR</td>
-                            <td id="totalItemsCostEUR"></td>
-                            <td class="total-weight hide-on-small"></td>
-                            <td id="totalShippingCostEUR"></td>
-                            <td id="totalGrandTotalEUR"></td>
-                        </tr>
-                        <tr>
-                            <td>USD</td>
-                            <td id="totalItemsCostUSD"></td>
-                            <td class="total-weight hide-on-small"></td>
-                            <td id="totalShippingCostUSD"></td>
-                            <td id="totalGrandTotalUSD"></td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="col-md-4 col-lg-2 ms-auto cart">
+            <div class="d-flex flex-column" style="font-size: 0.85rem;">
+                {% if not hide_krw and (not user_currency or user_currency.base) %}
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Subtotal:</span>
+                    <span id="totalItemsCostKRW"></span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Shipping:</span>
+                    <span id="totalShippingCostKRW"></span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Weight:</span>
+                    <span class="total-weight"></span>
+                </div>
+                <div class="d-flex justify-content-between fw-bold border-top pt-1">
+                    <span>Total:</span>
+                    <span id="totalGrandTotalKRW"></span>
+                </div>
+                {% endif %}
+                {% if user_currency and not user_currency.base %}
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Subtotal:</span>
+                    <span id="totalItemsCostUser"></span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Shipping:</span>
+                    <span id="totalShippingCostUser"></span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Weight:</span>
+                    <span class="total-weight"></span>
+                </div>
+                <div class="d-flex justify-content-between fw-bold border-top pt-1">
+                    <span>Total:</span>
+                    <span id="totalGrandTotalUser"></span>
+                </div>
+                {% endif %}
             </div>
             <input type="hidden" id="order_id" value="{{ order_id }}"/>
             <input type="hidden" id="make_copy" value="{{ make_copy }}"/>
@@ -191,8 +187,9 @@
                                 <th scope="col" style="width: 0em;" class="hide-on-mobile">Weight</th>
                                 <th scope="col" style="width: 5rem;" class="hide-on-mobile">Shipping</th>
                                 <th scope="col">Total ({{ base_country.currency_code }})</th>
-                                <th scope="col" class="hide-on-mobile">Total (EUR)</th>
-                                <th scope="col" class="hide-on-mobile">Total (USD)</th>
+                                {% if user_currency and not user_currency.base %}
+                                <th scope="col" class="hide-on-mobile">Total ({{ user_currency.code }})</th>
+                                {% endif %}
                                 <th scope="col" class="hide-on-mobile">Item points</th>
                                 <th scope="col" class="hide-on-mobile">Total points</th>
                             </tr>
@@ -211,8 +208,7 @@
                                 <td class="total-item-weight hide-on-mobile"></td>
                                 <td class="shipping-cost-krw hide-on-mobile"></td>
                                 <td class="total-krw"></td>
-                                <td class="total-eur hide-on-mobile"></td>
-                                <td class="total-usd hide-on-mobile"></td>
+                                {% if user_currency and not user_currency.base %}<td class="total-user hide-on-mobile"></td>{% endif %}
                                 <td class="item-points hide-on-mobile"></td>
                                 <td class="total-points hide-on-mobile"></td>
                             </tr>
@@ -234,8 +230,7 @@
                                     <div id="subtotalShippingCostKRW"></div>
                                 </td>
                                 <td id="subtotalTotalKRW"></td>
-                                <td id="subtotalTotalEUR" class="hide-on-mobile"></td>
-                                <td id="subtotalTotalUSD" class="hide-on-mobile"></td>
+                                {% if user_currency and not user_currency.base %}<td id="subtotalTotalUser" class="hide-on-mobile"></td>{% endif %}
                                 <td class="hide-on-mobile"></td>
                                 <td id="subtotalTotalPoints" class="hide-on-mobile"></td>
                             </tr>
