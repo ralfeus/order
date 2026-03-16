@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from flask import jsonify, request
-from flask_security import login_required, login_user, roles_required
+from flask_security import current_user, login_required, login_user, roles_required
 
 from app import db, security
 from app.network.models.node import Node
@@ -13,6 +13,22 @@ from app.tools import modify_object
 from app.users import bp_api_admin, bp_api_user
 from app.users.models.user import Role, User
 from app.users.validators.user import UserValidator, UserEditValidator
+
+@bp_api_user.route('/currency', methods=['POST'])
+@login_required
+def set_currency():
+    '''Set the preferred currency for the current user'''
+    from app.currencies.models import Currency
+    code = (request.get_json() or {}).get('currency_code')
+    if not code:
+        return jsonify({'error': 'currency_code is required'}), 400
+    currency = Currency.query.get(code)
+    if not currency or not currency.enabled:
+        return jsonify({'error': f'Unknown or disabled currency: {code}'}), 404
+    current_user.currency_code = code
+    db.session.commit()
+    return jsonify({'currency_code': code})
+
 
 @bp_api_user.route('/signup', methods=['POST'])
 def signup():

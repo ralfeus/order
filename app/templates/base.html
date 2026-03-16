@@ -158,6 +158,30 @@
         <a class="btn btn-primary btn-sm me-2" href="/payments/?create=1" role="button">Make Payment</a>
       </li>
       {% endif %}
+      {% if nav_currencies %}
+      <li class="nav-item d-flex align-items-center">
+        <select id="nav-currency-select" class="form-select form-select-sm"
+            style="font-size: 0.7rem; font-weight: bolder; width: auto;"
+            onchange="setCurrency(this.value)">
+          {% for c in nav_currencies %}
+          <option value="{{ c.code }}"
+            {{ 'selected' if nav_user_currency and c.code == nav_user_currency.code else '' }}>
+            {{ c.code }}
+          </option>
+          {% endfor %}
+        </select>
+      </li>
+      <script>
+        function setCurrency(code) {
+          fetch('/api/v1/user/currency', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({currency_code: code})
+          }).then(r => { if (r.ok) window.location.reload(); });
+        }
+      </script>
+      {% endif %}
+      {% block header_info %}{% endblock %}
       <li class="navbar-text px-2" style="
         padding-top: 0px; padding-bottom: 0px;
         font-size: 0.7rem; text-align:right; font-weight: bolder;">

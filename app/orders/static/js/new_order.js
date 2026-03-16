@@ -761,13 +761,17 @@ async function update_all_totals() {
  */
 function update_grand_totals() {
     $('#totalGrandTotalKRW').html(fmtCurr(base_country).format(round_up(
-        parseFloat($('#totalItemsCostKRW').html())
-        + parseFloat($('#totalShippingCostKRW').html())
+        ($('#totalItemsCostKRW').data('value') || 0)
+        + ($('#totalShippingCostKRW').data('value') || 0)
         + SERVICE_FEE, 2)));
-    $('#totalGrandTotalUser').html(round_up(
-        parseFloat($('#totalItemsCostUser').html())
-        + parseFloat($('#totalShippingCostUser').html())
-        + SERVICE_FEE * (currencyRates[USER_CURRENCY_CODE] || 0), 2));
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalGrandTotalUser').html(fmtUser.format(round_up(
+            ($('#totalItemsCostUser').data('value') || 0)
+            + ($('#totalShippingCostUser').data('value') || 0)
+            + SERVICE_FEE * (currencyRates[USER_CURRENCY_CODE] || 0), 2)));
+    }
 }
 
 async function update_item_subtotal(item, batch_load=false) {
@@ -812,8 +816,13 @@ function update_item_total() {
  * @param {number} cost - total shipping cost
  */
 function update_shipping_cost(cost) {
-    $('#totalShippingCostKRW').html(cost);
-    $('#totalShippingCostUser').html(round_up(cost * (currencyRates[USER_CURRENCY_CODE] || 0), 2));
+    $('#totalShippingCostKRW').data('value', cost).html(fmtCurr(base_country).format(cost));
+    const shippingUser = round_up(cost * (currencyRates[USER_CURRENCY_CODE] || 0), 2);
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalShippingCostUser').data('value', shippingUser).html(fmtUser.format(shippingUser));
+    }
 
     update_grand_totals();
     distribute_shipping_cost(cost);
@@ -914,8 +923,13 @@ async function update_grand_subtotal() {
     var user_products = Object.entries(g_cart);
     subtotal_base = user_products.reduce((acc, product) => acc + product[1].costKRW, 0);
     var total_with_local_shipping_krw = subtotal_base + g_total_local_shipping;
-    $('#totalItemsCostKRW').html(total_with_local_shipping_krw);
-    $('#totalItemsCostUser').html(round_up(total_with_local_shipping_krw * (currencyRates[USER_CURRENCY_CODE] || 0), 2));
+    $('#totalItemsCostKRW').data('value', total_with_local_shipping_krw).html(fmtCurr(base_country).format(total_with_local_shipping_krw));
+    const itemsUser = round_up(total_with_local_shipping_krw * (currencyRates[USER_CURRENCY_CODE] || 0), 2);
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalItemsCostUser').data('value', itemsUser).html(fmtUser.format(itemsUser));
+    }
 
     await update_total_weight(user_products);
 }
