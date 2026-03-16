@@ -774,8 +774,9 @@ class TestOrdersApi(BaseTestCase):
         # total_user_currency is the user-selected currency amount (USD, rate=0.5)
         self.assertAlmostEqual(res.json["total_user_currency"], 1300.0, places=2)
         self.assertEqual(res.json["user_currency_code"], 'USD')
-        self.assertNotIn("total_cur1", res.json)
-        self.assertNotIn("total_cur2", res.json)
+        # total_cur1/total_cur2 are kept as backward-compat aliases for the frontend
+        self.assertIn("total_cur1", res.json)
+        self.assertIn("total_cur2", res.json)
         self.assertEqual(res.json["user"], self.user.username)
         self.assertEqual(len(res.json["order_products"]), 1)
         res = self.client.get("/api/v1/order")
