@@ -3,8 +3,7 @@ from decimal import Decimal
 import json
 import logging
 import math
-from typing import Any
-from flask import current_app, jsonify, render_template, request
+from flask import current_app, jsonify, redirect, render_template, request, url_for
 import stripe
 import requests
 from app import db, cache
@@ -14,8 +13,6 @@ from app.payments.logging import get_logger
 from app.payments.models.payment import Payment, PaymentStatus
 from app.models.file import File
 from app.tools import write_to_file
-from common.exceptions import PaymentError
-
 log = get_logger()
 
 class FeeStructure:
@@ -182,203 +179,141 @@ def find_or_create_customer(payment: Payment) -> str:
 
 @bp_client_user.route('/<int:payment_id>/stripe/checkout')
 def checkout(payment_id):
-    """Render custom checkout page"""
+    """Create Stripe Checkout Session and redirect to it"""
     log.set_payment_id(payment_id)
-    # Load payment from database
     payment = Payment.query.get(payment_id)
     if not payment:
         return "Payment not found", 404
 
-    # Verify supported currency
     if not payment.currency or not payment.currency.enabled or payment.currency_code not in FEES.keys():
         return \
             f"Unsupported currency {payment.currency.name}. " \
             f"If you wish to pay with Stripe in {payment.currency.name}, " \
             f"please contact administrator", 400
 
-    return render_template('payment_methods/stripe.html',
-                          payment=payment,
-                          stripe_key=current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_key'),
-                          stripe_payment_key=current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_payment_key'))
+    stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
 
-@bp_api_user.route('/stripe/detect-card', methods=['POST'])
-def detect_card():
-    """Detect card country from payment method"""
-    try:
-        data: dict[str, Any] = request.get_json() #type: ignore
-        payment_method_id = data.get('payment_method_id')
-        payment_id = data.get('payment_id')
-        log.set_payment_id(payment_id)
-        
-        if not payment_method_id:
-            return jsonify({'error': 'Missing payment method'}), 400
-        
-        # Configure Stripe
-        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
-        
-        # Retrieve payment method to get card country
-        payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
-        if payment_method.type == 'card' and payment_method.card:
-            card_country = payment_method.card.country
-        
-        # Get payment amount from database
-        payment: Payment = Payment.query.get(payment_id)
-        if not payment:
-            return jsonify({'error': 'Payment not found'}), 404
-        
-        # Calculate base amount taking into consideration skewed currency rates
-        base_amount = calculate_base_amount(payment)
-        # Calculate fees
-        fees = calculate_service_fee(base_amount, payment.currency_code)
-        if fees.send_to_stripe < payment.amount_sent_original:
-            fees.send_to_stripe = float(payment.amount_sent_original)
-        
-        return jsonify({
-            'card_country': card_country,
-            'fees': fees.send_to_stripe - float(payment.amount_sent_original),
-            'base_amount': float(payment.amount_sent_original),
-            'total_amount': fees.send_to_stripe
-        })
-        
-    except stripe.error.StripeError as e: #type: ignore
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    base_amount = calculate_base_amount(payment)
+    fees = calculate_service_fee(base_amount, payment.currency_code)
+    total_amount = max(fees.send_to_stripe, float(payment.amount_sent_original))
 
-@bp_api_user.route('/stripe/create-payment-intent', methods=['POST'])
-def create_payment_intent():
-    """Create PaymentIntent with calculated fees"""
-    try:
-        data: dict[str, Any] = request.get_json() #type: ignore
-        payment_id = data.get('payment_id')
-        log.set_payment_id(payment_id)
-        payment_method_id = data.get('payment_method_id')
-        if not payment_method_id:
-            raise PaymentError("Stripe: Couldn't get payment method ID")
-        
-        # Configure Stripe
-        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
-        
-        # Get payment from database
-        payment: Payment = Payment.query.get(payment_id)
-        if not payment:
-            return jsonify({'error': 'Payment not found'}), 404
-        
-        base_amount = calculate_base_amount(payment)
-        fees = calculate_service_fee(base_amount, payment.currency_code)
-        total_amount = fees.send_to_stripe
-        if total_amount < float(payment.amount_sent_original):
-            log.info(f"Calculated total amount {total_amount} is less than original amount {payment.amount_sent_original}, using original amount")
-            total_amount = float(payment.amount_sent_original)
-        
-        # Convert to cents (or keep as-is for zero-decimal currencies)
-        zero_decimal_currencies = {
-            'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG',
-            'RWF', 'VND', 'VUV', 'XAF', 'XOF', 'XPF'
-        }
-        
-        is_zero_decimal = payment.currency_code.upper() in zero_decimal_currencies
-        amount_in_cents = int(total_amount) if is_zero_decimal else int(total_amount * 100)
+    zero_decimal_currencies = {
+        'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG',
+        'RWF', 'VND', 'VUV', 'XAF', 'XOF', 'XPF'
+    }
+    is_zero_decimal = payment.currency_code.upper() in zero_decimal_currencies
+    unit_amount = int(total_amount) if is_zero_decimal else int(total_amount * 100)
 
-        # Create or retrieve Stripe customer
-        customer_id = find_or_create_customer(payment)
-        
-        # Create PaymentIntent
-        intent = stripe.PaymentIntent.create(
-            amount=amount_in_cents,
-            currency=payment.currency_code.lower(),
-            customer=customer_id,
-            payment_method=payment_method_id,
-            confirmation_method='automatic',
-            confirm=False,
-            metadata={
-                'project': 'order_master',
-                'payment_id': str(payment_id),
+    customer_id = find_or_create_customer(payment)
+
+    session = stripe.checkout.Session.create(
+        customer=customer_id,
+        mode='payment',
+        line_items=[{
+            'price_data': {
+                'currency': payment.currency_code.lower(),
+                'product_data': {'name': f'Payment #{payment.id}'},
+                'unit_amount': unit_amount,
+            },
+            'quantity': 1,
+        }],
+        payment_intent_data={
+            'metadata': {
+                'payment_id': str(payment.id),
                 'base_amount': str(payment.amount_sent_original),
                 'base_amount_fx_rate_compensated': str(base_amount),
                 'service_fee': str(fees.service_fee),
                 'send_to_wise': str(fees.send_to_wise),
-                'send_to_bank': str(fees.send_to_bank)
-            }
-        )
-        
-        return jsonify({
-            'client_secret': intent.client_secret,
-            'payment_intent_id': intent.id
-        })
-        
-    except stripe.error.StripeError as e: #type: ignore
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+                'send_to_bank': str(fees.send_to_bank),
+            },
+        },
+        success_url=url_for('.success', payment_id=payment.id, _external=True),
+        cancel_url=url_for('.cancel', payment_id=payment.id, _external=True),
+    )
+    if not session.url:
+        return "Failed to create Stripe Checkout session", 500
+    return redirect(session.url)
 
-@bp_client_user.route('<int:payment_id>/stripe/success')
+@bp_client_user.route('/<int:payment_id>/stripe/success')
 def success(payment_id: int):
-    """Handle Stripe payment success redirect"""
+    """Stripe redirects here after successful checkout. Approval is handled by webhook."""
     log.set_payment_id(payment_id)
+    log.info(f"Stripe checkout success redirect for payment {payment_id}")
+    return render_template('payment_methods/stripe_success.html', success=True)
+
+@bp_client_user.route('/<int:payment_id>/stripe/cancel')
+def cancel(payment_id: int):
+    """Stripe redirects here when the user cancels checkout."""
+    log.set_payment_id(payment_id)
+    log.info(f"Stripe checkout cancelled for payment {payment_id}")
+    return render_template('payment_methods/stripe_success.html', success=False,
+                           message="Payment was not completed. No funds were charged. Please create a new payment.")
+
+@bp_api_user.route('/stripe/webhook', methods=['POST'])
+def webhook():
+    """Handle Stripe webhook events."""
+    payload = request.get_data()
+    sig_header = request.headers.get('Stripe-Signature')
+    webhook_secret = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('webhook_secret')
+    stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
+
     try:
-        # Get payment_intent from query parameters
-        payment_intent_id = request.args.get('payment_intent')
-        if not payment_intent_id:
-            log.warning("No payment intent ID is provided")
-            return render_template('payment_methods/stripe_success.html', success=False)
+        log.info("Constructing Stripe webhook event")
+        # log.debug(f"Payload: {payload}")
+        # log.debug(f"Webhook secret: {webhook_secret}")
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except ValueError:
+        log.error("Invalid payload in Stripe webhook")
+        return jsonify({'error': 'Invalid payload'}), 400
+    except stripe.error.SignatureVerificationError: #type: ignore
+        log.error("Invalid signature in Stripe webhook")
+        return jsonify({'error': 'Invalid signature'}), 400
 
-        # Configure Stripe
-        stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
+    if event.type == 'checkout.session.completed':
+        _handle_checkout_complete(event.data.object)
 
-        # Retrieve PaymentIntent from Stripe to verify status
-        intent = stripe.PaymentIntent.retrieve(payment_intent_id, 
-                                               expand=['latest_charge'])
+    return jsonify({'status': 'ok'})
 
-        # Verify payment is successful using Stripe's data
-        if intent.status != 'succeeded':
-            log.info(f"Payment status is '{intent.status}'")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Get payment_id from metadata
-        payment_id_from_stripe = int(intent.metadata.get('payment_id', '0')) \
-            if intent.metadata.get('payment_id', '0').isnumeric() else 0
-        if payment_id != payment_id_from_stripe:
-            log.info(f"The payment ID doesn't match ({payment_id} is provided, "
-                         f"{payment_id_from_stripe} is in Stripe payment)")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Find payment entity
-        payment: Payment = Payment.query.get(int(payment_id))
-        if not payment:
-            log.info(f"No payment ID {payment_id} was found")
-            return render_template('payment_methods/stripe_success.html', success=False)
-
-        # Change payment status to approved — only if still pending
-        if payment.status != PaymentStatus.pending:
-            log.info(f"Payment {payment_id} is in status {payment.status}, skipping")
-            return render_template('payment_methods/stripe_success.html', success=False)
-        log.info(f"Approving payment {payment_id}")
-        payment.amount_received_krw = payment.amount_sent_krw
-        payment.set_status(PaymentStatus.approved)
-        db.session.commit()  # type: ignore
-
-        # Download and save receipt
-        try:
-            if intent.latest_charge and hasattr(intent.latest_charge, 'receipt_url') \
-                and intent.latest_charge.receipt_url: #type: ignore
-                response = requests.get(intent.latest_charge.receipt_url) #type: ignore
-                if response.status_code == 200:
-                    filename = f"{intent.id}.html"
-                    upload_path = current_app.config.get('UPLOAD_PATH', 'upload')
-                    path = f"{upload_path}/{filename}"
-                    write_to_file(path, response.content)
-                    file_obj = File(file_name=filename, path=path)
-                    payment.evidences.append(file_obj)
-                    db.session.add(file_obj) #type: ignore
-                    db.session.commit() #type: ignore
-        except Exception as e:
-            log.warning(f"Failed to download and save receipt for payment {payment_id}: {e}")
-
-        # Return success template
-        return render_template('payment_methods/stripe_success.html', success=True)
-
+def _handle_checkout_complete(session):
+    """Approve payment and save receipt after successful Stripe Checkout."""
+    try:
+        intent = stripe.PaymentIntent.retrieve(session.payment_intent, expand=['latest_charge'])
     except Exception as e:
-        # Log error but still close window to avoid confusion
-        log.exception(f"Error in Stripe success handler: {e}")
-        return render_template('payment_methods/stripe_success.html', success=False)
+        log.warning(f"Failed to retrieve PaymentIntent {session.payment_intent}: {e}")
+        return
+
+    payment_id_str = intent.metadata.get('payment_id', '')
+    if not payment_id_str.isnumeric():
+        log.warning(f"Invalid payment_id in Stripe PaymentIntent metadata: {payment_id_str!r}")
+        return
+    payment_id = int(payment_id_str)
+    log.set_payment_id(payment_id)
+
+    payment: Payment = Payment.query.get(payment_id)
+    if not payment:
+        log.warning(f"Payment {payment_id} not found")
+        return
+    if payment.status != PaymentStatus.pending:
+        log.info(f"Payment {payment_id} is already in status {payment.status}, skipping")
+        return
+
+    log.info(f"Approving payment {payment_id}")
+    payment.amount_received_krw = payment.amount_sent_krw
+    payment.set_status(PaymentStatus.approved)
+    db.session.commit() #type: ignore
+
+    try:
+        charge = intent.latest_charge
+        if charge and hasattr(charge, 'receipt_url') and charge.receipt_url: #type: ignore
+            response = requests.get(charge.receipt_url) #type: ignore
+            if response.status_code == 200:
+                filename = f"{session.payment_intent}.html"
+                upload_path = current_app.config.get('UPLOAD_PATH', 'upload')
+                path = f"{upload_path}/{filename}"
+                write_to_file(path, response.content)
+                file_obj = File(file_name=filename, path=path)
+                payment.evidences.append(file_obj)
+                db.session.add(file_obj) #type: ignore
+                db.session.commit() #type: ignore
+    except Exception as e:
+        log.warning(f"Failed to save receipt for payment {payment_id}: {e}")

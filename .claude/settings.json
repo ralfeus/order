@@ -4,10 +4,8 @@
       "Read",
       "Glob",
       "Grep",
-
       "Edit",
       "Write",
-
       "Bash(ls*)",
       "Bash(cat *)",
       "Bash(head *)",
@@ -22,7 +20,6 @@
       "Bash(df *)",
       "Bash(du *)",
       "Bash(diff *)",
-
       "Bash(git log*)",
       "Bash(git status*)",
       "Bash(git diff *)",
@@ -41,13 +38,11 @@
       "Bash(git tag *)",
       "Bash(git worktree *)",
       "Bash(git -C * *)",
-
       "Bash(python3 *)",
       "Bash(python *)",
       "Bash(/Users/ralfeus/.virtualenvs/order/bin/python *)",
       "Bash(flask *)",
       "Bash(pip *)",
-
       "Bash(docker *)",
       "Bash(curl *)",
       "Bash(lsof *)",
@@ -58,7 +53,6 @@
       "Bash(mkdir *)",
       "Bash(cp *)",
       "Bash(mv *)",
-
       "Bash(mysqldump *)",
       "Bash(mysql -u root -e \"SELECT *)",
       "Bash(mysql -u root -e \"SHOW *)",
@@ -66,7 +60,9 @@
       "Bash(mysql -u root -e \"EXPLAIN *)",
       "Bash(mysql -u root -e \"CREATE DATABASE *)",
       "Bash(mysql -u root -e \"DROP DATABASE talya_*)",
-      "Bash(mysql -u root talya_*)"
+      "Bash(mysql -u root talya_*)",
+      "Bash(stripe --version)",
+      "Bash(stripe listen:*)"
     ],
     "deny": [
       "Bash(git push * master)",
@@ -79,7 +75,6 @@
       "Bash(git -C * push *:master)",
       "Bash(git -C * push * main)",
       "Bash(git -C * push *:main)",
-
       "Bash(mysql -u root talya)",
       "Bash(mysql -u root talya *)",
       "Bash(mysql * -D talya)",

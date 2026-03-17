@@ -3,7 +3,17 @@ Tests for Stripe payment method routes
 """
 
 from datetime import datetime
+import hashlib
+import hmac
+import json
+import queue
+import re
+import socket
+import subprocess
+import threading
+import time
 from unittest.mock import MagicMock, patch
+from werkzeug.serving import make_server
 
 from tests import BaseTestCase, db
 from app.currencies.models import Currency
@@ -45,7 +55,7 @@ class TestStripePayments(BaseTestCase):
             enabled=True,
             roles=[admin_role],
         )
-        usd_currency = Currency(code="USD", rate=0.5)
+        usd_currency = Currency(code="USD", rate=0.5, enabled=True)
         payment_method = PaymentMethod(id=1)
         self.try_add_entities([
             self.user, self.admin, admin_role, usd_currency, payment_method
@@ -71,39 +81,53 @@ class TestStripePayments(BaseTestCase):
               f'?payment_intent={STRIPE_PAYMENT_INTENT_ID}'
         return self.client.get(url)
 
-    def test_stripe_success_approves_pending_payment(self):
-        """Stripe success callback approves a payment that is in pending status."""
+    def test_stripe_success_renders_without_approving(self):
+        """Success redirect just renders the page; it does not approve the payment."""
         payment = self._make_payment(PaymentStatus.pending)
+        self._call_success(payment.id)
+        updated = Payment.query.get(payment.id)
+        self.assertEqual(updated.status, PaymentStatus.pending)
+
+    def test_webhook_approves_pending_payment(self):
+        """Webhook checkout.session.completed approves a pending payment."""
+        from app.payments.routes.payment_methods.stripe import _handle_checkout_complete
+        payment = self._make_payment(PaymentStatus.pending)
+        session = MagicMock()
+        session.payment_intent = 'pi_test_webhook'
+
+        mock_intent = MagicMock()
+        mock_intent.metadata = {'payment_id': str(payment.id)}
+        mock_intent.latest_charge = None
+
         with patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.retrieve',
-                   return_value=_make_mock_intent(payment.id)):
-            self._call_success(payment.id)
+                   return_value=mock_intent):
+            _handle_checkout_complete(session)
+
         updated = Payment.query.get(payment.id)
         self.assertEqual(updated.status, PaymentStatus.approved)
 
-    def test_stripe_success_does_not_change_approved_payment(self):
-        """Stripe success callback leaves an already-approved payment unchanged."""
-        payment = self._make_payment(PaymentStatus.approved)
-        with patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.retrieve',
-                   return_value=_make_mock_intent(payment.id)):
-            self._call_success(payment.id)
-        updated = Payment.query.get(payment.id)
-        self.assertEqual(updated.status, PaymentStatus.approved)
+    def test_webhook_does_not_approve_non_pending_payment(self):
+        """Webhook does not change a payment that is not pending."""
+        from app.payments.routes.payment_methods.stripe import _handle_checkout_complete
+        for status in (PaymentStatus.approved, PaymentStatus.rejected):
+            with self.subTest(status=status):
+                payment = self._make_payment(status)
+                session = MagicMock()
+                session.payment_intent = 'pi_test_webhook'
+                mock_intent = MagicMock()
+                mock_intent.metadata = {'payment_id': str(payment.id)}
+                mock_intent.latest_charge = None
+                with patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.retrieve',
+                           return_value=mock_intent):
+                    _handle_checkout_complete(session)
+                updated = Payment.query.get(payment.id)
+                self.assertEqual(updated.status, status)
 
-    def test_stripe_success_does_not_approve_rejected_payment(self):
-        """Stripe success callback does not approve a rejected payment."""
-        payment = self._make_payment(PaymentStatus.rejected)
-        with patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.retrieve',
-                   return_value=_make_mock_intent(payment.id)):
-            self._call_success(payment.id)
-        updated = Payment.query.get(payment.id)
-        self.assertEqual(updated.status, PaymentStatus.rejected)
-
-    def test_create_payment_intent_amount_not_less_than_base_amount(self):
-        """Amount sent to Stripe must be no less than the original payment amount.
+    def test_checkout_session_amount_not_less_than_base_amount(self):
+        """Checkout session unit_amount must be no less than the original payment amount.
 
         When FX rate adjustments cause the calculated total to fall below the
-        original amount_sent_original, the endpoint must align up to the
-        original before creating the PaymentIntent.
+        original amount_sent_original, the checkout must floor up to the original.
         """
         payment = self._make_payment(PaymentStatus.pending)
 
@@ -115,11 +139,10 @@ class TestStripePayments(BaseTestCase):
         mock_customer = MagicMock()
         mock_customer.id = 'cus_test_123'
 
-        mock_intent = MagicMock()
-        mock_intent.client_secret = 'pi_secret_test'
-        mock_intent.id = 'pi_test_456'
+        mock_session = MagicMock()
+        mock_session.url = 'https://checkout.stripe.com/pay/test'
 
-        stripe_create = MagicMock(return_value=mock_intent)
+        session_create = MagicMock(return_value=mock_session)
 
         with patch('app.payments.routes.payment_methods.stripe.calculate_base_amount',
                    return_value=5.0), \
@@ -129,21 +152,18 @@ class TestStripePayments(BaseTestCase):
                    return_value=mock_customers), \
              patch('app.payments.routes.payment_methods.stripe.stripe.Customer.create',
                    return_value=mock_customer), \
-             patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.create',
-                   stripe_create):
-            response = self.client.post(
-                '/api/v1/payment/stripe/create-payment-intent',
-                json={'payment_id': payment.id, 'payment_method_id': 'pm_test_123'}
-            )
+             patch('app.payments.routes.payment_methods.stripe.stripe.checkout.Session.create',
+                   session_create):
+            response = self.client.get(f'/payments/{payment.id}/stripe/checkout')
 
-        self.assertEqual(response.status_code, 200)
-        stripe_create.assert_called_once()
-        amount_charged = stripe_create.call_args[1]['amount']
+        self.assertIn(response.status_code, (301, 302))
+        session_create.assert_called_once()
+        unit_amount = session_create.call_args[1]['line_items'][0]['price_data']['unit_amount']
         # amount_sent_original=10 USD → minimum 1000 cents
         self.assertGreaterEqual(
-            amount_charged,
+            unit_amount,
             int(float(payment.amount_sent_original) * 100),
-            f"Stripe was charged {amount_charged} cents, which is less than "
+            f"Checkout session unit_amount {unit_amount} is less than "
             f"the original {int(float(payment.amount_sent_original) * 100)} cents"
         )
 
@@ -185,3 +205,156 @@ class TestStripePayments(BaseTestCase):
                 fees = calculate_service_fee(base, currency)
                 expected = math.ceil(base * 0.02 * 100) / 100
                 self.assertAlmostEqual(fees.service_fee, expected, places=2)
+
+
+# ---------------------------------------------------------------------------
+# Helpers for CLI-based integration tests
+# ---------------------------------------------------------------------------
+
+def _find_free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+
+def _read_webhook_secret(proc, timeout: int = 30):
+    """Parse the whsec_... signing secret from `stripe listen` stdout."""
+    result: queue.Queue = queue.Queue()
+
+    def _reader():
+        for line in proc.stdout:
+            m = re.search(r'webhook signing secret is (whsec_\S+)', line)
+            if m:
+                result.put(m.group(1))
+                return
+        result.put(None)  # process exited without printing the secret
+
+    threading.Thread(target=_reader, daemon=True).start()
+    try:
+        return result.get(timeout=timeout)
+    except queue.Empty:
+        return None
+
+
+def _sign_webhook_payload(payload: str, secret: str) -> str:
+    """Return a Stripe-Signature header value for the given payload and secret."""
+    timestamp = int(time.time())
+    signed_payload = f"{timestamp}.{payload}"
+    signature = hmac.new(
+        secret.encode('utf-8'),
+        signed_payload.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"t={timestamp},v1={signature}"
+
+
+class TestStripeWebhookCLI(BaseTestCase):
+    """Integration tests that use the Stripe CLI to forward real webhook events."""
+
+    server = None
+    server_thread = None
+    listen_proc = None
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from tests import app as test_app
+
+        port = _find_free_port()
+
+        # Real HTTP server — the Flask test client cannot receive inbound
+        # requests from stripe listen, so we need an actual socket listener.
+        cls.server = make_server('127.0.0.1', port, test_app)
+        cls.server_thread = threading.Thread(
+            target=cls.server.serve_forever, daemon=True
+        )
+        cls.server_thread.start()
+
+        # Start stripe listen and capture the per-session webhook signing secret.
+        cls.listen_proc = subprocess.Popen(
+            [
+                'stripe', 'listen',
+                '--forward-to',
+                f'http://127.0.0.1:{port}/api/v1/payment/stripe/webhook',
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+        secret = _read_webhook_secret(cls.listen_proc)
+        if not secret:
+            raise RuntimeError(
+                "Timed out waiting for the webhook signing secret from stripe listen"
+            )
+
+        # Inject the signing secret so the webhook view can verify signatures.
+        test_app.config.setdefault('PAYMENT', {}).setdefault('stripe', {})[
+            'webhook_secret'
+        ] = secret
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.listen_proc:
+            cls.listen_proc.terminate()
+        if cls.server:
+            cls.server.shutdown()
+
+    def setUp(self):
+        super().setUp()
+        from app import db
+        db.create_all()
+
+    def test_webhook_no_exception(self):
+        """Webhook endpoint handles checkout.session.completed without raising."""
+        result = subprocess.run(
+            ['stripe', 'trigger', 'checkout.session.completed'],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(
+            result.returncode, 0,
+            f"stripe trigger failed:\n{result.stdout}\n{result.stderr}",
+        )
+        # Allow time for stripe listen to forward the event and the server to process it.
+        time.sleep(3)
+
+    def test_webhook_fires_session_data(self):
+        """Webhook endpoint accepts a hand-crafted checkout.session.completed event."""
+        session_object = {
+            "id": "cs_test_a19klxPjQ0woedGGJ3GHgZXo21OjefFjYmYzZGduLU0ngdfDEO1mnRxhrL",
+            "object": "checkout.session",
+            "amount_subtotal": 10000,
+            "amount_total": 10000,
+            "cancel_url": "http://localhost:5000/payments/21613/stripe/cancel",
+            "currency": "eur",
+            "customer": "cus_U1PoqwCpyoSqOb",
+            "livemode": False,
+            "metadata": {},
+            "mode": "payment",
+            "payment_intent": "pi_3TBxGsBhwuI3XNce0vTTrueY",
+            "payment_status": "paid",
+            "status": "complete",
+            "success_url": "http://localhost:5000/payments/21613/stripe/success",
+        }
+        event = {
+            "type": "checkout.session.completed",
+            "data": {
+                "object": session_object,
+                "previous_attributes": None,
+            },
+        }
+        payload = json.dumps(event)
+        secret = self.app.config['PAYMENT']['stripe']['webhook_secret']
+        sig_header = _sign_webhook_payload(payload, secret)
+
+        response = self.client.post(
+            '/api/v1/payment/stripe/webhook',
+            data=payload,
+            content_type='application/json',
+            headers={'Stripe-Signature': sig_header},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {'status': 'ok'})
