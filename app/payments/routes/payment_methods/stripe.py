@@ -103,28 +103,10 @@ class ExchangeRateManager:
             log.warning(f"Error fetching {base}/{target} rate: {e}")
             raise
 
-# Fee configuration (same as before)
+# Fee configuration
 FEES = {
-    'USD': {
-        'domestic': {'percentage': 0.015, 'fixed': 0.31},
-        'international': {'percentage': 0.0325, 'fixed': 0.31},
-        'stripe-wise': 0.01,
-        'swift': 0.005,
-        'service': 0.02
-    },
-    'EUR': {
-        'domestic': {'percentage': 0.015, 'fixed': 0.26},
-        'international': {'percentage': 0.0325, 'fixed': 0.26},
-        'stripe-wise': 0,
-        'swift': 0.005,
-        'service': 0.02
-    },
-}
-
-EEA_COUNTRIES = {
-    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
-    'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
-    'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO'
+    'EUR': {'total': 0.05, 'stripe_wise': 0.0,  'swift': 0.005, 'service': 0.02},
+    'USD': {'total': 0.06, 'stripe_wise': 0.01, 'swift': 0.005, 'service': 0.02},
 }
 
 def calculate_base_amount(payment: Payment) -> float:
@@ -137,36 +119,32 @@ def calculate_base_amount(payment: Payment) -> float:
             payment.currency_code)
     except:
         pass # Just use same rate as in a system
-    log.debug(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
-    log.debug(f"Site's {payment.currency_code} rate: {om_rate}")
-    log.debug(f"Bank's {payment.currency_code} rate: {fx_rate}")
+    log.info(f"Original amount in {payment.currency_code}: {payment.amount_sent_original}")
+    log.info(f"Site's {payment.currency_code} rate: {om_rate}")
+    log.info(f"Bank's {payment.currency_code} rate: {fx_rate}")
     fx_rate *= 1.01
-    log.debug(f"Bank's {payment.currency_code} currency risk compensated rate: {fx_rate}")
+    log.info(f"Bank's {payment.currency_code} currency risk compensated rate: {fx_rate}")
     adjustment_quoefficient = Decimal(fx_rate) / om_rate
-    log.debug(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
+    log.info(f"Original amount adjustment quoefficient: {adjustment_quoefficient}")
     adjusted_amount = math.ceil(float(payment.amount_sent_original * adjustment_quoefficient) * 100) / 100
-    log.debug(f"Adjusted base amount: {adjusted_amount}")
+    log.info(f"Adjusted base amount: {adjusted_amount}")
     return adjusted_amount
 
-def calculate_service_fee(base_amount, card_country, currency) -> FeeStructure:
-    """Calculate service fee based on card country"""
-    is_domestic = card_country.upper() in EEA_COUNTRIES
-    stripe_fee = 'domestic' if is_domestic else 'international'
+def calculate_service_fee(base_amount, currency) -> FeeStructure:
+    """Calculate service fee based on currency"""
     fee_config = FEES[currency]
-    
+
     f = FeeStructure()
     f.send_to_bank = math.ceil(base_amount / (1 - fee_config['swift']) * 100) / 100
     f.wise_fee = f.send_to_bank - base_amount
-    f.send_to_wise = math.ceil(f.send_to_bank / (1 - fee_config['stripe-wise']) * 100) / 100
+    f.send_to_wise = math.ceil(f.send_to_bank / (1 - fee_config['stripe_wise']) * 100) / 100
     f.stripe_wise_fee = math.ceil((f.send_to_wise - f.send_to_bank) * 100) / 100
     f.service_fee = math.ceil(base_amount * fee_config['service'] * 100) / 100
-    at_stripe = f.send_to_wise + f.service_fee
-    f.send_to_stripe = round(at_stripe / (1 - fee_config[stripe_fee]['percentage']) + 
-                             fee_config[stripe_fee]['fixed'], 2)
-    f.stripe_fee = f.send_to_stripe * fee_config[stripe_fee]['percentage'] + fee_config[stripe_fee]['fixed']
-    
-    f.total_service_fee = f.wise_fee + f.stripe_wise_fee + f.service_fee + f.stripe_fee
-    log.debug(f"Fees structure: {f}")
+    f.send_to_stripe = math.ceil(base_amount * (1 + fee_config['total']) * 100) / 100
+    f.stripe_fee = f.send_to_stripe - f.send_to_wise - f.service_fee
+
+    f.total_service_fee = f.send_to_stripe - base_amount
+    log.info(f"Fees structure: {f}")
     return f
 
 def find_or_create_customer(payment: Payment) -> str:
@@ -251,7 +229,7 @@ def detect_card():
         # Calculate base amount taking into consideration skewed currency rates
         base_amount = calculate_base_amount(payment)
         # Calculate fees
-        fees = calculate_service_fee(base_amount, card_country, payment.currency_code)
+        fees = calculate_service_fee(base_amount, payment.currency_code)
         if fees.send_to_stripe < payment.amount_sent_original:
             fees.send_to_stripe = float(payment.amount_sent_original)
         
@@ -281,19 +259,17 @@ def create_payment_intent():
         # Configure Stripe
         stripe.api_key = current_app.config.get('PAYMENT', {}).get('stripe', {}).get('api_secret')
         
-        # Retrieve payment method to get card country
-        payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
-        if payment_method.type == 'card' and payment_method.card:
-            card_country = payment_method.card.country
-
         # Get payment from database
         payment: Payment = Payment.query.get(payment_id)
         if not payment:
             return jsonify({'error': 'Payment not found'}), 404
         
         base_amount = calculate_base_amount(payment)
-        fees = calculate_service_fee(base_amount, card_country, payment.currency_code)
+        fees = calculate_service_fee(base_amount, payment.currency_code)
         total_amount = fees.send_to_stripe
+        if total_amount < float(payment.amount_sent_original):
+            log.info(f"Calculated total amount {total_amount} is less than original amount {payment.amount_sent_original}, using original amount")
+            total_amount = float(payment.amount_sent_original)
         
         # Convert to cents (or keep as-is for zero-decimal currencies)
         zero_decimal_currencies = {
