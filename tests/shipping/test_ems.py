@@ -35,7 +35,7 @@ class TestShippingEMS(BaseTestCase):
         rate = ems.get_shipping_cost('ua', 100)
         self.assertIsInstance(rate, int)
 
-    @patch('app.shipping.methods.ems.models.ems:EMS.print')
+    @patch('app.shipping.methods.ems.models.ems.EMS.print')
     def test_print_label(self, po_mock):
         po_mock.return_value = {}
         self.try_add_entity(EMS())
@@ -49,7 +49,7 @@ class TestShippingEMS(BaseTestCase):
         order = Order.query.get(gen_id)
         self.assertEqual(order.status, OrderStatus.shipped)
 
-    @patch('app.shipping.methods.ems.models.ems:EMS.print')
+    @patch('app.shipping.methods.ems.models.ems.EMS.print')
     def test_print_label_non_ems(self, po_mock):
         po_mock.return_value = {}
         self.try_add_entity(Shipping())

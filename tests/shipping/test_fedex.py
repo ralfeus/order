@@ -1,3 +1,4 @@
+from unittest.mock import patch, MagicMock
 from tests import BaseTestCase, db
 from app.currencies.models.currency import Currency
 from app.models.address import Address
@@ -11,6 +12,19 @@ from app.shipping.models.box import default_box
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
 from common.exceptions import ShippingException
+
+# Fixed FedEx Rate API response: raw rate 197 USD × 1.05 → int(round(206.85)) = 207
+_RATE_RESPONSE = {
+    "output": {
+        "rateReplyDetails": [{
+            "serviceType": "INTERNATIONAL_ECONOMY",
+            "ratedShipmentDetails": [{
+                "totalNetFedExCharge": "197",
+                "currency": "USD"
+            }]
+        }]
+    }
+}
 
 class TestShippingFedex(BaseTestCase):
     def setUp(self):
@@ -35,7 +49,8 @@ class TestShippingFedex(BaseTestCase):
             Currency(code='USD', rate=1)
         ])
 
-    def test_get_rate(self):
+    @patch.object(Fedex, '_Fedex__get_json', return_value=_RATE_RESPONSE)
+    def test_get_rate(self, _mock_get_json):
         fedex = Fedex()
         self.try_add_entities([fedex])
         fedex.settings.service_type = 'INTERNATIONAL_ECONOMY'
