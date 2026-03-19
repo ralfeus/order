@@ -28,7 +28,10 @@ def init_celery(celery, flask_app):
                 return self.run(*args, **kwargs)
 
     # celery.config_from_object(flask_app.config)
-    celery.conf.task_default_queue = flask_app.config['CELERY_TASK_DEFAULT_QUEUE']
+    celery.conf.task_default_queue = (
+        os.environ.get('CELERY_QUEUE') or
+        flask_app.config.get('CELERY_QUEUE', 'celery')
+    )
     celery.Task = ContextTask
     return celery
 

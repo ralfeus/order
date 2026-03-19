@@ -31,7 +31,7 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /var/www/order/network_builder/config.json:/app/config.json
+      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/network_builder/config.json:/app/config.json
       - builder-output:/app/output
     environment:
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
@@ -83,8 +83,47 @@ services:
     networks:
       - order
 
-   # celery:
-   #  image: ralfeus/order-master
-   #  depends_on:
-   #    - rabbitmq
-   #  command: celery -A app worker -E --loglevel=INFO --concurrency 1 -B --schedule-filename /tmp/celerybeat-schedule
+  statsd:
+    image: statsd/statsd
+    volumes:
+      - ./statsd/config.js:/usr/src/app/config.js:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - order
+
+  order-master:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    depends_on:
+      - rabbitmq
+      - statsd
+    ports:
+      - 5000:5000
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/app/config-default.json:/app/app/config-default.json
+    networks:
+      - order
+    environment:
+      - OM_QUEUE_SERVER=rabbitmq
+      - CELERY_QUEUE=order
+
+  order-master-celery:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    depends_on:
+      - rabbitmq
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/app/config-default.json:/app/app/config-default.json
+    environment:
+      - CELERY=1
+      - OM_QUEUE_SERVER=rabbitmq
+      - CELERY_QUEUE=order
+    networks:
+      - order

@@ -52,9 +52,6 @@ class TestOrderProductsApi(BaseTestCase):
         op2 = OrderProduct(id=op_id, suborder=suborder, product_id='0001',
             quantity=10, price=10, status=OrderProductStatus.pending)
         self.try_add_entities([
-            Product(id='0001', name='Test product 1', price=10, weight=100)
-        ])
-        self.try_add_entities([
             order, suborder,
             op1, op2
         ])
