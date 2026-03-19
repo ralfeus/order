@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY ./requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir 'setuptools<72' gunicorn -r /tmp/requirements.txt
-RUN playwright install --with-deps chromium
 COPY ./common /app/common
 COPY ./app /app/app
 COPY ./migrations /app/migrations

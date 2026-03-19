@@ -6,24 +6,24 @@ volumes:
   builder-output:
 
 services:
-  neo4j:
-    image: neo4j:4.4.2
-    ports:
-      - 7474:7474
-      - 7687:7687
-    volumes:
-      - /var/lib/neo4j/conf:/conf
-      - /var/lib/neo4j/data:/data
-      - /var/lib/neo4j/logs:/logs
-      - /var/lib/neo4j/plugins:/plugins
-    environment:
-      - NEO4J_dbms_default__advertised__address=neo4j
-    networks:
-      - order
+  # neo4j:
+  #   image: neo4j:4.4.2
+  #   ports:
+  #     - 7474:7474
+  #     - 7687:7687
+  #   volumes:
+  #     - /var/lib/neo4j/conf:/conf
+  #     - /var/lib/neo4j/data:/data
+  #     - /var/lib/neo4j/logs:/logs
+  #     - /var/lib/neo4j/plugins:/plugins
+  #   environment:
+  #     - NEO4J_dbms_default__advertised__address=neo4j
+  #   networks:
+  #     - order
 
   network-manager:
-    depends_on:
-      - neo4j
+    # depends_on:
+    #   - neo4j
     image: ralfeus/network-manager:stable
     ports:
       - 5001:5001
@@ -31,7 +31,7 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/network_builder/config.json:/app/config.json
+      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/network_builder/config.json:/app/config.json
       - builder-output:/app/output
     environment:
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
@@ -46,8 +46,8 @@ services:
   # or manually: docker run --network order -e NEO4J_URL=bolt://neo4j:1@neo4j:7687 \
   #                ralfeus/network-builder:stable --user S5832131 --password ... --root S5832131
   network-builder:
-    depends_on:
-      - neo4j
+    # depends_on:
+    #   - neo4j
     image: ralfeus/network-builder:stable
     profiles:
       - builder
@@ -69,19 +69,19 @@ services:
     networks:
       - order
 
-  metabase:
-    image: metabase/metabase:latest
-    ports:
-      - 3001:3000
-    volumes:
-      - /var/lib/metabase/plugins:/plugins
-    environment:
-      - MB_SITE_URL=https://request.talya.kim/mb/
-      - MB_DB_TYPE=mysql
-      - MB_DB_CONNECTION_URI=jdbc:mysql://172.17.0.1:3306/metabase?user=metabase&password=metabase
-      - JAVA_TIMEZONE=Asia/Seoul
-    networks:
-      - order
+  # metabase:
+  #   image: metabase/metabase:latest
+  #   ports:
+  #     - 3001:3000
+  #   volumes:
+  #     - /var/lib/metabase/plugins:/plugins
+  #   environment:
+  #     - MB_SITE_URL=https://request.talya.kim/mb/
+  #     - MB_DB_TYPE=mysql
+  #     - MB_DB_CONNECTION_URI=jdbc:mysql://172.17.0.1:3306/metabase?user=metabase&password=metabase
+  #     - JAVA_TIMEZONE=Asia/Seoul
+  #   networks:
+  #     - order
 
   statsd:
     image: statsd/statsd
@@ -104,12 +104,18 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
     networks:
       - order
     environment:
       - OM_QUEUE_SERVER=rabbitmq
       - CELERY_QUEUE=order
+
+  browser:
+    image: mcr.microsoft.com/playwright:v1.58.0-noble
+    command: ["npx", "playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]
+    networks:
+      - order
 
   order-master-celery:
     build:
@@ -117,13 +123,56 @@ services:
       dockerfile: app/Dockerfile
     depends_on:
       - rabbitmq
+      - browser
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/cool-cannon/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
     environment:
       - CELERY=1
       - OM_QUEUE_SERVER=rabbitmq
       - CELERY_QUEUE=order
+      - BROWSER_URL=ws://browser:3000
+    networks:
+      - order
+
+
+
+#####################################################
+
+  om-2:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    depends_on:
+      - rabbitmq
+      - statsd
+    ports:
+      - 5001:5000
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+    networks:
+      - order
+    environment:
+      - OM_QUEUE_SERVER=rabbitmq
+      - CELERY_QUEUE=om-2
+  om-celery-2:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    depends_on:
+      - rabbitmq
+      - browser
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+    environment:
+      - CELERY=1
+      - OM_QUEUE_SERVER=rabbitmq
+      - CELERY_QUEUE=om-2
+      - BROWSER_URL=ws://browser:3000
     networks:
       - order

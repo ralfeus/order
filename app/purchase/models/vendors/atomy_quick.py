@@ -320,15 +320,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
         with sync_playwright() as p:
             if self.__config.get('BROWSER_URL'):
                 self._logger.debug("Connecting to the browser")
-                browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
+                browser = p.chromium.connect(self.__config['BROWSER_URL'])
             else:
                 self._logger.debug("Starting the browser")
                 browser = p.chromium.launch(
                     headless=True,
                     proxy={
                         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                    } if self.__config.get('SOCKS5_PROXY') else None) 
-            page = browser.new_page()
+                    } if self.__config.get('SOCKS5_PROXY') else None)
+            context = browser.new_context()
+            page = context.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
 
@@ -374,6 +375,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
                 raise ex
             finally:
+                context.close()
                 browser.close()
 
         # Only way to reach here is the retry is needed
