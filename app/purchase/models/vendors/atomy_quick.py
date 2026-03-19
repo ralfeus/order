@@ -288,6 +288,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config: dict[str, Any] = config
+        self.__screenshots_path = self.__config.get('UPLOAD_PATH', '.')
         self._retries = 3
 
     def __str__(self):
@@ -364,7 +365,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except PurchaseOrderError as ex:
                 self._logger.warning(ex)
                 if ex.screenshot:
-                    page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
+                    page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True)
                 if ex.retry and self._retries > 0:
                     self._retries -= 1
                     self._logger.warning("Retrying %s", purchase_order.id)
@@ -372,7 +373,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     raise ex
             except Exception as ex:
                 self._logger.exception("Failed to post an order %s", purchase_order.id)
-                page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
+                page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True)
                 raise ex
             finally:
                 context.close()
@@ -756,7 +757,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
                 self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
-                page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
+                page.locator('#tgLyr_0').screenshot(path=f'{self.__screenshots_path}/failed-{self.__purchase_order.id}.png')
 
                 raise PurchaseOrderError(self.__purchase_order, self,
                     message=f"Purchase date {sale_date_str} is not available")
