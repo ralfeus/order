@@ -3,7 +3,7 @@ from decimal import Decimal
 import json
 import logging
 import math
-from flask import current_app, jsonify, redirect, render_template, request, url_for
+from flask import current_app, jsonify, redirect, request, url_for
 import stripe
 import requests
 from app import db, cache
@@ -239,15 +239,15 @@ def success(payment_id: int):
     """Stripe redirects here after successful checkout. Approval is handled by webhook."""
     log.set_payment_id(payment_id)
     log.info(f"Stripe checkout success redirect for payment {payment_id}")
-    return render_template('payment_methods/stripe_success.html', success=True)
+    return redirect(url_for('.user_wallet', result='success'))
 
 @bp_client_user.route('/<int:payment_id>/stripe/cancel')
 def cancel(payment_id: int):
     """Stripe redirects here when the user cancels checkout."""
     log.set_payment_id(payment_id)
     log.info(f"Stripe checkout cancelled for payment {payment_id}")
-    return render_template('payment_methods/stripe_success.html', success=False,
-                           message="Payment was not completed. No funds were charged. Please create a new payment.")
+    return redirect(url_for('.user_wallet', result='failed',
+                            message='Payment was not completed. No funds were charged. Please create a new payment.'))
 
 @bp_api_user.route('/stripe/webhook', methods=['POST'])
 def webhook():

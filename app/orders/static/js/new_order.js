@@ -629,19 +629,12 @@ async function createStripePayment(orderId, paymentMethod) {
         if (paymentResponse.data && paymentResponse.data.length > 0) {
             const payment = paymentResponse.data[0];
 
-            // If there's an extra action (Stripe checkout URL), open it
+            // If there's an extra action (checkout URL), navigate to it
             if (paymentResponse.extra_action && paymentResponse.extra_action.url) {
-                window.open(`/payments/${paymentResponse.extra_action.url}`, '_blank');
-
-                // Close the modal
-                $('.modal').modal('hide');
+                window.location.href = `/payments/${paymentResponse.extra_action.url}`;
             } else if (payment.id) {
                 // Fallback: construct the Stripe checkout URL manually
-                const checkoutUrl = `/payments/${payment.id}/stripe/checkout`;
-                window.open(checkoutUrl, '_blank');
-
-                // Close the modal
-                $('.modal').modal('hide');
+                window.location.href = `/payments/${payment.id}/stripe/checkout`;
             } else {
                 modal('Error', 'Payment was created but checkout URL is not available.');
             }

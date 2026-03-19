@@ -12,8 +12,21 @@ $(document).ready( function () {
     .then(() => {
         init_payments_table();
         init_transactions_table();
-        // Auto-trigger create dialog if ?create=1 in URL
         var params = new URLSearchParams(window.location.search);
+
+        // Show payment result dialog if redirected back from a payment method
+        var result = params.get('result');
+        if (result) {
+            history.replaceState({}, '', '/payments/');
+            if (result === 'success') {
+                modal('Payment Successful', 'Your payment has been processed successfully.');
+            } else {
+                var message = params.get('message') || 'Your payment was not completed.';
+                modal('Payment Failed', message);
+            }
+        }
+
+        // Auto-trigger create dialog if ?create=1 in URL
         if (params.get('create') == '1') {
             // Remove URL parameter immediately
             history.replaceState({}, '', '/payments/');
@@ -97,7 +110,7 @@ function init_payments_table() {
                     data: data,
                     success: data => {
                         if (data.extra_action) {
-                            window.open(data.extra_action.url);
+                            window.location.href = data.extra_action.url;
                         }
                         success(data);
                     },
