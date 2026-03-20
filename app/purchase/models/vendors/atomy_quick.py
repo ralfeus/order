@@ -3,6 +3,7 @@ using quick order"""
 from __future__ import annotations
 
 from functools import reduce
+import os
 from time import sleep
 from typing import Any, Optional
 
@@ -289,6 +290,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
         self.__config: dict[str, Any] = config
         self.__screenshots_path = self.__config.get('UPLOAD_PATH', '.')
+        os.makedirs(self.__screenshots_path, exist_ok=True)
         self._retries = 3
 
     def __str__(self):
@@ -365,7 +367,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except PurchaseOrderError as ex:
                 self._logger.warning(ex)
                 if ex.screenshot:
-                    page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True)
+                    try:
+                        page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True, timeout=5000)
+                    except Exception as screenshot_ex:
+                        self._logger.warning("Failed to take screenshot: %s", screenshot_ex)
                 if ex.retry and self._retries > 0:
                     self._retries -= 1
                     self._logger.warning("Retrying %s", purchase_order.id)
@@ -373,7 +378,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     raise ex
             except Exception as ex:
                 self._logger.exception("Failed to post an order %s", purchase_order.id)
-                page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True)
+                try:
+                    page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True, timeout=5000)
+                except Exception as screenshot_ex:
+                    self._logger.warning("Failed to take screenshot: %s", screenshot_ex)
                 raise ex
             finally:
                 context.close()

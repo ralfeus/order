@@ -3,6 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     pkg-config \
     default-libmysqlclient-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 COPY ./requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir 'setuptools<72' gunicorn -r /tmp/requirements.txt

@@ -128,6 +128,7 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/upload:/app/upload
     environment:
       - CELERY=1
       - OM_QUEUE_SERVER=rabbitmq

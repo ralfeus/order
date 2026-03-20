@@ -26,7 +26,7 @@ def admin_get_rates():
 # @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['post'])
 # @bp_api_admin.route('<shipping_id>/rate', methods=['post'], defaults={'destination': None})
 # @login_required
-@roles_required('admin')
+# @roles_required('admin')
 # def admin_save_rate(shipping_id, destination):
 #     '''Update selected rate'''
 #     payload = request.get_json()
@@ -71,7 +71,7 @@ def admin_get_rates():
 
 # @bp_api_admin.route('<shipping_id>/rate/<destination>', methods=['delete'])
 # @login_required
-@roles_required('admin')
+# @roles_required('admin')
 # def admin_delete_rate(shipping_id, destination):
 #     '''Delete selected rate'''
 #     shipping = WeightBased.query.get(shipping_id)
