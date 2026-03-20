@@ -73,10 +73,15 @@ def create_app(config=None):
             if not current_user.is_authenticated:
                 return {}
             currencies = Currency.query.filter_by(enabled=True).all()
+            base_currency =Currency.get_base_currency(app.config.get('TENANT_NAME', 'default'))
             user_currency = Currency.query.get(current_user.currency_code) \
                 if current_user.currency_code else \
-                Currency.get_base_currency(app.config.get('TENANT_NAME', 'default'))
-            return {'nav_currencies': currencies, 'nav_user_currency': user_currency}
+                base_currency
+            return {
+                'nav_currencies': currencies, 
+                'nav_user_currency': user_currency,
+                'base_currency': base_currency.code
+            }
         except Exception:
             return {}
 
