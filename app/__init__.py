@@ -50,6 +50,7 @@ def create_app(config=None):
     app = Flask(__name__)
     app.config.from_file(config_file, load=load)
     app.config['TENANT_NAME'] = tenant
+    app.config.update(os.environ)
     init_logging(app)
 
     Bootstrap(app)

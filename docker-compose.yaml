@@ -124,6 +124,7 @@ services:
     depends_on:
       - rabbitmq
       - browser
+    restart: on-failure:5
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:

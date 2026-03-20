@@ -78,11 +78,11 @@ def _build_playwright_mock():
     page.wait_for_function.return_value = wff
 
     browser = MagicMock()
-    browser.new_page.return_value = page
+    browser.new_context.return_value.new_page.return_value = page
 
     ctx = MagicMock()
     ctx.chromium.launch.return_value = browser
-    ctx.chromium.connect_over_cdp.return_value = browser
+    ctx.chromium.connect.return_value = browser
 
     pw = MagicMock()
     pw.return_value.__enter__.return_value = ctx

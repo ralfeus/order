@@ -205,18 +205,21 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     _logger.debug(' '.join(run_params))
     try:
-        output = subprocess.run(run_params,
-            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        if ('Could not resolve host' in output.stderr 
-            or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
-            _logger.warning("Server side error occurred. Will try in 30 seconds (%s)", url)
-            _logger.warning(output.stderr)
-            sleep(30)
-            return invoke_curl(url, raw_data, headers, method, retries=retries - 1)
-        return output.stdout, output.stderr
+        for _ in range(retries):
+            output = subprocess.run(run_params,
+                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if ('Could not resolve host' in output.stderr 
+                or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
+                _logger.warning("Server side error occurred. Will try in 10 seconds (%s)", url)
+                _logger.warning(output.stderr)
+                _logger.warning(output.stdout)
+                sleep(10)
+                continue
+            return output.stdout, output.stderr
     except TypeError:
         _logger.exception(run_params)
         return '', ''
+    return '', ''
 
 def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str='',
         encoding: str='utf-8', resolve: str=''):
