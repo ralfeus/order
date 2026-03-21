@@ -158,7 +158,7 @@
         <a class="btn btn-primary btn-sm me-2" href="/payments/?create=1" role="button">Make Payment</a>
       </li>
       {% endif %}
-      {% if current_user.has_role('admin') %}
+      {% if request.path.startswith('/admin') %}
         <li class="nav-item d-flex align-items-center">
           <span class="form-select form-select-sm"
             style="font-size: 0.7rem; font-weight: bolder; width: auto; background-image: none; pointer-events: none;">
