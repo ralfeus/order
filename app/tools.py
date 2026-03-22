@@ -205,7 +205,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     _logger.debug(' '.join(run_params))
     try:
-        for _ in range(retries):
+        for _ in range(retries + 1):
             output = subprocess.run(run_params,
                 encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
             if ('Could not resolve host' in output.stderr 

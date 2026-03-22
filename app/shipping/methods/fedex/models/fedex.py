@@ -201,22 +201,27 @@ class Fedex(Shipping):
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
-        if not self._are_all_products_shippable(products):
-            logging.debug(f"Not all products are shippable to {country}")
-            return False
-        if weight and weight > 30000:
-            logging.debug(f"The parcel is too heavy: {weight}g")
-            return False
-        if country is None:
-            return True
+        try:
+            if not self._are_all_products_shippable(products):
+                logging.debug(f"Not all products are shippable to {country}")
+                return False
+            if weight and weight > 30000:
+                logging.debug(f"The parcel is too heavy: {weight}g")
+                return False
+            if country is None:
+                return True
 
-        services = self.__get_service_availability(country.id)
-        if self.settings.service_type in services:
-            logging.debug(f"Can ship to country {country}. ")
-            return True
-        else:
-            logging.debug(f"Can't ship to country {country}.")
-            logging.debug(f"Available services: {services}")
+            services = self.__get_service_availability(country.id)
+            if self.settings.service_type in services:
+                logging.debug(f"Can ship to country {country}. ")
+                return True
+            else:
+                logging.debug(f"Can't ship to country {country}.")
+                logging.debug(f"Available services: {services}")
+                return False
+        except Exception as e:
+            logging.error(f"Error during checking if can ship to {country}")
+            logging.exception(e)
             return False
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
