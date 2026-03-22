@@ -26,7 +26,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/ingress.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ingress/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - order
     restart: unless-stopped
@@ -41,7 +41,7 @@ services:
       - host.docker.internal:host-gateway
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/network_builder/config.json:/app/config.json
+      - /Users/ralfeus/Projects/order/network_builder/config.json:/app/config.json
       - builder-output:/app/output
     environment:
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
@@ -109,18 +109,17 @@ services:
     depends_on:
       - rabbitmq
       - statsd
-    ports:
-      - 5000:5000
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/app/config-default.json:/app/app/config-default.json
     networks:
       - order
     environment:
       - OM_QUEUE_SERVER=rabbitmq
       - CELERY_QUEUE=order
-
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqldb://root@host.docker.internal/talya
+      
   browser:
     image: mcr.microsoft.com/playwright:v1.58.0-noble
     command: ["npx", "playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]
@@ -138,7 +137,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/app/config-default.json:/app/app/config-default.json
       - /Users/ralfeus/Projects/order/upload:/app/upload
     environment:
       - CELERY=1
@@ -164,7 +163,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/app/config-default.json:/app/app/config-default.json
     networks:
       - order
     environment:
@@ -180,7 +179,7 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
-      - /Users/ralfeus/Projects/order/.claude/worktrees/browserless/app/config-default.json:/app/app/config-default.json
+      - /Users/ralfeus/Projects/order/app/config-default.json:/app/app/config-default.json
     environment:
       - CELERY=1
       - OM_QUEUE_SERVER=rabbitmq
