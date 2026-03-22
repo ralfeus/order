@@ -21,6 +21,16 @@ services:
   #   networks:
   #     - order
 
+  ingress:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/ingress.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - order
+    restart: unless-stopped
+
   network-manager:
     # depends_on:
     #   - neo4j
