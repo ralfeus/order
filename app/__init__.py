@@ -44,9 +44,9 @@ def create_app(config=None):
     ''' Application factory '''
     from app.users.forms.login_form import LoginForm
     config_file = config or os.environ.get('OM_CONFIG_FILE') or 'config-default.json'
-    tenant = re.search('[^/]*(?=/config)', config_file).group() \
-             if re.search('[^/]*(?=/config)', config_file) \
-                else __name__
+    tenant_match = re.search('[^/]*(?=/config)', config_file)
+    tenant = tenant_match.group() \
+             if tenant_match else __name__
     app = Flask(__name__)
     app.config.from_file(config_file, load=load)
     app.config['TENANT_NAME'] = tenant
@@ -162,33 +162,6 @@ def init_db(app: Flask, db: SQLAlchemy):
         postfork(_dispose_db_pool)
     except ImportError:
         logger.info("No UWSGI environment is detected")
-
-
-def init_debug(flask_app):
-    import flask_debugtoolbar
-    from flask_debugtoolbar import DebugToolbarExtension
-    # from flask_debugtoolbar_lineprofilerpanel.profile import line_profile
-    from flask_debug_api import DebugAPIExtension
-    DebugToolbarExtension(flask_app)
-    flask_app.config['DEBUG_TB_PANELS'] = [
-        'flask_debugtoolbar.panels.versions.VersionDebugPanel',
-        'flask_debugtoolbar.panels.timer.TimerDebugPanel',
-        'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
-        'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
-        'flask_debugtoolbar.panels.template.TemplateDebugPanel',
-        'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
-        'flask_debugtoolbar.panels.logger.LoggingPanel',
-        'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel'
-    ]
-
-    if flask_app.config.get('PROFILER'):
-        DebugAPIExtension(flask_app)
-            # Add the line profiling
-            # 'flask_debugtoolbar_lineprofilerpanel.panels.LineProfilerPanel',
-        flask_app.config['DEBUG_TB_PANELS'].append('flask_debug_api.BrowseAPIPanel')
-
-# def init_navbar(app):
-#     nav.init_app(app)
 
 def init_logging(flask_app):
     logger = logging.getLogger()

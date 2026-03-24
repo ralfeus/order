@@ -327,7 +327,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             else:
                 self._logger.debug("Starting the browser")
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=self.__config.get('HEADLESS', True),
                     proxy={
                         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
                     } if self.__config.get('SOCKS5_PROXY') else None)
@@ -864,7 +864,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting payment parameters")
         # Set the payment method
         self._logger.debug("Setting payment method...")
-        page.locator('#mth-tab_3').click()
+        page.locator('#mth-tab_4').click()
         self._logger.debug("Setting bank to %s", po.company.bank_id)
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile

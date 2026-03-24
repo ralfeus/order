@@ -26,7 +26,8 @@ def build_network():
 def post_po():
     # from flask import current_app
     # current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
-    current_app.config['BROWSER_URL'] = 'http://localhost:9222'
+    current_app.config['HEADLESS'] = False
+    current_app.config['BROWSER_URL'] = None
     po_id = "PO-2026-01-0001-001"
     po = PurchaseOrder.query.get(po_id)
     po.status = PurchaseOrderStatus.pending
