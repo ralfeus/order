@@ -32,8 +32,9 @@ def get_network_builder_status(action):
 @roles_required('admin')
 def admin_get_nodes():
     '''Returns filtered nodes in JSON'''
+    from app import db
     from app.settings.models import Setting
-    root_id = Setting.query.get('network.root_id').value
+    root_id = db.session.get(Setting, 'network.root_id').value
     if request.values.get('draw') is not None: # Args were provided by DataTables
         args = convert_datatables_args(request.values)
         payload = {

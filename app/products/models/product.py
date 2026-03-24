@@ -35,7 +35,7 @@ class Product(db.Model, BaseModel): #type: ignore
     available = Column(Boolean, default=True)
     synchronize = Column(Boolean, default=True)
     purchase = Column(Boolean, default=True)
-    available_shipping = relationship(Shipping, secondary=_products_shipping, lazy='dynamic')
+    available_shipping = relationship(Shipping, secondary=_products_shipping, lazy='select')
     # Appearance
     image_id = Column(Integer, ForeignKey('files.id'))
     image = relationship(File, uselist=False)
@@ -45,7 +45,7 @@ class Product(db.Model, BaseModel): #type: ignore
         return "<Product {}:'{}'>".format(self.id, self.name_english)
 
     def get_available_shipping(self):
-        if self.available_shipping.count() > 0:
+        if len(self.available_shipping) > 0:
             return self.available_shipping
         else:
             return Shipping.query

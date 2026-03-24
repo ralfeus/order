@@ -3,6 +3,7 @@ from typing import Optional
 from unittest import TestCase
 # import unittest
 #unittest.TestCase.run = lambda self,*args,**kw: unittest.TestCase.debug(self)
+from sqlalchemy import text
 from app import db, create_app
 
 from app.orders.models.subcustomer import Subcustomer
@@ -18,7 +19,7 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        db.session.execute('pragma foreign_keys=on') #type:ignore
+        db.session.execute(text('pragma foreign_keys=on')) #type:ignore
 
     def setUp(self):
         self.app = app
@@ -52,11 +53,12 @@ class BaseTestCase(TestCase):
         if admin_name is None and self.admin:
             admin_name = self.admin.username
         res = operation()
-        self.assertEqual(res.status_code, 302)
+        # Flask-Security-Too 5.x returns 401/403 for API requests (was 302 in FST 3.x)
+        self.assertIn(res.status_code, [302, 401, 403])
         if not admin_only:
             res = self.login(user_name, user_password)
             res = operation()
-            self.assertEqual(res.status_code, 302)
+            self.assertIn(res.status_code, [302, 401, 403])
             self.logout()
         self.login(admin_name, admin_password)
         return operation()
@@ -65,7 +67,8 @@ class BaseTestCase(TestCase):
         if user_name is None and self.user:
             user_name = self.user.username
         res = operation()
-        self.assertEqual(res.status_code, 302)
+        # Flask-Security-Too 5.x returns 401/403 for API requests (was 302 in FST 3.x)
+        self.assertIn(res.status_code, [302, 401, 403])
         res = self.login(user_name, user_password)
         return operation()
 

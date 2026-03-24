@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from tests import BaseTestCase, db
 from app.models import Country
 from app.users.models import Role, User
@@ -23,8 +24,8 @@ class TestShippingDHL(BaseTestCase):
         # db.session.execute("INSERT INTO dhl_zones VALUES(4)")
         # db.session.execute("INSERT INTO dhl_zones VALUES(5)")
         # db.session.execute("INSERT INTO dhl_zones VALUES(6)")
-        db.session.execute("INSERT INTO dhl_zones VALUES(7)")
-        db.session.execute("INSERT INTO dhl_zones VALUES(8)")
+        db.session.execute(text("INSERT INTO dhl_zones VALUES(7)"))
+        db.session.execute(text("INSERT INTO dhl_zones VALUES(8)"))
         self.try_add_entities([
             self.user, self.admin, admin_role,
             Country(id='ua', name='Ukraine', sort_order=0),

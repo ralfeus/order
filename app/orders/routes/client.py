@@ -8,6 +8,7 @@ from flask_security import current_user, login_required, roles_required
 from markupsafe import escape
 import openpyxl
 
+from app import db
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
 from app.models.country import Country
@@ -68,7 +69,7 @@ def user_new_order():
     from ..signals import user_create_sale_order_rendering
     extensions = user_create_sale_order_rendering.send()
     base_country = Country.get_base_country(current_app.config.get('TENANT_NAME', 'default'))
-    user_currency = Currency.query.get(current_user.currency_code) \
+    user_currency = db.session.get(Currency, current_user.currency_code) \
         if current_user.currency_code else Currency.get_base_currency(
             current_app.config.get('TENANT_NAME', 'default'))
     return render_template('new_order.html',
@@ -98,7 +99,7 @@ def user_get_order(order_id):
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     if order.status == OrderStatus.draft:
-        user_currency = Currency.query.get(current_user.currency_code) \
+        user_currency = db.session.get(Currency, current_user.currency_code) \
             if current_user.currency_code else Currency.get_base_currency(
                 current_app.config.get('TENANT_NAME', 'default'))
         return render_template('new_order.html',
@@ -111,7 +112,7 @@ def user_get_order(order_id):
                 current_app.config.get('TENANT_NAME', 'default')),
             user_currency=user_currency,
         )
-    currency = Currency.query.get(current_user.currency_code) \
+    currency = db.session.get(Currency, current_user.currency_code) \
         if current_user.currency_code else \
         Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
     rate = currency.get_rate(order.when_created)
@@ -190,7 +191,7 @@ def _get_dl_excel(orders: list[Order], url: str = ''):
         row = [
             order.country.name,
             address,
-            order.boxes.count() or 1, #type: ignore
+            len(order.boxes) or 1,
             order.id[9:],
             order.total_weight / 1000,
             '\n'.join([f'{b.length}-{b.width}-{b.height}' for b in order.boxes]),
@@ -233,7 +234,7 @@ def admin_get_orders():
 @login_required
 @roles_required('admin')
 def admin_get_order(order_id):
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
@@ -267,7 +268,7 @@ def user_get_order_excel(order_id):
     '''
     Generates an Excel file for an order
     '''
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     try:
@@ -287,7 +288,7 @@ def admin_get_customs_label(order_id):
     '''
     Generates a label for a destination customs for an order
     '''
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     try:

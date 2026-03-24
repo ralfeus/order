@@ -14,7 +14,7 @@ class LoginForm(BaseLoginForm):
     # flask_security requires that LoginForm has <user> property of user to log in
     user = None
 
-    def validate(self):
+    def validate(self, extra_validators=None):
         logger = current_app.logger.getChild('login')
         self.user = User.query.filter_by(username=self.username.data).first()
         result = False

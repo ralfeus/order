@@ -35,8 +35,8 @@ class Payment(db.Model, BaseModel):
     user = relationship('User', foreign_keys=[user_id])
     sender_name = Column(String(128))
     orders = db.relationship('Order', secondary=payments_orders, # type: ignore
-                             backref=db.backref('payments', lazy='dynamic'), # type: ignore
-                             lazy='dynamic')
+                             backref=db.backref('payments', lazy='select'), # type: ignore
+                             lazy='select')
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
     amount_sent_original = Column(Numeric(scale=2), default=0)
@@ -44,7 +44,7 @@ class Payment(db.Model, BaseModel):
     amount_received_krw = Column(Integer, default=0)
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
-    evidences = relationship("File", secondary=payments_files, lazy='dynamic')
+    evidences = relationship("File", secondary=payments_files, lazy='select')
     status = Column('status', Enum(PaymentStatus),
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
@@ -61,7 +61,7 @@ class Payment(db.Model, BaseModel):
                 setattr(self, arg, kwargs[arg])
         if self.payment_method is None:
             from .payment_method import PaymentMethod
-            self.payment_method = PaymentMethod.query.get(self.payment_method_id)
+            self.payment_method = db.session.get(PaymentMethod, self.payment_method_id)
 
     @classmethod
     def get_filter(cls, base_filter, column=None, filter_value=None):
@@ -144,7 +144,7 @@ class Payment(db.Model, BaseModel):
         logger = logging.getLogger('update_orders')
         logger.debug("Updating orders related to payment %s", self.id)
         logger.debug("There are %s orders related to the payment %s: %s",
-                     self.orders.count(),
+                     len(self.orders),
                      self.id,
                      reduce(
                          lambda acc, o: acc + "; " + o.id,
@@ -152,7 +152,7 @@ class Payment(db.Model, BaseModel):
         from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
             lambda acc, o: acc + o.total_base_currency,
-            self.orders.filter_by(status=OrderStatus.pending), 0
+            [o for o in self.orders if o.status == OrderStatus.pending], 0
         )
 #        if self.amount_received_krw >= total_orders_amount:
         logger.debug("Received payment amount %s is larger than total amount of related orders %s. Marking orders as can_be_paid",

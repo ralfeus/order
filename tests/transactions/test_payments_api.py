@@ -97,7 +97,7 @@ class TestPaymentApi(BaseTestCase):
                 'status': 'approved'
             }))
         self.assertIsNone(res.json.get('error'))
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.status, OrderStatus.can_be_paid)
 
     def test_pay_po_created_order(self):
@@ -115,7 +115,7 @@ class TestPaymentApi(BaseTestCase):
                 'status': 'approved'
             }))
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.status, OrderStatus.po_created)
 
     def test_get_payment_methods(self):

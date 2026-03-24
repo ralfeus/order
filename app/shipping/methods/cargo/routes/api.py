@@ -1,6 +1,8 @@
 from flask import jsonify, request
 from flask_security import login_required, roles_required
 
+from sqlalchemy import select
+
 from app import db
 from app.tools import modify_object, prepare_datatables_query
 from app.shipping.models.shipping_rate import ShippingRate
@@ -16,7 +18,7 @@ def admin_get_countries(shipping_id):
     '''Returns list of all countries with selection status'''
     from app.models.country import Country
 
-    shipping = Cargo.query.get(shipping_id)
+    shipping = db.session.get(Cargo, shipping_id)
     if shipping is None:
         return {'status': 'No shipping found'}, 404
 
@@ -62,7 +64,7 @@ def admin_save_rate(shipping_id, destination):
     payload = request.get_json()
     if payload is None:
         return {'error': 'No payload'}, 400
-    shipping = Cargo.query.get(shipping_id)
+    shipping = db.session.get(Cargo, shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
 
@@ -70,11 +72,15 @@ def admin_save_rate(shipping_id, destination):
         return {'error': 'Destination required'}, 400
 
     # Check if rate already exists for this destination
-    existing = shipping.rates.filter_by(destination=payload['destination']).first()
+    existing = db.session.execute(
+        select(ShippingRate).where(
+            ShippingRate.shipping_method_id == shipping_id,
+            ShippingRate.destination == payload['destination']
+        )
+    ).scalar_one_or_none()
     if existing:
         return {'error': f'Rate for {payload["destination"]} already exists'}, 400
 
-    from app.shipping.models.shipping_rate import ShippingRate
     rate = ShippingRate(
         shipping_method_id=shipping_id,
         destination=payload['destination'],
@@ -94,10 +100,15 @@ def admin_save_rate(shipping_id, destination):
 @roles_required('admin')
 def admin_delete_rate(shipping_id, destination):
     '''Delete a country (remove the rate)'''
-    shipping = Cargo.query.get(shipping_id)
+    shipping = db.session.get(Cargo, shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
-    rate = shipping.rates.filter_by(destination=destination).first()
+    rate = db.session.execute(
+        select(ShippingRate).where(
+            ShippingRate.shipping_method_id == shipping_id,
+            ShippingRate.destination == destination
+        )
+    ).scalar_one_or_none()
     if rate is None:
         return {'error': f'No rate for destination {destination} found'}, 404
     db.session.delete(rate) #type: ignore
@@ -113,7 +124,7 @@ def admin_save_countries(shipping_id):
     if payload is None or 'selected_countries' not in payload:
         return {'error': 'Selected countries required'}, 400
 
-    shipping = Cargo.query.get(shipping_id)
+    shipping = db.session.get(Cargo, shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
 
@@ -140,7 +151,12 @@ def admin_save_countries(shipping_id):
 
         # Remove old rates
         for country_id in to_remove:
-            rate = shipping.rates.filter_by(destination=country_id).first()
+            rate = db.session.execute(
+                select(ShippingRate).where(
+                    ShippingRate.shipping_method_id == shipping_id,
+                    ShippingRate.destination == country_id
+                )
+            ).scalar_one_or_none()
             if rate:
                 db.session.delete(rate) #type: ignore
 

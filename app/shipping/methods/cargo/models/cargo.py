@@ -7,9 +7,12 @@ from tempfile import _TemporaryFileWrapper, NamedTemporaryFile
 import openpyxl
 
 import app.orders.models as o
+from app import db
 from app.currencies.models import Currency
 from app.shipping.models.shipping import Shipping
+from app.shipping.models.shipping_rate import ShippingRate
 from common.exceptions import OrderError
+from sqlalchemy import select
 
 class Cargo(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'cargo'} #type: ignore
@@ -26,8 +29,14 @@ class Cargo(Shipping):
             destination_id = destination
         else:
             destination_id = destination.id
-        rate = self.rates.filter_by(destination=destination_id).first()
+        rate = db.session.execute(
+            select(ShippingRate).where(
+                ShippingRate.shipping_method_id == self.id,
+                ShippingRate.destination == destination_id
+            )
+        ).scalars().first()
         if rate:
+            # For cargo, the cost is always 0 if the country is allowed, otherwise no rate is found
             return 0
         from common.exceptions import NoShippingRateError
         raise NoShippingRateError()
@@ -65,7 +74,7 @@ class Cargo(Shipping):
         ws.cell(82, 4, datetime.date(datetime.now()))
         row = 13
         total_quantity = total_weight = total_amount = 0
-        usd = Currency.query.get('USD')
+        usd = db.session.get(Currency, 'USD')
         currency_rate = usd.rate  # base currency units per 1 USD
         for op in order.order_products:
             ws.cell(row, 3, op.product.name_english)

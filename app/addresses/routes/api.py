@@ -43,7 +43,7 @@ def save_address(address_id):
             when_created=datetime.now())
         db.session.add(address) # type:ignore
     else:
-        address = Address.query.get(address_id)
+        address = db.session.get(Address, address_id)
         if not address:
             abort(Response(f'No address <{address_id}> was found', status=400))
 
@@ -69,7 +69,7 @@ def delete_address(address_id):
     '''
     Deletes existing address item
     '''
-    address = Address.query.get(address_id)
+    address = db.session.get(Address, address_id)
     if not address:
         abort(Response(f'No address <{address_id}> was found', status=404))
 

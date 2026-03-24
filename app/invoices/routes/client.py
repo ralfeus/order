@@ -2,6 +2,7 @@ from flask import Response, abort, current_app, render_template, send_file
 from flask_login import current_user
 from flask_security import login_required, roles_required
 
+from app import db
 from app.models.country import Country
 from app.invoices import bp_client_admin, bp_client_user
 from app.invoices.models import Invoice
@@ -15,7 +16,7 @@ def get_static(file):
 @login_required
 @roles_required('admin')
 def admin_get_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
 
@@ -29,7 +30,7 @@ def admin_get_invoice(invoice_id):
 @bp_client_user.route('/<invoice_id>')
 @login_required
 def get_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
     if invoice.user != current_user:

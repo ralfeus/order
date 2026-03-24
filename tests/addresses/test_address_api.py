@@ -45,7 +45,7 @@ class TestAddressAPI(BaseTestCase):
             json={'zip': '22222'})
         )
         self.assertEqual(res.status_code, 200)
-        address = Address.query.get(gen_id)
+        address = db.session.get(Address, gen_id)
         self.assertEqual(address.zip, '22222')
 
         res = self.client.post(f'/api/v1/admin/address/{gen_id}',
@@ -62,6 +62,6 @@ class TestAddressAPI(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/admin/address/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
-        address = Address.query.get(gen_id)
+        address = db.session.get(Address, gen_id)
         self.assertEqual(address, None)
     

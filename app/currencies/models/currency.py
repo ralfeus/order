@@ -1,7 +1,7 @@
 ''' Currency '''
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Integer, Numeric, String
+from sqlalchemy import Boolean, Column, Integer, Numeric, String, select
 from sqlalchemy.orm import relationship
 
 from app import cache, db
@@ -16,7 +16,7 @@ class Currency(db.Model): #type: ignore
     enabled = Column(Boolean)
     base = Column(Boolean)
     rate = Column(Numeric(scale=10))
-    history = relationship("CurrencyHistoryEntry", lazy="dynamic")
+    history = relationship("CurrencyHistoryEntry", lazy="select")
     prefix = Column(String(1))
     suffix = Column(String(1))
     decimal_places = Column(Integer)
@@ -42,8 +42,12 @@ class Currency(db.Model): #type: ignore
 
     def get_rate(self, date=datetime.now()) -> float:
         from app.currencies.models.currency_history_entry import CurrencyHistoryEntry
-        latest_rate = self.history.filter(CurrencyHistoryEntry.when_created <= date) \
-            .order_by(CurrencyHistoryEntry.when_created.desc()).first() #type: ignore
+        latest_rate = db.session.execute(
+            select(CurrencyHistoryEntry)
+            .where(CurrencyHistoryEntry.code == self.code,
+                   CurrencyHistoryEntry.when_created <= date)
+            .order_by(CurrencyHistoryEntry.when_created.desc())
+        ).scalars().first()
         if latest_rate is not None:
             return float(latest_rate.rate)
         return float(self.rate)

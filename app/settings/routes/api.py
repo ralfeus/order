@@ -36,7 +36,7 @@ def save_setting(setting_id):
             }), 400
     payload = request.get_json()
 
-    setting = Setting.query.get(setting_id)
+    setting = db.session.get(Setting, setting_id)
     if not setting:
         abort(Response(f'No setting <{setting_id}> was found', status=400))
 
@@ -53,7 +53,7 @@ def save_setting(setting_id):
 @roles_required('admin')
 def delete_setting(setting_id):
     '''Deletes existing setting item'''
-    setting = Setting.query.get(setting_id)
+    setting = db.session.get(Setting, setting_id)
     if not setting:
         abort(Response(f'No setting <{setting_id}> was found', status=404))
     setting.value = setting.default_value

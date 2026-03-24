@@ -2,10 +2,11 @@ from flask_inputs import Inputs
 from wtforms import ValidationError
 from wtforms.validators import Optional
 
+from app import db
 from app.models import Country
 
 def _is_destination_valid(_form, field):
-    if Country.query.get(field.data) is None:
+    if db.session.get(Country, field.data) is None:
         raise ValidationError('destination: Must be existing country code')
 
 def _is_positive_int(_form, field):

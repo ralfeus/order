@@ -63,13 +63,13 @@ class TestShippingAPI(BaseTestCase):
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending, 
                       payment_method_id=1, address='aa1', city_eng='cc1', 
                       zip='11', country_id='c1', shipping_box_weight=250)
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
         self.assertEqual(res.status_code, 200)
         print(res.get_json())
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
 
@@ -85,13 +85,13 @@ class TestShippingAPI(BaseTestCase):
                       payment_method_id=1, address='aa1', city_eng='cc1', 
                       zip='11', country_id='c1', shipping_box_weight=250, 
                       params={'shipping.items': 'Item 1/5/10\nItem 2/5/20'})
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
         self.assertEqual(res.status_code, 200)
         print(res.get_json())
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
 

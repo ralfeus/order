@@ -28,7 +28,7 @@ def post_po():
     # current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
     current_app.config['BROWSER_URL'] = 'http://localhost:9222'
     po_id = "PO-2026-01-0001-001"
-    po = PurchaseOrder.query.get(po_id)
+    po = db.session.get(PurchaseOrder, po_id)
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4

@@ -83,7 +83,7 @@ class TestCompanyClient(BaseTestCase):
             json={'name': 'Company_2', 'tax_id': '111-11-11111'})
         )
         self.assertEqual(res.status_code, 200)
-        company = Company.query.get(gen_id)
+        company = db.session.get(Company, gen_id)
         self.assertEqual(company.name, 'Company_2')
 
         # res = self.client.post(f'/api/v1/admin/company/{gen_id}',
@@ -101,6 +101,6 @@ class TestCompanyClient(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/admin/purchase/company/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
-        company = Company.query.get(gen_id)
+        company = db.session.get(Company, gen_id)
         self.assertEqual(company, None)
     

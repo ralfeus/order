@@ -33,7 +33,7 @@ class Suborder(db.Model, BaseModel): #type: ignore
     order_id: str = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
     order: o.Order = relationship('Order', foreign_keys=[order_id])
     buyout_date: datetime = Column(DateTime, index=True)
-    order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
+    order_products = relationship('OrderProduct', lazy='select', cascade='all, delete-orphan')
     local_shipping: int = Column(Integer(), default=0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
@@ -102,7 +102,7 @@ class Suborder(db.Model, BaseModel): #type: ignore
 
     def get_total(self, currency=None, local_shipping=True) -> float:
         if isinstance(currency, str):
-            currency = Currency.query.get(currency)
+            currency = db.session.get(Currency, currency)
         return float(self.get_subtotal(currency)) + \
             self.get_shipping(currency, local_shipping)
 

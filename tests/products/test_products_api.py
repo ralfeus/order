@@ -123,7 +123,7 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = Product.query.get(gen_id)
+        product = db.session.get(Product, gen_id)
         self.assertIsNotNone(product)
 
     def test_edit_product(self):
@@ -148,7 +148,7 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = Product.query.get(gen_id)
+        product = db.session.get(Product, gen_id)
         self.assertIsNotNone(product)
         self.assertEqual(product.name, "Test product")
 

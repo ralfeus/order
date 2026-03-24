@@ -162,8 +162,8 @@ class PurchaseOrder(db.Model, BaseModel): #type: ignore
         from app.purchase.signals import purchase_order_model_preparing
         purchase_date = self.purchase_date
         allow_purchase_restricted_products = (
-            Setting.query.get('purchase.allow_purchase_restricted_products') is not None and 
-            Setting.query.get('purchase.allow_purchase_restricted_products').value == '1'
+            db.session.get(Setting, 'purchase.allow_purchase_restricted_products') is not None and 
+            db.session.get(Setting, 'purchase.allow_purchase_restricted_products').value == '1'
         )
         purchase_restricted_products = self.purchase_restricted_products \
             if allow_purchase_restricted_products else None

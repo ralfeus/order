@@ -4,6 +4,7 @@ import re
 from flask_inputs import Inputs
 from wtforms import ValidationError
 
+from app import db
 from app.users.models.user import User
 
 def _is_int(_form, field):
@@ -13,7 +14,7 @@ def _is_int(_form, field):
             raise ValidationError(f'{field.id}: The value must be number')
 
 def _is_valid_user(_form, field):
-    if User.query.get(field.data) is None:
+    if db.session.get(User, field.data) is None:
         raise ValidationError(f'{field.id}: Is not a valid user')
 
 def _is_non_empty(_form, field):

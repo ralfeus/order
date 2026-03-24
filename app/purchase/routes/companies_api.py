@@ -44,7 +44,7 @@ def save_company(company_id):
         company.when_created = datetime.now()
         db.session.add(company)
     else:
-        company = Company.query.get(company_id)
+        company = db.session.get(Company, company_id)
         if not company:
             abort(Response(f'No company <{company_id}> was found', status=400))
 
@@ -80,7 +80,7 @@ def delete_company(company_id):
     '''
     Deletes existing company item
     '''
-    company = Company.query.get(company_id)
+    company = db.session.get(Company, company_id)
     if not company:
         abort(Response(f'No company <{company_id}> was found', status=404))
 

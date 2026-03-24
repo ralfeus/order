@@ -1,4 +1,5 @@
 from celery.utils.log import get_task_logger
+from sqlalchemy import text
 from app import celery, db
 from app.settings.models.setting import Setting
 
@@ -6,26 +7,26 @@ from app.settings.models.setting import Setting
 def copy_subtree(root_id=None):
     logger = get_task_logger('copy_subtree')
     if root_id is None:
-        root_id = Setting.query.get('network.root_id')
+        root_id = db.session.get(Setting, 'network.root_id')
     if root_id is None:
         return
     root_id = root_id.value
     logger.info("Getting record for root node %s", root_id)
     result = db.session.execute(
-        'SELECT parent_id FROM order_master_common.network_nodes WHERE id = :id',
+        text('SELECT parent_id FROM order_master_common.network_nodes WHERE id = :id'),
         {'id': root_id})
     if not result or not result.rowcount:
         logger.warning("No node ID %s found", root_id)
         return
-    db.session.execute('TRUNCATE network_nodes')
+    db.session.execute(text('TRUNCATE network_nodes'))
     if result.scalar() is None:
         logger.info("It's a root node. Copying everything")
-        result = db.session.execute('''
+        result = db.session.execute(text('''
             INSERT INTO network_nodes SELECT * FROM order_master_common.network_nodes
-        ''')
+        '''))
     else:
         logger.info("It's a partial node. Copying part of whole tree")
-        result = db.session.execute('''
+        result = db.session.execute(text('''
             INSERT INTO network_nodes
             WITH RECURSIVE cte AS (
                 SELECT when_created,when_changed,id,name,`rank`,highest_rank,
@@ -34,12 +35,12 @@ def copy_subtree(root_id=None):
                     left_id,right_id,built_tree
                 FROM order_master_common.network_nodes WHERE id = :root_id
                 UNION
-                SELECT n.* 
+                SELECT n.*
                 FROM
-                    order_master_common.network_nodes AS n 
+                    order_master_common.network_nodes AS n
                     JOIN cte ON n.parent_id = cte.id
             ) SELECT * FROM cte
-            ''', {'root_id': root_id})
+            '''), {'root_id': root_id})
     if result.rowcount:
         db.session.commit()
         logger.info("Copied %s rows", result.rowcount)

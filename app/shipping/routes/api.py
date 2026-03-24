@@ -44,7 +44,7 @@ def get_shipping_methods(country_id, weight):
     country_name = ""
     country: Optional[Country] = None
     if country_id:
-        country = Country.query.get(country_id)
+        country = db.session.get(Country, country_id)
         if country:
             country_name = country.name
 
@@ -171,7 +171,7 @@ def admin_save_shipping_method(shipping_method_id):
         shipping_method.when_created = db.func.now() #type: ignore
         db.session.add(shipping_method) #type: ignore
     else:
-        shipping_method = Shipping.query.get(shipping_method_id)
+        shipping_method = db.session.get(Shipping, shipping_method_id)
         if not shipping_method:
             abort(Response(
                 f"No shipping_method <{shipping_method_id}> was found", status=400
@@ -186,7 +186,7 @@ def admin_save_shipping_method(shipping_method_id):
     if id == None:
         id = shipping_method.id
     db.session.expunge(shipping_method) #type: ignore
-    shipping_method = Shipping.query.get(id)
+    shipping_method = db.session.get(Shipping, id)
     return jsonify({"data": [shipping_method.to_dict()]})
 
 
@@ -194,7 +194,7 @@ def admin_save_shipping_method(shipping_method_id):
 @roles_required("admin")
 def admin_delete_shipping_method(shipping_method_id):
     """Deletes existing shipping method"""
-    shipping_method = Shipping.query.get(shipping_method_id)
+    shipping_method = db.session.get(Shipping, shipping_method_id)
     if not shipping_method:
         abort(
             Response(f"No shipping method <{shipping_method_id}> was found", status=404)
@@ -207,7 +207,7 @@ def admin_delete_shipping_method(shipping_method_id):
 @bp_api_admin.route("/consign/<order_id>")
 @roles_required("admin")
 def consign_order(order_id: str):
-    order: o.Order = o.Order.query.get(order_id)
+    order: o.Order = db.session.get(o.Order, order_id)
     if order is None:
         abort(Response("Couldn't find an order {order_id}", 404))
     try:
@@ -229,7 +229,7 @@ def consign_order(order_id: str):
             raw_items = [f"{op.product.name_english}/{op.quantity}/{int(op.price / 3)}" 
                          for op in order.order_products]
         items = order.shipping.get_shipping_items(raw_items)        
-        if order.boxes.count() > 0: #type: ignore
+        if len(order.boxes) > 0:
             boxes = [o for o in order.boxes]
         else:
             boxes = [default_box]

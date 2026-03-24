@@ -16,7 +16,7 @@ from app.modules.warehouse.validators.warehouse_product import WarehouseProductV
 @roles_required('admin')
 def admin_delete_warehouses(warehouse_id):
     ''' Deletes a warehouses '''
-    warehouse = Warehouse.query.get(warehouse_id)
+    warehouse = db.session.get(Warehouse, warehouse_id)
     if not warehouse:
         abort(Response(f'No warehouse {warehouse_id} was found', status=404))
     db.session.delete(warehouse) #type: ignore
@@ -51,7 +51,7 @@ def admin_save_warehouse(warehouse_id):
         warehouse = Warehouse()
         db.session.add(warehouse) #type: ignore
     else:
-        warehouse = Warehouse.query.get(warehouse_id)
+        warehouse = db.session.get(Warehouse, warehouse_id)
         if not warehouse:
             abort(Response(f'No warehouse {warehouse_id} was found', status=404))
     with WarehouseValidator(request) as validator:
@@ -86,7 +86,7 @@ def _filter_objects(entities, filter_params):
 @roles_required('admin')
 def admin_get_warehouse_products(warehouse_id, product_id):
     ''' Returns all or selected products in a warehouse in JSON '''
-    warehouse = Warehouse.query.get(warehouse_id)
+    warehouse = db.session.get(Warehouse, warehouse_id)
     if warehouse is None:
         return jsonify({})
     products = warehouse.products if product_id is None \
@@ -103,7 +103,7 @@ def admin_get_warehouse_products(warehouse_id, product_id):
 def admin_save_warehouse_product(warehouse_id, product_id):
     '''Creates or saves existing warehouse product'''
     logger = current_app.logger.getChild('admin_save_warehouse_product')
-    warehouse = Warehouse.query.get(warehouse_id)
+    warehouse = db.session.get(Warehouse, warehouse_id)
     if warehouse is None:
         return jsonify({
                 'data': [],
@@ -136,7 +136,7 @@ def admin_save_warehouse_product(warehouse_id, product_id):
 @roles_required('admin')
 def admin_delete_warehouse_product(warehouse_id, product_ids):
     ''' Deletes a warehouses '''
-    warehouse = Warehouse.query.get(warehouse_id)
+    warehouse = db.session.get(Warehouse, warehouse_id)
     if warehouse is None:
         abort(Response(f'No warehouse {warehouse_id} was found', status=404))
     for product_id in product_ids.split(','):
