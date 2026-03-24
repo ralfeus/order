@@ -51,6 +51,8 @@ def create_app(config=None):
     app.config.from_file(config_file, load=load)
     app.config['TENANT_NAME'] = tenant
     app.config.update(os.environ)
+    if isinstance(app.config.get('CACHE_MEMCACHED_SERVERS'), str):
+        app.config['CACHE_MEMCACHED_SERVERS'] = app.config['CACHE_MEMCACHED_SERVERS'].split(',')
     init_logging(app)
 
     Bootstrap(app)

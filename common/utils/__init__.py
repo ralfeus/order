@@ -85,10 +85,13 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
     try:
         return json.loads(stdout)
     except json.JSONDecodeError:
-        match = re.search(r'HTTP.*? (\d+)', stderr)
-        status = match.groups()[0] if match else ''
+        # Match only curl's response-header lines (prefixed with "< " in -v output)
+        # to avoid misreading HTTP/2 stream-level messages like
+        # "* HTTP/2 stream 10 was not closed cleanly" as a status code.
+        match = re.search(r'< HTTP/[\d.]+ (\d+)', stderr)
+        status = match.group(1) if match else ''
         if status != '200':
-            logging.debug(status)
+            logging.debug("HTTP status from curl stderr: %r | stderr: %s", status, stderr)
             raise HTTPError(status)
         if retries > 0:
             logging.warning("Couldn't get json from URL %s. Will retry %s more time%s",

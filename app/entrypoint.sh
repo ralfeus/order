@@ -8,7 +8,8 @@ if [ "$CELERY" = "1" ]; then
 else
     FLASK_APP=app flask db upgrade
     exec gunicorn --bind 0.0.0.0:5000 \
-        -w "${GUNICORN_WORKERS:-8}" \
+        -w "${GUNICORN_WORKERS:-5}" \
+        --limit-request-line 8190 \
         --statsd-host statsd:8125 \
         --statsd-prefix tenant \
         "app:create_app()"

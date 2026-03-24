@@ -128,6 +128,8 @@ class AtomyClient:
         self._socks5_proxy = socks5_proxy
         self._logger = logging.getLogger(self.__class__.__name__)
 
+    _HTTP_RETRIES = 3
+
     def fetch_tree(self, node_id: str, auth: tuple[str, str]) -> list[dict]:
         """Fetches and returns the list of member dicts for *node_id*.
 
@@ -139,6 +141,7 @@ class AtomyClient:
         :raises Exception: on any unrecoverable network or API error.
         """
         user = auth[0]
+        http_retries_left = self._HTTP_RETRIES
         while True:
             try:
                 token_cookie, user = self._authenticate(auth)
@@ -165,6 +168,14 @@ class AtomyClient:
                 if ex.status == '302':
                     self._logger.debug("Token for %s expired, re-logging in", user)
                     self._token_manager.invalidate(user)
+                    continue
+                if http_retries_left > 0:
+                    http_retries_left -= 1
+                    self._logger.warning(
+                        "Node %s: unexpected %s (retries left: %d); cooling down",
+                        node_id, ex, http_retries_left,
+                    )
+                    self._token_manager.set_cooldown(user)
                     continue
                 raise
 
