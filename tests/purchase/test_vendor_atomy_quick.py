@@ -175,7 +175,7 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
             address=Address(address_1="", address_2=""),
         )
         self.try_add_entities([order, so, op, po, company])
-        return p.PurchaseOrder.query.get(po.id)
+        return db.session.get(p.PurchaseOrder, po.id)
 
     # ------------------------------------------------------------------
     # Tests
@@ -214,7 +214,7 @@ class TestPurchaseOrdersVendorAtomyQuick(BaseTestCase):
             address=Address(address_1="", address_2=""),
         )
         self.try_add_entities([order, so, op, op1, po, company])
-        po = p.PurchaseOrder.query.get(po.id)
+        po = db.session.get(p.PurchaseOrder, po.id)
         # Must complete without error; the purchase=False product is skipped
         AtomyQuick(config=current_app.config).post_purchase_order(po)
 

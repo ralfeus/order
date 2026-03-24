@@ -24,7 +24,7 @@ def admin_create_notification():
 @login_required
 @roles_required('admin')
 def admin_update_notification(notification_id):
-    notification = Notification.query.get(notification_id)
+    notification = db.session.get(Notification, notification_id)
     if notification is None:
         return jsonify({'error': f'No notification is found by ID {notification_id}'})
     payload = request.get_json()
@@ -38,7 +38,7 @@ def admin_update_notification(notification_id):
 @login_required
 @roles_required('admin')
 def admin_delete_notification(notification_id):
-    notification = Notification.query.get(notification_id)
+    notification = db.session.get(Notification, notification_id)
     if notification is None:
         return jsonify({'error': f'No notification is found by ID {notification_id}'})
     db.session.delete(notification) #type: ignore

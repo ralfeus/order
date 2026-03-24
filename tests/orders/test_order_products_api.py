@@ -59,7 +59,7 @@ class TestOrderProductsApi(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/order/product/{op_id}')
         )
         self.assertEqual(res.status_code, 200)
-        op = OrderProduct.query.get(op_id)
+        op = db.session.get(OrderProduct, op_id)
         self.assertEqual(op, None)
         
     def test_postpone_order_product(self):
@@ -132,5 +132,5 @@ class TestOrderProductsApi(BaseTestCase):
         ])
         self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/product/{op_id + 1}/status/unavailable'))
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.subtotal_base_currency, 2600)

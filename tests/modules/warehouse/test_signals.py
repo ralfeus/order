@@ -60,5 +60,5 @@ class TestWarehouseApi(BaseTestCase):
                 "status": "shipped",
         }))
         self.assertEqual(res.status_code, 200)
-        warehouse_product = WarehouseProduct.query.get((gen_int_id, '0001'))
+        warehouse_product = db.session.get(WarehouseProduct, (gen_int_id, '0001'))
         self.assertEqual(warehouse_product.quantity, 5)

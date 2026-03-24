@@ -108,7 +108,7 @@ FEES = {
 
 def calculate_base_amount(payment: Payment) -> float:
     log.set_payment_id(payment.id)
-    om_rate = Currency.query.get(payment.currency_code).rate
+    om_rate = db.session.get(Currency, payment.currency_code).rate
     fx_rate = om_rate
     try:
         fx_rate = ExchangeRateManager().get_rate(
@@ -149,7 +149,7 @@ def find_or_create_customer(payment: Payment) -> str:
     Find existing customer by email, create if not found
     """
     email = payment.orders[0].email \
-        if payment.orders.count() and payment.orders[0].email else None
+        if len(payment.orders) and payment.orders[0].email else None
     name = payment.sender_name or f"Payer {payment.id}"
     if email:
         # Search for existing customer by email
@@ -181,7 +181,7 @@ def find_or_create_customer(payment: Payment) -> str:
 def checkout(payment_id):
     """Create Stripe Checkout Session and redirect to it"""
     log.set_payment_id(payment_id)
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not payment:
         return "Payment not found", 404
 
@@ -289,7 +289,7 @@ def _handle_checkout_complete(session):
     payment_id = int(payment_id_str)
     log.set_payment_id(payment_id)
 
-    payment: Payment = Payment.query.get(payment_id)
+    payment: Payment = db.session.get(Payment, payment_id)
     if not payment:
         log.warning(f"Payment {payment_id} not found")
         return

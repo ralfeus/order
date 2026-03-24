@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import jsonify, request
 from flask_security import login_required, roles_required
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 
 from app import cache, db
 from app.tools import modify_object, prepare_datatables_query
@@ -16,10 +16,10 @@ from .. import bp_api_admin
 @roles_required('admin')
 def admin_get_rates(shipping_id, rate_id):
     '''Returns list of rates in JSON'''
-    shipping = WeightBased.query.get(shipping_id)
+    shipping = db.session.get(WeightBased, shipping_id)
     if shipping is None:
         return {'status': 'No shipping found'}, 404
-    rates = shipping.rates
+    rates = WeightBasedRate.query.filter_by(shipping_id=shipping_id)
     if rate_id:
         rates = rates.filter_by(id=rate_id)
     if request.values.get('draw') is not None:  # Args were provided by DataTables
@@ -68,7 +68,7 @@ def admin_save_rate(shipping_id, destination):
     payload = request.get_json()
     if payload is None:
         return {'error': 'No payload'}, 400
-    shipping = WeightBased.query.get(shipping_id)
+    shipping = db.session.get(WeightBased, shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
     with WeightBasedRateValidator(request) as validator:
@@ -84,7 +84,12 @@ def admin_save_rate(shipping_id, destination):
         db.session.add(rate)
     else:
         destination = destination.split('-')[1]
-        rate = shipping.rates.filter_by(destination=destination).first()
+        rate = db.session.execute(
+            select(WeightBasedRate).where(
+                WeightBasedRate.shipping_id == shipping_id,
+                WeightBasedRate.destination == destination
+            )
+        ).scalar_one_or_none()
         if rate is None:
             return {'error': f'No shipping rate for destination {destination} found'}, 404
     if payload.get('minimum_weight') is None:
@@ -111,11 +116,16 @@ def admin_save_rate(shipping_id, destination):
 @roles_required('admin')
 def admin_delete_rate(shipping_id, destination):
     '''Delete selected rate'''
-    shipping = WeightBased.query.get(shipping_id)
+    shipping = db.session.get(WeightBased, shipping_id)
     if shipping is None:
         return {'error': f'No shipping {shipping_id} found'}, 404
     destination = destination.split('-')[1]
-    rate = shipping.rates.filter_by(destination=destination).first()
+    rate = db.session.execute(
+        select(WeightBasedRate).where(
+            WeightBasedRate.shipping_id == shipping_id,
+            WeightBasedRate.destination == destination
+        )
+    ).scalar_one_or_none()
     if rate is None:
         return {'error': f'No shipping rate for destination {destination} found'}, 404
     db.session.delete(rate)

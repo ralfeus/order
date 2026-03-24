@@ -42,7 +42,7 @@ def admin_get_subcustomers():
             }
         )
     if request.values.get("initialValue") is not None:
-        sub = Subcustomer.query.get(request.values.get("value"))
+        sub = db.session.get(Subcustomer, request.values.get("value"))
         return jsonify({"id": sub.id, "text": sub.name} if sub is not None else {})
     if request.values.get("q") is not None:
         subcustomers = Subcustomer.get_filter(
@@ -100,7 +100,7 @@ def admin_save_subcustomer(subcustomer_id):
     payload = request.get_json()
     if payload is None:
         abort(Response("No customer data is provided", status=400))
-    subcustomer = Subcustomer.query.get(subcustomer_id)
+    subcustomer = db.session.get(Subcustomer, subcustomer_id)
     if subcustomer is None:
         abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
 
@@ -131,7 +131,7 @@ def admin_save_subcustomer(subcustomer_id):
 @login_required
 @roles_required("admin")
 def admin_delete_subcustomer(subcustomer_id):
-    subcustomer = Subcustomer.query.get(subcustomer_id)
+    subcustomer = db.session.get(Subcustomer, subcustomer_id)
     if subcustomer is None:
         abort(Response(f"No customer <{subcustomer_id}> is found", status=404))
     owned_suborders = Suborder.query.filter_by(subcustomer=subcustomer)

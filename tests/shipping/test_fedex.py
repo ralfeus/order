@@ -83,7 +83,7 @@ class TestShippingFedex(BaseTestCase):
         fedex = Fedex()
         self.try_add_entities([fedex])
         fedex.settings.service_type = 'FEDEX_INTERNATIONAL_PRIORITY'
-        germany = Country.query.get('de')
+        germany = db.session.get(Country, 'de')
         res = fedex.can_ship(germany, 1, [])
         self.assertTrue(res)
 

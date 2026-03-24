@@ -62,7 +62,7 @@ class TestStripePayments(BaseTestCase):
         ])
 
     def _make_payment(self, status: PaymentStatus) -> Payment:
-        currency = Currency.query.get('USD')
+        currency = db.session.get(Currency, 'USD')
         payment = Payment(
             user_id=self.user.id,  # type: ignore
             amount_sent_original=10,
@@ -85,7 +85,7 @@ class TestStripePayments(BaseTestCase):
         """Success redirect just renders the page; it does not approve the payment."""
         payment = self._make_payment(PaymentStatus.pending)
         self._call_success(payment.id)
-        updated = Payment.query.get(payment.id)
+        updated = db.session.get(Payment, payment.id)
         self.assertEqual(updated.status, PaymentStatus.pending)
 
     def test_webhook_approves_pending_payment(self):
@@ -103,7 +103,7 @@ class TestStripePayments(BaseTestCase):
                    return_value=mock_intent):
             _handle_checkout_complete(session)
 
-        updated = Payment.query.get(payment.id)
+        updated = db.session.get(Payment, payment.id)
         self.assertEqual(updated.status, PaymentStatus.approved)
 
     def test_webhook_does_not_approve_non_pending_payment(self):
@@ -120,7 +120,7 @@ class TestStripePayments(BaseTestCase):
                 with patch('app.payments.routes.payment_methods.stripe.stripe.PaymentIntent.retrieve',
                            return_value=mock_intent):
                     _handle_checkout_complete(session)
-                updated = Payment.query.get(payment.id)
+                updated = db.session.get(Payment, payment.id)
                 self.assertEqual(updated.status, status)
 
     def test_checkout_session_amount_not_less_than_base_amount(self):

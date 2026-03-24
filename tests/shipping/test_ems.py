@@ -41,12 +41,12 @@ class TestShippingEMS(BaseTestCase):
         self.try_add_entity(EMS())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.status, OrderStatus.shipped)
 
     @patch('app.shipping.methods.ems.models.ems.EMS.print')
@@ -55,7 +55,7 @@ class TestShippingEMS(BaseTestCase):
         self.try_add_entity(Shipping())
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending)
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/admin/shipping/ems/label?order_id={order.id}'))

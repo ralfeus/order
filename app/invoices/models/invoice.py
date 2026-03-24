@@ -28,7 +28,7 @@ class Invoice(db.Model):  # type: ignore
     orders = relationship('Order')
     export_id = Column(String(32))
     currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=False)
-    _invoice_items = relationship('InvoiceItem', lazy='dynamic')
+    _invoice_items = relationship('InvoiceItem', lazy='select')
     #total = Column(Integer)
 
     when_created = Column(DateTime, index=True)
@@ -36,23 +36,23 @@ class Invoice(db.Model):  # type: ignore
 
     def get_invoice_items(self):
         logger = logging.getLogger('get_invoice_items')
-        if self._invoice_items.count() > 0:
+        if len(self._invoice_items) > 0:
             return self._invoice_items
         else:
             logger.info("Getting items for %s from order products", self.id)
             from app.currencies.models import Currency
             from app.invoices.models import InvoiceItem
             temp_invoice_items = []
-            currency = Currency.query.get(self.currency_code)
+            currency = db.session.get(Currency, self.currency_code)
             rate = currency.get_rate(self.when_created) \
                 if currency else 1.0
             for order in self.orders:
                 order_products = None
-                if order.suborders.count() > 0:
+                if len(order.suborders) > 0:
                     order_products = [order_product for suborder in order.suborders
                                                     for order_product in suborder.order_products]
                 else:
-                    order_products = order.order_products 
+                    order_products = order.order_products
                 for order_product in order_products:
                     temp_invoice_items.append(InvoiceItem(
                         id=len(temp_invoice_items) + 1,
@@ -71,10 +71,7 @@ class Invoice(db.Model):  # type: ignore
         Dirty hack of getting count of elements for backward compatibility
         '''
         ii = self.get_invoice_items()
-        if isinstance(ii, list):
-            return len(ii)
-        else:
-            return ii.count()
+        return len(ii)
 
 
     def __init__(self, **kwargs):

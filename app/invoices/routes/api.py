@@ -37,7 +37,7 @@ def create_invoice():
         orders = Order.query.filter(Order.id.in_(payload["order_ids"]), Order.user == current_user).all()
     else:
         orders = Order.query.filter(Order.id.in_(payload["order_ids"])).all()
-    currency = Currency.query.get(payload["currency"])
+    currency = db.session.get(Currency, payload["currency"])
     rate = currency.get_rate()
     invoice = Invoice(currency_code=currency.code, user=current_user)
     # invoice_items = []
@@ -259,7 +259,7 @@ def create_invoice_excel(reference_invoice: Invoice, template: str):
 @bp_api_admin.route("/<invoice_id>", methods=["POST"])
 @roles_required("admin")
 def save_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
     payload = request.get_json()
@@ -276,7 +276,7 @@ def get_invoice_excel(invoice_id):
     """
     Generates an Excel file for an invoice
     """
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"The invoice <{invoice_id}> was not found", status=404))
     if not current_user.has_role('admin') and invoice.user != current_user:
@@ -307,7 +307,7 @@ def get_invoice_cumulative_excel():
     cumulative_invoice = Invoice()
     valid_invoices = []
     for invoice_id in request.args.getlist("invoices"):
-        invoice = Invoice.query.get(invoice_id)
+        invoice = db.session.get(Invoice, invoice_id)
         if invoice and (current_user.has_role('admin') or invoice.user == current_user):
             valid_invoices.append(invoice)
             if not cumulative_invoice.customer:
@@ -337,12 +337,16 @@ def save_invoice_item(invoice_id, invoice_item_id):
     payload = request.get_json()
     if not payload:
         abort(Response("No data was provided", status=400))
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     invoice_item = None
     if not invoice:
         abort(Response(f"No invoice <{invoice_id}> was found", status=404))
     if invoice_item_id != "new":
-        invoice_item = invoice.get_invoice_items().filter_by(id=invoice_item_id).first()
+        invoice_item = next(
+            (item for item in invoice.get_invoice_items()
+             if str(item.id) == str(invoice_item_id)),
+            None
+        )
         if not invoice_item:
             abort(
                 Response(f"No invoice item <{invoice_item_id}> was found", status=404)
@@ -363,10 +367,14 @@ def delete_invoice_item(invoice_id, invoice_item_id):
     """
     Deletes existing invoice item
     """
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"No invoice <{invoice_id}> was found", status=404))
-    invoice_item = invoice.get_invoice_items().filter_by(id=invoice_item_id).first()
+    invoice_item = next(
+        (item for item in invoice.get_invoice_items()
+         if str(item.id) == str(invoice_item_id)),
+        None
+    )
     if not invoice_item:
         abort(Response(f"No invoice item<{invoice_item_id}> was found", status=404))
     db.session.delete(invoice_item) #type: ignore

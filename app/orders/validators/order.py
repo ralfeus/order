@@ -5,6 +5,7 @@ from flask_inputs import Inputs
 from wtforms import ValidationError
 from wtforms.validators import DataRequired
 
+from app import db
 from app.models.country import Country
 from app.shipping.models.shipping import Shipping, NoShipping, PostponeShipping
 from app.shipping.methods.dhl.models import DHL
@@ -28,7 +29,7 @@ def _are_suborders_valid(_form, field):
                 raise ValidationError("suborder.order_product.item_code:Empty product code")
 
 def _is_dhl_compliant(form, field):
-    shipping = Shipping.query.get(form.data['shipping'])
+    shipping = db.session.get(Shipping, form.data['shipping'])
     if isinstance(shipping, DHL):
         if not re.match(r'^[a-zA-Z0-9\s\.,-]+$', field.data):
             raise ValidationError(
@@ -40,7 +41,7 @@ def _is_valid_string_field(form, field):
         NoShipping: None,
         PostponeShipping: None
     }
-    shipping = Shipping.query.get(form.data['shipping'])
+    shipping = db.session.get(Shipping, form.data['shipping'])
     field_length = getattr(Order, field.name).type.length
     if type(shipping) in validators:
         if validators[type(shipping)] is not None:
@@ -56,7 +57,7 @@ def _is_valid_email(_form, field):
         raise ValidationError('email:Invalid email format')
 
 def _is_valid_country(_form, field):
-    country = Country.query.get(field.data)
+    country = db.session.get(Country, field.data)
     if not country:
         raise ValidationError('country:Value is invalid')
 

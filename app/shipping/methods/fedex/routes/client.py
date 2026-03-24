@@ -3,6 +3,7 @@ import os
 from flask import Response, abort, current_app, render_template, request, send_file
 from flask_security import login_required, roles_required
 
+from app import db
 from app.orders.models.order import Order
 from app.shipping.models.shipping import Shipping
 from ..models.fedex import get_label
@@ -19,7 +20,7 @@ def admin_edit():
 @login_required
 @roles_required('admin')
 def admin_print_label():
-    order = Order.query.get(request.args.get('order_id'))
+    order = db.session.get(Order, request.args.get('order_id'))
     tracking_id = request.args.get('tracking_id')
     if order is None and tracking_id is None:
         abort(status=404)
@@ -36,7 +37,7 @@ def admin_print_label():
 @login_required
 @roles_required('admin')
 def admin_edit_settings(shipping_id: int):
-    fedex = Shipping.query.get(shipping_id)
+    fedex = db.session.get(Shipping, shipping_id)
     if fedex is None:
         return f"The shipping method <{shipping_id}> wasn't found", 404
     return render_template('settings.html', shipping_id=fedex.id, settings=fedex.settings)

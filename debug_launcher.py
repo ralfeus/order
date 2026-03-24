@@ -29,7 +29,7 @@ def post_po():
     current_app.config['HEADLESS'] = False
     current_app.config['BROWSER_URL'] = None
     po_id = "PO-2026-01-0001-001"
-    po = PurchaseOrder.query.get(po_id)
+    po = db.session.get(PurchaseOrder, po_id)
     po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4

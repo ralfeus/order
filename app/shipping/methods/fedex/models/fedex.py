@@ -83,7 +83,7 @@ class Fedex(Shipping):
         '''Returns list of services available for the given country
         :param str country_id: ID of the country
         :returns list[str]: list of available services'''
-        country = Country.query.get(country_id)
+        country = db.session.get(Country, country_id)
         if country is None:
             return []
         payload = json.dumps({
@@ -445,7 +445,7 @@ class Fedex(Shipping):
 
     def get_shipping_cost(self, country_id, weight=250):
         try:
-            country: Country = Country.query.get(country_id)
+            country: Country = db.session.get(Country, country_id)
             if country is None:
                 raise NoShippingRateError()
             payload = {
@@ -492,7 +492,7 @@ class Fedex(Shipping):
             rate_dict = rate_objects[0][0]
             rate = float(rate_dict.get('totalNetChargeWithDutiesAndTaxes')
                              or rate_dict.get('totalNetFedExCharge'))
-            currency = Currency.query.get(rate_dict['currency'])
+            currency = db.session.get(Currency, rate_dict['currency'])
             if currency is None:
                 raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
             # Add 5% to cover future cost change

@@ -46,7 +46,7 @@ class DHL(Shipping):
     def get_shipping_cost(self, destination: str, weight):
         logger = logging.getLogger("DHL::get_shipping_cost()")
         weight = int(weight) / 1000
-        country = DHLCountry.query.get(destination)
+        country = db.session.get(DHLCountry, destination)
         if country is None:
             raise NoShippingRateError
         rate = sorted(

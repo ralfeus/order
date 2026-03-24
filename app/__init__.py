@@ -1,5 +1,5 @@
 ''' Initialization of the application '''
-from json import JSONEncoder, load
+from json import load
 import logging
 import os
 import re
@@ -8,6 +8,7 @@ import types
 
 from blinker import Namespace
 from flask import Flask
+from flask.json.provider import DefaultJSONProvider
 from flask_bootstrap import Bootstrap
 from flask_caching import Cache
 from flask_migrate import Migrate
@@ -20,13 +21,15 @@ from flask_sqlalchemy import SQLAlchemy
 from app.utils.services import get_celery, init_celery
 
 ################### JSON serialization patch ######################
-# In order to have all objects use to_dict() function providing
-# dictionary for JSON serialization
-def _default(_self, obj):
-    return getattr(obj.__class__, "to_dict", _default.default)(obj) #pyright: ignore
-
-_default.default = JSONEncoder.default  #type: ignore # Save unmodified default.
-JSONEncoder.default = _default  #type: ignore # Replace it.
+# Flask 2.3+ uses DefaultJSONProvider instead of JSONEncoder.
+# Override default() to call to_dict() on any object that has it.
+class _ToDict_JSONProvider(DefaultJSONProvider):
+    @staticmethod
+    def default(obj):  # type: ignore[override]
+        to_dict = getattr(obj.__class__, 'to_dict', None)
+        if to_dict is not None:
+            return to_dict(obj)
+        return DefaultJSONProvider.default(obj)
 ###################################################################
 
 
@@ -48,6 +51,8 @@ def create_app(config=None):
     tenant = tenant_match.group() \
              if tenant_match else __name__
     app = Flask(__name__)
+    app.json_provider_class = _ToDict_JSONProvider
+    app.json = _ToDict_JSONProvider(app)
     app.config.from_file(config_file, load=load)
     app.config['TENANT_NAME'] = tenant
     app.config.update(os.environ)
@@ -76,7 +81,7 @@ def create_app(config=None):
                 return {}
             currencies = Currency.query.filter_by(enabled=True).all()
             base_currency =Currency.get_base_currency(app.config.get('TENANT_NAME', 'default'))
-            user_currency = Currency.query.get(current_user.currency_code) \
+            user_currency = db.session.get(Currency, current_user.currency_code) \
                 if current_user.currency_code else \
                 base_currency
             return {

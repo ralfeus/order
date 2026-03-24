@@ -5,8 +5,10 @@ import logging
 import math
 
 # from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import select
 from sqlalchemy.orm import relationship
 
+from app import db
 from app.models import Country
 from common.exceptions import NoShippingRateError
 from app.shipping.models.shipping import Shipping
@@ -16,13 +18,18 @@ class WeightBased(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'weight_based'}
 
     type = "Weight based"
-    rates = relationship('WeightBasedRate', lazy='dynamic')
+    rates = relationship('WeightBasedRate', lazy='select')
 
     def __get_rate(self, destination):
         if isinstance(destination, Country):
             destination = destination.id
 
-        return self.rates.filter_by(destination=destination).first()
+        return db.session.execute(
+            select(WeightBasedRate).where(
+                WeightBasedRate.shipping_id == self.id,
+                WeightBasedRate.destination == destination
+            )
+        ).scalar_one_or_none()
 
     def get_edit_url(self):
         from .. import bp_client_admin

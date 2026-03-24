@@ -169,7 +169,7 @@ class TestShippingCargo(BaseTestCase):
         self.assertEqual(res.get_json()['status'], 'success')
 
         # Check final state
-        cargo = Cargo.query.get(1)
+        cargo = db.session.get(Cargo, 1)
         selected_destinations = {rate.destination for rate in cargo.rates}
 
         self.assertEqual(selected_destinations, {'us', 'gb'})
@@ -197,3 +197,16 @@ class TestShippingCargo(BaseTestCase):
         )
         self.assertEqual(res.status_code, 404)
         self.assertIn('No shipping 999 found', res.get_json()['error'])
+
+    def test_get_shipping_cost_duplicate_rates(self):
+        """Regression: get_shipping_cost must not raise MultipleResultsFound
+        when the ShippingRate table contains more than one row for the same
+        (shipping_method_id, destination) pair."""
+        # Insert a duplicate rate for 'us' — same destination, same shipping method
+        duplicate = ShippingRate(shipping_method_id=1, destination='us', weight=1, rate=0)
+        self.try_add_entities([duplicate])
+
+        cargo = db.session.get(Cargo, 1)
+        # Must return 0 without raising sqlalchemy.exc.MultipleResultsFound
+        result = cargo.get_shipping_cost('us', 0)
+        self.assertEqual(result, 0)

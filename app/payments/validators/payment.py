@@ -5,6 +5,7 @@ import re
 from flask_inputs import Inputs
 from wtforms import ValidationError
 
+from app import db
 from app.currencies.models.currency import Currency
 from app.users.models.user import User
 from app.payments.models import PaymentMethod
@@ -17,16 +18,16 @@ def _is_int(_form, field):
 
 
 def _is_valid_currency(_form, field):
-    if Currency.query.get(field.data) is None:
+    if db.session.get(Currency, field.data) is None:
         raise ValidationError(f'{field.id}: Invalid currency code')
 
 def _is_valid_payment_method(_form, field):
-    if field.data is None or PaymentMethod.query.get(field.data['id']) is None:
+    if field.data is None or db.session.get(PaymentMethod, field.data['id']) is None:
         raise ValidationError(f'{field.id}.id: Is not a valid payment method')
 
 def _is_valid_sender(_form, field):
     try:
-        pm = PaymentMethod.query.get(_form.data['payment_method']['id'])
+        pm = db.session.get(PaymentMethod, _form.data['payment_method']['id'])
         if pm is not None:
             pm.validate_sender_name(field.data)
             return
@@ -35,7 +36,7 @@ def _is_valid_sender(_form, field):
     raise ValidationError(f'{field.id}: Not enough data for sender validation')
 
 def _is_valid_user(_form, field):
-    if User.query.get(field.data) is None:
+    if db.session.get(User, field.data) is None:
         raise ValidationError(f'{field.id}: Is not a valid user')
 
 class PaymentValidator(Inputs):

@@ -40,9 +40,9 @@ def admin_get_packers():
 def admin_save_order_packer(order_id):
     """Modify the order packer"""
     logger = current_app.logger.getChild("admin_save_order_packer")
-    order_packer = OrderPacker.query.get(order_id)
+    order_packer = db.session.get(OrderPacker, order_id)
     if order_packer is None:
-        order = Order.query.get(order_id)
+        order = db.session.get(Order, order_id)
         if order is None:
             abort(Response(f"No order {order_id} was found", status=404))
     payload = request.get_json()
@@ -54,7 +54,7 @@ def admin_save_order_packer(order_id):
         db.session.delete(order_packer)
         order_packer.packer = None
     else:
-        if Packer.query.get(payload["packer"]) is None:
+        if db.session.get(Packer, payload["packer"]) is None:
             logger.info("No packer %s is there yet. Adding new", payload["packer"])
             db.session.add(Packer(name=payload["packer"], when_created=datetime.now()))
             db.session.flush()

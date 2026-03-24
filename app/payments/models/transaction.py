@@ -26,9 +26,9 @@ class Transaction(BaseModel, db.Model): #type: ignore
     def __init__(self, amount, customer_id=None, customer=None, user_id=None,
                  user=None, **kwargs):
         if not customer:
-            customer = User.query.get(customer_id)
+            customer = db.session.get(User, customer_id)
         if not user:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
         self.__update_customer_balance(customer, amount)
         kwargs['amount'] = amount
         kwargs['customer'] = customer

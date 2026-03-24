@@ -19,7 +19,7 @@ from .. import bp_api_admin
 @roles_required('admin')
 def admin_get_settings(shipment_id: int):
     '''Returns settings of FedEx shipment'''
-    fedex: Fedex = Shipping.query.get(shipment_id)
+    fedex: Fedex = db.session.get(Shipping, shipment_id)
     if fedex is None:
         return {'error': f"No shipment <{shipment_id}> was found"}, 404
     return {'data': fedex.to_dict()}, 200
@@ -29,7 +29,7 @@ def admin_get_settings(shipment_id: int):
 @roles_required('admin')
 def admin_save_settings(shipment_id: int):
     '''Saves settings of FedEx shipment'''
-    fedex = Shipping.query.get(shipment_id)
+    fedex = db.session.get(Shipping, shipment_id)
     if fedex is None:
         return {'status': 'error', 'message': f"No shipment <{shipment_id}> was found"}, 404
     payload: dict[str, Any] = request.get_json() # type: ignore

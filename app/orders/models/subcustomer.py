@@ -48,7 +48,7 @@ class Subcustomer(db.Model, BaseModel):
     def is_internal(self):
         '''Defines whether subcustomer belongs to tenant's network'''
         if self.in_network is None:
-            return Node.query.get(self.username) is not None
+            return db.session.get(Node, self.username) is not None
         return self.in_network
 
     # def get_purchase_orders(self):

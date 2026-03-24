@@ -194,8 +194,8 @@ class TestOrdersClient(BaseTestCase):
         self.assertEqual(res.status_code, 200)
 
         db.session.expire_all()
-        updated_order1 = Order.query.get(order1.id)
-        updated_order2 = Order.query.get(order2.id)
+        updated_order1 = db.session.get(Order, order1.id)
+        updated_order2 = db.session.get(Order, order2.id)
         self.assertEqual(updated_order1.tracking_url, tracking_url)
         self.assertEqual(updated_order2.tracking_url, tracking_url)
 
@@ -221,7 +221,7 @@ class TestOrdersClient(BaseTestCase):
                            'items': [{'item_code': '0000', 'quantity': '1'}]}]
         })
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(res.json['order_id'])
+        order = db.session.get(Order, res.json['order_id'])
         self.assertEqual(order.user_currency_code, 'USD')
 
     def test_new_order_falls_back_to_base_currency(self):
@@ -246,7 +246,7 @@ class TestOrdersClient(BaseTestCase):
                            'items': [{'item_code': '0000', 'quantity': '1'}]}]
         })
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(res.json['order_id'])
+        order = db.session.get(Order, res.json['order_id'])
         self.assertEqual(order.user_currency_code, 'KRW')
 
     def test_user_currency_preference_stored_in_column(self):
@@ -311,5 +311,5 @@ class TestOrdersClient(BaseTestCase):
         self.assertEqual(res.status_code, 200)
 
         db.session.expire_all()
-        self.assertEqual(Order.query.get(order_in.id).tracking_url, tracking_url)
-        self.assertIsNone(Order.query.get(order_out.id).tracking_url)
+        self.assertEqual(db.session.get(Order, order_in.id).tracking_url, tracking_url)
+        self.assertIsNone(db.session.get(Order, order_out.id).tracking_url)

@@ -70,9 +70,9 @@ def admin_save_payment(payment_id):
     ''' Saves updates of user payment '''
     logger = logging.getLogger('admin_save_payment')
     payload: dict[str, Any] = request.get_json() # type: ignore
-    payment: Payment = Payment.query.get(payment_id)
+    payment: Payment = db.session.get(Payment, payment_id)
     if not payment:
-        abort(404)  
+        abort(404)
     messages = []
     logger.info("Updating payment %s by %s with data %s", payment_id, current_user, payload)
     if payload.get('status'):
@@ -157,7 +157,7 @@ def user_create_payment():
         and int(payload['user_id']) == current_user.id:
         user = current_user
     else:
-        user = User.query.get(payload['user_id'])
+        user = db.session.get(User, payload['user_id'])
     with PaymentValidator(request) as validator:
         if not validator.validate():
             error = {
@@ -171,7 +171,7 @@ def user_create_payment():
     if isinstance(payload['amount_sent_original'], str):
         payload['amount_sent_original'] = re.sub(
             r'[\s,]', '', payload['amount_sent_original'])
-    currency = Currency.query.get(payload['currency_code'])
+    currency = db.session.get(Currency, payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
     evidences = []
@@ -207,7 +207,7 @@ def user_create_payment():
 @login_required
 def user_delete_payment(payment_id):
     ''' Cancels payment request '''
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if payment is None:
         abort(404)
     if not payment.is_editable():
@@ -229,7 +229,7 @@ def _move_uploaded_file(file_id):
 @login_required
 def user_save_payment(payment_id):
     '''Saves updates in payment'''
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not payment:
         abort(404)
     if not payment.is_editable():
@@ -313,7 +313,7 @@ def user_upload_payment_evidence(payment_id):
             }
         })
 
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not current_user.has_role('admin') and \
         current_user != payment.user:
         abort(403)
@@ -368,7 +368,7 @@ def admin_get_payment_methods():
 @login_required
 @roles_required('admin')
 def save_payment_method(payment_method_id):
-    payment_method = PaymentMethod.query.get(payment_method_id)
+    payment_method = db.session.get(PaymentMethod, payment_method_id)
     if payment_method_id:
         if not payment_method:
             abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
@@ -386,7 +386,7 @@ def save_payment_method(payment_method_id):
 @login_required
 @roles_required('admin')
 def delete_payment_method(payment_method_id):
-    payment_method = PaymentMethod.query.get(payment_method_id)
+    payment_method = db.session.get(PaymentMethod, payment_method_id)
     if not payment_method:
         abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
     try:

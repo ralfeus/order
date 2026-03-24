@@ -11,11 +11,11 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 from sqlalchemy import Boolean, Column, Enum, DateTime, Numeric, ForeignKey, Integer, \
-    String, func, or_
+    String, func, or_, select
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.orm.collections import attribute_mapped_collection
+from sqlalchemy.orm import attribute_keyed_dict
 
 from app import db
 from app.currencies.models.currency import Currency
@@ -77,7 +77,7 @@ class Order(db.Model, BaseModel): # type: ignore
     phone = Column(String(64))
     email = Column(String(64))
     comment = Column(String(65536))
-    boxes: list[OrderBox] = relationship('OrderBox', lazy='dynamic', cascade="all, delete-orphan") # type: ignore
+    boxes = relationship('OrderBox', lazy='select', cascade="all, delete-orphan")
     shipping_box_weight = Column(Integer())
     total_weight = Column(Integer(), default=0)
     total_weight_set_manually = Column(Boolean, default=False)
@@ -99,12 +99,12 @@ class Order(db.Model, BaseModel): # type: ignore
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders:list[so.Suborder] = relationship('Suborder', lazy='dynamic', cascade='all, delete-orphan') # type: ignore
-    __order_products = relationship('OrderProduct', lazy='dynamic')
+    suborders = relationship('Suborder', lazy='select', cascade='all, delete-orphan')
+    __order_products = relationship('OrderProduct', lazy='select')
     attached_order_id = Column(String(16), ForeignKey(ORDER_ID))
     attached_order = relationship('Order', remote_side=[id])
     attached_orders = relationship('Order',
-        foreign_keys=[attached_order_id], lazy='dynamic')
+        foreign_keys=[attached_order_id], lazy='select')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
     payment_method: pm.PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id]) # type: ignore
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
@@ -118,7 +118,7 @@ class Order(db.Model, BaseModel): # type: ignore
     @property
     def order_products(self) -> list[OrderProduct]:
         ''' Returns aggregated list of order products for all suborders '''
-        if self.suborders.count() > 0: #type: ignore
+        if len(self.suborders) > 0:
             return [order_product for suborder in self.suborders
                                   for order_product in suborder.order_products]
         return list(self.__order_products)
@@ -206,7 +206,9 @@ class Order(db.Model, BaseModel): # type: ignore
             if isinstance(orders[0], Order):
                 self.attached_orders = orders
             else:
-                self.attached_orders = Order.query.filter(Order.id.in_(orders))
+                self.attached_orders = db.session.execute(
+                    select(Order).where(Order.id.in_(orders))
+                ).scalars().all()
         else:
             self.attached_orders = []
 
@@ -357,13 +359,13 @@ class Order(db.Model, BaseModel): # type: ignore
         if not self.total_user_currency and self.user_currency_code:
             logger.debug("%s total in user currency (%s) is undefined. Updating...",
                          self.id, self.user_currency_code)
-            user_currency = Currency.query.get(self.user_currency_code)
+            user_currency = db.session.get(Currency, self.user_currency_code)
             if user_currency and not user_currency.base:
                 self.total_user_currency = self.total_base_currency * user_currency.rate
                 is_order_updated = True
         if is_order_updated:
             db.session.commit()
-        check_outsiders_setting = Setting.query.get('check_outsiders')
+        check_outsiders_setting = db.session.get(Setting, 'check_outsiders')
         need_to_check_outsiders = check_outsiders_setting.value == '1' \
             if check_outsiders_setting is not None else False
         posted_pos = (
@@ -371,9 +373,10 @@ class Order(db.Model, BaseModel): # type: ignore
                 .filter(Suborder.order_id == self.id)
                 .filter(PurchaseOrder.when_posted != None)
         )
-        when_po_posted = db.session.query(func.max(PurchaseOrder.when_posted)) \
-            .select_entity_from(posted_pos.subquery()).scalar() \
-            if posted_pos.count() == self.suborders.count() \
+        when_po_posted = db.session.execute(
+            select(func.max(PurchaseOrder.when_posted)).select_from(posted_pos.subquery())
+        ).scalar() \
+            if posted_pos.count() == len(self.suborders) \
             else None
 
         # Issuing a signal to get module specific part of the order
@@ -412,7 +415,7 @@ class Order(db.Model, BaseModel): # type: ignore
             'payment_method': self.payment_method.name \
                 if self.payment_method else None,
             'payment_pending': self.status == OrderStatus.pending \
-                and self.payments.filter_by(status=PaymentStatus.pending).count() > 0,
+                and len([p for p in self.payments if p.status == PaymentStatus.pending]) > 0,
             'tracking_id': self.tracking_id if self.tracking_id else None,
             'tracking_url': self.tracking_url if self.tracking_url else None,
             'outsiders': [so.subcustomer.username + ":" + so.subcustomer.name
@@ -450,7 +453,7 @@ class Order(db.Model, BaseModel): # type: ignore
         from app.shipping.models.shipping import PostponeShipping, Shipping, NoShipping
         logger = logging.getLogger(self.id)
         logger.debug("Updating total")
-        logger.debug("There are %s suborders", self.suborders.count()) #type: ignore
+        logger.debug("There are %s suborders", len(self.suborders))
         for suborder in self.suborders:
             suborder.update_total()
             logger.debug("The suborder %s:", suborder.id)
@@ -466,7 +469,7 @@ class Order(db.Model, BaseModel): # type: ignore
         logger.debug("Attached orders weight: %s", attached_orders_weight)
         if self.shipping is None:
             if self.shipping_method_id is not None:
-                self.shipping = Shipping.query.get(self.shipping_method_id)
+                self.shipping = db.session.get(Shipping, self.shipping_method_id)
             else:
                 self.shipping = NoShipping.query.first()
                 if self.shipping is None:
@@ -476,7 +479,7 @@ class Order(db.Model, BaseModel): # type: ignore
             self.total_weight = order_weight + attached_orders_weight
             self.shipping_box_weight = reduce(lambda acc, b: acc + b.weight,
                                             self.boxes, 0) \
-                if self.boxes.count() > 0 \
+                if len(self.boxes) > 0 \
                 else self.shipping.get_box_weight(self.total_weight) \
                     if not isinstance(self.shipping, (NoShipping, PostponeShipping)) \
                     else 0
@@ -493,7 +496,7 @@ class Order(db.Model, BaseModel): # type: ignore
             lambda acc, sub: acc + sub.get_subtotal() + sub.local_shipping, self.suborders, 0)
         logger.debug("Subtotal: %s", self.subtotal_base_currency)
 
-        user_currency = Currency.query.get(self.user_currency_code) if self.user_currency_code else None
+        user_currency = db.session.get(Currency, self.user_currency_code) if self.user_currency_code else None
         user_rate = float(user_currency.rate) if user_currency and not user_currency.base else None
 
         self.subtotal_user_currency = self.subtotal_base_currency * user_rate if user_rate is not None else 0
@@ -530,8 +533,8 @@ class Order(db.Model, BaseModel): # type: ignore
         ws.cell(5, 2, str(self.address) + '\n' + str(self.city_eng) + '\n' + str(self.zip))
         ws.cell(6, 2, self.phone)
         # Set currency rates
-        ws.cell(8, 5, float(1 / Currency.query.get('EUR').rate))
-        ws.cell(9, 5, float(1 / Currency.query.get('USD').rate))
+        ws.cell(8, 5, float(1 / db.session.get(Currency, 'EUR').rate))
+        ws.cell(9, 5, float(1 / db.session.get(Currency, 'USD').rate))
 
         ws.cell(6, 6, self.subtotal_base_currency)
         ws.cell(6, 7, self.total_weight + self.shipping_box_weight)
@@ -591,7 +594,7 @@ class Order(db.Model, BaseModel): # type: ignore
         #TODO: Modify compensation to take into account attached orders
         # # Compensate rounding error
         if len(op_shipping) > 0 \
-            and self.attached_order is None and self.attached_orders.count() == 0: #type: ignore
+            and self.attached_order is None and len(self.attached_orders) == 0:
             diff = self.shipping_base_currency - \
                 reduce(lambda acc, op_ship: acc + op_ship[1], op_shipping.items(), 0)
             if op_shipping.get(row) is None:
@@ -629,7 +632,7 @@ class OrderParam(db.Model, BaseModel): # type: ignore
     order_id = Column(String(16), ForeignKey(ORDER_ID))
     order = relationship('Order',
         backref=backref('order_params',
-            collection_class=attribute_mapped_collection('name'),
+            collection_class=attribute_keyed_dict('name'),
             cascade='all, delete-orphan')
     )
     name = Column(String(128))

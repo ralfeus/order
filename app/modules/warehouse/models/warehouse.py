@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, relationship
-from sqlalchemy.orm.collections import attribute_mapped_collection
+from sqlalchemy.orm import attribute_keyed_dict
 
 from app import db
 from app.models.base import BaseModel
@@ -56,7 +56,7 @@ class WarehouseProduct(db.Model):
     warehouse_id = Column(Integer, ForeignKey('warehouses.id'), primary_key=True)
     warehouse = relationship(Warehouse,
         backref=backref('warehouse_products',
-            collection_class=attribute_mapped_collection('product'),
+            collection_class=attribute_keyed_dict('product'),
             cascade='all, delete-orphan')
     )
     product_id = Column(String(16), ForeignKey('products.id'), primary_key=True)

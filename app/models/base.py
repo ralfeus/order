@@ -12,6 +12,7 @@ class BaseModel:
     '''
     Base model
     '''
+    __allow_unmapped__ = True  # Allow legacy type annotations (pre-SA 2.0 style)
     id = Column(Integer, primary_key=True)
     when_created = Column(DateTime, index=True)
     when_changed = Column(DateTime)

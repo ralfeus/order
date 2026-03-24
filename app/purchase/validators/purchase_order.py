@@ -3,6 +3,8 @@ import re
 from flask_inputs import Inputs
 from wtforms import ValidationError
 
+from app import db
+
 def _is_valid_address(_form, field):
     from app.models.address import Address
     _is_valid_reference_field('address_id', field.data, Address)
@@ -21,7 +23,7 @@ def _is_valid_phone(_form, field):
 
 def _is_valid_reference_field(field, reference, model):
     try:
-        entity = model.query.get(reference)
+        entity = db.session.get(model, reference)
         if entity is None:
             raise Exception()
     except:

@@ -5,6 +5,8 @@ from datetime import datetime
 from flask import Response, abort, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
+from sqlalchemy import select
+
 from app import db
 from app.currencies import bp_api_admin, bp_api_user
 from app.currencies.models import Currency
@@ -58,12 +60,17 @@ def save_currency(currency_id):
         currency.when_created = datetime.now()
         db.session.add(currency) #type: ignore
     else:
-        currency = Currency.query.get(currency_id)
+        currency = db.session.get(Currency, currency_id)
         if not currency:
             abort(Response(f'No currency <{currency_id}> was found', status=400))
     modify_object(currency, payload, ['code', 'name', 'rate', 'enabled'])
     if 'rate' in payload.keys():
-        today_rate = currency.history.filter_by(when_created=datetime.now().date()).first()
+        today_rate = db.session.execute(
+            select(CurrencyHistoryEntry).where(
+                CurrencyHistoryEntry.code == currency.code,
+                CurrencyHistoryEntry.when_created == datetime.now().date()
+            )
+        ).scalar_one_or_none()
         if today_rate is None:
             currency.history.append(CurrencyHistoryEntry(
                 code=currency.code,
@@ -83,7 +90,7 @@ def delete_currency(currency_id):
     '''
     Deletes existing currency item
     '''
-    currency = Currency.query.get(currency_id)
+    currency = db.session.get(Currency, currency_id)
     if not currency:
         abort(Response(f'No currency <{currency_id}> was found', status=404))
 

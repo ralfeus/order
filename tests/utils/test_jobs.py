@@ -59,5 +59,5 @@ class TestJobs(BaseTestCase):
             id='000', synchronize=True
         ))
         jobs.import_products()
-        product = p.Product.query.get('000')
+        product = db.session.get(p.Product, '000')
         self.assertEqual(product.vendor_id, '000')

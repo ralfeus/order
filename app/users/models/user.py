@@ -31,7 +31,7 @@ class User(db.Model, UserMixin):
     atomy_id = Column(String(10))
     phone = Column(String(32))
     roles = db.relationship('Role', secondary=roles_users,
-                            backref=db.backref('users', lazy='dynamic'))
+                            backref=db.backref('users', lazy='select'))
     profile = Column(Text, default='{}')
     fs_uniquifier = Column(String(255), unique=True, nullable=False)
     # User information

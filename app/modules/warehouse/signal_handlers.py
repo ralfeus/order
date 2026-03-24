@@ -1,10 +1,11 @@
-''' 
+'''
 Signal handlers for module Warehouse.
 The module functionality is mainly invoked via signals from the core
 or other modules. Those signal handlers are here
 '''
 from functools import reduce
 import logging
+from app import db
 from app.modules.warehouse.exceptions import WarehouseError
 from app.purchase.models.purchase_order import PurchaseOrder
 
@@ -44,11 +45,10 @@ def on_purchase_order_model_preparing(sender, **_extra):
     return PurchaseOrderWarehouse.get_warehouse_for_purchase_order(sender)
 
 def on_order_product_saving(order_product, payload, **_extra):
-    from app import db
     from app.modules.warehouse.models.warehouse import Warehouse
     from app.modules.warehouse.models.order_product_warehouse import OrderProductWarehouse
     if payload.get('warehouse_id') is not None:
-        warehouse = Warehouse.query.get(payload['warehouse_id'])
+        warehouse = db.session.get(Warehouse, payload['warehouse_id'])
         if warehouse is None:
             raise WarehouseError(f"No warehouse <{payload['warehouse_id']}> is found")
     else:
@@ -69,11 +69,10 @@ def on_purchase_order_deleting(sender: PurchaseOrder, **_extra):
     PurchaseOrderWarehouse.query.filter_by(purchase_order_id=sender.id).delete()
 
 def on_purchase_order_saving(purchase_order, warehouse_id=None, **kwargs):
-    from app import db
     from app.modules.warehouse.models.warehouse import Warehouse
     from app.modules.warehouse.models.purchase_order_warehouse import PurchaseOrderWarehouse
     if warehouse_id is not None:
-        warehouse = Warehouse.query.get(warehouse_id)
+        warehouse = db.session.get(Warehouse, warehouse_id)
         if warehouse is None:
             raise WarehouseError(f"No warehouse <{warehouse_id}> is found")
     else:
@@ -95,7 +94,7 @@ def on_sale_order_shipped(sender, **_extra):
     logger.debug("Got signal from: %s", sender.id)
     from app.modules.warehouse.models.order_product_warehouse import OrderProductWarehouse
     for op in sender.order_products:
-        op_warehouse = OrderProductWarehouse.query.get(op.id)
+        op_warehouse = db.session.get(OrderProductWarehouse, op.id)
         if op_warehouse is not None:
             logger.debug("Product %s is to be taken from warehouse %s", op.product.id, op_warehouse.warehouse)
             op_warehouse.warehouse.sub_product(op.product, op.quantity)
@@ -109,7 +108,7 @@ def on_purchase_order_delivered(sender, **_extra):
     from app.modules.warehouse.models.purchase_order_warehouse import PurchaseOrderWarehouse
     from app.orders.models.order_status import OrderStatus
     from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
-    po_warehouse = PurchaseOrderWarehouse.query.get(sender.id)
+    po_warehouse = db.session.get(PurchaseOrderWarehouse, sender.id)
     if po_warehouse is not None:
         logger.debug("Products of %s are to be put to the warehouse %s",
                      sender.id, po_warehouse.warehouse)
