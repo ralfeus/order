@@ -1,6 +1,12 @@
+import base64
+import hashlib
+import itertools
 import json
 import logging
 import re
+import subprocess
+import tempfile
+import time
 from time import sleep
 from typing import Any
 
@@ -35,15 +41,80 @@ def try_perform(action, attempts=3, logger=logging.RootLogger(logging.DEBUG)) ->
     if last_exception:
         raise last_exception
 
+def _curl_with_jar(url: str, jar_path: str, raw_data: str = '',
+                   headers: list = [], socks5_proxy: str = ''):
+    """Like invoke_curl but shares a cookie jar across calls."""
+    headers_list = list(itertools.chain.from_iterable([
+        ['-H', f"{k}: {v}"] for pair in headers for k, v in pair.items()
+    ]))
+    raw_data_param = ['--data-raw', raw_data] if raw_data else []
+    socks5_param = ['--socks5', socks5_proxy] if socks5_proxy else []
+    method = 'POST' if raw_data else 'GET'
+    run_params = [
+        '/usr/bin/curl', url,
+        '-X', method, '-v',
+        '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+              'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+        '-c', jar_path,
+        '-b', jar_path,
+    ] + headers_list + raw_data_param + socks5_param
+    logger.debug(' '.join(run_params))
+    output = subprocess.run(run_params, encoding='utf-8',
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    return output.stdout, output.stderr
+
+
+def _solve_altcha(stdout: str) -> tuple:
+    """Parse challenge JSON and brute-force the ALTCHA nonce.
+    :returns: (payload_b64, took_ms)"""
+    data = json.loads(stdout)
+    challenge  = data["challenge"]
+    signature  = data["signature"]
+    algorithm  = data["algorithm"]
+    salt       = data["salt"]
+    max_number = int(data["maxNumber"])
+
+    start = time.monotonic()
+    for i in range(max_number + 1):
+        digest = hashlib.sha256(f"{salt}{i}".encode()).hexdigest()
+        if digest == challenge:
+            took = int((time.monotonic() - start) * 1000)
+            payload = {
+                "algorithm": algorithm,
+                "challenge": challenge,
+                "number": i,
+                "salt": salt,
+                "signature": signature,
+                "took": took,
+            }
+            pay_load = base64.b64encode(
+                json.dumps(payload, separators=(",", ":")).encode()
+            ).decode()
+            return pay_load, took
+    raise AtomyLoginError(message="ALTCHA challenge could not be solved")
+
+
 def atomy_login2(username, password, socks5_proxy="") -> str:
     '''Logs in to Atomy using new authentication interface
     :param username: user name
     :param password: password
      param socks5_proxy: address for socks5 proxy if needed
     :returns: JWT token'''
-    # jwt = __get_token(socks5_proxy)
-    stdout, stderr = invoke_curl(
+    with tempfile.NamedTemporaryFile(suffix='.txt', delete=True) as jar_file:
+        jar_path = jar_file.name
+
+    challenge_start = time.monotonic()
+    stdout, _ = _curl_with_jar(
+        url=f'{URL_BASE}/login/challenge',
+        jar_path=jar_path,
+        socks5_proxy=socks5_proxy,
+    )
+    pay_load, _ = _solve_altcha(stdout)
+    verify_operate_time = int((time.monotonic() - challenge_start) * 1000)
+
+    stdout, stderr = _curl_with_jar(
         url=f'{URL_BASE}/login/doLogin',
+        jar_path=jar_path,
         headers=[{"content-type": "application/json"}],
         raw_data=json.dumps({
             "mbrLoginId": username,
@@ -51,9 +122,10 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
             "saveId": False,
             "autoLogin": False,
             "recaptcha": "",
+            "payLoad": pay_load,
+            "verifyOperateTime": verify_operate_time,
         }),
         socks5_proxy=socks5_proxy,
-        retries=0
     )
     if re.search('HTTP.*200', stderr) is  None:
         logger.debug("Couldn't log in to Atomy.")
@@ -66,7 +138,18 @@ def atomy_login2(username, password, socks5_proxy="") -> str:
                               message=result.get('message'))
 
     logger.info(f"Logged in successfully as {username}")
-    jwt = re.search('set-cookie: (JSESSIONID=.*?);', stderr).group(1) # type: ignore
+    # JSESSIONID may have been set during the challenge call and stored in the jar,
+    # so read it from the jar file rather than from doLogin response headers.
+    try:
+        with open(jar_path) as f:
+            jar_contents = f.read()
+        match = re.search(r'\bJSESSIONID\b\s+(\S+)', jar_contents)
+        if match:
+            return f"JSESSIONID={match.group(1)}"
+    except OSError:
+        pass
+    # Fallback: try response headers (original behaviour)
+    jwt = re.search(r'set-cookie: (JSESSIONID=.*?);', stderr).group(1)  # type: ignore
     return jwt
 
 def get_bu_place_from_network(username) -> str:
