@@ -53,9 +53,6 @@ class User(db.Model, UserMixin):
         # Here properties are set (attributes start with '__')
         if kwargs.get('password') is not None:
             self.set_password(kwargs['password'])
-    def get_id(self):
-        return str(self.id)
-
     def get_profile(self) -> dict:
         try:
             profile = json.loads(self.profile)
