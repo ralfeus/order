@@ -160,6 +160,24 @@ class TestPurchaseOrdersApi(BaseTestCase):
         })
         self.assertEqual(res.get_json()['status'], 'success')
 
+    @patch('app.purchase.jobs.post_purchase_orders')
+    def test_repost_purchase_order(self, po_mock):
+        """POST ?action=repost with Content-Type: application/json and empty body {}
+        must return 200. The JS client always sends contentType + data: '{}'."""
+        po_mock.apply_async.return_value.id = 'mock-task-id'
+        order = Order()
+        suborder = Suborder(order=order)
+        po = PurchaseOrder(suborder=suborder, company=Company(name='Repost Test'))
+        self.try_add_entities([order, suborder, po])
+
+        res = self.try_admin_operation(
+            lambda: self.client.post(
+                f'/api/v1/admin/purchase/order/{po.id}?action=repost',
+                json={}
+            )
+        )
+        self.assertEqual(res.status_code, 200)
+
     # def test_create_po_alternative_address(self):
     #     gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
     #     gen_int_id = int(datetime.now().timestamp())

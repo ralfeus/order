@@ -332,8 +332,7 @@ def _add_suborder(order, suborder_data, errors):
                 order.set_purchase_date(suborder.buyout_date)
 
         current_app.logger.debug('Created instance of Suborder %s', suborder)
-        # db.session.add(suborder)
-        order.suborders.append(suborder)
+        db.session.add(suborder)
         try_perform(db.session.flush)
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
@@ -597,8 +596,7 @@ def add_order_product(suborder, item, errors):
                 price=product.price,
                 quantity=int(item['quantity']),
                 status=OrderProductStatus.pending)
-            # db.session.add(order_product)
-            suborder.order_products.append(order_product)
+            db.session.add(order_product)
             suborder.order.total_weight += product.weight * order_product.quantity
             suborder.order.subtotal_base_currency += product.price * order_product.quantity
             return order_product

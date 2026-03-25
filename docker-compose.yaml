@@ -106,9 +106,9 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile
-    depends_on:
-      - rabbitmq
-      - statsd
+    # depends_on:
+    #   - rabbitmq
+    #   - statsd
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:

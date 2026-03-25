@@ -19,8 +19,8 @@ class Transaction(BaseModel, db.Model): #type: ignore
     amount = Column(Integer())
     user_id = Column(Integer(), ForeignKey('users.id'))
     user = relationship('User', foreign_keys=[user_id])
-    order = relationship('Order', uselist=False)
-    payment = relationship('Payment', uselist=False)
+    order = relationship('Order', uselist=False, back_populates='transaction')
+    payment = relationship('Payment', uselist=False, back_populates='transaction')
     comment = Column(String(255))
 
     def __init__(self, amount, customer_id=None, customer=None, user_id=None,

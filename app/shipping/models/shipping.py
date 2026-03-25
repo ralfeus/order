@@ -44,7 +44,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
     notification = Column(Text)
-    rates = relationship('ShippingRate', lazy='select')
+    rates = relationship('ShippingRate', lazy='select', back_populates='shipping_method')
     params = relationship('ShippingParam', lazy='select')
 
     __mapper_args__ = {
