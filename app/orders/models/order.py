@@ -67,7 +67,7 @@ class Order(db.Model, BaseModel): # type: ignore
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship(User, foreign_keys=[user_id])
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
-    invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id]) # type: ignore
+    invoice: i.Invoice = relationship('Invoice', foreign_keys=[invoice_id], back_populates='orders') # type: ignore
     customer_name = Column(String(64))
     address = Column(String(256))
     city_eng: str = Column(String(128)) # type: ignore
@@ -99,16 +99,16 @@ class Order(db.Model, BaseModel): # type: ignore
     purchase_date = Column(DateTime)
     purchase_date_sort = Column(DateTime, index=True,
         nullable=False, default=datetime(9999, 12, 31))
-    suborders = relationship('Suborder', lazy='select', cascade='all, delete-orphan')
+    suborders = relationship('Suborder', lazy='select', cascade='all, delete-orphan', back_populates='order')
     __order_products = relationship('OrderProduct', lazy='select')
     attached_order_id = Column(String(16), ForeignKey(ORDER_ID))
-    attached_order = relationship('Order', remote_side=[id])
+    attached_order = relationship('Order', remote_side=[id], back_populates='attached_orders')
     attached_orders = relationship('Order',
-        foreign_keys=[attached_order_id], lazy='select')
+        foreign_keys=[attached_order_id], lazy='select', back_populates='attached_order')
     payment_method_id = Column(Integer(), ForeignKey('payment_methods.id'))
     payment_method: pm.PaymentMethod = relationship('PaymentMethod', foreign_keys=[payment_method_id]) # type: ignore
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
-    transaction = relationship('Transaction', foreign_keys=[transaction_id])
+    transaction = relationship('Transaction', foreign_keys=[transaction_id], back_populates='order')
     params:dict[str, str] = association_proxy('order_params', 'value',
         creator=lambda k, v: OrderParam(name=k, value=v,
                                         when_created=datetime.now(),

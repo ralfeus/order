@@ -13,7 +13,7 @@ class InvoiceItem(db.Model, BaseModel):
     __tablename__ = 'invoice_items'
 
     invoice_id = Column(String(16), ForeignKey('invoices.id'))
-    invoice = relationship('Invoice', foreign_keys=[invoice_id])
+    invoice = relationship('Invoice', foreign_keys=[invoice_id], back_populates='_invoice_items')
     product_id = Column(String(16), ForeignKey('products.id'))
     product = relationship('Product')
     price = Column(Numeric(scale=2))

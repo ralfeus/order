@@ -33,7 +33,7 @@ class OrderProductStatusEntry(db.Model): # type: ignore
 
     order_product_id = Column('order_product_id', Integer,
         ForeignKey('order_products.id'), primary_key=True)
-    order_product = relationship('OrderProduct', foreign_keys=[order_product_id])
+    order_product = relationship('OrderProduct', foreign_keys=[order_product_id], back_populates='status_history')
     status = Column('status', Enum(OrderProductStatus),
         default=OrderProductStatus.pending)
     user_id = Column('user_id', Integer, ForeignKey('users.id'))
@@ -59,7 +59,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     order_id = Column(String(16), ForeignKey('orders.id'))
     suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
         nullable=False)
-    suborder = relationship('Suborder', foreign_keys=[suborder_id])
+    suborder = relationship('Suborder', foreign_keys=[suborder_id], back_populates='order_products')
     product_id = Column(String(16), ForeignKey('products.id'))
     product: Product = relationship('Product')
     price = Column(Integer)
@@ -67,7 +67,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     private_comment = Column(String(256))
     public_comment = Column(String(256))
     status = Column(Enum(OrderProductStatus), default=OrderProductStatus.pending)
-    status_history = relationship("OrderProductStatusEntry", lazy='select')
+    status_history = relationship("OrderProductStatusEntry", lazy='select', back_populates='order_product')
 
     def __init__(self, **kwargs):
         if not kwargs.get('product'):

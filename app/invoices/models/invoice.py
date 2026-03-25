@@ -25,10 +25,10 @@ class Invoice(db.Model):  # type: ignore
     payee = Column(String(32))
     user_id = Column(Integer, ForeignKey('users.id'))
     user = relationship('User')
-    orders = relationship('Order')
+    orders = relationship('Order', back_populates='invoice')
     export_id = Column(String(32))
     currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=False)
-    _invoice_items = relationship('InvoiceItem', lazy='select')
+    _invoice_items = relationship('InvoiceItem', lazy='select', back_populates='invoice')
     #total = Column(Integer)
 
     when_created = Column(DateTime, index=True)

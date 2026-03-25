@@ -48,7 +48,7 @@ class Payment(db.Model, BaseModel):
     status = Column('status', Enum(PaymentStatus),
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
-    transaction = relationship("Transaction", foreign_keys=[transaction_id])
+    transaction = relationship("Transaction", foreign_keys=[transaction_id], back_populates='payment')
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
