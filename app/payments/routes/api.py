@@ -112,7 +112,7 @@ def admin_save_payment(payment_id):
             elif evidence.get('path'):
                 payment.evidences.append(evidences[evidence['path']])
         if payload.get('orders'):
-            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders'])).all()
     db.session.commit() #type:ignore
     return jsonify({'data': [payment.to_dict()], 'message': messages})
 
@@ -271,7 +271,7 @@ def user_save_payment(payment_id):
         #     payment.evidences.filter_by(id=evidence.id).delete()
         #     db.session.delete(evidence)
         if payload.get('orders'):
-            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders'])).all()
     else:
         modify_object(payment, payload, ['status'])
 
