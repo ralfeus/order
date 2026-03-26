@@ -122,7 +122,7 @@ def save_product(product_id):
         product.available_shipping = []
         if len(payload['shipping']) < Shipping.query.count():
             product.available_shipping = \
-                Shipping.query.filter(Shipping.id.in_(payload['shipping']))
+                Shipping.query.filter(Shipping.id.in_(payload['shipping'])).all()
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
                            'synchronize', 'purchase', 'color']
