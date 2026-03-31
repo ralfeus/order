@@ -18,7 +18,8 @@ from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
 from app.tools import first_or_default, get_json, invoke_curl
-from common.exceptions import HTTPError, NoShippingRateError, OrderError
+from common.exceptions import HTTPError, NoShippingRateError, OrderError, \
+    ConsignException
 
 from app.shipping.models.consign_result import ConsignResult
 from ..exceptions import EMSItemsException
@@ -129,7 +130,10 @@ class EMS(Shipping):
         except EMSItemsException as e:
             logging.warning(str(e))
             raise OrderError("Couldn't get EMS items description from the order")
-    
+        except ConsignException as e:
+            logging.warning(str(e))
+            raise OrderError("Couldn't submit consignment to EMS: " + e.message)
+
     def print(self, shipping_id: str, config: dict[str, Any]={}) -> dict[str, Any]:
         '''Prints shipping label to be applied too the parcel
         :param str shipping_id: shipping, for which label is to be printed.
@@ -271,7 +275,7 @@ class EMS(Shipping):
             "p_address": sender.address_1_eng
                 + " "
                 + sender.address_2_eng,  # sender address
-            "f_hp": rcpt_contact.phone,  # recipient phone number
+            "f_hp": rcpt_contact.phone.replace("+", "00"),  # recipient phone number
             "f_name": rcpt_contact.name,  # recipient name
             "f_post": recipient.zip,  # recipient zip code
             "f_address": recipient.address_1_eng + ' ' + recipient.address_2_eng,  # recipient address
@@ -329,7 +333,8 @@ class EMS(Shipping):
         else:
             logger.warning("Couldn't submit consignment %s", consignment_id)
             logger.warning(result)
-            raise Exception("Couldn't submit consignment to EMS")
+            ems_messages = ';'.join([f.get('message', '') for f in result.get('failed', [{}])])
+            raise ConsignException(f"Couldn't submit consignment to EMS: {ems_messages}")
 
     def get_shipping_cost(self, destination, weight):
         logger = logging.getLogger("EMS::get_shipping_cost()")

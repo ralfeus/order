@@ -9,6 +9,13 @@ class AtomyLoginError(Exception):
     def __str__(self):
         return f"Couldn't log in as '{self.username}':'{self.password}': {self.message}"
 
+class ConsignException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return f"ConsignException: {self.message}"
+
 class EmptySuborderError(Exception):
     pass
 

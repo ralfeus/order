@@ -255,3 +255,5 @@ def consign_order(order_id: str):
         })
     except OrderError as e:
         return jsonify({"status": "error", "message": e.args})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
