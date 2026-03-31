@@ -12,7 +12,7 @@ from app.payments import bp_api_user, bp_client_user
 from app.payments.logging import get_logger
 from app.payments.models.payment import Payment, PaymentStatus
 from app.models.file import File
-from app.tools import write_to_file
+from app.tools import get_upload_path, write_to_file
 log = get_logger()
 
 class FeeStructure:
@@ -308,10 +308,9 @@ def _handle_checkout_complete(session):
             response = requests.get(charge.receipt_url) #type: ignore
             if response.status_code == 200:
                 filename = f"{session.payment_intent}.html"
-                upload_path = current_app.config.get('UPLOAD_PATH', 'upload')
-                path = f"{upload_path}/{filename}"
-                write_to_file(path, response.content)
-                file_obj = File(file_name=filename, path=path)
+                write_to_file(get_upload_path(filename), response.content)
+                url_path = f"upload/{filename}"
+                file_obj = File(file_name=filename, path=url_path)
                 payment.evidences.append(file_obj)
                 db.session.add(file_obj) #type: ignore
                 db.session.commit() #type: ignore

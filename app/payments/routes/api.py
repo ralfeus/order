@@ -23,7 +23,7 @@ from app.models.file import File
 from app.users.models.user import User
 
 from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
-from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
+from app.tools import get_tmp_file_by_id, get_upload_path, modify_object, rm, write_to_file
 from app.tools import prepare_datatables_query, stream_and_close
 
 @bp_api_admin.route('', defaults={'payment_id': None})
@@ -220,10 +220,11 @@ def user_delete_payment(payment_id):
 
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
-    evidence_file = os.path.join(current_app.config['UPLOAD_PATH'],
-                                 os.path.basename(evidence_src_file))
-    shutil.move(evidence_src_file, os.path.join(os.getcwd(), evidence_file))
-    return evidence_file
+    basename = os.path.basename(evidence_src_file)
+    dest = get_upload_path(basename)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(evidence_src_file, dest)
+    return f"upload/{basename}"
 
 # @bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
@@ -323,16 +324,17 @@ def user_upload_payment_evidence(payment_id):
     if request.files and request.files['file'] and request.files['file'].filename:
         file = request.files['file']
         image_data = file.read()
-        file_name = os.path.join(
-            current_app.config['UPLOAD_PATH'],
+        ext = ''.join(os.path.splitext(str(file.filename))[1:])
+        relative_name = os.path.join(
             str(current_user.id),
-            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
-            ''.join(os.path.splitext(str(file.filename))[1:])
-        write_to_file(file_name, image_data)
+            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f') + ext)
+        abs_path = get_upload_path(relative_name)
+        write_to_file(abs_path, image_data)
+        url_path = f"upload/{relative_name}"
 
         new_evidence = File(
             file_name=file.filename,
-            path=file_name
+            path=url_path
         )
         payment.evidences.append(new_evidence)
         payment.when_changed = datetime.now()

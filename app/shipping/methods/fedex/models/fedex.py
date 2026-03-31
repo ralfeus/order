@@ -22,7 +22,7 @@ from app.shipping.models.box import Box
 from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
-from app.tools import get_json, invoke_curl
+from app.tools import get_json, get_upload_path, invoke_curl
 from common.exceptions import HTTPError, NoShippingRateError, ShippingException
 
 from app.shipping.models.consign_result import ConsignResult
@@ -351,12 +351,9 @@ class Fedex(Shipping):
     # def __save_label(self, tracking_id, url):
         # stdout, _ = invoke_curl(url=url)
         label = base64.b64decode(encoded_label)
-        fedex_upload_dir = os.path.join(
-            os.getcwd(), 
-            current_app.config['UPLOAD_PATH'], 
-            'fedex')
+        fedex_upload_dir = get_upload_path('fedex')
         os.makedirs(fedex_upload_dir, exist_ok=True)
-        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'xb') as f:
+        with open(os.path.join(fedex_upload_dir, f'label-{tracking_id}.pdf'), 'xb') as f:
             f.write(label)
 
     def __validate_address(self, address: Address):
@@ -522,10 +519,7 @@ class Fedex(Shipping):
         }
 
 def get_label(tracking_id: str) -> str:
-    label_file_path = os.path.join(
-                        os.getcwd(), 
-                        current_app.config['UPLOAD_PATH'], 
-                        f'fedex/label-{tracking_id}.pdf')
+    label_file_path = get_upload_path('fedex', f'label-{tracking_id}.pdf')
     if os.path.exists(label_file_path):
         return label_file_path
     else:

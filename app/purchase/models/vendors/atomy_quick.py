@@ -288,8 +288,14 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.setLevel(log_level)  # type: ignore
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
+        if not config:
+            from flask import current_app
+            config = current_app.config
         self.__config: dict[str, Any] = config
-        self.__screenshots_path = self.__config.get('UPLOAD_PATH', '.')
+        _data_path = self.__config.get('DATA_PATH', '/app/data')
+        if not os.path.isabs(_data_path):
+            _data_path = os.path.join(os.getcwd(), _data_path)
+        self.__screenshots_path = os.path.join(_data_path, 'po')
         os.makedirs(self.__screenshots_path, exist_ok=True)
         self._retries = 3
 

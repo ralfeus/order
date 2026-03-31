@@ -1,5 +1,6 @@
 from datetime import datetime
 from celery.utils.log import get_task_logger
+import os
 import requests
 from sqlalchemy.sql.elements import Null
 from tqdm import tqdm
@@ -125,15 +126,17 @@ def add_together(a, b):
 
 
 def save_image(image_url):
-    from flask import current_app
-    if image_url!='':
+    if image_url != '':
+        from app.tools import get_products_path
         image_name = image_url.split('/')[-1]
         r = requests.get(image_url)
-        path_image = '/upload/products/' + image_name
-        with open(current_app.root_path + '/upload/products/'+ image_name, 'wb') as f:
+        products_dir = get_products_path()
+        os.makedirs(products_dir, exist_ok=True)
+        with open(os.path.join(products_dir, image_name), 'wb') as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
+        path_image = '/products/' + image_name
     else:
-        image_name=''
-        path_image=''
+        image_name = ''
+        path_image = ''
     return path_image, image_name
