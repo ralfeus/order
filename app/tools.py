@@ -57,6 +57,31 @@ def write_to_file(path, data):
         file.write(data)
         file.close()
 
+def get_data_path(*parts: str) -> str:
+    """Return the absolute path to the application data directory (DATA_PATH
+    config key), optionally joined with *parts.
+
+    DATA_PATH may be an absolute path (production default: /app/data) or a
+    relative path that is resolved against the current working directory
+    (useful for per-tenant deployments and tests).
+    """
+    base = current_app.config.get('DATA_PATH', '/app/data')
+    if not os.path.isabs(base):
+        base = os.path.join(os.getcwd(), base)
+    return os.path.join(base, *parts) if parts else base
+
+def get_upload_path(*parts: str) -> str:
+    """Absolute path to the user-upload folder: DATA_PATH/upload/[*parts]."""
+    return get_data_path('upload', *parts)
+
+def get_products_path(*parts: str) -> str:
+    """Absolute path to the product-images folder: DATA_PATH/products/[*parts]."""
+    return get_data_path('products', *parts)
+
+def get_po_path(*parts: str) -> str:
+    """Absolute path to the PO-screenshots folder: DATA_PATH/po/[*parts]."""
+    return get_data_path('po', *parts)
+
 def prepare_datatables_query(query, args, filter_clause=None) -> tuple[Any, int, int]:
     logger = logging.getLogger('prepare_datatables_query')
     def get_column(query, column_name):

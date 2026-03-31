@@ -8,6 +8,8 @@ from flask import Blueprint, abort, current_app, redirect, \
     send_from_directory, send_file
 from flask_security import login_required, roles_required, current_user
 
+from app.tools import get_upload_path, get_products_path
+
 client = Blueprint('client', __name__, url_prefix='/')
 
 
@@ -41,11 +43,17 @@ def favicon():
 @client.route('/upload/<path:path>')
 @login_required
 def send_from_upload(path):
-    # logger = logging.getLogger(f'{__file__}:send_from upload()')
-    # Must use os.getcwd() because it refers to tenant's home folder
-    # app.root_path refers to application root, which is common for all tenants
-    file = os.path.join(os.getcwd(), 
-                        current_app.config['UPLOAD_PATH'], path)
+    file = get_upload_path(path)
+    try:
+        return send_file(file)
+    except FileNotFoundError:
+        logging.warning("Couldn't find file <%s>", file)
+        abort(404)
+
+@client.route('/products/<path:path>')
+@login_required
+def send_from_products(path):
+    file = get_products_path(path)
     try:
         return send_file(file)
     except FileNotFoundError:
