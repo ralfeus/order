@@ -63,7 +63,7 @@ function set_builder_inactive() {
     $('#builder-status').attr('data-tooltip', 'not running');
     $('#build').text('Update');
     $('#build').off('click');
-    $('#build').on('click', start_builder);
+    $('#build').on('click', open_build_dialog);
     $('#build').prop('disabled', false);
 }
 
@@ -74,9 +74,22 @@ function set_builder_error() {
     $('#build').prop('disabled', true);
 }
 
+function open_build_dialog() {
+    new bootstrap.Modal(document.getElementById('build-dialog')).show();
+    $('#build-confirm').off('click').on('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('build-dialog')).hide();
+        start_builder();
+    });
+}
+
 function start_builder() {
+    const root = $('#build-root').val();
+    const nodes = $('#build-nodes').val();
+    const params = new URLSearchParams();
+    if (nodes) params.set('nodes', nodes);
+    if (root) params.set('root', root);
     $.ajax({
-        url: `/api/v1/admin/network/builder/start?nodes=${$('#nodes').val()}`,
+        url: `/api/v1/admin/network/builder/start?${params.toString()}`,
         success: data => {
             if (data.status === 'started') {
                 set_builder_active();

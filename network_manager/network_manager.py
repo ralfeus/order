@@ -90,12 +90,13 @@ def start_builder():
         except docker.errors.NotFound:
             pass
 
+        root = request.args.get('root') or 'S5832131'
         client.containers.run(
             BUILDER_IMAGE,
             command=[
                 '--user', 'S5832131',
                 '--password', 'mkk03020529!!',
-                '--root', 'S5832131',
+                '--root', root,
                 '--max-threads', threads,
                 '--nodes', request.args.get('nodes') or '0',
                 '--last-updated', last_updated.strftime('%Y-%m-%d'),
