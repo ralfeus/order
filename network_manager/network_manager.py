@@ -335,3 +335,5 @@ def _get_filter(filter_params):
         else:
             query_filter.append(f'n.{k} CONTAINS ${k}')
     return 'WHERE ' + ' AND '.join(query_filter) if len(query_filter) > 0 else ''
+
+logging.info("Network manager initialized and ready to serve requests")

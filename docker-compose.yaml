@@ -32,20 +32,21 @@ services:
     restart: unless-stopped
 
   network-manager:
-    # depends_on:
-    #   - neo4j
-    image: ralfeus/network-manager:stable
+    image: ralfeus/network-manager
+    build:
+      context: .
+      dockerfile: network_manager/Dockerfile
     ports:
       - 5001:5001
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/ralfeus/Projects/order/network_builder/config.json:/app/config.json
+      - /Users/ralfeus/Projects/order/network_manager/config.json:/app/config.json
       - builder-output:/app/output
     environment:
+      - LOG_LEVEL=DEBUG
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
-      - SOCKS5_PROXY=host.docker.internal:9050
       - BUILDER_IMAGE=ralfeus/network-builder:stable
       - BUILDER_NETWORK=order
     privileged: true

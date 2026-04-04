@@ -117,6 +117,7 @@ class StateServer:
                         'processing_speed': f'{speed:.3} nodes/sec',
                     }
                     conn.sendall(json.dumps(response).encode('utf-8'))
+                    conn.shutdown(socket.SHUT_WR)
                     conn.close()
 
                 except socket.timeout:

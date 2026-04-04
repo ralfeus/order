@@ -42,6 +42,7 @@ app = Flask(__name__)
 app.json_encoder = JSONEncoder #type:ignore
 app.config.from_file(os.path.join(_dir, 'config.json'), load=json.load)
 app.config['JSON_AS_ASCII'] = False
+app.debug = os.environ.get('LOG_LEVEL', 'INFO') == 'DEBUG'
 config.DATABASE_URL = os.environ.get('NEO4J_URL') or app.config['NEO4J_URL']
 config.ENCRYPTED = False
 
@@ -52,7 +53,9 @@ else:
 logging.basicConfig(
     level=log_level,
     format='%(asctime)s:%(levelname)s:%(module)s:%(name)s:%(lineno)d:\t%(message)s')
-
+logging.info(f"Logging level: {logging.getLevelName(log_level)}")
 import network_manager
+
+logging.info(app.url_map)
 
 __all__ = ['app']
