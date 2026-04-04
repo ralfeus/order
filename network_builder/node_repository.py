@@ -38,7 +38,7 @@ class NodeRepository:
         """
         result, _ = db.cypher_query(
             '''
-            MATCH (:AtomyPerson{atomy_id: $root})<-[:PARENT*0..]-(n:AtomyPerson)
+            MATCH (r:AtomyPerson {atomy_id: $root})<-[:PARENT*0..]-(n:AtomyPerson)
             WHERE date(datetime(n.when_updated)) < date($today)
             RETURN n.atomy_id, n.username, n.password
             ORDER BY n.atomy_id_normalized

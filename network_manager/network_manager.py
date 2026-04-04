@@ -169,7 +169,7 @@ def get_nodes(node_id):
         body = request.get_json()
     except BadRequest:
         pass # No JSON body is mandatory
-    logger.info(body)
+    logger.debug("Request body: %s", body)
     if node_id is not None:
         query = '''
             MATCH (n:AtomyPerson {atomy_id: $atomy_id})

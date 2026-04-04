@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import time
 from time import sleep
-from typing import Any
+from typing import Any, Optional
 
 from . import invoke_curl, get_json
 from common.exceptions import AtomyLoginError, HTTPError
@@ -194,3 +194,19 @@ def get_bu_place_from_page(username, password) -> str:
     except:
         message = "Couldn't get buPlace from Atomy server."
     raise Exception(message)
+
+def set_language(language_code: str, session: str, socks5_proxy: str=''
+                 ) -> tuple[str, str]:
+    '''Sets language for Atomy session
+
+    :param language_code: language code to set: ['ko', 'en']
+    :param socks5_proxy: address for socks5 proxy if needed
+    '''
+    url = f"{URL_BASE}/common/setCookieLanguage"
+    return invoke_curl(
+        url=url,
+        method='POST',
+        headers=[{"content-type": "application/x-www-form-urlencoded"}, {"Cookie": session}],
+        raw_data=f"lang={language_code}",
+        socks5_proxy=socks5_proxy
+    )

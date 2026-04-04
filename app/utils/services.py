@@ -9,8 +9,11 @@ def get_celery(app_name, job_modules=[]):
         backend='rpc://',
         include=job_modules
     )
+    log_format = "%(asctime)s\t%(levelname)s\t%(name)s:%(funcName)s()[%(filename)s:%(lineno)d]: %(message)s"
     celery.conf.update({
         'worker_hijack_root_logger': False,
+        'worker_log_format': log_format,
+        'worker_task_log_format': log_format,
         'brocker_transport_options': {
             "max_retries": 3,
             "interval_start": 0,

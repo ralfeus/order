@@ -340,16 +340,19 @@ class TreeCrawler:
             self._repo.save_root_node(atomy_id, element, signup_date, last_purchase_date)
         else:
             nodes_to_save.append({
+                'name': element['custNm'],
                 'atomy_id': atomy_id,
                 'parent_id': parent_id,
-                'name': element['custNm'],
-                'rank': TITLES.get(element['curLvlCd']),
                 'highest_rank': TITLES.get(element['mlvlCd']),
+                'highest_rank_confirmed_count': element.get('mlvlMntnTcnt', 0),
+                'grade': element['custGrdNm'],
+                'rank': TITLES.get(element['curLvlCd']),
+                'verified': element['csmrYn'] == 'Y',
                 'center': element.get('ectrNm'),
                 'country': element['corpNm'],
                 'child_type': child_type,
                 'signup_date': signup_date,
-                'last_purchase_date': last_purchase_date,
+                'last_purchase_date': last_purchase_date
             })
 
         self._logger.debug("Collected node %s (rank: %s)", atomy_id, TITLES.get(element['curLvlCd']))

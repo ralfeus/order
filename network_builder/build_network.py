@@ -175,8 +175,8 @@ if __name__ == '__main__':
         args = parser.parse_args([
             '--user', 'S5832131',
             '--password', 'mkk03020529!!',
-            '--max-threads', '10',
-            '--root', '23426444',
+            '--max-threads', '1',
+            '--root', '12260149',
             '--repeat',
         ])
     else:

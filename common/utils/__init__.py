@@ -7,7 +7,37 @@ from time import sleep
 from typing import Any, Callable
 from xml.etree.ElementTree import fromstring
 
+from bs4 import BeautifulSoup
+
 from common.exceptions import AtomyLoginError, HTTPError
+
+
+def get_document(url, headers=[], raw_data: str='') -> BeautifulSoup:
+    logger = logging.getLogger('utils.get_document_from_url')
+    stdout, stderr = invoke_curl(url=url, headers=headers, raw_data=raw_data)
+    try:
+        if re.search('HTTP.*? (200|304)', stderr):
+            cleaned_string = re.sub(
+                u'[^\u0020-\uD7FF\u0009\u000A\u000D\uE000-\uFFFD\U00010000-\U0010FFFF]+',
+                '', stdout)
+            doc = BeautifulSoup(cleaned_string, 'html.parser')
+            return doc
+        if 'Could not resolve host' in stderr:
+            logger.warning("Couldn't resolve host name for %s. Will try in 10 seconds", url)
+            sleep(10)
+            return get_document(url, headers, raw_data)
+        if re.search('HTTP.* 302', stderr) and \
+            re.search('location: /v2/Home/Account/Login', stderr):
+            raise AtomyLoginError()
+        if re.search(r'HTTP.*? 50\d', stderr):
+            logger.warning('Server has returned HTTP 50*. Will try in 10 seconds')
+            sleep(10)
+            return get_document(url, headers, raw_data)
+
+        raise Exception("Couldn't get page", stderr)
+    except TypeError:
+        logger.exception(url, headers, raw_data)
+    raise Exception("Couldn't get page", stderr)
 
 def get_document_from_url(url, headers=[], raw_data: str=''):
     logger = logging.getLogger('utils.get_document_from_url')

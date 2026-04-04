@@ -1,12 +1,12 @@
 from unittest.mock import patch
+
+from bs4 import BeautifulSoup
 from tests import BaseTestCase
 
-from lxml import etree
 from app import db
 import app.jobs as jobs
 import app.products.models as p
-
-
+    
 class TestJobs(BaseTestCase):
     def setUp(self):
         super().setUp()
@@ -15,11 +15,11 @@ class TestJobs(BaseTestCase):
 
     @patch('app.jobs.save_image')
     @patch('common.utils.atomy.atomy_login2')
-    @patch('app.tools.get_json')
-    @patch('app.tools.get_html')
-    def test_import_products(self, get_html, get_json, atomy_login2, save_image):
+    @patch('common.utils.get_json')
+    @patch('common.utils.get_document')
+    def test_import_products(self, get_document, get_json, atomy_login2, save_image):
         atomy_login2.return_value = None
-        get_html.return_value = etree.fromstring('''
+        get_document.return_value = BeautifulSoup('''
             <div class="gdsList n5">
                 <input type="hidden" name="pageIdx" value="1">
                 <input type="hidden" name="rowsPerPage" value="40">
@@ -42,18 +42,36 @@ class TestJobs(BaseTestCase):
                     </li>
                 </ul>
             </div>
-            ''', parser=etree.HTMLParser())
-        get_json.return_value = {'00000': {
-                    "materialCode": '000',
-                    "id": "000",
-                    "productName": "Test product",
-                    'name': "Test english name",
-                    "memRetailPrice": 10,
-                    "pvPrice": 10,
-                    "flags": ['test_flag'],
-                    "images": [{"file": "image file"}],
-                    "optionType": {"value": 'none'}
-                }}
+            ''', 'html.parser')
+        get_json.return_value = [
+            {
+                "itemNo": "00000", 
+                "sortSeq": 0, 
+                "salePossQty": 0, 
+                "materialCode": "001846", 
+                "goodsStatCd": "20", 
+                "goodsStatNm": "goods.word.outofstock", 
+                "goodsTypeCd": "101", 
+                "soldOutWarehouseList": [
+                    {
+                        "warehouseNo": "01", 
+                        "itemNo": "00000", 
+                        "regDaysDiff": 0, 
+                        "warehouseNm": "KR", 
+                        "salePossQty": 0, 
+                        "totalSalePossQty": 0
+                    }
+                ], 
+                "pvPrice": 0.0, 
+                "nomeSalePrice": 0.0, 
+                "custSalePrice": 0.0, 
+                "beneCustSalePrice": 0.0, 
+                "custPvupPrice": 0.0, 
+                "reservSaleMgmtNo": "", 
+                "reservTotalMemberQty": 0, 
+                "reservTotalOrdQty": 0
+            }
+        ]
         save_image.return_value = '', ''
         self.try_add_entity(p.Product(
             id='000', synchronize=True
