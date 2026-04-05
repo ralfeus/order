@@ -9,8 +9,11 @@ from typing import Callable
 import common.utils.logging as logging
 
 
+STATE_SERVER_PORT = 1402
+
+
 class StateServer:
-    """Listens on a random TCP port and responds with build progress JSON.
+    """Listens on TCP port 1402 and responds with build progress JSON.
 
     Usage as a context manager::
 
@@ -86,7 +89,7 @@ class StateServer:
         initial_count: int | None = None
 
         with socket.socket() as s:
-            s.bind(('localhost', 0))
+            s.bind(('localhost', STATE_SERVER_PORT))
             self._port = s.getsockname()[1]
             self._logger.info("State server listening on localhost:%s", self._port)
             port_ready.set()

@@ -54,7 +54,8 @@ logging.basicConfig(
     level=log_level,
     format='%(asctime)s:%(levelname)s:%(module)s:%(name)s:%(lineno)d:\t%(message)s')
 logging.info(f"Logging level: {logging.getLevelName(log_level)}")
-import network_manager
+from network_manager import bp as network_manager_bp
+app.register_blueprint(network_manager_bp)
 
 logging.info(app.url_map)
 

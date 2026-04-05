@@ -27,7 +27,8 @@ _flask_app = Flask(__name__)
 _flask_app.config['TESTING'] = True
 _stub_module('netman_app', app=_flask_app)
 
-import network_manager.network_manager  # noqa: E402 – registers routes on _flask_app
+import network_manager.network_manager  # noqa: E402 – defines bp
+_flask_app.register_blueprint(network_manager.network_manager.bp)
 
 
 class TestStartBuilderDockerUnavailable(unittest.TestCase):
@@ -116,6 +117,95 @@ class TestStartBuilderDockerUnavailable(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data['status'], 'already running')
+
+
+class TestGetNodeBranches(unittest.TestCase):
+
+    def setUp(self):
+        self.client = _flask_app.test_client()
+
+    def _patch_db(self, rows):
+        """Patch db.cypher_query to return *rows* as the result set."""
+        mock_db = sys.modules['neomodel'].db
+        mock_db.cypher_query.return_value = (rows, None)
+
+    # ------------------------------------------------------------------
+    # Happy path: root has both left and right descendants
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_returns_left_and_right_branches(self, _db_conn):
+        self._patch_db([['A001', 'left'], ['A002', 'right'], ['A003', 'left']])
+
+        response = self.client.get(
+            '/api/v1/node/branch?root_id=ROOT&ids=A001&ids=A002&ids=A003')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertEqual(data, {'A001': 'left', 'A002': 'right', 'A003': 'left'})
+
+    # ------------------------------------------------------------------
+    # Missing root_id → empty dict, no DB call
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_missing_root_id_returns_empty(self, _db_conn):
+        response = self.client.get('/api/v1/node/branch?ids=A001')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {})
+
+    # ------------------------------------------------------------------
+    # Missing ids → empty dict, no DB call
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_missing_ids_returns_empty(self, _db_conn):
+        response = self.client.get('/api/v1/node/branch?root_id=ROOT')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {})
+
+    # ------------------------------------------------------------------
+    # Node not under root → absent from result (neither left nor right)
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_unrelated_node_not_in_result(self, _db_conn):
+        # DB returns nothing for this node — it is not under root
+        self._patch_db([])
+
+        response = self.client.get(
+            '/api/v1/node/branch?root_id=ROOT&ids=UNRELATED')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('UNRELATED', response.get_json())
+
+    # ------------------------------------------------------------------
+    # Root itself is passed as an id → absent from result
+    # (root has no PARENT path to itself via left/right child)
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_root_node_not_in_result(self, _db_conn):
+        self._patch_db([])  # DB correctly returns nothing for the root
+
+        response = self.client.get(
+            '/api/v1/node/branch?root_id=ROOT&ids=ROOT')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('ROOT', response.get_json())
+
+    # ------------------------------------------------------------------
+    # Correct params are passed to cypher_query
+    # ------------------------------------------------------------------
+    @patch('network_manager.network_manager._test_db_connection', return_value=True)
+    def test_cypher_called_with_correct_params(self, _db_conn):
+        self._patch_db([])
+        mock_db = sys.modules['neomodel'].db
+
+        self.client.get('/api/v1/node/branch?root_id=ROOT&ids=A001&ids=A002')
+
+        call_kwargs = mock_db.cypher_query.call_args
+        params = call_kwargs[1]['params']
+        self.assertEqual(params['root_id'], 'ROOT')
+        self.assertIn('A001', params['ids'])
+        self.assertIn('A002', params['ids'])
 
 
 if __name__ == '__main__':

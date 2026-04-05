@@ -1,7 +1,13 @@
 $(document).ready(() => {
-    $('#network').DataTable({
+    const table = $('#network').DataTable({
         dom: 'lrtip',
-        ajax: '/api/v1/admin/network',
+        ajax: {
+            url: '/api/v1/admin/network',
+            data: d => {
+                const root = $('#filter-root').val().trim();
+                if (root) d.root_id = root;
+            }
+        },
         columns: [
             {data: 'id'},
             {data: 'name'},
@@ -20,10 +26,45 @@ $(document).ready(() => {
         serverSide: true,
         processing: true,
         select: true,
-        initComplete: function() { 
-            init_search(this, null); 
+        initComplete: function() {
+            init_search(this, null);
         }
     });
+
+    let filterDebounce;
+    $('#filter-root').on('input', () => {
+        clearTimeout(filterDebounce);
+        filterDebounce = setTimeout(() => table.ajax.reload(), 500);
+    });
+    $('#filter-root-clear').on('click', () => {
+        $('#filter-root').val('');
+        table.ajax.reload();
+    });
+
+    table.on('draw', () => {
+        const root = $('#filter-root').val().trim();
+        if (!root) return;
+
+        const ids = [];
+        table.rows({page: 'current'}).data().each(row => ids.push(row.id));
+        if (!ids.length) return;
+
+        const params = new URLSearchParams({root_id: root});
+        ids.forEach(id => params.append('ids', id));
+
+        $.ajax({
+            url: `/api/v1/admin/network/branch?${params.toString()}`,
+            success: branches => {
+                table.rows({page: 'current'}).every(function() {
+                    const branch = branches[this.data().id];
+                    if (branch !== undefined) {
+                        $(this.cell(this.index(), 2).node()).text(branch);
+                    }
+                });
+            }
+        });
+    });
+
     $('#nodes-count-input').appendTo('.btn-group');
     updateBuilderStatus();
     setInterval(updateBuilderStatus, 60000);
