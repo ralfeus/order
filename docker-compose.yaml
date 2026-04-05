@@ -47,8 +47,9 @@ services:
     environment:
       - LOG_LEVEL=DEBUG
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
-      - BUILDER_IMAGE=ralfeus/network-builder:stable
+      - BUILDER_IMAGE=ralfeus/network-builder
       - BUILDER_NETWORK=order
+      - BUILDER_LOG_LEVEL=DEBUG
     privileged: true
     networks:
       - order
@@ -59,7 +60,7 @@ services:
   network-builder:
     # depends_on:
     #   - neo4j
-    image: ralfeus/network-builder:stable
+    image: ralfeus/network-builder
     profiles:
       - builder
     extra_hosts:
@@ -68,7 +69,6 @@ services:
       - builder-output:/app/output
     environment:
       - NEO4J_URL=bolt://neo4j:1@neo4j:7687
-      - SOCKS5_PROXY=host.docker.internal:9050
     networks:
       - order
 

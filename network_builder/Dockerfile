@@ -9,4 +9,6 @@ RUN chmod +x /app/entrypoint.sh
 
 WORKDIR "/app"
 VOLUME ["/app/output"]
+# State server port
+EXPOSE 1402
 ENTRYPOINT ["/app/entrypoint.sh"]

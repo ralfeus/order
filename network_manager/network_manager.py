@@ -11,12 +11,13 @@ import re
 
 import docker
 import docker.errors
-from flask import Response, abort, jsonify, request
+from flask import Blueprint, Response, abort, jsonify, request
 from neomodel import db
 from werkzeug.exceptions import BadRequest
 
-from netman_app import app
 from common.model import AtomyPerson
+
+bp = Blueprint('network_manager', __name__)
 
 BUILDER_CONTAINER_NAME = 'network-builder'
 BUILDER_IMAGE = environ.get('BUILDER_IMAGE', 'ralfeus/network-builder:stable')
@@ -45,7 +46,7 @@ def _test_db_connection():
         return False
 
 
-@app.before_request
+@bp.before_request
 def test_db_connection():
     if not _test_db_connection():
         response = jsonify(status="error", description="Neo4j isn't available")
@@ -53,7 +54,7 @@ def test_db_connection():
         return response
 
 
-@app.route('/api/v1/builder/status')
+@bp.route('/api/v1/builder/status')
 def get_builder_status():
     container = _get_builder_container()
     if container is not None:
@@ -70,7 +71,7 @@ def get_builder_status():
         return jsonify({'status': 'not running'})
 
 
-@app.route('/api/v1/builder/start')
+@bp.route('/api/v1/builder/start')
 def start_builder():
     logging.info("Wait for another request to start building")
     sleep(random() * 5)
@@ -90,18 +91,20 @@ def start_builder():
         except docker.errors.NotFound:
             pass
 
+        root = request.args.get('root') or 'S5832131'
+        verbosity = ['-vv'] if environ.get('BUILDER_LOG_LEVEL') == 'DEBUG' else []
         client.containers.run(
             BUILDER_IMAGE,
             command=[
                 '--user', 'S5832131',
                 '--password', 'mkk03020529!!',
-                '--root', 'S5832131',
+                '--root', root,
                 '--max-threads', threads,
                 '--nodes', request.args.get('nodes') or '0',
                 '--last-updated', last_updated.strftime('%Y-%m-%d'),
                 '--socks5_proxy', environ.get('SOCKS5_PROXY') or '',
                 '--repeat',
-            ],
+            ] + verbosity,
             name=BUILDER_CONTAINER_NAME,
             environment={
                 'NEO4J_URL': environ.get('NEO4J_URL', ''),
@@ -125,7 +128,7 @@ def start_builder():
         return jsonify({'status': "couldn't start"})
 
 
-@app.route('/api/v1/builder/stop')
+@bp.route('/api/v1/builder/stop')
 def stop_builder():
     container = _get_builder_container()
     if container is not None:
@@ -134,8 +137,8 @@ def stop_builder():
     return jsonify({'status': "didn't stop - not running"})
 
 
-@app.route('/api/v1/node', defaults={'node_id': None})
-@app.route('/api/v1/node/<node_id>')
+@bp.route('/api/v1/node', defaults={'node_id': None})
+@bp.route('/api/v1/node/<node_id>')
 def get_nodes(node_id):
     '''Gets node either by ID provided in URL or filter provided in JSON payload'''
     def get_total(query_params):
@@ -236,7 +239,7 @@ def get_nodes(node_id):
     })
 
 
-@app.route('/api/v1/node/<node_id>', methods=['patch'])
+@bp.route('/api/v1/node/<node_id>', methods=['patch'])
 def update_node(node_id):
     node: AtomyPerson = AtomyPerson.nodes.get_or_none(atomy_id=node_id)
     if node is None:
@@ -256,7 +259,7 @@ def update_node(node_id):
     return jsonify(node.to_dict())
 
 
-@app.route('/api/v1/node/<node_id>', methods=['put'])
+@bp.route('/api/v1/node/<node_id>', methods=['put'])
 def save_node(node_id):
     try:
         payload = request.get_json()
@@ -273,7 +276,7 @@ def save_node(node_id):
     return jsonify(node.to_dict())
 
 
-@app.route('/api/v1/node/<node_id>/update', methods=['post'])
+@bp.route('/api/v1/node/<node_id>/update', methods=['post'])
 def update_node_from_atomy(node_id):
     container_name = f'network-builder-{node_id}'
     try:
@@ -308,7 +311,7 @@ def update_node_from_atomy(node_id):
         return {'status': 'error'}, 500
 
 
-@app.route('/api/v1/node/<node_id>/update')
+@bp.route('/api/v1/node/<node_id>/update')
 def get_node_fetch_status(node_id):
     container_name = f'network-builder-{node_id}'
     try:
@@ -322,6 +325,27 @@ def get_node_fetch_status(node_id):
         return {'status': 'not running'}, 200
     except Exception:
         return {'status': 'not running'}, 200
+
+
+@bp.route('/api/v1/node/branch')
+def get_node_branches():
+    '''Returns the branch (left/right) of each requested node relative to root_id.'''
+    root_id = request.args.get('root_id', '').strip()
+    ids = request.args.getlist('ids')
+    if not root_id or not ids:
+        return jsonify({})
+    result, _ = db.cypher_query('''
+        MATCH (root:AtomyPerson {atomy_id: $root_id})-[:LEFT_CHILD]->(lc)
+        MATCH (n:AtomyPerson)-[:PARENT*0..]->(lc)
+        WHERE n.atomy_id IN $ids
+        RETURN n.atomy_id, 'left'
+        UNION
+        MATCH (root:AtomyPerson {atomy_id: $root_id})-[:RIGHT_CHILD]->(rc)
+        MATCH (n:AtomyPerson)-[:PARENT*0..]->(rc)
+        WHERE n.atomy_id IN $ids
+        RETURN n.atomy_id, 'right'
+    ''', params={'root_id': root_id, 'ids': ids})
+    return jsonify({row[0]: row[1] for row in result})
 
 
 def _get_filter(filter_params):
