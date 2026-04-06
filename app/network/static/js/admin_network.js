@@ -45,8 +45,7 @@ $(document).ready(() => {
         const root = $('#filter-root').val().trim();
         if (!root) return;
 
-        const ids = [];
-        table.rows({page: 'current'}).data().each(row => ids.push(row.id));
+        const ids = table.rows().data().toArray().map(row => row.id);
         if (!ids.length) return;
 
         const params = new URLSearchParams({root_id: root});
@@ -55,7 +54,7 @@ $(document).ready(() => {
         $.ajax({
             url: `/api/v1/admin/network/branch?${params.toString()}`,
             success: branches => {
-                table.rows({page: 'current'}).every(function() {
+                table.rows().every(function() {
                     const branch = branches[this.data().id];
                     if (branch !== undefined) {
                         $(this.cell(this.index(), 2).node()).text(branch);
