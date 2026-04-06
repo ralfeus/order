@@ -31,10 +31,10 @@ $(document).ready(() => {
         }
     });
 
-    let filterDebounce;
     $('#filter-root').on('input', () => {
-        clearTimeout(filterDebounce);
-        filterDebounce = setTimeout(() => table.ajax.reload(), 500);
+        if ($('#filter-root').val().trim().length === 8) {
+            table.ajax.reload();
+        }
     });
     $('#filter-root-clear').on('click', () => {
         $('#filter-root').val('');
