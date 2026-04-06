@@ -336,9 +336,12 @@ def get_node_branches():
     if not root_id or not ids:
         return jsonify({})
     result, _ = db.cypher_query('''
+        MATCH (root:AtomyPerson {atomy_id: $root_id})
         UNWIND $ids AS node_id
-        MATCH (n:AtomyPerson {atomy_id: node_id})-[:PARENT*0..]->(child:AtomyPerson)-[:PARENT]->(root:AtomyPerson {atomy_id: $root_id})
-        WITH n, child, root,
+        MATCH (n:AtomyPerson {atomy_id: node_id})
+        MATCH p = shortestPath((n)-[:PARENT*]->(root))
+        WITH n, root, nodes(p)[-2] AS child
+        WITH n, root, child,
             CASE
                 WHEN child.atomy_id = root.left_id THEN 'left'
                 WHEN child.atomy_id = root.right_id THEN 'right'
