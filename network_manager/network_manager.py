@@ -49,6 +49,7 @@ def _test_db_connection():
 @bp.before_request
 def test_db_connection():
     if not _test_db_connection():
+        logging.error("Neo4j database is not available")
         response = jsonify(status="error", description="Neo4j isn't available")
         response.status_code = 500
         return response
@@ -335,15 +336,15 @@ def get_node_branches():
     if not root_id or not ids:
         return jsonify({})
     result, _ = db.cypher_query('''
-        MATCH (root:AtomyPerson {atomy_id: $root_id})-[:LEFT_CHILD]->(lc)
-        MATCH (n:AtomyPerson)-[:PARENT*0..]->(lc)
-        WHERE n.atomy_id IN $ids
-        RETURN n.atomy_id, 'left'
-        UNION
-        MATCH (root:AtomyPerson {atomy_id: $root_id})-[:RIGHT_CHILD]->(rc)
-        MATCH (n:AtomyPerson)-[:PARENT*0..]->(rc)
-        WHERE n.atomy_id IN $ids
-        RETURN n.atomy_id, 'right'
+        UNWIND $ids AS node_id
+        MATCH (n:AtomyPerson {atomy_id: node_id})-[:PARENT*0..]->(child:AtomyPerson)-[:PARENT]->(root:AtomyPerson {atomy_id: $root_id})
+        WITH n, child, root,
+            CASE
+                WHEN child.atomy_id = root.left_id THEN 'left'
+                WHEN child.atomy_id = root.right_id THEN 'right'
+            END AS branch
+        WHERE branch IS NOT NULL
+        RETURN n.atomy_id, branch
     ''', params={'root_id': root_id, 'ids': ids})
     return jsonify({row[0]: row[1] for row in result})
 
