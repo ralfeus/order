@@ -57,7 +57,7 @@ $(document).ready(() => {
                 table.rows().every(function() {
                     const branch = branches[this.data().id];
                     if (branch !== undefined) {
-                        $(this.cell(this.index(), 2).node()).text(branch);
+                        $(table.cell(this.index(), 2).node()).text(branch);
                     }
                 });
             }
