@@ -188,7 +188,12 @@ function open_order_invoice(target) {
 }
 
 function pay_shipment(target) {
-    var order_id = g_orders_table.row($(target).parents('tr')).data().id;
-    window.open('/orders/' + order_id + '/shipment/pay', '_blank',
-        'width=700,height=750,resizable=yes,scrollbars=yes');
+    var data = g_orders_table.row($(target).parents('tr')).data();
+    var shipmentUrl = data.params && data.params.eurocargo && data.params.eurocargo.shipment_url;
+    if (!shipmentUrl) {
+        alert('Shipment payment link is not available yet. Please try again in a moment.');
+        return;
+    }
+    var url = shipmentUrl + '?user=' + encodeURIComponent(data.user || '');
+    window.location.href = url;
 }

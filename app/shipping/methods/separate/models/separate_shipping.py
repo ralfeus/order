@@ -10,15 +10,19 @@ class SeparateShipping(Shipping):
 
     At order creation the shipping cost is 0. When the order transitions to
     "packed", the actual shipping cost is calculated via the standard rate
-    lookup and the customer is prompted to pay via Stripe.
+    lookup and the customer is prompted to pay via Revolut through eurocargo_management.
     '''
 
     __mapper_args__ = {'polymorphic_identity': 'separate'}  # type: ignore
 
     type = 'SeparateShipping'
 
+    def get_edit_url(self) -> str:
+        return f'/admin/shipping/separate/{self.id}'
+
     def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''Returns 0 at order creation time. Actual cost is set when packed.'''
+        #TODO: Raise NoShippingRateError if no rate configured for destination/weight
         return 0
 
     def get_actual_shipping_cost(self, destination: Optional[str], weight: int) -> int:

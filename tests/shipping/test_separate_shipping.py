@@ -10,7 +10,7 @@ from app.shipping.methods.separate.models.separate_shipping import SeparateShipp
 from app.shipping.models.shipping import NoShipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 
 PW_HASH = "pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576"
 
@@ -34,12 +34,12 @@ class TestSeparateShippingModel(BaseTestCase):
     # ------------------------------------------------------------------
 
     def test_get_shipping_cost_returns_zero_for_known_destination(self):
-        shipping = SeparateShipping.query.get(1)
+        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
         self.assertEqual(shipping.get_shipping_cost('c1', 500), 0)
 
     def test_get_shipping_cost_returns_zero_for_unknown_destination(self):
         """Even when no rate is configured, cost is 0 (deferred to packing)"""
-        shipping = SeparateShipping.query.get(1)
+        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
         self.assertEqual(shipping.get_shipping_cost('xx', 500), 0)
 
     # ------------------------------------------------------------------
@@ -47,12 +47,12 @@ class TestSeparateShippingModel(BaseTestCase):
     # ------------------------------------------------------------------
 
     def test_get_actual_shipping_cost_returns_configured_rate(self):
-        shipping = SeparateShipping.query.get(1)
+        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
         cost = shipping.get_actual_shipping_cost('c1', 500)
         self.assertEqual(cost, 5000)
 
     def test_get_actual_shipping_cost_no_rate_raises_error(self):
-        shipping = SeparateShipping.query.get(1)
+        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
         with self.assertRaises(NoShippingRateError):
             shipping.get_actual_shipping_cost('xx', 500)
 
@@ -91,6 +91,10 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
     def setUp(self):
         super().setUp()
         db.create_all()
+        # Explicitly connect the signal so tests are independent of app init order
+        from app.orders.signals import sale_order_packed
+        from app.shipping.methods.separate.signal_handlers import on_sale_order_packed
+        sale_order_packed.connect(on_sale_order_packed)
         admin_role = Role(name='admin')
         self.actor = User(
             username='actor_test_separate',
@@ -110,12 +114,12 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
         ])
 
     def _make_order(self, shipping, status=OrderStatus.po_created, **kwargs):
-        kwargs.setdefault('shipping_krw', 0)
+        kwargs.setdefault('shipping_base_currency', 0)
         order = Order(
             user=self.actor,
             country_id='c1',
             shipping=shipping,
-            subtotal_krw=10000,
+            subtotal_base_currency=10000,
             total_weight=500,
             shipping_box_weight=0,
             status=status,
@@ -124,36 +128,36 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
         self.try_add_entity(order)
         return order
 
-    def test_set_status_packed_calculates_shipping_krw(self):
+    def test_set_status_packed_calculates_shipping_base_currency(self):
         order = self._make_order(SeparateShipping.query.get(1))
         order.set_status(OrderStatus.packed, self.actor)
         db.session.commit()
 
         self.assertEqual(order.status, OrderStatus.packed)
-        self.assertEqual(order.shipping_krw, 5000)
+        self.assertEqual(order.shipping_base_currency, 5000)
 
-    def test_set_status_packed_updates_currency_amounts(self):
-        order = self._make_order(SeparateShipping.query.get(1))
+    def test_set_status_packed_updates_user_currency_amount(self):
+        """EUR rate = 0.5, so 5000 KRW * 0.5 = 2500 stored in shipping_user_currency"""
+        order = self._make_order(SeparateShipping.query.get(1),
+                                 user_currency_code='EUR')
         order.set_status(OrderStatus.packed, self.actor)
         db.session.commit()
 
-        # EUR rate = 0.5, so 5000 KRW * 0.5 = 2500 EUR (as stored in cur2)
-        self.assertAlmostEqual(float(order.shipping_cur2), 2500.0)
-        self.assertAlmostEqual(float(order.shipping_cur1), 2500.0)
+        self.assertAlmostEqual(float(order.shipping_user_currency), 2500.0)
 
     def test_set_status_packed_updates_total(self):
         order = self._make_order(SeparateShipping.query.get(1))
         order.set_status(OrderStatus.packed, self.actor)
         db.session.commit()
 
-        self.assertEqual(order.total_krw, 10000 + 5000)  # subtotal + shipping
+        self.assertEqual(order.total_base_currency, 10000 + 5000)  # subtotal + shipping
 
     def test_set_status_packed_non_separate_shipping_leaves_cost_unchanged(self):
         """Orders with NoShipping are not affected by the SeparateShipping hook"""
-        order = self._make_order(NoShipping.query.get(999), shipping_krw=100)
+        order = self._make_order(NoShipping.query.get(999), shipping_base_currency=100)
         order.set_status(OrderStatus.packed, self.actor)
 
-        self.assertEqual(order.shipping_krw, 100)  # unchanged
+        self.assertEqual(order.shipping_base_currency, 100)  # unchanged
 
     def test_shipment_is_paid_status_exists_in_enum(self):
         self.assertIn('shipment_is_paid', [s.name for s in OrderStatus])

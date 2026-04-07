@@ -4,6 +4,7 @@ networks:
 
 volumes:
   builder-output:
+  eurocargo-postgres-data:
 
 services:
   # neo4j:
@@ -154,6 +155,48 @@ services:
       - order
 
 
+
+#####################################################
+# eurocargo_management services
+
+  eurocargo-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: eurocargo
+      POSTGRES_USER: eurocargo
+      POSTGRES_PASSWORD: eurocargo
+    volumes:
+      - eurocargo-postgres-data:/var/lib/postgresql/data
+    networks:
+      - order
+    restart: unless-stopped
+
+  eurocargo-backend:
+    build:
+      context: ./eurocargo_management/backend
+    depends_on:
+      - eurocargo-db
+    environment:
+      - DATABASE_URL=postgresql://eurocargo:eurocargo@eurocargo-db:5432/eurocargo
+      - BASE_URL=http://localhost:3000
+      - REVOLUT_API_KEY=
+      - REVOLUT_WEBHOOK_SECRET=
+    networks:
+      - order
+    restart: unless-stopped
+
+  eurocargo-frontend:
+    build:
+      context: ./eurocargo_management/frontend
+    depends_on:
+      - eurocargo-backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://eurocargo-backend:8000
+    networks:
+      - order
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
 
 #####################################################
 
