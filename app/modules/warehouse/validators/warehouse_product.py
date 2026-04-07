@@ -3,6 +3,8 @@ import re
 from flask_inputs import Inputs
 from wtforms.validators import ValidationError
 
+from app import db
+
 def _is_valid_integer(_form, field):
     try:
         int(field.data)
@@ -11,7 +13,7 @@ def _is_valid_integer(_form, field):
 
 def _is_valid_product(_form, field):
     from app.products.models.product import Product
-    if Product.query.get(field.data) is None:
+    if db.session.get(Product, field.data) is None:
         raise ValidationError(f'{field.id}: Must be existing product ID')
 
 class WarehouseProductValidator(Inputs):

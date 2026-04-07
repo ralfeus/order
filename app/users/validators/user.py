@@ -4,10 +4,11 @@ from wtforms import ValidationError
 from wtforms.validators import DataRequired, EqualTo
 
 import re
+from app import db
 from app.users.models.user import User
 
 def _is_valid_username(_form, field):
-    if User.query.get(field.data) is not None:
+    if db.session.get(User, field.data) is not None:
         raise ValidationError(f'{field.id}: Already exists')
     
 def _is_valid_phone_number(_form, field):

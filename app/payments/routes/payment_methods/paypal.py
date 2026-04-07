@@ -12,10 +12,11 @@ from app.payments import bp_api_user, bp_client_user
 def get_paypal_checkout(payment_id):
     from app.payments.models.payment import Payment
     from app.settings.models.setting import Setting
-    payment = Payment.query.get(payment_id)
+    from app import db
+    payment = db.session.get(Payment, payment_id)
     if payment is None:
         abort(404)
-    paypal_client_id = Setting.query.get('payment.paypal.client_id').value
+    paypal_client_id = db.session.get(Setting, 'payment.paypal.client_id').value
     return render_template('payment_methods/paypal.html',
         client_id=paypal_client_id,
         payment=payment
@@ -28,12 +29,13 @@ def user_create_paypal_order(payment_id):
     from paypalcheckoutsdk.orders import OrdersCreateRequest
     from app.payments.models.payment import Payment
     from app.settings.models.setting import Setting
-    payment: Payment = Payment.query.get(payment_id)
+    from app import db
+    payment: Payment = db.session.get(Payment, payment_id)
     if payment is None:
         abort(404)
     # Calculate total with PayPal fees
-    payment_currency = Currency.query.get(payment.currency_code)
-    usd = Currency.query.get('USD')
+    payment_currency = db.session.get(Currency, payment.currency_code)
+    usd = db.session.get(Currency, 'USD')
     fixed_fee = 0.3 / usd.get_rate() * payment_currency.get_rate()
     amount_total = float(payment.amount_sent_original) * 1.044 + fixed_fee
     client_id = Setting.get('payment.paypal.client_id')
@@ -92,7 +94,7 @@ def approve_payment(capture_result):
     from app import db
     from app.currencies.models.currency import Currency
     from app.payments.models.payment import Payment
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if payment is None:
         logger.warning('No payment %s was found', payment_id)
         return
@@ -101,7 +103,7 @@ def approve_payment(capture_result):
         return
     net_amount = \
         payment_data.payments.captures[0].seller_receivable_breakdown.net_amount
-    received_currency = Currency.query.get(net_amount.currency_code)
+    received_currency = db.session.get(Currency, net_amount.currency_code)
     if received_currency is None:
         logger.info("Unknown currency is received %s", net_amount.currency_code)
         return

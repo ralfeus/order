@@ -11,6 +11,16 @@
     white-space: nowrap;
     overflow: visible;
     border: 1px solid #ccc;
-    background: #f8f9fa;
+    background: #e9ecef;
+    color: #6c757d;
     font-size: inherit;
+    cursor: default;
+}
+
+.clear-btn.clear-btn-active {
+    background: #ffc107;
+    color: #212529;
+    border-color: #e0a800;
+    font-weight: bold;
+    cursor: pointer;
 }

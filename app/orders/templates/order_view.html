@@ -21,19 +21,6 @@
   {% endif %}
 {% endblock %}
 
-{% block currencies %}
-<div class="btn-group btn-group-toggle" data-toggle="buttons">
-  {% for c in currencies %}
-  <label class="btn btn-secondary {{ 'active' if c.default else '' }}">    
-    <input type="radio" name="currency" {{ 'checked' if c.default else ''}}
-      onclick="window.location = '{{ request.base_url }}?currency={{ c.code }}';">
-      {{ c.code }}
-    </input>
-  </label>
-  {% endfor %}
-</div>
-{% endblock %}
-
 {% block content %}
 {{ super() }}
 <div class="h3">{{ order.id }}</div>

@@ -72,14 +72,15 @@ def admin_save_transaction():
     if isinstance(payload['amount'], str):
         payload['amount'] = re.sub(
             r'[\s,]', '', payload['amount'])
-    customer = User.query.get(payload['customer_id'])
+    customer = db.session.get(User, payload['customer_id'])
 
     transaction = Transaction(
         customer=customer,
         customer_balance=customer.balance + int(payload['amount']),
         amount=int(payload['amount']),
         user=current_user,
-        when_created=datetime.now()
+        when_created=datetime.now(),
+        comment=payload['comment']
     )
 
     db.session.add(transaction)

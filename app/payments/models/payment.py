@@ -8,7 +8,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
-from exceptions import PaymentNoReceivedAmountException
+from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
 from app.models.base import BaseModel
 
 payments_orders = db.Table('payments_orders',
@@ -35,8 +35,8 @@ class Payment(db.Model, BaseModel):
     user = relationship('User', foreign_keys=[user_id])
     sender_name = Column(String(128))
     orders = db.relationship('Order', secondary=payments_orders, # type: ignore
-                             backref=db.backref('payments', lazy='dynamic'), # type: ignore
-                             lazy='dynamic')
+                             backref=db.backref('payments', lazy='select'), # type: ignore
+                             lazy='select')
     currency_code = Column(String(3), ForeignKey('currencies.code'))
     currency = relationship('Currency')
     amount_sent_original = Column(Numeric(scale=2), default=0)
@@ -44,11 +44,11 @@ class Payment(db.Model, BaseModel):
     amount_received_krw = Column(Integer, default=0)
     payment_method_id = Column(Integer, ForeignKey('payment_methods.id'))
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
-    evidences = relationship("File", secondary=payments_files, lazy='dynamic')
+    evidences = relationship("File", secondary=payments_files, lazy='select')
     status = Column('status', Enum(PaymentStatus),
         server_default=PaymentStatus.pending.name)
     transaction_id = Column(Integer(), ForeignKey('transactions.id'))
-    transaction = relationship("Transaction", foreign_keys=[transaction_id])
+    transaction = relationship("Transaction", foreign_keys=[transaction_id], back_populates='payment')
     changed_by_id = Column(Integer, ForeignKey('users.id'))
     changed_by = relationship('User', foreign_keys=[changed_by_id])
     additional_info = Column(Text)
@@ -61,7 +61,7 @@ class Payment(db.Model, BaseModel):
                 setattr(self, arg, kwargs[arg])
         if self.payment_method is None:
             from .payment_method import PaymentMethod
-            self.payment_method = PaymentMethod.query.get(self.payment_method_id)
+            self.payment_method = db.session.get(PaymentMethod, self.payment_method_id)
 
     @classmethod
     def get_filter(cls, base_filter, column=None, filter_value=None):
@@ -100,6 +100,9 @@ class Payment(db.Model, BaseModel):
             value = PaymentStatus(value)
 
         if value == PaymentStatus.approved:
+            if self.status not in (PaymentStatus.pending, PaymentStatus.rejected):
+                raise PaymentStatusTransitionError(
+                    f"Payment <{self.id}> cannot be approved from status <{self.status.name}>")
             if not self.amount_received_krw:
                 raise PaymentNoReceivedAmountException(
                     f"No received amount is set for payment <{self.id}>")
@@ -118,7 +121,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
@@ -130,7 +134,8 @@ class Payment(db.Model, BaseModel):
         transaction = Transaction(
             amount=-self.amount_received_krw,
             customer=self.user,
-            user=self.changed_by
+            user=self.changed_by,
+            comment=f'Revert of payment {self.id}'
         )
         db.session.add(transaction)
         self.transaction = transaction
@@ -139,15 +144,15 @@ class Payment(db.Model, BaseModel):
         logger = logging.getLogger('update_orders')
         logger.debug("Updating orders related to payment %s", self.id)
         logger.debug("There are %s orders related to the payment %s: %s",
-                     self.orders.count(),
+                     len(self.orders),
                      self.id,
                      reduce(
                          lambda acc, o: acc + "; " + o.id,
                          self.orders, ""))
         from app.orders.models.order import OrderStatus
         total_orders_amount = reduce(
-            lambda acc, o: acc + o.total_krw,
-            self.orders.filter_by(status=OrderStatus.pending), 0
+            lambda acc, o: acc + o.total_base_currency,
+            [o for o in self.orders if o.status == OrderStatus.pending], 0
         )
 #        if self.amount_received_krw >= total_orders_amount:
         logger.debug("Received payment amount %s is larger than total amount of related orders %s. Marking orders as can_be_paid",

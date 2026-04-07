@@ -98,8 +98,8 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
-        order = Order.query.get(created_order_id)
-        self.assertEqual(order.total_krw, 2620)
+        order = db.session.get(Order, created_order_id)
+        self.assertEqual(order.total_base_currency, 2620)
         self.assertEqual(order.shipping.name, "Shipping1")
 
     def test_create_weightless_order(self):
@@ -187,9 +187,9 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
-        order = Order.query.get(created_order_id)
+        order = db.session.get(Order, created_order_id)
         self.assertEqual(len(order.order_products), 21)
-        self.assertEqual(order.suborders.count(), 3)
+        self.assertEqual(len(order.suborders), 3)
 
     def test_create_order_overweight(self):
         self.try_add_entities(
@@ -356,8 +356,8 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
-        order = Order.query.get(created_order_id)
-        self.assertEqual(order.suborders[0].order_products.count(), 1)
+        order = db.session.get(Order, created_order_id)
+        self.assertEqual(len(order.suborders[0].order_products), 1)
         self.assertEqual(order.suborders[0].order_products[0].quantity, 2)
 
     def test_handle_wrong_subcustomer_data(self):
@@ -566,6 +566,37 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
 
+    def test_save_order_no_shipping_rate(self):
+        order = Order(user=self.user, country_id="c1", shipping_method_id=1)
+        subcustomer = Subcustomer(name="A001", username="A001")
+        suborder = Suborder(order=order, subcustomer=subcustomer)
+        self.try_add_entities([
+            Product(id="heavy", name="Heavy product", price=10, weight=10000),
+            order,
+            subcustomer,
+            suborder,
+        ])
+        self.try_add_entities([
+            OrderProduct(suborder=suborder, product_id="heavy", price=10, quantity=2),
+        ])
+        res = self.try_admin_operation(
+            admin_only=True,
+            operation=lambda: self.client.post(
+                f"/api/v1/admin/order/{order.id}",
+                json={
+                    "address": "Address1",
+                    "city_eng": "City1",
+                    "country": "c1",
+                    "customer_name": "Customer1",
+                    "phone": "1",
+                    "zip": "1",
+                    "shipping": "1",
+                },
+            ),
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('error', res.get_json())
+
     def test_save_order_add_suborder(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         self.try_add_entities([Order(id=gen_id, user=self.user)])
@@ -669,8 +700,8 @@ class TestOrdersApi(BaseTestCase):
             ),
         )
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(order.id)
-        self.assertEqual(order.total_krw, 30000)
+        order = db.session.get(Order, order.id)
+        self.assertEqual(order.total_base_currency, 30000)
 
     def test_get_orders(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -723,7 +754,7 @@ class TestOrdersApi(BaseTestCase):
 
     def test_get_order(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
-        order = Order(id=gen_id, user=self.user)
+        order = Order(id=gen_id, user=self.user, user_currency_code='USD')
         suborder = Suborder(order=order)
         self.try_add_entities([Product(id=gen_id, price=10, weight=10)])
         self.try_add_entities(
@@ -740,8 +771,12 @@ class TestOrdersApi(BaseTestCase):
             lambda: self.client.get(f"/api/v1/order/{gen_id}")
         )
         self.assertEqual(res.json["total"], 2600)
-        self.assertEqual(res.json["total_cur2"], 1300.0)
-        self.assertEqual(res.json["total_cur1"], 1300.0)
+        # total_user_currency is the user-selected currency amount (USD, rate=0.5)
+        self.assertAlmostEqual(res.json["total_user_currency"], 1300.0, places=2)
+        self.assertEqual(res.json["user_currency_code"], 'USD')
+        # total_cur1/total_cur2 are kept as backward-compat aliases for the frontend
+        self.assertIn("total_cur1", res.json)
+        self.assertIn("total_cur2", res.json)
         self.assertEqual(res.json["user"], self.user.username)
         self.assertEqual(len(res.json["order_products"]), 1)
         res = self.client.get("/api/v1/order")
@@ -796,7 +831,7 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.json["quantity"], 100)
 
         res = self.client.get(f"/api/v1/admin/order/{gen_id}")
-        self.assertTrue(res.json["total_krw"], 1010)
+        self.assertTrue(res.json["total_base_currency"], 1010)
 
     def test_get_order_product_status_history(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -950,10 +985,10 @@ class TestOrdersApi(BaseTestCase):
             ),
         )
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(res.json["order_id"])
-        self.assertEqual(order.attached_orders.count(), 1)
-        self.assertEqual(order.shipping_krw, 200)
-        self.assertEqual(order.total_krw, 3700)
+        order = db.session.get(Order, res.json["order_id"])
+        self.assertEqual(len(order.attached_orders), 1)
+        self.assertEqual(order.shipping_base_currency, 200)
+        self.assertEqual(order.total_base_currency, 3700)
         self.client.post(
             f"/api/v1/order/{order.id}",
             json={
@@ -973,9 +1008,10 @@ class TestOrdersApi(BaseTestCase):
                 ],
             },
         )
-        self.assertEqual(order.attached_orders.count(), 2)
-        self.assertEqual(order.shipping_krw, 200)
-        self.assertEqual(order.total_krw, 3700)
+        db.session.refresh(order)
+        self.assertEqual(len(order.attached_orders), 2)
+        self.assertEqual(order.shipping_base_currency, 200)
+        self.assertEqual(order.total_base_currency, 3700)
 
     def test_pay_order(self):
         self.user.balance = 2600
@@ -1036,8 +1072,8 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
-        order = Order.query.get(created_order_id)
-        self.assertEqual(order.suborders.count(), 1)
+        order = db.session.get(Order, created_order_id)
+        self.assertEqual(len(order.suborders), 1)
         res = self.client.post(
             "/api/v1/order",
             json={
@@ -1138,8 +1174,8 @@ class TestOrdersApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
-        self.assertEqual(order.total_krw, 2620)
+        order = db.session.get(Order, gen_id)
+        self.assertEqual(order.total_base_currency, 2620)
         self.assertEqual(order.get_total_points(), 20)
 
     def test_delete_last_order_item_in_suborder(self):
@@ -1184,8 +1220,8 @@ class TestOrdersApi(BaseTestCase):
             ),
         )
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
-        self.assertEqual(order.suborders.count(), 1)
+        order = db.session.get(Order, gen_id)
+        self.assertEqual(len(order.suborders), 1)
 
     def test_delete_order_draft(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
@@ -1270,7 +1306,7 @@ class TestOrdersApi(BaseTestCase):
                     user=self.user,
                     status=OrderStatus.pending,
                     country_id="c1",
-                    total_krw=1000,
+                    total_base_currency=1000,
                 )
             ]
         )
@@ -1323,8 +1359,8 @@ class TestOrdersApi(BaseTestCase):
             )
         )
         self.assertEqual(res.json["order_id"], f"ORD-drft-{self.user.id}-2")
-        Order.query.get(f"ORD-drft-{self.user.id}-1").delete()
-        Order.query.get(f"ORD-drft-{self.user.id}-2").delete()
+        db.session.get(Order, f"ORD-drft-{self.user.id}-1").delete()
+        db.session.get(Order, f"ORD-drft-{self.user.id}-2").delete()
 
         # Create draft at the beginning
         res = self.client.post(
@@ -1351,8 +1387,8 @@ class TestOrdersApi(BaseTestCase):
             },
         )
         self.assertEqual(res.json["order_id"], f"ORD-drft-{self.user.id}-1")
-        Order.query.get(f"ORD-drft-{self.user.id}-9").delete()
-        Order.query.get(f"ORD-drft-{self.user.id}-10").delete()
+        db.session.get(Order, f"ORD-drft-{self.user.id}-9").delete()
+        db.session.get(Order, f"ORD-drft-{self.user.id}-10").delete()
 
         # Create draft at the end
         res = self.client.post(
@@ -1423,7 +1459,7 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
         created_order_id = res.json["order_id"]
-        order = Order.query.get(created_order_id)
+        order = db.session.get(Order, created_order_id)
         self.assertEqual(order.id, f"ORD-drft-{self.user.id}-11")
 
     def test_create_order_with_po(self):

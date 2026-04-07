@@ -31,6 +31,5 @@
     "python.defaultInterpreterPath": "python",
     "containers.imageBuildContextPath": ".",
     "python-envs.defaultEnvManager": "ms-python.python:system",
-    "python-envs.pythonProjects": [],
     "cursorpyright.analysis.typeCheckingMode": "basic"
 }

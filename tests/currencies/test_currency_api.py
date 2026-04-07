@@ -51,7 +51,7 @@ class TestCurrencyClient(BaseTestCase):
             json={'rate': 2})
         )
         self.assertEqual(res.status_code, 200)
-        currency = Currency.query.get(gen_id)
+        currency = db.session.get(Currency, gen_id)
         self.assertEqual(currency.rate, 2)
         self.assertEqual(CurrencyHistoryEntry.query.count(), 1)
 
@@ -69,6 +69,6 @@ class TestCurrencyClient(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/admin/currency/{gen_id}')
         )
         self.assertEqual(res.status_code, 200)
-        currency = Currency.query.get(gen_id)
+        currency = db.session.get(Currency, gen_id)
         self.assertEqual(currency, None)
     

@@ -17,7 +17,7 @@ class Setting(db.Model, BaseModel):
     @classmethod
     def get(cls, setting_name):
         '''Gets setting's value or None if setting doesn't exist'''
-        setting = Setting.query.get(setting_name)
+        setting = db.session.get(Setting, setting_name)
         if setting is not None:
             return setting.value
         return None

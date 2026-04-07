@@ -65,7 +65,7 @@ def admin_get_product(product_id):
     if request.values.get('draw') is not None:  # Args were provided by DataTables
         return _filter_products(products, request.values)
     if request.values.get('initialValue') is not None:
-        sub = Product.query.get(request.values.get('value')[1:-1])
+        sub = db.session.get(Product, request.values.get('value')[1:-1])
         return jsonify(
             {'id': sub.id, 'text': sub.name}
             if sub is not None else {})
@@ -113,7 +113,7 @@ def save_product(product_id):
         else:
             product_id = payload['id']
 
-    product = Product.query.get(product_id)
+    product = db.session.get(Product, product_id)
     if not product:
         product = Product()
         product.id = product_id
@@ -122,7 +122,7 @@ def save_product(product_id):
         product.available_shipping = []
         if len(payload['shipping']) < Shipping.query.count():
             product.available_shipping = \
-                Shipping.query.filter(Shipping.id.in_(payload['shipping']))
+                Shipping.query.filter(Shipping.id.in_(payload['shipping'])).all()
     editable_attributes = ['name', 'name_english', 'name_russian', 'price',
                            'points', 'weight', 'available', 'separate_shipping',
                            'synchronize', 'purchase', 'color']

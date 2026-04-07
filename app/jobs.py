@@ -1,11 +1,13 @@
 from datetime import datetime
 from celery.utils.log import get_task_logger
+import os
 import requests
 from sqlalchemy.sql.elements import Null
 from tqdm import tqdm
 from app.models.file import File
 from app import celery, db
-from utils.atomy import URL_BASE
+from common.utils.atomy import URL_BASE
+from product_importer import get_atomy_products
 
 @celery.on_after_finalize.connect #type: ignore
 def setup_periodic_tasks(sender, **kwargs):
@@ -15,19 +17,19 @@ def setup_periodic_tasks(sender, **kwargs):
 @celery.task
 def import_products():
     from flask import current_app
-    from app.import_products import get_atomy_products
     from app.products.models import Product
     
     logger = get_task_logger('import_products')
     logger.info("Starting products import")
     products = Product.query.all()
     same = new = modified = ignored = 0
-    vendor_products = get_atomy_products(current_app.config.get('PRODUCT_IMPORT_URL', URL_BASE))
+    vendor_products = get_atomy_products(
+        current_app.config.get('PRODUCT_IMPORT_URL', URL_BASE), logger=logger)
     try:
         db.session.commit() #type: ignore
     except:
         db.session.rollback() #type: ignore
-    logger.info("Got %d products", len(vendor_products))
+        logger.info("Got %d products", len(vendor_products))
     if len(vendor_products) == 0: # Something went wrong
         logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
         return
@@ -117,23 +119,19 @@ def import_products():
         same, new, modified, ignored)
     db.session.commit() #type: ignore
 
-@celery.task
-def add_together(a, b):
-#    for i in range(100):
-#        sleep(1)
-    return a + b
-
 
 def save_image(image_url):
-    from flask import current_app
-    if image_url!='':
+    if image_url != '':
+        from app.tools import get_products_path
         image_name = image_url.split('/')[-1]
         r = requests.get(image_url)
-        path_image = '/upload/products/' + image_name
-        with open(current_app.root_path + '/upload/products/'+ image_name, 'wb') as f:
+        products_dir = get_products_path()
+        os.makedirs(products_dir, exist_ok=True)
+        with open(os.path.join(products_dir, image_name), 'wb') as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
+        path_image = '/products/' + image_name
     else:
-        image_name=''
-        path_image=''
+        image_name = ''
+        path_image = ''
     return path_image, image_name

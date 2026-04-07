@@ -80,7 +80,7 @@ class TestInvoiceClient(BaseTestCase):
             )
         )
         self.assertEqual(res.json["invoice_id"], f"{id_prefix}0001") # type: ignore
-        invoice = Invoice.query.get(res.json["invoice_id"]) # type: ignore
+        invoice = db.session.get(Invoice, res.json["invoice_id"]) # type: ignore
         self.assertEqual(len(invoice.orders), 1)
         self.assertEqual(invoice.invoice_items_count, 2)
 
@@ -104,7 +104,7 @@ class TestInvoiceClient(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        invoice = Invoice.query.get(gen_id)
+        invoice = db.session.get(Invoice, gen_id)
         self.assertEqual(invoice.customer, "Customer 2")
 
     def test_get_invoices(self):
@@ -324,7 +324,7 @@ class TestInvoiceClient(BaseTestCase):
             f"/api/v1/admin/invoice/{gen_id}/item/10", json={"price": 20}
         )
         self.assertEqual(res.status_code, 200)
-        invoice_item = InvoiceItem.query.get(10)
+        invoice_item = db.session.get(InvoiceItem, 10)
         self.assertEqual(invoice_item.price, 20)
 
     def test_delete_invoice_item(self):
@@ -348,7 +348,7 @@ class TestInvoiceClient(BaseTestCase):
             lambda: self.client.delete(f"/api/v1/admin/invoice/{gen_id}/item/10")
         )
         self.assertEqual(res.status_code, 200)
-        invoice_item = InvoiceItem.query.get(10)
+        invoice_item = db.session.get(InvoiceItem, 10)
         self.assertEqual(invoice_item, None)
 
     def test_get_invoice_templates(self):

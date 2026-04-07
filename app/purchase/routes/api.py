@@ -16,8 +16,8 @@ from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
 from app.purchase.po_manager import create_purchase_orders
-from exceptions import AtomyLoginError, PurchaseOrderError
-from utils.atomy import atomy_login2
+from common.exceptions import AtomyLoginError, PurchaseOrderError
+from common.utils.atomy import atomy_login2
 
 from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 
@@ -77,9 +77,9 @@ def admin_create_purchase_orders():
     payload = request.get_json()
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
-    order = Order.query.get(payload['order_id'])
-    company = Company.query.get(payload['company_id'])
-    address = Address.query.get(payload['address_id'])
+    order = db.session.get(Order, payload['order_id'])
+    company = db.session.get(Company, payload['company_id'])
+    address = db.session.get(Address, payload['address_id'])
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
@@ -111,7 +111,7 @@ def admin_create_purchase_orders():
 @roles_required('po-admin')
 def update_purchase_order(po_id):
     logger = logging.getLogger('update_purchase_order')
-    po: PurchaseOrder = PurchaseOrder.query.get(po_id)
+    po: PurchaseOrder = db.session.get(PurchaseOrder, po_id)
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
 
@@ -186,7 +186,7 @@ def validate_po_input():
         abort(400)
     message = ''
     if payload.get('order_id'):
-        order = Order.query.get(payload['order_id'])
+        order = db.session.get(Order, payload['order_id'])
         if order is not None:
             error_subcustomers = []
             for suborder in order.suborders:

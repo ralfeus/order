@@ -8,13 +8,14 @@ import re
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
-from sqlalchemy import and_, not_, or_ # type: ignore
+from sqlalchemy import and_, delete, not_, or_, select # type: ignore
 from sqlalchemy.exc import IntegrityError, OperationalError, DataError
 
-from exceptions import EmptySuborderError, NoShippingRateError, \
+from common.exceptions import EmptySuborderError, NoShippingRateError, \
     OrderError, SubcustomerParseError, ProductNotFoundError, UnfinishedOrderError
 
 from app import db
+from app.currencies.models import Currency
 from app.models import Country
 from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
@@ -59,7 +60,7 @@ def admin_delete_order(order_id):
     '''
     Deletes specified order
     '''
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
     if order is None:
         abort(Response(f"No order <{order_id}> was found", status=404))
     if order.status in [OrderStatus.po_created, OrderStatus.shipped]:
@@ -203,9 +204,14 @@ def user_create_order():
 
     payload: dict[str, Any] = request.get_json() #type: ignore
     result = {}
-    shipping = Shipping.query.get(payload['shipping'])
-    country = Country.query.get(payload['country'])
+    shipping = db.session.get(Shipping, payload['shipping'])
+    country = db.session.get(Country, payload['country'])
     with db.session.no_autoflush: # type: ignore
+        if current_user.currency_code:
+            user_currency_code = current_user.currency_code
+        else:
+            base = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
+            user_currency_code = base.code if base else None
         order = Order(
             user=current_user,
             customer_name=payload['customer_name'],
@@ -218,7 +224,8 @@ def user_create_order():
             phone=payload['phone'],
             email=payload.get('email'),
             comment=payload.get('comment'),
-            subtotal_krw=0,
+            subtotal_base_currency=0,
+            user_currency_code=user_currency_code,
             status=OrderStatus.pending,
             when_created=datetime.now(),
             service_fee=current_app.config.get('SERVICE_FEE', 0),
@@ -325,8 +332,7 @@ def _add_suborder(order, suborder_data, errors):
                 order.set_purchase_date(suborder.buyout_date)
 
         current_app.logger.debug('Created instance of Suborder %s', suborder)
-        # db.session.add(suborder)
-        order.suborders.append(suborder)
+        db.session.add(suborder)
         try_perform(db.session.flush)
     except SubcustomerParseError:
         abort(Response(f"""Couldn't find subcustomer and provided data
@@ -355,7 +361,7 @@ def _add_suborder(order, suborder_data, errors):
 def user_save_order(order_id):
     ''' Updates existing order '''
     logger = logging.getLogger(f'user_save_order:{order_id}')
-    order:Order = Order.query.get(order_id) if 'admin' in current_user.roles \
+    order:Order = db.session.get(Order, order_id) if 'admin' in current_user.roles \
         else Order.query.filter_by(id=order_id, user=current_user).first()
     if not order:
         abort(Response(f"No order <{order_id}> was found", status=404))
@@ -390,12 +396,21 @@ def user_save_order(order_id):
             for order_product in order_products:
                 current_app.logger.info("Removing product %s from suborder %s",
                     order_product.product_id, order_product.suborder_id)
-                order_product.status_history.delete(synchronize_session='fetch')
-                order_product.suborder.order_products. \
-                    filter_by(id=order_product.id).delete(synchronize_session='fetch')
+                from ..models.order_product import OrderProductStatusEntry
+                db.session.execute(
+                    delete(OrderProductStatusEntry).where(
+                        OrderProductStatusEntry.order_product_id == order_product.id
+                    ).execution_options(synchronize_session='fetch')
+                )
+                db.session.execute(
+                    delete(OrderProduct).where(
+                        OrderProduct.id == order_product.id
+                    ).execution_options(synchronize_session='fetch')
+                )
             # Remove empty suborders
             for suborder in order.suborders:
-                if suborder.order_products.count() == 0:
+                db.session.refresh(suborder)
+                if len(suborder.order_products) == 0:
                     current_app.logger.info("Removing suborder %s as it has no products.",
                         suborder.id)
                     db.session.delete(suborder) # type: ignore
@@ -448,10 +463,12 @@ def _update_order(order: Order, payload):
 
 def _update_suborder(order, order_products, suborder_data, errors):
     try:
-        suborder = order.suborders.filter(and_(
-            Suborder.order_id == order.id,
-            Suborder.seq_num == suborder_data.get('seq_num')
-        )).first()
+        suborder = db.session.execute(
+            select(Suborder).where(
+                Suborder.order_id == order.id,
+                Suborder.seq_num == suborder_data.get('seq_num')
+            )
+        ).scalar_one_or_none()
         if suborder is None:
             _add_suborder(order, suborder_data, errors)
             db.session.flush()
@@ -579,10 +596,9 @@ def add_order_product(suborder, item, errors):
                 price=product.price,
                 quantity=int(item['quantity']),
                 status=OrderProductStatus.pending)
-            # db.session.add(order_product)
-            suborder.order_products.append(order_product)
+            db.session.add(order_product)
             suborder.order.total_weight += product.weight * order_product.quantity
-            suborder.order.subtotal_krw += product.price * order_product.quantity
+            suborder.order.subtotal_base_currency += product.price * order_product.quantity
             return order_product
         raise ProductNotFoundError(item['item_code'])
     except Exception as ex:
@@ -622,7 +638,7 @@ def admin_save_order(order_id):
     Payload is provided in JSON
     '''
     logger = logging.getLogger(f'admin_save_order({order_id})')
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f'No order {order_id} was found', status=404))
     with OrderEditValidator(request) as validator:
@@ -643,7 +659,10 @@ def admin_save_order(order_id):
         order.total_weight_set_manually = True
     modify_object(order, payload, ['tracking_id', 'tracking_url'])
     if order.need_to_update_total(payload):
-        order.update_total()
+        try:
+            order.update_total()
+        except NoShippingRateError as ex:
+            return jsonify({'error': f'No shipping rate available. {str(ex)}'})
     if payload.get('status'):
         try:
             order.set_status(payload['status'], current_user)
@@ -758,7 +777,7 @@ def get_order_product(order_product_id):
 @login_required
 @roles_required('admin')
 def admin_get_order_boxes(order_id):
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
     if order is None:
         abort(Response(f"No order <{order_id}> found", status=404))
     return jsonify([box.to_dic() for box in order.boxes])

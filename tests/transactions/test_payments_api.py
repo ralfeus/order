@@ -71,6 +71,34 @@ class TestPaymentApi(BaseTestCase):
         }))
         self.assertEqual(res.json['data'][0]['amount_received_krw'], 100)
 
+    def test_save_payment_with_orders(self):
+        """Regression: assigning orders via payload must not raise
+        TypeError ('Query is not list-like') under SQLAlchemy 2.0."""
+        gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
+        gen_id_int = datetime.now().microsecond
+        self.try_add_entities([
+            Currency(code='USD', name='US Dollar', rate=1),
+            Address(id=gen_id_int),
+            Company(id=gen_id_int, address_id=gen_id_int),
+            PaymentMethod(id=gen_id_int, payee_id=gen_id_int),
+            Order(id=gen_id, user=self.user),
+            Payment(id=0, user=self.user, currency_code='USD',
+                    status=PaymentStatus.pending, payment_method_id=gen_id_int)
+        ])
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/payment/0', json={
+                'user_id': self.user.id, # type: ignore
+                'amount_received_krw': 100,
+                'sender_name': 'Test',
+                'payment_method': {'id': gen_id_int},
+                'currency_code': 'USD',
+                'orders': [gen_id]
+            }))
+        self.assertEqual(res.status_code, 200)
+        payment = db.session.get(Payment, 0)
+        self.assertEqual(len(payment.orders), 1)
+        self.assertEqual(payment.orders[0].id, gen_id)
+
     def test_approve_payment_no_received_krw(self):
         currency = Currency(code='KRW', rate=1, base=True)
         transaction = Payment(amount_sent_original=100, currency=currency,
@@ -85,7 +113,7 @@ class TestPaymentApi(BaseTestCase):
     def test_pay_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         currency = Currency(code='KRW', rate=1, base=True)
-        order = Order(id=gen_id, total_krw=90, user=self.user,
+        order = Order(id=gen_id, total_base_currency=90, user=self.user,
                       status=OrderStatus.pending)
         payment = Payment(amount_sent_original=100, currency=currency,
             amount_received_krw=100,
@@ -97,13 +125,13 @@ class TestPaymentApi(BaseTestCase):
                 'status': 'approved'
             }))
         self.assertIsNone(res.json.get('error'))
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.status, OrderStatus.can_be_paid)
 
     def test_pay_po_created_order(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
         currency = Currency(code='KRW', rate=1, base=True)
-        order = Order(id=gen_id, total_krw=90, user=self.user,
+        order = Order(id=gen_id, total_base_currency=90, user=self.user,
                       status=OrderStatus.po_created)
         payment = Payment(amount_sent_original=100, currency=currency,
             amount_received_krw=100,
@@ -115,7 +143,7 @@ class TestPaymentApi(BaseTestCase):
                 'status': 'approved'
             }))
         self.assertEqual(res.status_code, 200)
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.status, OrderStatus.po_created)
 
     def test_get_payment_methods(self):

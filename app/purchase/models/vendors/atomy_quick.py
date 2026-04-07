@@ -1,15 +1,18 @@
 """Fills and submits purchase order at Atomy
 using quick order"""
+from __future__ import annotations
 
 from functools import reduce
+import os
 from time import sleep
 from typing import Any, Optional
 
 from app.models.address import Address
 from app.purchase.models.company import Company
 from app.purchase.models.purchase_order import PurchaseOrder
+# from app.orders.models.subcustomer import Subcustomer
 from app.tools import get_html, try_perform
-from utils.atomy import atomy_login2
+from common.utils.atomy import atomy_login2
 from datetime import date, datetime, timedelta
 import json
 import logging
@@ -18,7 +21,7 @@ import re
 from playwright.sync_api import Locator, Page, expect, sync_playwright
 
 from app import db
-from exceptions import (
+from common.exceptions import (
     AtomyLoginError,
     NoPurchaseOrderError,
     ProductNotAvailableError,
@@ -34,8 +37,11 @@ URL_SUFFIX = "_siteId=kr&_deviceType=pc&locale=ko-KR"
 ERROR_BAD_ACCOUNT = "Unverified distributor cannot purchase."
 ERROR_ADDRESS_EXISTS = "The same shipping address is already registered."
 ERROR_OUT_OF_STOCK = "해당 상품코드의 상품은 품절로 주문이 불가능합니다"
+ERROR_SHIPPING_INFO = "Shipping information does not exist."
 PRODUCTS_ADDED_TO_CART = 'The product has been added.'
-
+ERROR_AFFILIATED_BRANCH = "at you affiliated branch"
+MESSAGE_INACTIVE = "12개월 무실적 회원으로 일괄정리 대상자입니다. 상품 구매시 대상자에서 제외 됩니다."
+MESSAGE_REGISTRATION_NEEDED = "수당발생 안내"
 
 ORDER_STATUSES = {
     "Order Placed": PurchaseOrderStatus.posted,
@@ -53,6 +59,33 @@ def remove_popup(object: Locator, logger: logging.Logger=logging.root):
         if popup.count() > 0:
             logger.debug("Closing unexpected popup")
             popup.click()
+
+def select_address(page: Page, address_element: Locator, logger: logging.Logger=logging.root):
+    logger.debug("Choosing the address. Expect the address list to be closed")
+    try_click(address_element.locator('label[for^="rdo-address-selected-"]'),
+            lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
+    # Need to ensure the address is shown
+    logger.debug("Waiting for the address to appear")
+    page.wait_for_selector('.address-base', state='visible')
+    # Wait for the delivery price list to be loaded
+    logger.debug("Waiting for the delivery price list to be loaded")
+    page.wait_for_function("""
+        () => {
+            return new Promise(resolve => {
+                overpass.require.load(["__CARTGROUP__"], (cartGroup) => {
+                    resolve(cartGroup?.dlvpCartGroupList?.[0]?.deliPriceList?.length > 0);
+                });
+            });
+        }
+    """, timeout=30000)
+    logger.debug("Address should be set now")
+
+
+def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
+    if ERROR_SHIPPING_INFO in message:
+        logger.info("The shipping information is missing.")
+        verify_address_set(page, logger)
+    return
 
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
               logger: logging.Logger=logging.root):
@@ -148,6 +181,30 @@ def create_address(page: Page, address: Address, phone: str):
         sleep(1)
     return find_existing_address(page, address)
 
+def ensure_address_set(page, address_element, logger):
+    while not verify_address_set(page, logger):
+        logger.warning("Address was not set properly. Retrying...")
+        try_click(
+            page.locator('button[data-owns="lyr_pay_addr_lst"]'),
+            lambda: page.locator('#lyr_pay_addr_lst').wait_for(timeout=5000))
+        select_address(page, address_element, logger)
+        sleep(2)
+
+def handle_login_alert(user, page: Page, logger: logging.Logger=logging.root):
+    sleep(1)
+    message = page.locator('div#layer_alert, div#lyr_login_allowance').first.text_content() or ''
+    if MESSAGE_INACTIVE in message:
+        logger.warning("The account is inactive. Can proceed")
+        # try_click(
+        #     page.locator('button[layer-role="confirm-button"]'),
+        #     lambda: page.wait_for_selector('div#layer_alert', state='detached'))
+    elif MESSAGE_REGISTRATION_NEEDED in message:
+        logger.warning("The account needs additional registration. Can proceed")
+        raise AtomyLoginError(username=user.username, message=message)
+    else:
+        raise AtomyLoginError(username=user.username, password=user.password, message=message)
+    page.goto(f"{URL_BASE}/main")
+
 def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     order_id_parts = purchase_order.id[8:].split("-")
     parts = {
@@ -181,6 +238,31 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     if is_name_changed:
         expect(address_element.locator('dt>b')).to_have_text(name)
 
+def verify_address_set(page: Page, logger: logging.Logger):
+    try:
+        address = page.evaluate("$('.address-base').css('display')")
+        cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
+        deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
+        myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
+        mbrInfo = page.evaluate('() => new Promise(r => overpass.require.load(["mbrInfo"], r))')
+        assert address != 'none', "The address block is not shown"
+        deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
+        # logger.debug(f"Delivery price lists: {deliPriceLists}")
+        assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
+        if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
+            and deliPriceLists[0][0].get('deliCostAmt', 0) > 0:
+            logger.debug(f'deliForm: {deliForm}')
+            logger.debug(f'site: {mbrInfo.get("siteNo", "")}')
+            logger.debug(f'deliCostAmt: {deliPriceLists[0][0].get("deliCostAmt", 0)}')
+            raise Exception(f"deliCostAmt is {deliPriceLists[0][0].get('deliCostAmt', 0)} "
+                            "while the deliForm == myCenter and site is KZ or UZ")
+        
+        return True
+    except Exception as e:
+        logger.warning("The shipping information is not properly set.")
+        logger.warning(str(e))
+        return False
+    
 class AtomyQuick(PurchaseOrderVendorBase):
     """Manages purchase order at Atomy via quick order"""
 
@@ -206,7 +288,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
         logger.setLevel(log_level)  # type: ignore
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
+        if not config:
+            from flask import current_app
+            config = current_app.config
         self.__config: dict[str, Any] = config
+        _data_path = self.__config.get('DATA_PATH', '/app/data')
+        if not os.path.isabs(_data_path):
+            _data_path = os.path.join(os.getcwd(), _data_path)
+        self.__screenshots_path = os.path.join(_data_path, 'po')
+        os.makedirs(self.__screenshots_path, exist_ok=True)
         self._retries = 3
 
     def __str__(self):
@@ -239,15 +329,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
         with sync_playwright() as p:
             if self.__config.get('BROWSER_URL'):
                 self._logger.debug("Connecting to the browser")
-                browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
+                browser = p.chromium.connect(self.__config['BROWSER_URL'])
             else:
                 self._logger.debug("Starting the browser")
                 browser = p.chromium.launch(
-                    headless=True,
+                    headless=self.__config.get('HEADLESS', True),
                     proxy={
                         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
-                    } if self.__config.get('SOCKS5_PROXY') else None) 
-            page = browser.new_page()
+                    } if self.__config.get('SOCKS5_PROXY') else None)
+            context = browser.new_context()
+            page = context.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
 
@@ -282,7 +373,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
             except PurchaseOrderError as ex:
                 self._logger.warning(ex)
                 if ex.screenshot:
-                    page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
+                    try:
+                        page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True, timeout=5000)
+                    except Exception as screenshot_ex:
+                        self._logger.warning("Failed to take screenshot: %s", screenshot_ex)
                 if ex.retry and self._retries > 0:
                     self._retries -= 1
                     self._logger.warning("Retrying %s", purchase_order.id)
@@ -290,27 +384,52 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     raise ex
             except Exception as ex:
                 self._logger.exception("Failed to post an order %s", purchase_order.id)
-                page.screenshot(path=f'failed-{purchase_order.id}.png', full_page=True)
+                try:
+                    page.screenshot(path=f'{self.__screenshots_path}/failed-{purchase_order.id}.png', full_page=True, timeout=5000)
+                except Exception as screenshot_ex:
+                    self._logger.warning("Failed to take screenshot: %s", screenshot_ex)
                 raise ex
             finally:
+                context.close()
                 browser.close()
 
         # Only way to reach here is the retry is needed
         return self.post_purchase_order(purchase_order)
 
-    def __login(self, page: Page, purchase_order):
+    def __login(self, page: Page, purchase_order: PurchaseOrder):
         self._logger.info("Logging in as %s", purchase_order.customer.username)
         page.goto(f"{URL_BASE}/login")
+        # Wait for the login form to be fully rendered before interacting
+        page.locator("div.login_form").wait_for(state="visible")
+        # Dismiss any promotional popup that might intercept the login button click
+        close_btn = page.locator('button[layer-role="close-button"]')
+        if close_btn.count() > 0:
+            try:
+                close_btn.first.click(timeout=3000)
+            except Exception:
+                pass
         page.fill("#login_id", purchase_order.customer.username)
         page.fill("#login_pw", purchase_order.customer.password)
         page.click(".login_btn button")
-        try:
+        # Race: resolve when alert appears OR login form disappears.
+        # Returns 'alert' or 'form_gone' so we know which condition triggered
+        # without relying on page.url (which may still be /login during navigation).
+        # Use specific login-alert IDs to avoid matching promotional/next-page popups.
+        # div#layer_alert   → wrong credentials / inactive account
+        # div#lyr_login_allowance → registration required
+        triggered = page.wait_for_function(
+            """() => {
+                const form  = document.querySelector('div.login_form');
+                if (!form || form.offsetParent === null) return 'form_gone';
+                const alert = document.querySelector('div#layer_alert, div#lyr_login_allowance');
+                if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
+                return false;
+            }""",
+            timeout=30000
+        ).json_value()
+        if triggered == 'alert':
+            handle_login_alert(purchase_order.customer, page, self._logger)
             page.locator('div.login_form').wait_for(state='detached', timeout=10000)
-        except:
-            if page.locator('div#layer_alert').is_visible(timeout=5000):
-                raise AtomyLoginError(username=purchase_order.customer.username,
-                                      password=purchase_order.customer.password)
-            raise
         page.wait_for_load_state()
         self._logger.debug("Logged in as %s", purchase_order.customer.username)
 
@@ -330,15 +449,58 @@ class AtomyQuick(PurchaseOrderVendorBase):
         if page.locator(f'//p[@layer-role="message" and text() = "{ERROR_BAD_ACCOUNT}"]').count() > 0:
             raise PurchaseOrderError(self.__purchase_order, self, ERROR_BAD_ACCOUNT)
         
-    def __register_cart(self, page: Page) -> None:
-        """Registers the cart with the products to be ordered
+    def __remove_cart_item_by_name(self, page: Page, product_name: str) -> Optional[str]:
+        """Finds a cart item by product name and removes it.
 
-        :returns str: cart number"""
+        :returns: the goods-cart-role value (product ID) if removed, None otherwise"""
+        cart_items = page.locator('li[goods-cart-role]')
+        for item in cart_items.all():
+            if product_name in (item.text_content() or ''):
+                cart_id = item.get_attribute('goods-cart-role')
+                self._logger.info("Removing cart item '%s' (id: %s)", product_name, cart_id)
+                item.locator('div.cls button[item-role="delete-button"]').click()
+                return cart_id
+        self._logger.warning("Cart item '%s' not found for removal", product_name)
+        return None
+
+    def __register_cart(self, page: Page,
+                        _previously_removed: dict[str, str] | None = None) -> dict[str, str]:
+        """Registers the cart with the products to be ordered.
+
+        :returns: dict of {cart_product_id: reason} for products removed as unavailable"""
         self._logger.info("Registering cart")
         try_click(page.locator('[cart-role="quick-cart-send"]'),
             lambda: page.wait_for_selector('button[layer-role="close-button"]'),
             logger=self._logger)
         message = page.locator('//p[@layer-role="message"]').all_text_contents()
+        affiliated_branch_errors = [
+            m for m in message if ERROR_AFFILIATED_BRANCH in m
+        ]
+        if affiliated_branch_errors:
+            try_click(
+                page.locator('[layer-role="close-button"]'),
+                lambda: page.wait_for_selector('[cart-role="quick-cart-send"]'),
+                check_popups=False, logger=self._logger)
+            removed_products = {}
+            for error_msg in affiliated_branch_errors:
+                match = re.search(
+                    r"Please p(?:u|ur)chase (.+?) at you?r? affiliated branch",
+                    error_msg
+                )
+                if match:
+                    product_id = self.__remove_cart_item_by_name(page, match.group(1))
+                    if product_id:
+                        removed_products[product_id] = error_msg
+            all_removed = {**(_previously_removed or {}), **removed_products}
+            if page.locator('li[goods-cart-role]').count() == 0:
+                raise PurchaseOrderError(
+                    self.__purchase_order, self,
+                    f"No products left in cart after removing unavailable products: "
+                    f"{list(all_removed.keys())}"
+                )
+            more_removed = self.__register_cart(page, all_removed)
+            removed_products.update(more_removed)
+            return removed_products
         if PRODUCTS_ADDED_TO_CART not in message:
             raise PurchaseOrderError(self.__purchase_order, self,
                 message, screenshot=True)
@@ -346,6 +508,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             page.locator('[layer-role="close-button"]'),
             lambda: page.wait_for_selector('#schInput', state='detached'),
             check_popups=False, logger=self._logger)
+        return {}
 
     def __get_order_details(self, page: Page) -> dict[str, Any]:
         page.wait_for_load_state('networkidle')
@@ -431,8 +594,19 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 f"No available products are in the PO. Unavailable products:\n{unavailable_products}",
             )
         # Register the cart with the products to be ordered
-        self.__register_cart(page)
-        # Set the cart number in the goods list
+        cart_unavailable = self.__register_cart(page)
+        for product_id, reason in cart_unavailable.items():
+            matched = next(
+                (t for t in ordered_products if t[0].product_id.zfill(6) == product_id),
+                None
+            )
+            if matched:
+                unavailable_products[matched[0].product_id] = reason
+                ordered_products.remove(matched)
+            else:
+                self._logger.warning(
+                    "Couldn't match cart item %s to an ordered product", product_id
+                )
         return ordered_products, unavailable_products
 
     def __get_product_by_id(self, page: Page, product_id):
@@ -597,7 +771,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 # page.locator('#tgLyr_0').screenshot(path=f'set-date-{self.__purchase_order.id}-1.png')
                 self._logger.info("Purchase date is set to %s", sale_date_str)
             else:
-                page.locator('#tgLyr_0').screenshot(path=f'failed-{self.__purchase_order.id}.png')
+                page.locator('#tgLyr_0').screenshot(path=f'{self.__screenshots_path}/failed-{self.__purchase_order.id}.png')
 
                 raise PurchaseOrderError(self.__purchase_order, self,
                     message=f"Purchase date {sale_date_str} is not available")
@@ -681,12 +855,9 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
                 detailed_address=address.address_2,
                 logger=self._logger)
-            self._logger.debug("Choosing the address. Expect the address list to be closed")
-            try_click(address_element.locator('label[for^="rdo-address-selected-"]'),
-                    lambda: page.wait_for_selector('#btnLyrPayAddrLstClose', state='detached'), check_popups=False)
-            # Need to ensure the address is shown
-            self._logger.debug("Waiting for the address to appear")
-            page.wait_for_selector('.address-base', state='visible')
+            select_address(page, address_element, self._logger)
+            ensure_address_set(page, address_element, self._logger)
+
         except PurchaseOrderError:
             raise
         except Exception as e:
@@ -699,7 +870,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting payment parameters")
         # Set the payment method
         self._logger.debug("Setting payment method...")
-        page.locator('#mth-tab_3').click()
+        page.locator('#mth-tab_4').click()
         self._logger.debug("Setting bank to %s", po.company.bank_id)
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile
@@ -754,14 +925,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
             self._logger.debug("Tax information is set")
 
     def __submit_order(self, page: Page):
+        # triage_error(ERROR_SHIPPING_INFO, page)
         self._logger.debug("Agreeing to terms")
         page.locator('label[for="fxd-agr_ck_2502000478"]').click()
         self._logger.debug("Submitting order")
         page.locator('button[sheet-role="pay-button"]').click()
         message = page.locator('//p[@layer-role="message"]')
-        sleep(0.5)
+        sleep(1)
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
+            triage_error(message.text_content() or '', page)
             self._logger.error("Couldn't submit the order: %s", message.text_content())
             raise PurchaseOrderError(self.__purchase_order, self,
                 message.text_content() or "Unknown error", screenshot=True, retry=True)

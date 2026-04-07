@@ -19,7 +19,7 @@ from typing import T, Any, Callable # type: ignore
 from flask import current_app
 from werkzeug.datastructures import MultiDict
 
-from exceptions import FilterError, HTTPError
+from common.exceptions import FilterError, HTTPError
 
 from app.models.base import BaseModel
 
@@ -56,6 +56,31 @@ def write_to_file(path, data):
     with open(abspath, 'wb') as file:
         file.write(data)
         file.close()
+
+def get_data_path(*parts: str) -> str:
+    """Return the absolute path to the application data directory (DATA_PATH
+    config key), optionally joined with *parts.
+
+    DATA_PATH may be an absolute path (production default: /app/data) or a
+    relative path that is resolved against the current working directory
+    (useful for per-tenant deployments and tests).
+    """
+    base = current_app.config.get('DATA_PATH', '/app/data')
+    if not os.path.isabs(base):
+        base = os.path.join(os.getcwd(), base)
+    return os.path.join(base, *parts) if parts else base
+
+def get_upload_path(*parts: str) -> str:
+    """Absolute path to the user-upload folder: DATA_PATH/upload/[*parts]."""
+    return get_data_path('upload', *parts)
+
+def get_products_path(*parts: str) -> str:
+    """Absolute path to the product-images folder: DATA_PATH/products/[*parts]."""
+    return get_data_path('products', *parts)
+
+def get_po_path(*parts: str) -> str:
+    """Absolute path to the PO-screenshots folder: DATA_PATH/po/[*parts]."""
+    return get_data_path('po', *parts)
 
 def prepare_datatables_query(query, args, filter_clause=None) -> tuple[Any, int, int]:
     logger = logging.getLogger('prepare_datatables_query')
@@ -205,18 +230,21 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
     _logger.debug(' '.join(run_params))
     try:
-        output = subprocess.run(run_params,
-            encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-        if ('Could not resolve host' in output.stderr 
-            or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
-            _logger.warning("Server side error occurred. Will try in 30 seconds (%s)", url)
-            _logger.warning(output.stderr)
-            sleep(30)
-            return invoke_curl(url, raw_data, headers, method, retries=retries - 1)
-        return output.stdout, output.stderr
+        for _ in range(retries + 1):
+            output = subprocess.run(run_params,
+                encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if ('Could not resolve host' in output.stderr 
+                or re.search(r'HTTP.*? 50\d', output.stderr)) and retries:
+                _logger.warning("Server side error occurred. Will try in 10 seconds (%s)", url)
+                _logger.warning(output.stderr)
+                _logger.warning(output.stdout)
+                sleep(10)
+                continue
+            return output.stdout, output.stderr
     except TypeError:
         _logger.exception(run_params)
         return '', ''
+    return '', ''
 
 def get_document_from_url(url: str, headers: dict[str, str]={}, raw_data: str='',
         encoding: str='utf-8', resolve: str=''):

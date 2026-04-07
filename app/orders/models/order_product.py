@@ -6,7 +6,7 @@ from functools import reduce
 
 from flask_security import current_user
 
-from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, Integer, String, select
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
@@ -33,7 +33,7 @@ class OrderProductStatusEntry(db.Model): # type: ignore
 
     order_product_id = Column('order_product_id', Integer,
         ForeignKey('order_products.id'), primary_key=True)
-    order_product = relationship('OrderProduct', foreign_keys=[order_product_id])
+    order_product = relationship('OrderProduct', foreign_keys=[order_product_id], back_populates='status_history')
     status = Column('status', Enum(OrderProductStatus),
         default=OrderProductStatus.pending)
     user_id = Column('user_id', Integer, ForeignKey('users.id'))
@@ -59,7 +59,7 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     order_id = Column(String(16), ForeignKey('orders.id'))
     suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
         nullable=False)
-    suborder = relationship('Suborder', foreign_keys=[suborder_id])
+    suborder = relationship('Suborder', foreign_keys=[suborder_id], back_populates='order_products')
     product_id = Column(String(16), ForeignKey('products.id'))
     product: Product = relationship('Product')
     price = Column(Integer)
@@ -67,12 +67,12 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     private_comment = Column(String(256))
     public_comment = Column(String(256))
     status = Column(Enum(OrderProductStatus), default=OrderProductStatus.pending)
-    status_history = relationship("OrderProductStatusEntry", lazy='dynamic')
+    status_history = relationship("OrderProductStatusEntry", lazy='select', back_populates='order_product')
 
     def __init__(self, **kwargs):
         if not kwargs.get('product'):
             from app.products.models import Product
-            kwargs['product'] = Product.query.get(kwargs['product_id'])
+            kwargs['product'] = db.session.get(Product, kwargs['product_id'])
             if not kwargs['product']:
                 raise AttributeError("Order product must refer to existing product")
         if not kwargs.get('price'):
@@ -137,7 +137,6 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
 
     def postpone(self):
         from .order import Order
-        from .suborder import Suborder
         postponed_order = Order.query.join(PostponeShipping).filter(and_(
             Order.user_id == self.suborder.order.user_id,
             Order.status.in_([OrderStatus.pending, OrderStatus.can_be_paid])
@@ -155,8 +154,13 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
                 when_created=datetime.now(),
             )
             db.session.add(postponed_order)
-        suborder = postponed_order.suborders.filter_by(
-            subcustomer=self.suborder.subcustomer).first()
+        from .suborder import Suborder
+        suborder = db.session.execute(
+            select(Suborder).where(
+                Suborder.order_id == postponed_order.id,
+                Suborder.subcustomer_id == self.suborder.subcustomer_id
+            )
+        ).scalar_one_or_none()
         if not suborder:
             suborder = Suborder(
                 order=postponed_order,

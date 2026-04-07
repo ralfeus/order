@@ -23,12 +23,27 @@ class FakeShipping(Shipping):
     # name = "FakeShipping"
     type = "Fake"
 
-    def consign(self, sender: Address, sender_contact: ShippingContact, 
+    def consign(self, sender: Address, sender_contact: ShippingContact,
                 recipient: Address, rcpt_contact: ShippingContact,
                 items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]
                 ) -> ConsignResult:
         return ConsignResult('XXX')
-    
+
+    def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
+        return []
+
+
+class FakeShippingError(Shipping):
+    __mapper_args__ = {"polymorphic_identity": "fake_shipping_error"}  # type: ignore
+
+    type = "FakeError"
+
+    def consign(self, sender: Address, sender_contact: ShippingContact,
+                recipient: Address, rcpt_contact: ShippingContact,
+                items: list[ShippingItem], boxes: list[Box], config: dict[str, Any]
+                ) -> ConsignResult:
+        raise Exception("Unexpected internal error")
+
     def get_shipping_items(self, items: list[str]) -> list[ShippingItem]:
         return []
 
@@ -63,13 +78,13 @@ class TestShippingAPI(BaseTestCase):
         order = Order(id=gen_id, user=self.user, status=OrderStatus.pending, 
                       payment_method_id=1, address='aa1', city_eng='cc1', 
                       zip='11', country_id='c1', shipping_box_weight=250)
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
         self.assertEqual(res.status_code, 200)
         print(res.get_json())
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
 
@@ -85,15 +100,38 @@ class TestShippingAPI(BaseTestCase):
                       payment_method_id=1, address='aa1', city_eng='cc1', 
                       zip='11', country_id='c1', shipping_box_weight=250, 
                       params={'shipping.items': 'Item 1/5/10\nItem 2/5/20'})
-        order.shipping = Shipping.query.get(1)
+        order.shipping = db.session.get(Shipping, 1)
         self.try_add_entities([order])
         res = self.try_admin_operation(
             lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
         self.assertEqual(res.status_code, 200)
         print(res.get_json())
-        order = Order.query.get(gen_id)
+        order = db.session.get(Order, gen_id)
         self.assertEqual(order.tracking_id, 'XXX')
         self.assertEqual(order.tracking_url, 'https://t.17track.net/en#nums=XXX')
+
+    def test_consign_unhandled_exception_returns_error_json(self):
+        gen_id = f'{__name__}-unhandled-{int(datetime.now().timestamp())}'
+        country = Country(id='kr', name='Korea')
+        address = Address(id=2, address_1_eng='a1', address_2_eng='a2',
+                          city_eng='c1', zip='00', country_id='kr')
+        company = Company(name='Company2', address=address)
+        payment_method = PaymentMethod(id=2, payee=company)
+        self.try_add_entities([
+            FakeShippingError(id=2, name='ShippingError'),
+            country, address, company, payment_method,
+        ])
+        order = Order(id=gen_id, user=self.user, status=OrderStatus.pending,
+                      payment_method_id=2, address='aa1', city_eng='cc1',
+                      zip='11', country_id='c1', shipping_box_weight=250)
+        order.shipping = db.session.get(Shipping, 2)
+        self.try_add_entities([order])
+        res = self.try_admin_operation(
+            lambda: self.client.get(f'/api/v1/admin/shipping/consign/{order.id}'))
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('message', data)
 
     def test_create_shipping(self):
         res = self.try_admin_operation(

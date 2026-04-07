@@ -2,7 +2,7 @@ from flask import Response, abort, current_app, render_template, send_file
 from flask_login import current_user
 from flask_security import login_required, roles_required
 
-from app.currencies.models import Currency
+from app import db
 from app.models.country import Country
 from app.invoices import bp_client_admin, bp_client_user
 from app.invoices.models import Invoice
@@ -16,15 +16,13 @@ def get_static(file):
 @login_required
 @roles_required('admin')
 def admin_get_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
 
-    usd_rate = Currency.query.get('USD').rate
     return render_template(
-        'admin_invoice.html', 
-        context=invoice, 
-        usd_rate=usd_rate, 
+        'admin_invoice.html',
+        context=invoice,
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))
 
@@ -32,16 +30,14 @@ def admin_get_invoice(invoice_id):
 @bp_client_user.route('/<invoice_id>')
 @login_required
 def get_invoice(invoice_id):
-    invoice = Invoice.query.get(invoice_id)
+    invoice = db.session.get(Invoice, invoice_id)
     if not invoice:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
     if invoice.user != current_user:
         abort(Response(f"No invoice {invoice_id} was found", status=404))
-    usd_rate = Currency.query.get('USD').rate
     return render_template(
-        'invoice.html', 
-        context=invoice, 
-        usd_rate=usd_rate, 
+        'invoice.html',
+        context=invoice,
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))
 
@@ -52,11 +48,8 @@ def admin_get_invoices():
     '''
     Invoice management for admins
     '''
-    usd_rate = Currency.query.get('USD').rate
-    
     return render_template(
-        'admin_invoices.html', 
-        usd_rate=usd_rate, 
+        'admin_invoices.html',
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))
 
@@ -66,10 +59,7 @@ def get_invoices():
     '''
     Invoice management for users
     '''
-    usd_rate = Currency.query.get('USD').rate
-
     return render_template(
-        'invoices.html', 
-        usd_rate=usd_rate, 
+        'invoices.html',
         base_country=Country.get_base_country(
             current_app.config.get('TENANT_NAME', 'default')))

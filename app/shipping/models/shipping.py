@@ -8,15 +8,15 @@ from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from flask import current_app
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, or_ 
-from sqlalchemy.orm import relationship, reconstructor 
-from sqlalchemy.sql.schema import ForeignKey 
+from sqlalchemy import Boolean, Column, Integer, String, Text, or_, select
+from sqlalchemy.orm import relationship, reconstructor
+from sqlalchemy.sql.schema import ForeignKey
 
 from app import db
 from app.models.address import Address
 from app.models.country import Country
 from app.models.base import BaseModel
-from exceptions import NoShippingRateError
+from common.exceptions import NoShippingRateError
 
 from .box import Box
 from .consign_result import ConsignResult
@@ -44,8 +44,8 @@ class Shipping(db.Model, BaseModel):  # type: ignore
     enabled = Column(Boolean(), server_default="1")
     discriminator = Column(String(50))
     notification = Column(Text)
-    rates = relationship('ShippingRate', lazy='dynamic')
-    params = relationship('ShippingParam', lazy='dynamic')
+    rates = relationship('ShippingRate', lazy='select', back_populates='shipping_method')
+    params = relationship('ShippingParam', lazy='select')
 
     __mapper_args__ = {
         'polymorphic_on': discriminator, 
@@ -142,11 +142,13 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         weight = int(weight) if weight is not None else 0
         if isinstance(destination, Country):
             destination = destination.id #type: ignore
-        rate = self.rates \
-            .filter_by(destination=destination) \
-            .filter(ShippingRate.weight >= weight) \
-            .order_by(ShippingRate.weight) \
-            .first()
+        rate = db.session.execute(
+            select(ShippingRate).where(
+                ShippingRate.shipping_method_id == self.id,
+                ShippingRate.destination == destination,
+                ShippingRate.weight >= weight
+            ).order_by(ShippingRate.weight)
+        ).scalars().first()
         if rate:
             return rate.rate
         raise NoShippingRateError()

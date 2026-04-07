@@ -151,3 +151,165 @@ class TestOrdersClient(BaseTestCase):
         self.assertEqual(res.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         # Verify we got a non-empty Excel file
         self.assertGreater(len(res.data), 0)
+
+    def test_distribution_list_saves_tracking_url(self):
+        '''Tracking URL provided in the request is persisted on all specified orders'''
+        order1 = Order(
+            id='ORD-TRK-001',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 1',
+            email='customer1@test.com',
+            phone='123456789',
+            address='123 Test Street',
+            zip='12345',
+            city_eng='Test City 1',
+            total_weight=1000
+        )
+        order2 = Order(
+            id='ORD-TRK-002',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer 2',
+            email='customer2@test.com',
+            phone='987654321',
+            address='456 Test Avenue',
+            zip='54321',
+            city_eng='Test City 2',
+            total_weight=2000
+        )
+        self.try_add_entities([order1, order2])
+
+        tracking_url = 'https://tracking.example.com/track/12345'
+        self.login(self.admin.username, '1')
+        res = self.client.get(
+            f'/admin/orders/distribution_list'
+            f'?order_ids={order1.id},{order2.id}'
+            f'&tracking_url={tracking_url}'
+        )
+        self.assertEqual(res.status_code, 200)
+
+        db.session.expire_all()
+        updated_order1 = db.session.get(Order, order1.id)
+        updated_order2 = db.session.get(Order, order2.id)
+        self.assertEqual(updated_order1.tracking_url, tracking_url)
+        self.assertEqual(updated_order2.tracking_url, tracking_url)
+
+    def test_new_order_stores_user_currency(self):
+        '''Creating an order stores the user preferred currency on the order'''
+        from app.shipping.models.shipping import NoShipping
+        self.try_add_entities([
+            NoShipping(id=1),
+            Country(id='c2', name='country2', locale='en-US', currency_code='USD'),
+        ])
+        self.user.currency_code = 'USD'
+        db.session.commit()
+        self.login(self.user.username, '1')
+        res = self.client.post('/api/v1/order', json={
+            'customer_name': 'User1',
+            'address': 'Address1',
+            'city_eng': 'City1',
+            'country': 'c2',
+            'zip': '0000',
+            'shipping': '1',
+            'phone': '1',
+            'suborders': [{'subcustomer': 'A001, Sub1, P@ssw0rd',
+                           'items': [{'item_code': '0000', 'quantity': '1'}]}]
+        })
+        self.assertEqual(res.status_code, 200)
+        order = db.session.get(Order, res.json['order_id'])
+        self.assertEqual(order.user_currency_code, 'USD')
+
+    def test_new_order_falls_back_to_base_currency(self):
+        '''Creating an order with no user currency preference uses base currency'''
+        from app.shipping.models.shipping import NoShipping
+        self.try_add_entities([
+            NoShipping(id=2),
+            Country(id='c3', name='country3', locale='en-US', currency_code='USD'),
+        ])
+        self.user.currency_code = None
+        db.session.commit()
+        self.login(self.user.username, '1')
+        res = self.client.post('/api/v1/order', json={
+            'customer_name': 'User1',
+            'address': 'Address1',
+            'city_eng': 'City1',
+            'country': 'c3',
+            'zip': '0000',
+            'shipping': '2',
+            'phone': '1',
+            'suborders': [{'subcustomer': 'A002, Sub2, P@ssw0rd',
+                           'items': [{'item_code': '0000', 'quantity': '1'}]}]
+        })
+        self.assertEqual(res.status_code, 200)
+        order = db.session.get(Order, res.json['order_id'])
+        self.assertEqual(order.user_currency_code, 'KRW')
+
+    def test_user_currency_preference_stored_in_column(self):
+        '''User.currency_code column stores and retrieves currency preference'''
+        self.user.currency_code = 'EUR'
+        db.session.commit()
+        db.session.expire(self.user)
+        self.assertEqual(self.user.currency_code, 'EUR')
+
+    def test_get_profile_includes_currency_from_column(self):
+        '''get_profile() includes currency_code when not in profile JSON'''
+        self.user.currency_code = 'USD'
+        self.user.profile = '{}'
+        db.session.commit()
+        profile = self.user.get_profile()
+        self.assertEqual(profile.get('currency'), 'USD')
+
+    def test_set_profile_updates_currency_column(self):
+        '''set_profile() with currency key updates currency_code column'''
+        self.user.set_profile({'currency': 'EUR'})
+        self.assertEqual(self.user.currency_code, 'EUR')
+
+    def test_distribution_list_tracking_url_not_applied_to_other_orders(self):
+        '''Tracking URL is only saved on the orders specified in order_ids'''
+        order_in = Order(
+            id='ORD-TRK-IN',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer In',
+            email='in@test.com',
+            phone='111111111',
+            address='1 Main St',
+            zip='10000',
+            city_eng='City In',
+            total_weight=500
+        )
+        order_out = Order(
+            id='ORD-TRK-OUT',
+            user=self.user,
+            status=OrderStatus.shipped,
+            when_created=datetime.now(),
+            country_id='c1',
+            customer_name='Customer Out',
+            email='out@test.com',
+            phone='222222222',
+            address='2 Side St',
+            zip='20000',
+            city_eng='City Out',
+            total_weight=600
+        )
+        self.try_add_entities([order_in, order_out])
+
+        tracking_url = 'https://tracking.example.com/track/99999'
+        self.login(self.admin.username, '1')
+        res = self.client.get(
+            f'/admin/orders/distribution_list'
+            f'?order_ids={order_in.id}'
+            f'&tracking_url={tracking_url}'
+        )
+        self.assertEqual(res.status_code, 200)
+
+        db.session.expire_all()
+        self.assertEqual(db.session.get(Order, order_in.id).tracking_url, tracking_url)
+        self.assertIsNone(db.session.get(Order, order_out.id).tracking_url)

@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from flask import jsonify, request
-from flask_security import login_required, login_user, roles_required
+from flask_security import current_user, login_required, login_user, roles_required
 
 from app import db, security
 from app.network.models.node import Node
@@ -13,6 +13,22 @@ from app.tools import modify_object
 from app.users import bp_api_admin, bp_api_user
 from app.users.models.user import Role, User
 from app.users.validators.user import UserValidator, UserEditValidator
+
+@bp_api_user.route('/currency', methods=['POST'])
+@login_required
+def set_currency():
+    '''Set the preferred currency for the current user'''
+    from app.currencies.models import Currency
+    code = (request.get_json() or {}).get('currency_code')
+    if not code:
+        return jsonify({'error': 'currency_code is required'}), 400
+    currency = db.session.get(Currency, code)
+    if not currency or not currency.enabled:
+        return jsonify({'error': f'Unknown or disabled currency: {code}'}), 404
+    current_user.currency_code = code
+    db.session.commit()
+    return jsonify({'currency_code': code})
+
 
 @bp_api_user.route('/signup', methods=['POST'])
 def signup():
@@ -46,7 +62,7 @@ def signup():
         atomy_id=payload['atomy_id'] if 'atomy_id' in payload and payload['atomy_id'] != '' else None,
         when_created=datetime.now(),
         active=False)
-    if user.atomy_id and Node.query.get(user.atomy_id.strip()):
+    if user.atomy_id and db.session.get(Node, user.atomy_id.strip()):
         user.enabled = True
     db.session.add(user) # type: ignore
     db.session.commit()  # type: ignore
@@ -153,7 +169,7 @@ def save_user(user_id):
                 'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
                                 for message in validator.errors]
             }), 400
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     payload: dict[str, Any] = request.get_json() #type: ignore
     if 'roles' in payload.keys():
         user.roles = Role.query.filter(Role.id.in_(payload['roles'])).all()

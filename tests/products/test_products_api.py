@@ -123,7 +123,7 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = Product.query.get(gen_id)
+        product = db.session.get(Product, gen_id)
         self.assertIsNotNone(product)
 
     def test_edit_product(self):
@@ -148,9 +148,34 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = Product.query.get(gen_id)
+        product = db.session.get(Product, gen_id)
         self.assertIsNotNone(product)
         self.assertEqual(product.name, "Test product")
+
+    def test_edit_product_available_shipping(self):
+        """Regression: assigning available_shipping via payload must not raise
+        TypeError ('Query is not list-like') under SQLAlchemy 2.0.
+
+        The bug triggers when the payload lists fewer shipping IDs than the
+        total number of shipping methods, causing the code path that assigns
+        the result of Shipping.query.filter(...) directly to the relationship.
+        """
+        self.try_add_entities([
+            Product(id='0001', name='Product 1', price=10, weight=10),
+            Shipping(id=1, name='Shipping A', enabled=True),
+            Shipping(id=2, name='Shipping B', enabled=True),
+        ])
+        # payload['shipping'] has 1 entry; Shipping.query.count() == 2
+        # → len < count → triggers the buggy branch
+        res = self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/product/0001', json={
+                'shipping': [1]
+            })
+        )
+        self.assertEqual(res.status_code, 200)
+        product = db.session.get(Product, '0001')
+        self.assertEqual(len(product.available_shipping), 1)
+        self.assertEqual(product.available_shipping[0].id, 1)
 
     def test_delete_product(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"

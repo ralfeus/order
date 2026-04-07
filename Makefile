@@ -19,6 +19,13 @@ analyze:
 	/Users/ralfeus/temp/sonar-scanner-5.0.1.3006-macosx/bin/sonar-scanner
 	rm coverage.xml
 
-network-manager-docker:
+order-master-docker:
+	$(eval TAG := b$(shell date +%Y%m%d%H%M))
 	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
-	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:stable . -f network_builder/Dockerfile
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/order-master:latest -t ralfeus/order-master:$(TAG) . -f app/Dockerfile
+
+network-manager-docker:
+	$(eval TAG := b$(shell date +%Y%m%d%H%M))
+	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:latest -t ralfeus/network-manager:$(TAG) . -f network_manager/Dockerfile
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-builder:latest -t ralfeus/network-builder:$(TAG) . -f network_builder/Dockerfile

@@ -9,8 +9,11 @@ def get_celery(app_name, job_modules=[]):
         backend='rpc://',
         include=job_modules
     )
+    log_format = "%(asctime)s\t%(levelname)s\t%(name)s:%(funcName)s()[%(filename)s:%(lineno)d]: %(message)s"
     celery.conf.update({
         'worker_hijack_root_logger': False,
+        'worker_log_format': log_format,
+        'worker_task_log_format': log_format,
         'brocker_transport_options': {
             "max_retries": 3,
             "interval_start": 0,
@@ -28,7 +31,10 @@ def init_celery(celery, flask_app):
                 return self.run(*args, **kwargs)
 
     # celery.config_from_object(flask_app.config)
-    celery.conf.task_default_queue = flask_app.config['CELERY_TASK_DEFAULT_QUEUE']
+    celery.conf.task_default_queue = (
+        os.environ.get('CELERY_QUEUE') or
+        flask_app.config.get('CELERY_QUEUE', 'celery')
+    )
     celery.Task = ContextTask
     return celery
 

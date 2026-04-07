@@ -1,8 +1,11 @@
 from calendar import monthrange
 from datetime import datetime
 import json
+import os
+import sys
 import requests
-from model import AtomyPerson
+
+from common.model import AtomyPerson
 from app.utils.atomy import SessionManager
 
 
@@ -39,6 +42,6 @@ def get_nodes_creds():
         nodes_creds.update({node['username']: node['password'] for node in data})
     return nodes_creds
 
-CONFIG = json.load(open("network_builder/config.json"))
+CONFIG = json.load(open("network_manager/config.json"))
 
 get_pvs()

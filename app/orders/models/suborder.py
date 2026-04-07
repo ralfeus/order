@@ -31,14 +31,17 @@ class Suborder(db.Model, BaseModel): #type: ignore
     subcustomer_id: int = Column(Integer, ForeignKey('subcustomers.id'))
     subcustomer = relationship("Subcustomer", foreign_keys=[subcustomer_id])
     order_id: str = Column(String(16), ForeignKey('orders.id', onupdate='CASCADE'), nullable=False)
-    order: o.Order = relationship('Order', foreign_keys=[order_id])
+    order: o.Order = relationship('Order', foreign_keys=[order_id], back_populates='suborders')
     buyout_date: datetime = Column(DateTime, index=True)
-    order_products = relationship('OrderProduct', lazy='dynamic', cascade='all, delete-orphan')
+    order_products = relationship('OrderProduct', lazy='select', cascade='all, delete-orphan', back_populates='suborder')
     local_shipping: int = Column(Integer(), default=0)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
+        # Resolve order_id first so we can compute self.id before setting
+        # the 'order' relationship.  Setting self.order triggers back_populates
+        # which cascades self into the session; SA needs self.id to already be
+        # set at that point so the object is tracked under the correct identity.
         if order:
-            self.order = order
             order_id = order.id
         if not order_id:
             raise AttributeError("No order is referred")
@@ -49,6 +52,11 @@ class Suborder(db.Model, BaseModel): #type: ignore
             order_by(Suborder.seq_num.desc()).first()
         self.seq_num = last_suborder.seq_num + 1 if last_suborder else 1
         self.id = prefix + '{:03d}'.format(int(self.seq_num))
+
+        # Set the relationship after id is computed so back_populates cascades
+        # the fully-identified object into the session.
+        if order:
+            self.order = order
 
         attributes = [a[0] for a in type(self).__dict__.items()
                            if isinstance(a[1], InstrumentedAttribute)]
@@ -102,7 +110,7 @@ class Suborder(db.Model, BaseModel): #type: ignore
 
     def get_total(self, currency=None, local_shipping=True) -> float:
         if isinstance(currency, str):
-            currency = Currency.query.get(currency)
+            currency = db.session.get(Currency, currency)
         return float(self.get_subtotal(currency)) + \
             self.get_shipping(currency, local_shipping)
 

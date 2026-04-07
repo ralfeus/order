@@ -22,8 +22,8 @@ from app.shipping.models.box import Box
 from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_contact import ShippingContact
 from app.shipping.models.shipping_item import ShippingItem
-from app.tools import get_json, invoke_curl
-from exceptions import HTTPError, NoShippingRateError, ShippingException
+from app.tools import get_json, get_upload_path, invoke_curl
+from common.exceptions import HTTPError, NoShippingRateError, ShippingException
 
 from app.shipping.models.consign_result import ConsignResult
 from ..exceptions import FedexConfigurationException, FedexLoginException
@@ -83,7 +83,7 @@ class Fedex(Shipping):
         '''Returns list of services available for the given country
         :param str country_id: ID of the country
         :returns list[str]: list of available services'''
-        country = Country.query.get(country_id)
+        country = db.session.get(Country, country_id)
         if country is None:
             return []
         payload = json.dumps({
@@ -201,22 +201,27 @@ class Fedex(Shipping):
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
     def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
-        if not self._are_all_products_shippable(products):
-            logging.debug(f"Not all products are shippable to {country}")
-            return False
-        if weight and weight > 30000:
-            logging.debug(f"The parcel is too heavy: {weight}g")
-            return False
-        if country is None:
-            return True
+        try:
+            if not self._are_all_products_shippable(products):
+                logging.debug(f"Not all products are shippable to {country}")
+                return False
+            if weight and weight > 30000:
+                logging.debug(f"The parcel is too heavy: {weight}g")
+                return False
+            if country is None:
+                return True
 
-        services = self.__get_service_availability(country.id)
-        if self.settings.service_type in services:
-            logging.debug(f"Can ship to country {country}. ")
-            return True
-        else:
-            logging.debug(f"Can't ship to country {country}.")
-            logging.debug(f"Available services: {services}")
+            services = self.__get_service_availability(country.id)
+            if self.settings.service_type in services:
+                logging.debug(f"Can ship to country {country}. ")
+                return True
+            else:
+                logging.debug(f"Can't ship to country {country}.")
+                logging.debug(f"Available services: {services}")
+                return False
+        except Exception as e:
+            logging.error(f"Error during checking if can ship to {country}")
+            logging.exception(e)
             return False
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
@@ -346,12 +351,9 @@ class Fedex(Shipping):
     # def __save_label(self, tracking_id, url):
         # stdout, _ = invoke_curl(url=url)
         label = base64.b64decode(encoded_label)
-        fedex_upload_dir = os.path.join(
-            os.getcwd(), 
-            current_app.config['UPLOAD_PATH'], 
-            'fedex')
+        fedex_upload_dir = get_upload_path('fedex')
         os.makedirs(fedex_upload_dir, exist_ok=True)
-        with open(f'{fedex_upload_dir}/label-{tracking_id}.pdf', 'xb') as f:
+        with open(os.path.join(fedex_upload_dir, f'label-{tracking_id}.pdf'), 'xb') as f:
             f.write(label)
 
     def __validate_address(self, address: Address):
@@ -440,7 +442,7 @@ class Fedex(Shipping):
 
     def get_shipping_cost(self, country_id, weight=250):
         try:
-            country: Country = Country.query.get(country_id)
+            country: Country = db.session.get(Country, country_id)
             if country is None:
                 raise NoShippingRateError()
             payload = {
@@ -487,7 +489,7 @@ class Fedex(Shipping):
             rate_dict = rate_objects[0][0]
             rate = float(rate_dict.get('totalNetChargeWithDutiesAndTaxes')
                              or rate_dict.get('totalNetFedExCharge'))
-            currency = Currency.query.get(rate_dict['currency'])
+            currency = db.session.get(Currency, rate_dict['currency'])
             if currency is None:
                 raise NoShippingRateError(f"Unknown rate currency {rate_dict['currency']}")
             # Add 5% to cover future cost change
@@ -517,10 +519,7 @@ class Fedex(Shipping):
         }
 
 def get_label(tracking_id: str) -> str:
-    label_file_path = os.path.join(
-                        os.getcwd(), 
-                        current_app.config['UPLOAD_PATH'], 
-                        f'fedex/label-{tracking_id}.pdf')
+    label_file_path = get_upload_path('fedex', f'label-{tracking_id}.pdf')
     if os.path.exists(label_file_path):
         return label_file_path
     else:

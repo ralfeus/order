@@ -27,13 +27,31 @@ def get_network_builder_status(action):
         data = {'status': 'unknown'}
     return jsonify(data)
 
+@bp_api_admin.route('/branch')
+@login_required
+@roles_required('admin')
+def get_node_branches():
+    '''Returns branch (left/right) per node relative to the requested root'''
+    try:
+        response = requests.get(
+            current_app.config['NETWORK_MANAGER_URL'] + '/api/v1/node/branch',
+            params=request.args.to_dict(flat=False),
+            headers={'Content-type': 'application/json'})
+        content = response.content.decode('utf-8')
+        return jsonify(json.loads(content))
+    except Exception as e:
+        logging.exception(e)
+        return jsonify({})
+
 @bp_api_admin.route('')
 @login_required
 @roles_required('admin')
 def admin_get_nodes():
     '''Returns filtered nodes in JSON'''
+    from app import db
     from app.settings.models import Setting
-    root_id = Setting.query.get('network.root_id').value
+    root_id = (request.values.get('root_id') or '').strip() or \
+              db.session.get(Setting, 'network.root_id').value
     if request.values.get('draw') is not None: # Args were provided by DataTables
         args = convert_datatables_args(request.values)
         payload = {

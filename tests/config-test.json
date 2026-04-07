@@ -6,12 +6,11 @@
     "SQLALCHEMY_DATABASE_URI": "sqlite://",
     "SQLALCHEMY_ECHO": false,
     "SQLALCHEMY_ENGINE_OPTIONS": { },
-    "SQLALCHEMY_TRACK_MODIFICATIONS": true,
 
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
 
-    "UPLOAD_PATH": "tests/upload",
+    "DATA_PATH": "tests/data",
     "INVOICE_TEMPLATES_PATH": "tests/invoices/tenant_templates",
     "PRODUCT_IMPORT_PERIOD": 300,
     "FREE_LOCAL_SHIPPING_AMOUNT_THRESHOLD": 30000,

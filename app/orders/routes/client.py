@@ -5,16 +5,16 @@ import os
 from flask import Response, abort, current_app, request, render_template, send_file
 from flask.globals import current_app
 from flask_security import current_user, login_required, roles_required
-import markupsafe
 from markupsafe import escape
 import openpyxl
 
+from app import db
 from app.orders import bp_client_admin, bp_client_user
 from app.currencies.models import Currency
 from app.models.country import Country
 from app.settings.models import Setting
 from app.tools import stream_and_close
-from exceptions import OrderError
+from common.exceptions import OrderError
 
 from ..models.order import Order
 from ..models.order_status import OrderStatus
@@ -68,6 +68,10 @@ def user_new_order():
     '''New order form'''
     from ..signals import user_create_sale_order_rendering
     extensions = user_create_sale_order_rendering.send()
+    base_country = Country.get_base_country(current_app.config.get('TENANT_NAME', 'default'))
+    user_currency = db.session.get(Currency, current_user.currency_code) \
+        if current_user.currency_code else Currency.get_base_currency(
+            current_app.config.get('TENANT_NAME', 'default'))
     return render_template('new_order.html',
         load_excel=request.args.get('upload') is not None,
         can_create_po=current_user.has_role('allow_create_po'),
@@ -79,8 +83,8 @@ def user_new_order():
         make_copy=request.args.get('from_order') is not None,
         hide_krw=current_app.config.get('HIDE_KRW', False),
         service_fee=current_app.config.get('SERVICE_FEE', 0),
-        base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')))
+        base_country=base_country,
+        user_currency=user_currency)
 
 @bp_client_user.route('/<order_id>')
 @login_required
@@ -88,7 +92,6 @@ def user_get_order(order_id):
     ''' Existing order view '''
     logger = current_app.logger.getChild('user_get_order')
     order = Order.query
-    profile = json.loads(current_user.profile)
     if not current_user.has_role('admin'):
         order = order.filter_by(user=current_user)
     order = order.filter_by(id=order_id).first()
@@ -96,6 +99,9 @@ def user_get_order(order_id):
         abort(Response(escape(f"No order <{order_id}> was found"), status=404))
     order.service_fee = current_app.config.get('SERVICE_FEE', 0)
     if order.status == OrderStatus.draft:
+        user_currency = db.session.get(Currency, current_user.currency_code) \
+            if current_user.currency_code else Currency.get_base_currency(
+                current_app.config.get('TENANT_NAME', 'default'))
         return render_template('new_order.html',
             order_id=order.id,
             check_subcustomers=Setting.get('order.new.check_subcustomers'),
@@ -104,23 +110,15 @@ def user_get_order(order_id):
             service_fee=current_app.config.get('SERVICE_FEE', 0),
             base_country=Country.get_base_country(
                 current_app.config.get('TENANT_NAME', 'default')),
+            user_currency=user_currency,
         )
-    currency = Currency.query.get(profile.get('currency'))
-    if 'currency' in request.values:
-        currency = Currency.query.get(request.values['currency'])
-        if currency is not None:
-            profile['currency'] = currency.code
-            current_user.profile = json.dumps(profile)
-            from app import db
-            db.session.commit() #type: ignore
-    if currency is None:
-        currency = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
-    currencies = [{'code': c.code, 'default': c.code == profile.get('currency')}
-                  for c in Currency.query if c.enabled]
-    rate = Currency.query.get(currency.code).get_rate(order.when_created)
+    currency = db.session.get(Currency, current_user.currency_code) \
+        if current_user.currency_code else \
+        Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
+    rate = currency.get_rate(order.when_created)
     logger.debug("order: %s\ncurrency: %s\nrate: %s", order, currency, rate)
     return render_template('order_view.html', order=order,
-        currency=currency, currencies=currencies, rate=rate, mode='view',
+        currency=currency, rate=rate, mode='view',
         service_fee=current_app.config.get('SERVICE_FEE', 0))
 
 @bp_client_user.route('/')
@@ -154,12 +152,17 @@ def admin_get_distribution_list():
     '''
     order_ids = request.values.get('order_ids', '').split(',')
     url = request.values.get('url', '')
+    tracking_url = request.values.get('tracking_url', '')
     # applicable_shipping_ids = current_app.config.get('DISTRIBUTION_LIST_SHIPPING_IDS', [])
-    orders = Order.query.filter(Order.id.in_(order_ids))
+    orders: list[Order] = Order.query.filter(Order.id.in_(order_ids))
         # .filter(Order.shipping_id.in_(applicable_shipping_ids)) \
         # .all()
     try:
         file = _get_dl_excel(orders, url)
+        for order in orders:
+            order.tracking_url = tracking_url
+        from app import db
+        db.session.commit() #type: ignore
         return current_app.response_class(stream_and_close(file), headers={
             'Content-Disposition': f'attachment; filename="distribution_list.xlsx"',
             'Content-Type': file_types['xlsx']
@@ -188,7 +191,7 @@ def _get_dl_excel(orders: list[Order], url: str = ''):
         row = [
             order.country.name,
             address,
-            order.boxes.count() or 1, #type: ignore
+            len(order.boxes) or 1,
             order.id[9:],
             order.total_weight / 1000,
             '\n'.join([f'{b.length}-{b.width}-{b.height}' for b in order.boxes]),
@@ -231,7 +234,7 @@ def admin_get_orders():
 @login_required
 @roles_required('admin')
 def admin_get_order(order_id):
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     if request.values.get('view') == 'print':
@@ -247,6 +250,7 @@ def admin_get_order(order_id):
     if request.values.get('view') == 'customs_label':
         return render_template(order.shipping.customs_label_template_name, order=order)
     
+    user_currency = Currency.get_base_currency(current_app.config.get('TENANT_NAME', 'default'))
     return render_template('new_order.html',
         check_subcustomers=Setting.get('order.new.check_subcustomers'),
         order_id=order_id,
@@ -254,7 +258,8 @@ def admin_get_order(order_id):
         local_shipping_cost=current_app.config['LOCAL_SHIPPING_COST'],
         service_fee=current_app.config.get('SERVICE_FEE', 0),
         base_country=Country.get_base_country(
-            current_app.config.get('TENANT_NAME', 'default')))
+            current_app.config.get('TENANT_NAME', 'default')),
+        user_currency=user_currency)
 
 
 @bp_client_user.route('/<order_id>/excel')
@@ -263,7 +268,7 @@ def user_get_order_excel(order_id):
     '''
     Generates an Excel file for an order
     '''
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     try:
@@ -283,7 +288,7 @@ def admin_get_customs_label(order_id):
     '''
     Generates a label for a destination customs for an order
     '''
-    order: Order = Order.query.get(order_id)
+    order: Order = db.session.get(Order, order_id)
     if not order:
         abort(Response(f"The order <{order_id}> was not found", status=404))
     try:

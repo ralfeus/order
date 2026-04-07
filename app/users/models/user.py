@@ -3,7 +3,8 @@ User model
 '''
 import json
 from flask_security import UserMixin
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -30,7 +31,7 @@ class User(db.Model, UserMixin):
     atomy_id = Column(String(10))
     phone = Column(String(32))
     roles = db.relationship('Role', secondary=roles_users,
-                            backref=db.backref('users', lazy='dynamic'))
+                            backref=db.backref('users', lazy='select'))
     profile = Column(Text, default='{}')
     fs_uniquifier = Column(String(255), unique=True, nullable=False)
     # User information
@@ -38,6 +39,8 @@ class User(db.Model, UserMixin):
     when_changed = Column(DateTime)
     # Business
     balance = Column(Integer, default=0)
+    currency_code = Column(String(3), ForeignKey('currencies.code'), nullable=True)
+    currency = relationship('Currency', foreign_keys=[currency_code])
 
     def __init__(self, **kwargs):
         attributes = [a[0] for a in type(self).__dict__.items()
@@ -50,17 +53,19 @@ class User(db.Model, UserMixin):
         # Here properties are set (attributes start with '__')
         if kwargs.get('password') is not None:
             self.set_password(kwargs['password'])
-    def get_id(self):
-        return str(self.id)
-
     def get_profile(self) -> dict:
         try:
-            return json.loads(self.profile)
+            profile = json.loads(self.profile)
         except:
-            return {}
+            profile = {}
+        if self.currency_code and 'currency' not in profile:
+            profile['currency'] = self.currency_code
+        return profile
 
     def set_profile(self, value: dict):
         if isinstance(value, dict):
+            if 'currency' in value:
+                self.currency_code = value['currency']
             self.profile = json.dumps(value)
 
     def set_password(self, password='P@$$w0rd'):

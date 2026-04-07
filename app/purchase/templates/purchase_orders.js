@@ -436,6 +436,8 @@ function repost(rows) {
         $.ajax({
             url: '/api/v1/admin/purchase/order/' + po_id + '?action=repost',
             method: 'post',
+            contentType: 'application/json',
+            data: '{}',
             success: (data, _status, xhr) => {
                 var row = rows.select(data.id)
                 row.data(data).draw();
@@ -459,6 +461,8 @@ function update_status(rows) {
         $.ajax({
             url: '/api/v1/admin/purchase/order/' + po_id + '?action=update_status',
             method: 'post',
+            contentType: 'application/json',
+            data: '{}',
             // complete: () => {
             //     if (!--pos_left) {
             //         $('.wait').hide();

@@ -21,7 +21,7 @@ settings = [
 ]
 
 for setting in settings:
-    if not Setting.query.get(setting['key']):
+    if not db.session.get(Setting, setting['key']):
         db.session.add(Setting(
             key=setting['key'],
             value=setting['value'],

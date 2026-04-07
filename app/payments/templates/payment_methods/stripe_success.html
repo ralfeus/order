@@ -54,7 +54,7 @@
             {% if success %}Payment Successful{% else %}Payment Failed{% endif %}
         </div>
         <div class="message">
-            {% if not success %}Your payment wasn't accepted. Contact the administrator{% endif %}
+            {% if not success %}{{ message | default("Your payment wasn't accepted. Contact the administrator") }}{% endif %}
         </div>
         <div class="countdown">
             The window will be closed in <span class="timer" id="countdown">30</span> seconds

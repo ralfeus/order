@@ -52,9 +52,6 @@ class TestOrderProductsApi(BaseTestCase):
         op2 = OrderProduct(id=op_id, suborder=suborder, product_id='0001',
             quantity=10, price=10, status=OrderProductStatus.pending)
         self.try_add_entities([
-            Product(id='0001', name='Test product 1', price=10, weight=100)
-        ])
-        self.try_add_entities([
             order, suborder,
             op1, op2
         ])
@@ -62,7 +59,7 @@ class TestOrderProductsApi(BaseTestCase):
             lambda: self.client.delete(f'/api/v1/order/product/{op_id}')
         )
         self.assertEqual(res.status_code, 200)
-        op = OrderProduct.query.get(op_id)
+        op = db.session.get(OrderProduct, op_id)
         self.assertEqual(op, None)
         
     def test_postpone_order_product(self):
@@ -93,13 +90,13 @@ class TestOrderProductsApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         orders = Order.query.all()
         self.assertEqual(len(orders), 3)
-        self.assertEqual(orders[0].total_krw, 2610)
-        self.assertEqual(orders[2].total_krw, 2510)
+        self.assertEqual(orders[0].total_base_currency, 2610)
+        self.assertEqual(orders[2].total_base_currency, 2510)
         self.client.post(f'/api/v1/order/product/{op_id + 1}/postpone')
         orders = Order.query.all()
         self.assertEqual(len(orders), 3)
-        self.assertEqual(orders[0].total_krw, 2610)
-        self.assertEqual(orders[2].total_krw, 5020)
+        self.assertEqual(orders[0].total_base_currency, 2610)
+        self.assertEqual(orders[2].total_base_currency, 5020)
 
     def test_set_order_product_status(self):
         gen_id = f'{__name__}-{int(datetime.now().timestamp())}'
@@ -135,5 +132,5 @@ class TestOrderProductsApi(BaseTestCase):
         ])
         self.try_admin_operation(
             lambda: self.client.post(f'/api/v1/admin/order/product/{op_id + 1}/status/unavailable'))
-        order = Order.query.get(gen_id)
-        self.assertEqual(order.subtotal_krw, 2600)
+        order = db.session.get(Order, gen_id)
+        self.assertEqual(order.subtotal_base_currency, 2600)

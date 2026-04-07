@@ -2,6 +2,7 @@
 from flask import abort, render_template, send_file
 from flask_security import login_required, roles_required
 
+from app import db
 from app.modules.warehouse import bp_client_admin
 
 @bp_client_admin.route('/static/<path:file>')
@@ -22,7 +23,7 @@ def admin_get_warehouses():
 def admin_get_warehouse(warehouse_id):
     '''Warehouse products management'''
     from app.modules.warehouse.models import Warehouse
-    warehouse = Warehouse.query.get(warehouse_id)
+    warehouse = db.session.get(Warehouse, warehouse_id)
     if warehouse is None:
         abort(404)
     return render_template('admin_warehouse_products.html', warehouse=warehouse)

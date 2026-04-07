@@ -38,7 +38,7 @@ var itemsCount = {};
 var currencyRates = {};
 var users = 1;
 
-var subtotal_krw = 0;
+var subtotal_base = 0;
 
 var subcustomerTemplate;
 var itemTemplate;
@@ -190,7 +190,7 @@ function clear_form() {
     g_cart = {};
     itemsCount = {};
     users = 1;
-    subtotal_krw = 0;
+    subtotal_base = 0;
     g_total_weight = 0;
 
     $('.subcustomer-card').remove();
@@ -599,16 +599,16 @@ async function createStripePayment(orderId, paymentMethod) {
             dataType: 'json'
         });
 
-        // Get the order's total in EUR (total_cur2)
-        const amountEUR = round_up(parseFloat(order.total_cur2) || 0, 0);
+        // Get the order's total in user currency
+        const amountUser = round_up(parseFloat(order.total_user_currency) || 0, 0);
 
-        if (amountEUR <= 0) {
+        if (amountUser <= 0) {
             $('.wait').hide();
             modal('Error', 'Order amount must be greater than zero to create a payment.');
             return;
         }
 
-        // Create payment with Stripe in EUR
+        // Create payment with Stripe in user's currency
         const paymentResponse = await $.ajax({
             url: '/api/v1/payment?comment=from-order',
             method: 'POST',
@@ -616,10 +616,10 @@ async function createStripePayment(orderId, paymentMethod) {
             contentType: 'application/json',
             data: JSON.stringify({
                 sender_name: order.customer_name,
-                currency_code: 'EUR',
+                currency_code: order.user_currency_code,
                 payment_method: { id: paymentMethod.id },
                 orders: [orderId],
-                amount_sent_original: amountEUR
+                amount_sent_original: amountUser
             })
         });
 
@@ -629,19 +629,12 @@ async function createStripePayment(orderId, paymentMethod) {
         if (paymentResponse.data && paymentResponse.data.length > 0) {
             const payment = paymentResponse.data[0];
 
-            // If there's an extra action (Stripe checkout URL), open it
+            // If there's an extra action (checkout URL), navigate to it
             if (paymentResponse.extra_action && paymentResponse.extra_action.url) {
-                window.open(`/payments/${paymentResponse.extra_action.url}`, '_blank');
-
-                // Close the modal
-                $('.modal').modal('hide');
+                window.location.href = `/payments/${paymentResponse.extra_action.url}`;
             } else if (payment.id) {
                 // Fallback: construct the Stripe checkout URL manually
-                const checkoutUrl = `/payments/${payment.id}/stripe/checkout`;
-                window.open(checkoutUrl, '_blank');
-
-                // Close the modal
-                $('.modal').modal('hide');
+                window.location.href = `/payments/${payment.id}/stripe/checkout`;
             } else {
                 modal('Error', 'Payment was created but checkout URL is not available.');
             }
@@ -761,17 +754,17 @@ async function update_all_totals() {
  */
 function update_grand_totals() {
     $('#totalGrandTotalKRW').html(fmtCurr(base_country).format(round_up(
-        parseFloat($('#totalItemsCostKRW').html())
-        + parseFloat($('#totalShippingCostKRW').html())
+        ($('#totalItemsCostKRW').data('value') || 0)
+        + ($('#totalShippingCostKRW').data('value') || 0)
         + SERVICE_FEE, 2)));
-    $('#totalGrandTotalEUR').html(round_up(
-        parseFloat($('#totalItemsCostEUR').html()) 
-        + parseFloat($('#totalShippingCostEUR').html())
-        + SERVICE_FEE * currencyRates.EUR, 2));
-    $('#totalGrandTotalUSD').html(round_up(
-        parseFloat($('#totalItemsCostUSD').html()) 
-        + parseFloat($('#totalShippingCostUSD').html()
-        + SERVICE_FEE * currencyRates.USD), 2));
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalGrandTotalUser').html(fmtUser.format(round_up(
+            ($('#totalItemsCostUser').data('value') || 0)
+            + ($('#totalShippingCostUser').data('value') || 0)
+            + SERVICE_FEE * (currencyRates[USER_CURRENCY_CODE] || 0), 2)));
+    }
 }
 
 async function update_item_subtotal(item, batch_load=false) {
@@ -802,16 +795,9 @@ function update_item_total() {
             $(this).html('');
         }
     });
-    $('.total-eur').each(function() {
+    $('.total-user').each(function() {
         if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(round_up(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.EUR, 2));
-        } else {
-            $(this).html('');
-        }
-    });
-    $('.total-usd').each(function() {
-        if (g_cart[$(this).parent().attr('id')]) {
-            $(this).html(round_up(g_cart[$(this).parent().attr('id')].totalKRW * currencyRates.USD, 2));
+            $(this).html(round_up(g_cart[$(this).parent().attr('id')].totalKRW * (currencyRates[USER_CURRENCY_CODE] || 0), 2));
         } else {
             $(this).html('');
         }
@@ -823,9 +809,13 @@ function update_item_total() {
  * @param {number} cost - total shipping cost
  */
 function update_shipping_cost(cost) {
-    $('#totalShippingCostKRW').html(cost);
-    $('#totalShippingCostEUR').html(round_up(cost * currencyRates.EUR, 2));
-    $('#totalShippingCostUSD').html(round_up(cost * currencyRates.USD, 2));
+    $('#totalShippingCostKRW').data('value', cost).html(fmtCurr(base_country).format(cost));
+    const shippingUser = round_up(cost * (currencyRates[USER_CURRENCY_CODE] || 0), 2);
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalShippingCostUser').data('value', shippingUser).html(fmtUser.format(shippingUser));
+    }
 
     update_grand_totals();
     distribute_shipping_cost(cost);
@@ -913,12 +903,9 @@ function update_subcustomer_totals() {
             userProducts.reduce((acc, product) => acc + product.shippingCostKRW, local_shipping)));
         $('#subtotalTotalKRW', $(this)).html(fmtCurr(base_country).format(
             userProducts.reduce((acc, product) => acc + product.totalKRW, local_shipping)));
-        $('#subtotalTotalEUR', $(this)).html(
-            round_up(userProducts.reduce((acc, product) => 
-                acc + product.totalKRW, local_shipping) * currencyRates.EUR, 2));
-        $('#subtotalTotalUSD', $(this)).html(
-            round_up(userProducts.reduce((acc, product) => 
-                acc + product.totalKRW, local_shipping) * currencyRates.USD, 2));
+        $('#subtotalTotalUser', $(this)).html(
+            round_up(userProducts.reduce((acc, product) =>
+                acc + product.totalKRW, local_shipping) * (currencyRates[USER_CURRENCY_CODE] || 0), 2));
         $('#subtotalTotalPoints', $(this)).html(
             userProducts.reduce((acc, product) => 
                 acc + product.points * product.quantity, 0));
@@ -927,11 +914,15 @@ function update_subcustomer_totals() {
 
 async function update_grand_subtotal() {
     var user_products = Object.entries(g_cart);
-    subtotal_krw = user_products.reduce((acc, product) => acc + product[1].costKRW, 0);
-    var total_with_local_shipping_krw = subtotal_krw + g_total_local_shipping;
-    $('#totalItemsCostKRW').html(total_with_local_shipping_krw);
-    $('#totalItemsCostEUR').html(round_up(total_with_local_shipping_krw * currencyRates.EUR, 2));
-    $('#totalItemsCostUSD').html(round_up(total_with_local_shipping_krw * currencyRates.USD, 2));
+    subtotal_base = user_products.reduce((acc, product) => acc + product[1].costKRW, 0);
+    var total_with_local_shipping_krw = subtotal_base + g_total_local_shipping;
+    $('#totalItemsCostKRW').data('value', total_with_local_shipping_krw).html(fmtCurr(base_country).format(total_with_local_shipping_krw));
+    const itemsUser = round_up(total_with_local_shipping_krw * (currencyRates[USER_CURRENCY_CODE] || 0), 2);
+    if (USER_CURRENCY_CODE) {
+        const fmtUser = new Intl.NumberFormat(navigator.language,
+            { style: 'currency', currency: USER_CURRENCY_CODE });
+        $('#totalItemsCostUser').data('value', itemsUser).html(fmtUser.format(itemsUser));
+    }
 
     await update_total_weight(user_products);
 }

@@ -12,7 +12,7 @@ from app.purchase.models import Company
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.vendor_manager import PurchaseOrderVendorBase
 from app.purchase.signals import purchase_order_deleting, purchase_order_saving
-from exceptions import PurchaseOrderError
+from common.exceptions import PurchaseOrderError
 
 def create_purchase_orders(order: Order, company: Company, address: Address,
                           vendor: PurchaseOrderVendorBase, contact_phone: str,

@@ -76,8 +76,8 @@ stubs
 _resources
 .scannerwork
 upload
+data
 app/static/invoices/
 cache/
 tenants/
-tools/
 temp.json

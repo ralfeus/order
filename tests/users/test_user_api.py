@@ -73,8 +73,8 @@ class TestAdminApi(BaseTestCase):
             lambda: self.client.post(f"/api/v1/admin/user/{id}", json={"roles": [10]})
         )
         self.assertEqual(res.status_code, 200)
-        user = User.query.get(id)
-        self.assertTrue(user.has_role(Role.query.get(10)))
+        user = db.session.get(User, id)
+        self.assertTrue(user.has_role(db.session.get(Role, 10)))
 
     def test_signup(self):
         with self.client:

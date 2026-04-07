@@ -11,12 +11,12 @@ from flask import current_app
 from sqlalchemy import not_
 
 from app import celery, db
-from exceptions import AtomyLoginError, PurchaseOrderError
+from common.exceptions import AtomyLoginError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
 
-@celery.on_after_finalize.connect
+@celery.on_after_finalize.connect #type: ignore
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(7200, update_purchase_orders_status,
         name='Update PO status every 120 minutes')
@@ -93,7 +93,7 @@ def post_purchase_orders(po_id=None):
     except Exception as ex:
         for po in pending_purchase_orders:
             po.set_status(PurchaseOrderStatus.failed)
-        db.session.commit()
+        db.session.commit() #type: ignore
         raise ex
 
 @celery.task
@@ -111,7 +111,7 @@ def update_purchase_orders_status(po_id=None, browser=None):
             PurchaseOrder.when_created > (datetime.now() - timedelta(weeks=1)).date()
         )
         pending_purchase_orders = pending_purchase_orders.filter(
-            not_(PurchaseOrder.status.in_((
+            not_(PurchaseOrder.status.in_(( #type: ignore
                 PurchaseOrderStatus.cancelled,
                 PurchaseOrderStatus.failed,
                 PurchaseOrderStatus.payment_past_due,
@@ -147,5 +147,5 @@ def update_purchase_orders_status(po_id=None, browser=None):
                 logger.exception(
                     "Couldn't update POs status for %s", customer.name)
             subcustomer_num += 1
-    db.session.commit()
+    db.session.commit() #type: ignore
     logger.info("Done update of PO statuses")

@@ -11,9 +11,9 @@ from flask_security import current_user, login_required, roles_required
 from app import db
 from app.settings.models import Setting
 from app.tools import prepare_datatables_query
-from exceptions import AtomyLoginError, HTTPError
-from utils.atomy import atomy_login2
-from utils import get_json
+from common.exceptions import AtomyLoginError, HTTPError
+from common.utils.atomy import atomy_login2
+from common.utils import get_json
 
 from .. import bp_api_admin, bp_api_user
 from ..models import PVStat
@@ -79,7 +79,7 @@ def user_get_pv_stats():
     else: # DataTables is serverSide based
         nodes = _filter_nodes(nodes_query, request.values).json
 
-    root_id = Setting.query.get('network.root_id').value
+    root_id = db.session.get(Setting, 'network.root_id').value
     pv_data = _invoke_node_api('/api/v1/node', data={
         'root_id': root_id,
         'filter': {
@@ -185,7 +185,7 @@ def admin_get_nodes_permissions():
 @login_required
 @roles_required('admin')
 def admin_save_node_permission(id):
-    node = PVStat.query.get(id)
+    node = db.session.get(PVStat, id)
     if node is None:
         abort(404)
     payload = request.get_json()

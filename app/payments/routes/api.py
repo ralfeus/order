@@ -22,8 +22,8 @@ from app.payments.validators.payment import PaymentValidator
 from app.models.file import File
 from app.users.models.user import User
 
-from exceptions import PaymentNoReceivedAmountException
-from app.tools import get_tmp_file_by_id, modify_object, rm, write_to_file
+from common.exceptions import PaymentNoReceivedAmountException, PaymentStatusTransitionError
+from app.tools import get_tmp_file_by_id, get_upload_path, modify_object, rm, write_to_file
 from app.tools import prepare_datatables_query, stream_and_close
 
 @bp_api_admin.route('', defaults={'payment_id': None})
@@ -70,19 +70,19 @@ def admin_save_payment(payment_id):
     ''' Saves updates of user payment '''
     logger = logging.getLogger('admin_save_payment')
     payload: dict[str, Any] = request.get_json() # type: ignore
-    payment: Payment = Payment.query.get(payment_id)
+    payment: Payment = db.session.get(Payment, payment_id)
     if not payment:
-        abort(404)  
+        abort(404)
     messages = []
     logger.info("Updating payment %s by %s with data %s", payment_id, current_user, payload)
     if payload.get('status'):
         try:
             payment.set_status(payload['status'].lower(), messages)
-        except PaymentNoReceivedAmountException as ex:
+        except (PaymentNoReceivedAmountException, PaymentStatusTransitionError) as ex:
             return jsonify({
                     'data': [],
                     'error': str(ex)
-                })   
+                })
     else:
         with PaymentValidator(request) as validator:
             if not validator.validate():
@@ -112,7 +112,7 @@ def admin_save_payment(payment_id):
             elif evidence.get('path'):
                 payment.evidences.append(evidences[evidence['path']])
         if payload.get('orders'):
-            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders'])).all()
     db.session.commit() #type:ignore
     return jsonify({'data': [payment.to_dict()], 'message': messages})
 
@@ -157,7 +157,7 @@ def user_create_payment():
         and int(payload['user_id']) == current_user.id:
         user = current_user
     else:
-        user = User.query.get(payload['user_id'])
+        user = db.session.get(User, payload['user_id'])
     with PaymentValidator(request) as validator:
         if not validator.validate():
             error = {
@@ -171,7 +171,7 @@ def user_create_payment():
     if isinstance(payload['amount_sent_original'], str):
         payload['amount_sent_original'] = re.sub(
             r'[\s,]', '', payload['amount_sent_original'])
-    currency = Currency.query.get(payload['currency_code'])
+    currency = db.session.get(Currency, payload['currency_code'])
     if not currency:
         abort(Response(f"No currency <{payload['currency_code']}> was found", status=400))
     evidences = []
@@ -207,7 +207,7 @@ def user_create_payment():
 @login_required
 def user_delete_payment(payment_id):
     ''' Cancels payment request '''
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if payment is None:
         abort(404)
     if not payment.is_editable():
@@ -220,16 +220,17 @@ def user_delete_payment(payment_id):
 
 def _move_uploaded_file(file_id):
     evidence_src_file = get_tmp_file_by_id(file_id)
-    evidence_file = os.path.join(current_app.config['UPLOAD_PATH'],
-                                 os.path.basename(evidence_src_file))
-    shutil.move(evidence_src_file, os.path.join(os.getcwd(), evidence_file))
-    return evidence_file
+    basename = os.path.basename(evidence_src_file)
+    dest = get_upload_path(basename)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(evidence_src_file, dest)
+    return f"upload/{basename}"
 
 # @bp_api_user.route('/<int:payment_id>', methods=['POST'])
 @login_required
 def user_save_payment(payment_id):
     '''Saves updates in payment'''
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not payment:
         abort(404)
     if not payment.is_editable():
@@ -271,7 +272,7 @@ def user_save_payment(payment_id):
         #     payment.evidences.filter_by(id=evidence.id).delete()
         #     db.session.delete(evidence)
         if payload.get('orders'):
-            payment.orders = Order.query.filter(Order.id.in_(payload['orders']))
+            payment.orders = Order.query.filter(Order.id.in_(payload['orders'])).all()
     else:
         modify_object(payment, payload, ['status'])
 
@@ -313,7 +314,7 @@ def user_upload_payment_evidence(payment_id):
             }
         })
 
-    payment = Payment.query.get(payment_id)
+    payment = db.session.get(Payment, payment_id)
     if not current_user.has_role('admin') and \
         current_user != payment.user:
         abort(403)
@@ -323,16 +324,17 @@ def user_upload_payment_evidence(payment_id):
     if request.files and request.files['file'] and request.files['file'].filename:
         file = request.files['file']
         image_data = file.read()
-        file_name = os.path.join(
-            current_app.config['UPLOAD_PATH'],
+        ext = ''.join(os.path.splitext(str(file.filename))[1:])
+        relative_name = os.path.join(
             str(current_user.id),
-            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f')) + \
-            ''.join(os.path.splitext(str(file.filename))[1:])
-        write_to_file(file_name, image_data)
+            datetime.now().strftime('%Y-%m-%d.%H%M%S.%f') + ext)
+        abs_path = get_upload_path(relative_name)
+        write_to_file(abs_path, image_data)
+        url_path = f"upload/{relative_name}"
 
         new_evidence = File(
             file_name=file.filename,
-            path=file_name
+            path=url_path
         )
         payment.evidences.append(new_evidence)
         payment.when_changed = datetime.now()
@@ -368,7 +370,7 @@ def admin_get_payment_methods():
 @login_required
 @roles_required('admin')
 def save_payment_method(payment_method_id):
-    payment_method = PaymentMethod.query.get(payment_method_id)
+    payment_method = db.session.get(PaymentMethod, payment_method_id)
     if payment_method_id:
         if not payment_method:
             abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
@@ -386,7 +388,7 @@ def save_payment_method(payment_method_id):
 @login_required
 @roles_required('admin')
 def delete_payment_method(payment_method_id):
-    payment_method = PaymentMethod.query.get(payment_method_id)
+    payment_method = db.session.get(PaymentMethod, payment_method_id)
     if not payment_method:
         abort(Response(f"Payment method <{payment_method_id}> wasn't found", status=404))
     try:
