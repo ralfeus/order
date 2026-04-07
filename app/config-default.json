@@ -9,7 +9,7 @@
     "SQLALCHEMY_TRACK_MODIFICATIONS": true,
     "WTF_CSRF_ENABLED": false,
     "EXPLAIN_TEMPLATE_LOADING": false,
-    "DATA_PATH": "/app/data",
+    "DATA_PATH": "data",
     "BROWSER_URL": "",
     "INVOICE_TEMPLATES_PATH": "invoice_templates",
     "LANGUAGES": ["en", "ua", "ru"],
@@ -48,8 +48,9 @@
 
     "PAYMENT": {
         "stripe": {
-            "api_key": "pk_test_51SmJozBhwuI3XNceB3sGm9SleI5a2hzIccG50xhqKD4oD2pXQjh8hJV3rm2GXFZnBu9XNOZJ26GKuQ2RCJfOF6WL00p6ctxnsu",
-            "api_secret": ""
+            "api_key": "",
+            "api_secret": "",
+            "webhook_secret": ""
         }
     },
 
