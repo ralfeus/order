@@ -55,7 +55,10 @@ $(document).ready(() => {
             url: `/api/v1/admin/network/branch?${params.toString()}`,
             success: branches => {
                 table.rows().every(function() {
-                    const branch = branches[this.data().id];
+                    let branch = branches[this.data().id];
+                    if (table.cell(this.index(), 0).data() === root) {
+                        branch = 'root';
+                    }
                     if (branch !== undefined) {
                         $(table.cell(this.index(), 2).node()).text(branch);
                     }

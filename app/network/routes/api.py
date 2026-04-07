@@ -37,7 +37,8 @@ def get_node_branches():
             current_app.config['NETWORK_MANAGER_URL'] + '/api/v1/node/branch',
             params=request.args.to_dict(flat=False),
             headers={'Content-type': 'application/json'})
-        return jsonify(json.loads(response.content.decode('utf-8')))
+        content = response.content.decode('utf-8')
+        return jsonify(json.loads(content))
     except Exception as e:
         logging.exception(e)
         return jsonify({})

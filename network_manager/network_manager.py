@@ -338,14 +338,16 @@ def get_node_branches():
     non_root_ids = [i for i in ids if i != root_id]
     result, _ = db.cypher_query('''
         MATCH (root:AtomyPerson {atomy_id: $root_id})
+        OPTIONAL MATCH (root)-[:LEFT_CHILD]->(lc)
+        OPTIONAL MATCH (root)-[:RIGHT_CHILD]->(rc)
         UNWIND $ids AS node_id
         MATCH (n:AtomyPerson {atomy_id: node_id})
         MATCH p = shortestPath((n)-[:PARENT*]->(root))
-        WITH n, root, nodes(p)[-2] AS child
-        WITH n, root, child,
+        WITH n, lc, rc, nodes(p)[size(nodes(p))-2] AS child
+        WITH n,
             CASE
-                WHEN child.atomy_id = root.left_id THEN 'L'
-                WHEN child.atomy_id = root.right_id THEN 'R'
+                WHEN child = lc THEN 'L'
+                WHEN child = rc THEN 'R'
             END AS branch
         WHERE branch IS NOT NULL
         RETURN n.atomy_id, branch
