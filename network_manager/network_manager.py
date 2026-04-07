@@ -335,6 +335,7 @@ def get_node_branches():
     ids = request.args.getlist('ids')
     if not root_id or not ids:
         return jsonify({})
+    non_root_ids = [i for i in ids if i != root_id]
     result, _ = db.cypher_query('''
         MATCH (root:AtomyPerson {atomy_id: $root_id})
         UNWIND $ids AS node_id
@@ -343,12 +344,12 @@ def get_node_branches():
         WITH n, root, nodes(p)[-2] AS child
         WITH n, root, child,
             CASE
-                WHEN child.atomy_id = root.left_id THEN 'left'
-                WHEN child.atomy_id = root.right_id THEN 'right'
+                WHEN child.atomy_id = root.left_id THEN 'L'
+                WHEN child.atomy_id = root.right_id THEN 'R'
             END AS branch
         WHERE branch IS NOT NULL
         RETURN n.atomy_id, branch
-    ''', params={'root_id': root_id, 'ids': ids})
+    ''', params={'root_id': root_id, 'ids': non_root_ids})
     return jsonify({row[0]: row[1] for row in result})
 
 
