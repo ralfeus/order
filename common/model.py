@@ -32,6 +32,8 @@ class CustomIntegerProperty(IntegerProperty):
 
     @validator
     def inflate(self, value):
+        if isinstance(value, int):
+            return value
         if isinstance(value, str):
             if value == '':
                 return None
@@ -46,6 +48,9 @@ class AtomyPerson(StructuredNode):
     branch = StringProperty()
     rank = StringProperty()
     highest_rank = StringProperty()
+    highest_rank_maintenance_count = CustomIntegerProperty()
+    grade = StringProperty()
+    verified = BooleanProperty()
     center = StringProperty()
     country = StringProperty()
     signup_date = CustomDateProperty()

@@ -14,10 +14,11 @@ class TestJobs(BaseTestCase):
         db.create_all()
 
     @patch('app.jobs.save_image')
-    @patch('common.utils.atomy.atomy_login2')
-    @patch('common.utils.get_json')
-    @patch('common.utils.get_document')
-    def test_import_products(self, get_document, get_json, atomy_login2, save_image):
+    @patch('product_importer.import_products.set_language')
+    @patch('product_importer.import_products.atomy_login2')
+    @patch('product_importer.import_products.get_json')
+    @patch('product_importer.import_products.get_document')
+    def test_import_products(self, get_document, get_json, atomy_login2, set_language, save_image):
         atomy_login2.return_value = None
         get_document.return_value = BeautifulSoup('''
             <div class="gdsList n5">

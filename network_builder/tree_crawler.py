@@ -337,6 +337,7 @@ class TreeCrawler:
             raise
 
         if not parent_id:
+            self._logger.debug("Saving root node %s with data: %s", atomy_id, element)
             self._repo.save_root_node(atomy_id, element, signup_date, last_purchase_date)
         else:
             nodes_to_save.append({
@@ -344,10 +345,10 @@ class TreeCrawler:
                 'atomy_id': atomy_id,
                 'parent_id': parent_id,
                 'highest_rank': TITLES.get(element['mlvlCd']),
-                'highest_rank_confirmed_count': element.get('mlvlMntnTcnt', 0),
+                'highest_rank_maintenance_count': element.get('mlvlMntnTcnt', 0),
                 'grade': element['custGrdNm'],
                 'rank': TITLES.get(element['curLvlCd']),
-                'verified': element['csmrYn'] == 'Y',
+                'verified': element['authYn'] == 'Y',
                 'center': element.get('ectrNm'),
                 'country': element['corpNm'],
                 'child_type': child_type,

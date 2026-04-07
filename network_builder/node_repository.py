@@ -114,6 +114,7 @@ class NodeRepository:
         last_purchase_date: Optional[datetime],
     ) -> str:
         """Creates or updates a page-root node (no parent relationship set)."""
+        self._logger.debug("Saving root node %s with data: %s", atomy_id, element)
         db.cypher_query(
             '''
             MERGE (node:AtomyPerson {atomy_id: $atomy_id})
@@ -122,6 +123,9 @@ class NodeRepository:
                     node.name = $name,
                     node.rank = $rank,
                     node.highest_rank = $highest_rank,
+                    node.highest_rank_maintenance_count = $highest_rank_maintenance_count,
+                    node.grade = $grade,
+                    node.verified = $verified,
                     node.center = $center,
                     node.country = $country,
                     node.signup_date = $signup_date,
@@ -131,6 +135,9 @@ class NodeRepository:
                     node.name = $name,
                     node.rank = $rank,
                     node.highest_rank = $highest_rank,
+                    node.highest_rank_maintenance_count = $highest_rank_maintenance_count,
+                    node.grade = $grade,
+                    node.verified = $verified,
                     node.center = $center,
                     node.country = $country,
                     node.last_purchase_date = $last_purchase_date,
@@ -142,6 +149,9 @@ class NodeRepository:
                 'name': element['custNm'],
                 'rank': self._titles.get(element['curLvlCd']),
                 'highest_rank': self._titles.get(element['mlvlCd']),
+                'highest_rank_maintenance_count': element.get('mlvlMntnTcnt', 0),
+                'grade': element['custGrdNm'],
+                'verified': element['authYn'] == 'Y',
                 'center': element.get('ectrNm'),
                 'country': element['corpNm'],
                 'signup_date': signup_date,
@@ -194,31 +204,38 @@ class NodeRepository:
                 batch = [n for n in can_save if n['child_type'] == child_type]
                 if not batch:
                     continue
+                self._logger.debug("Saving batch with data: %s", batch)
                 db.cypher_query(
                     f'''
                     UNWIND $records AS record
                     MATCH (parent:AtomyPerson {{atomy_id: record.parent_id}})
                     MERGE (node:AtomyPerson {{atomy_id: record.atomy_id}})
                     ON CREATE SET
-                            node.atomy_id_normalized = REPLACE(record.atomy_id, 'S', '0'),
-                            node.name = record.name,
-                            node.rank = record.rank,
-                            node.highest_rank = record.highest_rank,
-                            node.center = record.center,
-                            node.country = record.country,
-                            node.signup_date = record.signup_date,
-                            node.last_purchase_date = record.last_purchase_date,
-                            node.username = parent.username,
-                            node.password = parent.password,
-                            node.when_updated = $now
+                        node.atomy_id_normalized = REPLACE(record.atomy_id, 'S', '0'),
+                        node.name = record.name,
+                        node.rank = record.rank,
+                        node.highest_rank = record.highest_rank,
+                        node.highest_rank_maintenance_count = record.highest_rank_maintenance_count,
+                        node.grade = record.grade,
+                        node.verified = record.verified,
+                        node.center = record.center,
+                        node.country = record.country,
+                        node.signup_date = record.signup_date,
+                        node.last_purchase_date = record.last_purchase_date,
+                        node.username = parent.username,
+                        node.password = parent.password,
+                        node.when_updated = $now
                     ON MATCH SET
-                            node.name = record.name,
-                            node.rank = record.rank,
-                            node.highest_rank = record.highest_rank,
-                            node.center = record.center,
-                            node.country = record.country,
-                            node.last_purchase_date = record.last_purchase_date,
-                            node.when_updated = $now
+                        node.name = record.name,
+                        node.rank = record.rank,
+                        node.highest_rank = record.highest_rank,
+                        node.highest_rank_maintenance_count = record.highest_rank_maintenance_count,
+                        node.grade = record.grade,
+                        node.verified = record.verified,
+                        node.center = record.center,
+                        node.country = record.country,
+                        node.last_purchase_date = record.last_purchase_date,
+                        node.when_updated = $now
                     MERGE (node)-[:PARENT]->(parent)
                     MERGE (parent)-[:{child_type}]->(node)
                     RETURN node.atomy_id
