@@ -177,12 +177,14 @@ services:
     depends_on:
       - eurocargo-db
     environment:
-      - DATABASE_URL=postgresql://eurocargo:eurocargo@eurocargo-db:5432/eurocargo
+      - DATABASE_URL=postgresql://eurocargo:eurocargo@eurocargo-db/eurocargo
       - BASE_URL=http://localhost:3000
       - REVOLUT_API_KEY=
       - REVOLUT_WEBHOOK_SECRET=
     networks:
       - order
+    ports:
+      - "8000:8000"
     restart: unless-stopped
 
   eurocargo-frontend:

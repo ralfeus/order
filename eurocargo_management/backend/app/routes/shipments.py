@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.carrier import BaseCarrier
 from app.models.shipment import Shipment
-from app.models.shipment_type import ShipmentType
 from app.models.user import User
 from app.schemas.shipment import ShipmentCreate, ShipmentCreatedResponse, ShipmentResponse
 
@@ -31,10 +31,10 @@ def list_shipments(db: Session = Depends(get_db)):
 
 @router.post('/shipments', response_model=ShipmentCreatedResponse, status_code=201)
 def create_shipment(payload: ShipmentCreate, db: Session = Depends(get_db)):
-    shipment_type = db.query(ShipmentType).filter_by(
+    carrier = db.query(BaseCarrier).filter_by(
         code=payload.shipment_type_code, enabled=True
     ).first()
-    if not shipment_type:
+    if not carrier:
         raise HTTPException(status_code=422,
                             detail=f'Unknown or disabled shipment type: {payload.shipment_type_code}')
 
@@ -42,6 +42,11 @@ def create_shipment(payload: ShipmentCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409,
                             detail=f'Shipment for order {payload.order_id} already exists')
+
+    try:
+        amount_eur = carrier.calculate_cost(payload.weight_kg, payload.country, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     shipment = Shipment(
         order_id=payload.order_id,
@@ -52,9 +57,10 @@ def create_shipment(payload: ShipmentCreate, db: Session = Depends(get_db)):
         country=payload.country,
         zip=payload.zip,
         phone=payload.phone,
-        shipment_type_id=shipment_type.id,
+        shipment_type_id=carrier.id,
+        weight_kg=payload.weight_kg,
         tracking_code=payload.tracking_code,
-        amount_eur=payload.amount_eur,
+        amount_eur=amount_eur,
     )
     db.add(shipment)
     db.commit()

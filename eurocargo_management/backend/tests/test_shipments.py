@@ -1,5 +1,19 @@
 '''Tests for shipment CRUD endpoints'''
+from decimal import Decimal
+
 import pytest
+
+from app.models.shipping_rate import ShippingFlatRate, ShippingRateEntry
+
+
+@pytest.fixture
+def rate_data(db_session):
+    db_session.add(ShippingFlatRate(rate_per_kg=Decimal('12.00')))
+    db_session.add(ShippingRateEntry(
+        shipment_type_code='GLS', country='DE',
+        max_weight_kg=Decimal('5.000'), cost=Decimal('4.00'),
+    ))
+    db_session.flush()
 
 
 VALID_PAYLOAD = {
@@ -11,9 +25,9 @@ VALID_PAYLOAD = {
     'country': 'DE',
     'zip': '10115',
     'phone': '+49123456789',
-    'shipment_type_code': 'GLX',
+    'shipment_type_code': 'GLS',
+    'weight_kg': '2.000',
     'tracking_code': 'TRACK456',
-    'amount_eur': '25.00',
 }
 
 
@@ -21,7 +35,7 @@ VALID_PAYLOAD = {
 # POST /api/v1/shipments
 # ---------------------------------------------------------------------------
 
-def test_create_shipment_success(client, shipment_type):
+def test_create_shipment_success(client, shipment_type, rate_data):
     response = client.post('/api/v1/shipments', json=VALID_PAYLOAD)
     assert response.status_code == 201
     data = response.json()
@@ -49,7 +63,13 @@ def test_create_shipment_invalid_email(client, shipment_type):
     assert response.status_code == 422
 
 
-def test_create_shipment_missing_required_field(client, shipment_type):
+def test_create_shipment_no_rate(client, shipment_type):
+    """Shipment creation fails when no rate covers the destination/weight."""
+    response = client.post('/api/v1/shipments', json=VALID_PAYLOAD)
+    assert response.status_code == 422
+
+
+def test_create_shipment_missing_required_field(client, shipment_type, rate_data):
     payload = {k: v for k, v in VALID_PAYLOAD.items() if k != 'customer_name'}
     response = client.post('/api/v1/shipments', json=payload)
     assert response.status_code == 422

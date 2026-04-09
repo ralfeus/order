@@ -25,8 +25,9 @@ class Shipment(Base):
     zip = Column(String(16), nullable=False)
     phone = Column(String(32), nullable=True)
     shipment_type_id = Column(Integer, ForeignKey('shipment_types.id'), nullable=False)
+    weight_kg = Column(Numeric(10, 3), nullable=False)
     tracking_code = Column(String(64), nullable=True)
-    amount_eur = Column(Numeric(10, 2), nullable=False)
+    amount_eur = Column(Numeric(10, 2), nullable=True)
     status = Column(String(16), nullable=False, default='pending')
     created_at = Column(DateTime(timezone=True), nullable=False,
                         default=lambda: datetime.now(timezone.utc))
@@ -34,7 +35,9 @@ class Shipment(Base):
                         default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
 
-    shipment_type = relationship('ShipmentType', back_populates='shipments')
+    shipment_type = relationship('BaseCarrier', back_populates='shipments')
     payments = relationship('Payment', back_populates='shipment')
+    attachments = relationship('ShipmentAttachment', back_populates='shipment',
+                               cascade='all, delete-orphan', order_by='ShipmentAttachment.uploaded_at')
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     user = relationship('User', back_populates='shipments')

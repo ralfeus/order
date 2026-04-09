@@ -12,8 +12,8 @@ def test_list_shipment_types_returns_all(client, shipment_type):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]['code'] == 'GLX'
-    assert data[0]['name'] == 'Galaxus'
+    assert data[0]['code'] == 'GLS'
+    assert data[0]['name'] == 'GLS Parcel'
     assert data[0]['enabled'] is True
 
 
@@ -22,7 +22,7 @@ def test_get_shipment_type_found(client, shipment_type):
     assert response.status_code == 200
     data = response.json()
     assert data['id'] == shipment_type.id
-    assert data['code'] == 'GLX'
+    assert data['code'] == 'GLS'
 
 
 def test_get_shipment_type_not_found(client):

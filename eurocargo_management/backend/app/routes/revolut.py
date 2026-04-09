@@ -29,6 +29,8 @@ def create_payment(
         raise HTTPException(status_code=404, detail='Shipment not found')
     if shipment.status == 'paid':
         raise HTTPException(status_code=409, detail='Shipment is already paid')
+    if shipment.amount_eur is None:
+        raise HTTPException(status_code=422, detail='Shipping cost has not been calculated yet')
 
     return_url = f'{settings.base_url}/shipments/{token}'
     description = f'Shipping for order {shipment.order_id}'

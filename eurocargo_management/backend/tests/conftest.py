@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
 from app.main import app
-from app.models import ShipmentType, Shipment, User, Payment  # noqa: F401 — register models
+from app.models import BaseCarrier, ShippingFlatRate, ShippingRateEntry, Shipment, User, Payment  # noqa: F401 — register models
 
 DATABASE_URL = 'sqlite://'  # in-memory SQLite for tests
 
@@ -50,7 +50,8 @@ def client(db_session):
 
 @pytest.fixture
 def shipment_type(db_session):
-    st = ShipmentType(code='GLX', name='Galaxus', enabled=True)
+    from app.carriers.gls import GLSCarrier
+    st = GLSCarrier(code='GLS', name='GLS Parcel', enabled=True)
     db_session.add(st)
     db_session.flush()
     return st
@@ -68,8 +69,8 @@ def shipment(db_session, shipment_type):
         zip='11000',
         phone='+420123456789',
         shipment_type_id=shipment_type.id,
+        weight_kg='2.000',
         tracking_code='TRACK123',
-        amount_eur='12.50',
     )
     db_session.add(s)
     db_session.flush()

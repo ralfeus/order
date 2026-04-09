@@ -68,6 +68,25 @@
             },
             "jinja": true,
             "justMyCode": false
+        },
+        {
+            "name": "eurocargo frontend",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npm run dev",
+            "cwd": "${workspaceFolder}/eurocargo_management/frontend"
+        },
+        {
+            "name": "eurocargo backend",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/Users/ralfeus/.virtualenvs/eurocargo/bin/python",
+            "module": "uvicorn",
+            "args": ["app.main:app", "--reload"],
+            "cwd": "${workspaceFolder}/eurocargo_management/backend",
+            "env": {
+                "DATABASE_URL": "postgresql://ralfeus@localhost/shipment"
+            }
         }
     ]
 }

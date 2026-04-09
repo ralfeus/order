@@ -13,4 +13,3 @@ class OrderStatus(enum.Enum):
     cancelled = 6
     ready_to_ship = 7
     at_warehouse = 8
-    shipment_is_paid = 9

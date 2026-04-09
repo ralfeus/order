@@ -6,7 +6,8 @@
       "Grep",
       "Edit",
       "Write",
-      "Bash"
+      "Bash",
+      "WebFetch"
     ],
     "deny": [
       "Bash(git push *)"

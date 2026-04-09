@@ -1,7 +1,30 @@
 '''Tests for POST /api/v1/shipments/{token}/payments and Revolut webhook'''
 from unittest.mock import MagicMock, patch
+from decimal import Decimal
 
 import pytest
+
+from app.models.shipment import Shipment
+
+
+@pytest.fixture
+def priced_shipment(db_session, shipment_type):
+    """Shipment with amount_eur already calculated — required for payment tests."""
+    s = Shipment(
+        order_id='ORD-2026-04-9999',
+        customer_name='Pay Test',
+        email='pay@example.com',
+        address='1 Pay St',
+        city='Vienna',
+        country='AT',
+        zip='1010',
+        shipment_type_id=shipment_type.id,
+        weight_kg=Decimal('2.000'),
+        amount_eur=Decimal('25.00'),
+    )
+    db_session.add(s)
+    db_session.flush()
+    return s
 
 
 # ---------------------------------------------------------------------------
@@ -14,11 +37,11 @@ MOCK_REVOLUT_RESPONSE = {
 }
 
 
-def test_create_payment_success(client, shipment):
+def test_create_payment_success(client, priced_shipment):
     with patch('app.routes.revolut.revolut_client.create_order',
                return_value=MOCK_REVOLUT_RESPONSE):
         response = client.post(
-            f'/api/v1/shipments/{shipment.token}/payments',
+            f'/api/v1/shipments/{priced_shipment.token}/payments',
             json={'method': 'card'},
         )
     assert response.status_code == 201
@@ -29,21 +52,30 @@ def test_create_payment_success(client, shipment):
     assert data['method'] == 'card'
 
 
-def test_create_payment_sepa(client, shipment):
+def test_create_payment_sepa(client, priced_shipment):
     with patch('app.routes.revolut.revolut_client.create_order',
                return_value=MOCK_REVOLUT_RESPONSE):
         response = client.post(
-            f'/api/v1/shipments/{shipment.token}/payments',
+            f'/api/v1/shipments/{priced_shipment.token}/payments',
             json={'method': 'sepa'},
         )
     assert response.status_code == 201
     assert response.json()['method'] == 'sepa'
 
 
-def test_create_payment_invalid_method(client, shipment):
+def test_create_payment_invalid_method(client, priced_shipment):
+    response = client.post(
+        f'/api/v1/shipments/{priced_shipment.token}/payments',
+        json={'method': 'bitcoin'},
+    )
+    assert response.status_code == 422
+
+
+def test_create_payment_no_amount(client, shipment):
+    """Payment cannot be initiated before shipping cost is calculated."""
     response = client.post(
         f'/api/v1/shipments/{shipment.token}/payments',
-        json={'method': 'bitcoin'},
+        json={'method': 'card'},
     )
     assert response.status_code == 422
 
@@ -53,21 +85,21 @@ def test_create_payment_shipment_not_found(client):
     assert response.status_code == 404
 
 
-def test_create_payment_already_paid(client, shipment, db_session):
-    shipment.status = 'paid'
+def test_create_payment_already_paid(client, priced_shipment, db_session):
+    priced_shipment.status = 'paid'
     db_session.flush()
     response = client.post(
-        f'/api/v1/shipments/{shipment.token}/payments',
+        f'/api/v1/shipments/{priced_shipment.token}/payments',
         json={'method': 'card'},
     )
     assert response.status_code == 409
 
 
-def test_create_payment_revolut_error(client, shipment):
+def test_create_payment_revolut_error(client, priced_shipment):
     with patch('app.routes.revolut.revolut_client.create_order',
                side_effect=Exception('Revolut is down')):
         response = client.post(
-            f'/api/v1/shipments/{shipment.token}/payments',
+            f'/api/v1/shipments/{priced_shipment.token}/payments',
             json={'method': 'card'},
         )
     assert response.status_code == 502
@@ -77,8 +109,9 @@ def test_create_payment_revolut_error(client, shipment):
 # POST /api/v1/revolut/webhooks
 # ---------------------------------------------------------------------------
 
-def test_webhook_order_completed(client, shipment, db_session):
+def test_webhook_order_completed(client, priced_shipment, db_session):
     from app.models.payment import Payment
+    shipment = priced_shipment
 
     # Pre-create a pending payment with a known revolut_order_id
     payment = Payment(

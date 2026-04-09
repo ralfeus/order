@@ -4,6 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
+from .attachment import AttachmentMeta
 from .shipment_type import ShipmentTypeResponse
 
 
@@ -17,8 +18,8 @@ class ShipmentCreate(BaseModel):
     zip: str
     phone: Optional[str] = None
     shipment_type_code: str
+    weight_kg: Decimal
     tracking_code: Optional[str] = None
-    amount_eur: Decimal
 
 
 class ShipmentResponse(BaseModel):
@@ -33,12 +34,14 @@ class ShipmentResponse(BaseModel):
     zip: str
     phone: Optional[str]
     shipment_type: ShipmentTypeResponse
+    weight_kg: Decimal
     tracking_code: Optional[str]
-    amount_eur: Decimal
+    amount_eur: Optional[Decimal] = None
     status: str
     created_at: datetime
     updated_at: datetime
     shipment_url: str = ''  # computed after model_validate
+    attachments: list[AttachmentMeta] = []
 
     model_config = {'from_attributes': True}
 
