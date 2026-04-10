@@ -65,6 +65,75 @@ class TreeCrawler:
         """Returns (traversing_nodes_set, updated_nodes, threads) for monitoring."""
         return self._traversing_nodes_set, self._updated_nodes, self._threads
 
+    def find_parent(
+        self,
+        target_id: str,
+        traversing_nodes_list: list[tuple[str, tuple]],
+    ) -> Optional[str]:
+        """Finds the direct parent of *target_id* by crawling the tree.
+
+        Same traversal logic as :meth:`crawl` but:
+        - no database writes are performed, and
+        - the crawl stops as soon as *target_id* is found.
+
+        :param target_id: Atomy ID of the node whose parent is sought.
+        :param traversing_nodes_list: Starting (atomy_id, (username, password)) pairs.
+        :returns: Atomy ID of the direct parent, or ``None`` if not found.
+        """
+        self._traversing_nodes_list = list(traversing_nodes_list)
+        self._traversing_nodes_set = {node[0] for node in traversing_nodes_list}
+        self._threads = 0
+        self._exceptions = Queue()
+
+        found_event = threading.Event()
+        found_parent: list[Optional[str]] = [None]
+
+        c = 0
+        while not found_event.is_set():
+            while self._threads >= self._max_threads and not found_event.is_set():
+                sleep(1)
+
+            if found_event.is_set():
+                break
+
+            try:
+                self._raise_pending_exception()
+
+                with self._lock:
+                    while (
+                        c < len(self._traversing_nodes_list)
+                        and self._traversing_nodes_list[c][0] not in self._traversing_nodes_set
+                    ):
+                        c += 1
+
+                if c >= len(self._traversing_nodes_list):
+                    raise IndexError
+
+                node_id, auth = self._traversing_nodes_list[c]
+                c += 1
+                thread = threading.Thread(
+                    target=self._find_parent_worker,
+                    args=(node_id, auth, target_id, found_event, found_parent),
+                    name=f"FindParent-{node_id}",
+                )
+                thread.start()
+                with self._lock:
+                    self._threads += 1
+
+            except IndexError:
+                if self._threads < 1:
+                    break
+                sleep(5)
+
+            except KeyboardInterrupt:
+                self._logger.info("Ctrl+C — shutting down.")
+                break
+
+        while self._threads > 0:
+            sleep(1)
+
+        return found_parent[0]
+
     def crawl(
         self,
         traversing_nodes_list: list[tuple[str, tuple]],
@@ -240,6 +309,106 @@ class TreeCrawler:
         finally:
             with self._lock:
                 self._threads -= 1
+
+    def _find_parent_worker(
+        self,
+        node_id: str,
+        auth: tuple,
+        target_id: str,
+        found_event: threading.Event,
+        result: list,
+    ) -> None:
+        """Worker thread for :meth:`find_parent` — no DB writes."""
+        try:
+            if found_event.is_set():
+                return
+
+            try:
+                members = self._client.fetch_tree(node_id, auth)
+            except NoParentException:
+                with self._lock:
+                    self._traversing_nodes_set.discard(node_id)
+                return
+            except Exception as ex:
+                self._exceptions.put(
+                    BuildPageNodesException(node_id, ex).with_traceback(ex.__traceback__)
+                )
+                return
+
+            if not members:
+                with self._lock:
+                    self._traversing_nodes_set.discard(node_id)
+                return
+
+            # Check if target appears anywhere on this page
+            for member in members[1:]:
+                if member['custNo'] == target_id:
+                    with self._lock:
+                        if not found_event.is_set():
+                            result[0] = member['spnrNo']
+                            found_event.set()
+                    return
+
+            if found_event.is_set():
+                return
+
+            # Target not on this page — enqueue subtrees with off-page children
+            if members[0]['ptnrYn'] == 'Y':
+                self._search_enqueue_children(
+                    node_id=node_id,
+                    node_element=members[0],
+                    elements=members[1:],
+                    auth=auth,
+                )
+            else:
+                with self._lock:
+                    self._traversing_nodes_set.discard(node_id)
+
+        except Exception as ex:
+            self._exceptions.put(
+                BuildPageNodesException(node_id, ex).with_traceback(ex.__traceback__)
+            )
+        finally:
+            with self._lock:
+                self._threads -= 1
+
+    def _search_enqueue_children(
+        self,
+        node_id: str,
+        node_element: dict,
+        elements: list[dict],
+        auth: tuple,
+    ) -> bool:
+        """Enqueues nodes with off-page children for the parent search.
+
+        Mirrors :meth:`_get_children` without any database writes.
+
+        :returns: ``True`` when *node_id* has children not present on this page,
+                  signalling the caller to enqueue *node_id* for a deeper fetch.
+        """
+        children_on_page = [e for e in elements if e['spnrNo'] == node_id]
+        needs_deeper_crawl = False
+
+        for element in children_on_page:
+            child_id = element['custNo']
+            needs_deeper_crawl |= self._search_enqueue_children(
+                node_id=child_id,
+                node_element=element,
+                elements=elements,
+                auth=auth,
+            )
+
+        if needs_deeper_crawl:
+            self._enqueue_for_crawl(node_id, auth)
+            return False
+
+        if not children_on_page and node_element['ptnrYn'] == 'Y':
+            return True
+
+        # Fully explored on this page
+        with self._lock:
+            self._traversing_nodes_set.discard(node_id)
+        return False
 
     def _get_children(
         self,

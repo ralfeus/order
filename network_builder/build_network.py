@@ -121,6 +121,48 @@ def build_network(
     logger.info("Done")
 
 
+def find_parent(
+    user: str,
+    password: str,
+    target_id: str,
+    root_id: str = 'S5832131',
+    max_threads: int = 10,
+    socks5_proxy: str = '',
+    **_kwargs,
+) -> Optional[str]:
+    """Crawls the tree to find the direct parent of *target_id*.
+
+    No database writes are performed; the crawl stops as soon as the target
+    is located.
+
+    :param str user: Atomy username for authentication.
+    :param str password: Atomy password.
+    :param str target_id: Atomy ID of the node whose parent is sought.
+    :param str root_id: Atomy ID of the tree root to start from.
+    :param int max_threads: Maximum number of concurrent worker threads.
+    :param str socks5_proxy: SOCKS5 proxy address, e.g. ``localhost:9050``.
+    :returns: Atomy ID of the direct parent, or ``None`` if not found.
+    """
+    logger = logging.getLogger('find_parent')
+
+    repo = NodeRepository(TITLES)
+    token_manager = TokenManager(socks5_proxy=socks5_proxy)
+    client = AtomyClient(token_manager, repo.get_parent_auth, socks5_proxy=socks5_proxy)
+    crawler = TreeCrawler(client, repo, max_threads)
+
+    traversing_nodes_list = [(root_id, (user, password))]
+
+    logger.info("Searching for parent of %s starting from %s", target_id, root_id)
+    parent_id = crawler.find_parent(target_id, traversing_nodes_list)
+
+    if parent_id:
+        logger.info("Parent of %s is %s", target_id, parent_id)
+    else:
+        logger.info("Parent of %s not found", target_id)
+
+    return parent_id
+
+
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
@@ -151,6 +193,8 @@ if __name__ == '__main__':
     mode.add_argument('--root', dest='root_id', metavar='ROOT_ID',
                       help='Root node ID for network scan')
     mode.add_argument('--roots-file', help='File with list of root nodes')
+    parser.add_argument('--find-parent', dest='find_parent_id', metavar='TARGET_ID',
+                        help='Find the parent of this node ID and exit')
     parser.add_argument('--active', action='store_true', default=False,
                         help='Build only active branches (reserved)')
     parser.add_argument('-v', '--verbose', action='count',
@@ -190,5 +234,16 @@ if __name__ == '__main__':
         logging.getLogger().setLevel(logging.INFO)
 
     logging.info('Starting with arguments: %s', args)
-    build_network(**args.__dict__)
+    if args.find_parent_id:
+        result = find_parent(
+            user=args.user,
+            password=args.password,
+            target_id=args.find_parent_id,
+            root_id=args.root_id or 'S5832131',
+            max_threads=args.max_threads,
+            socks5_proxy=args.socks5_proxy,
+        )
+        print(result)
+    else:
+        build_network(**args.__dict__)
     logging.info('Job done')

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{{ super() }}
+<script src="static/js/admin_edit_separate.js"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<h1>{{ shipping.name }}</h1>
+<form id="separate-form">
+    <div class="mb-3" style="max-width: 400px;">
+        <label for="subtype-select" class="form-label">Carrier subtype</label>
+        <select id="subtype-select" name="subtype_code" class="form-select">
+            <option value="">— loading subtypes… —</option>
+        </select>
+        <div class="form-text">
+            Subtypes are managed in eurocargo_management.
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <button type="button" id="cancel-btn" class="btn btn-secondary ms-2">Cancel</button>
+</form>
+<input type="hidden" id="shipping_id" value="{{ shipping.id }}" />
+<input type="hidden" id="current_subtype" value="{{ shipping.subtype_code or '' }}" />
+{% endblock %}
