@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -28,7 +28,8 @@ class Shipment(Base):
     weight_kg = Column(Numeric(10, 3), nullable=False)
     tracking_code = Column(String(64), nullable=True)
     amount_eur = Column(Numeric(10, 2), nullable=True)
-    status = Column(String(16), nullable=False, default='pending')
+    status = Column(String(32), nullable=False, default='incoming')
+    paid = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), nullable=False,
                         default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), nullable=False,
@@ -36,7 +37,7 @@ class Shipment(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     shipment_type = relationship('BaseCarrier', back_populates='shipments')
-    payments = relationship('Payment', back_populates='shipment')
+    invoice = relationship('Invoice', back_populates='shipment', uselist=False)
     attachments = relationship('ShipmentAttachment', back_populates='shipment',
                                cascade='all, delete-orphan', order_by='ShipmentAttachment.uploaded_at')
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)

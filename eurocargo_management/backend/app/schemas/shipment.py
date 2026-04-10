@@ -38,6 +38,7 @@ class ShipmentResponse(BaseModel):
     tracking_code: Optional[str]
     amount_eur: Optional[Decimal] = None
     status: str
+    paid: bool = False
     created_at: datetime
     updated_at: datetime
     shipment_url: str = ''  # computed after model_validate

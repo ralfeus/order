@@ -101,7 +101,7 @@ def test_get_shipment_by_token(client, shipment):
     assert response.status_code == 200
     data = response.json()
     assert data['order_id'] == shipment.order_id
-    assert data['status'] == 'pending'
+    assert data['status'] == 'incoming'
 
 
 def test_get_shipment_not_found(client):

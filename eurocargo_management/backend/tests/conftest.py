@@ -4,8 +4,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
+from app.core.security import create_access_token, hash_password
 from app.main import app
-from app.models import BaseCarrier, ShippingFlatRate, ShippingRateEntry, Shipment, User, Payment  # noqa: F401 — register models
+from app.models import BaseCarrier, ShippingFlatRate, ShippingRateEntry, Shipment, User, ShipmentAttachment, Config, Invoice  # noqa: F401 — register models
 
 DATABASE_URL = 'sqlite://'  # in-memory SQLite for tests
 
@@ -46,6 +47,41 @@ def client(db_session):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def admin_user(db_session):
+    user = User(
+        username='admin_test',
+        password_hash=hash_password('secret'),
+        role='admin',
+    )
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture
+def admin_client(client, admin_user):
+    """TestClient with admin Authorization header pre-set."""
+    token = create_access_token(subject=admin_user.username, role=admin_user.role)
+    client.headers.update({'Authorization': f'Bearer {token}'})
+    return client
+
+
+@pytest.fixture
+def regular_user(db_session):
+    user = User(username='regular_test', role=None)
+    db_session.add(user)
+    db_session.flush()
+    return user
+
+
+@pytest.fixture
+def regular_client(client, regular_user):
+    token = create_access_token(subject=regular_user.username, role=regular_user.role)
+    client.headers.update({'Authorization': f'Bearer {token}'})
+    return client
 
 
 @pytest.fixture

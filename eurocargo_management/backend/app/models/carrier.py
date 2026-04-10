@@ -17,6 +17,7 @@ class BaseCarrier(Base):
     code = Column(String(16), nullable=False, unique=True)
     name = Column(String(64), nullable=False)
     enabled = Column(Boolean, nullable=False, default=True)
+    multiplier = Column(Numeric(10, 4), nullable=False, default=Decimal('1.0'))
 
     shipments = relationship('Shipment', back_populates='shipment_type')
 
@@ -46,7 +47,7 @@ class BaseCarrier(Base):
                 f'No rate for carrier {self.code}, country {country}, weight {weight_kg} kg'
             )
 
-        return flat.rate_per_kg * weight_kg + entry.cost
+        return flat.rate_per_kg * weight_kg + entry.cost * self.multiplier
 
     def create_consignment(self, shipment, db: Session):
         """Create a consignment with the carrier. Override in each subclass."""

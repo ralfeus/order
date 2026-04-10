@@ -30,17 +30,26 @@ interface Shipment {
   amount_eur: string | null
   tracking_code: string | null
   status: string
+  paid: boolean
   created_at: string
   attachments: Attachment[]
 }
 
-const STATUS_OPTIONS = ['pending', 'paid', 'shipped'] as const
+const STATUS_OPTIONS = ['incoming', 'at_warehouse', 'customs_cleared', 'shipped'] as const
 type Status = typeof STATUS_OPTIONS[number]
 
+const STATUS_LABELS: Record<Status, string> = {
+  incoming:        'Incoming',
+  at_warehouse:    'At warehouse',
+  customs_cleared: 'Customs cleared',
+  shipped:         'Shipped',
+}
+
 const STATUS_COLOURS: Record<Status, string> = {
-  pending: '#d97706',
-  paid: '#16a34a',
-  shipped: '#1d4ed8',
+  incoming:        '#d97706',
+  at_warehouse:    '#2563eb',
+  customs_cleared: '#7c3aed',
+  shipped:         '#16a34a',
 }
 
 function getCookie(name: string): string {
@@ -136,6 +145,139 @@ function TrackingCell({
 }
 
 // ---------------------------------------------------------------------------
+// Paid toggle with confirmation
+// ---------------------------------------------------------------------------
+function PaidToggle({
+  shipmentId,
+  paid,
+  onToggle,
+}: {
+  shipmentId: number
+  paid: boolean
+  onToggle: (id: number, paid: boolean) => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+
+  async function handleClick() {
+    const next = !paid
+    const msg = next
+      ? 'Mark this shipment as PAID?'
+      : 'Mark this shipment as UNPAID?\nThis will remove the paid status.'
+    if (!window.confirm(msg)) return
+    setBusy(true)
+    try {
+      await onToggle(shipmentId, next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={busy}
+      title={paid ? 'Click to mark as unpaid' : 'Click to mark as paid'}
+      style={{
+        background: paid ? '#16a34a' : '#9ca3af',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 12,
+        padding: '3px 12px',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: busy ? 'not-allowed' : 'pointer',
+        opacity: busy ? 0.7 : 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {paid ? '✓ Paid' : 'Unpaid'}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Create-consignment button (DHL label generation)
+// ---------------------------------------------------------------------------
+function ConsignmentButton({
+  shipment,
+  onSuccess,
+}: {
+  shipment: Shipment
+  onSuccess: (updated: Shipment) => void
+}) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const [busy, setBusy] = useState(false)
+
+  function authHeaders(): Record<string, string> {
+    const token = getCookie('admin_token')
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  }
+
+  async function create(force = false) {
+    setBusy(true)
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/v1/admin/shipments/${shipment.id}/consignment`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ force }),
+        },
+      )
+
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}))
+        const confirmed = window.confirm(
+          `${data.detail ?? 'Shipment already has a consignment.'}\n\nOverwrite and create a new consignment?`,
+        )
+        if (confirmed) await create(true)
+        return
+      }
+
+      if (res.status === 501) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.detail ?? 'This carrier does not support consignment creation.')
+        return
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Failed to create consignment: ${data.detail ?? res.statusText}`)
+        return
+      }
+
+      const updated: Shipment = await res.json()
+      onSuccess(updated)
+    } catch {
+      alert('Network error — could not create consignment.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={() => create(false)}
+      disabled={busy}
+      title="Create carrier consignment (generates DHL label)"
+      style={{
+        background: busy ? '#9ca3af' : '#1d4ed8',
+        color: '#fff',
+        border: 'none',
+        borderRadius: 6,
+        padding: '3px 10px',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: busy ? 'not-allowed' : 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {busy ? '…' : '+ Label'}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function AdminShipmentsPage() {
@@ -192,6 +334,21 @@ export default function AdminShipmentsPage() {
     }
   }
 
+  async function handlePaidToggle(shipmentId: number, paid: boolean) {
+    const res = await fetch(`${apiUrl}/api/v1/admin/shipments/${shipmentId}/paid`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ paid }),
+    })
+    if (!res.ok) throw new Error('Failed to update paid status')
+    const updated: Shipment = await res.json()
+    setShipments(prev => prev.map(s => s.id === shipmentId ? updated : s))
+  }
+
+  function handleConsignmentCreated(updated: Shipment) {
+    setShipments(prev => prev.map(s => s.id === updated.id ? updated : s))
+  }
+
   async function handleTrackingChange(shipmentId: number, trackingCode: string | null) {
     const res = await fetch(`${apiUrl}/api/v1/admin/shipments/${shipmentId}/tracking`, {
       method: 'PATCH',
@@ -209,7 +366,7 @@ export default function AdminShipmentsPage() {
   }
 
   if (loading) return <main style={mainStyle}><p>Loading…</p></main>
-  if (error) return <main style={mainStyle}><p style={{ color: '#dc2626' }}>{error}</p></main>
+  if (error)   return <main style={mainStyle}><p style={{ color: '#dc2626' }}>{error}</p></main>
 
   return (
     <main style={mainStyle}>
@@ -229,7 +386,9 @@ export default function AdminShipmentsPage() {
               <Th>Weight (kg)</Th>
               <Th>Amount (€)</Th>
               <Th>Status</Th>
+              <Th>Payment</Th>
               <Th>Tracking</Th>
+              <Th>Consignment</Th>
               <Th>Files</Th>
               <Th>Created</Th>
             </tr>
@@ -270,16 +429,29 @@ export default function AdminShipmentsPage() {
                   >
                     {STATUS_OPTIONS.map(opt => (
                       <option key={opt} value={opt} style={{ background: '#fff', color: '#111' }}>
-                        {opt}
+                        {STATUS_LABELS[opt]}
                       </option>
                     ))}
                   </select>
+                </Td>
+                <Td>
+                  <PaidToggle
+                    shipmentId={s.id}
+                    paid={s.paid}
+                    onToggle={handlePaidToggle}
+                  />
                 </Td>
                 <Td>
                   <TrackingCell
                     shipmentId={s.id}
                     value={s.tracking_code}
                     onSave={handleTrackingChange}
+                  />
+                </Td>
+                <Td>
+                  <ConsignmentButton
+                    shipment={s}
+                    onSuccess={handleConsignmentCreated}
                   />
                 </Td>
                 <Td>
@@ -316,7 +488,7 @@ function Td({ children }: { children: React.ReactNode }) {
 }
 
 const mainStyle: React.CSSProperties = {
-  maxWidth: 1200,
+  maxWidth: 1300,
   margin: '32px auto',
   fontFamily: 'sans-serif',
   padding: '0 16px',

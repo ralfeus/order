@@ -128,8 +128,8 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
                             url, retries, 's' if retries > 1 else '')
             return get_json(url, raw_data, headers, method, retries - 1, get_data,
                             ignore_ssl_check)
-        # logging.exception("Couldn't get JSON out of response")
-        # logging.error("STDOUT: %s", stdout)
-        # logging.error("STDERR: %s", stderr)
-        raise Exception("Uknown error. Couldn't get JSON out of response", stdout, stderr)
+        logging.exception("Couldn't get JSON out of response")
+        logging.error("STDOUT: %s", stdout)
+        logging.error("STDERR: %s", stderr)
+        raise Exception("Unknown error. Couldn't get JSON out of response", stdout, stderr)
 

@@ -1,48 +1,4 @@
 """Tests for admin shipment endpoints (status + tracking)."""
-import pytest
-
-from app.core.security import create_access_token, hash_password
-from app.models.user import User
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def admin_user(db_session):
-    user = User(
-        username='admin_test',
-        password_hash=hash_password('secret'),
-        role='admin',
-    )
-    db_session.add(user)
-    db_session.flush()
-    return user
-
-
-@pytest.fixture
-def admin_client(client, admin_user):
-    """TestClient with admin Authorization header pre-set."""
-    token = create_access_token(subject=admin_user.username, role=admin_user.role)
-    client.headers.update({'Authorization': f'Bearer {token}'})
-    return client
-
-
-@pytest.fixture
-def regular_user(db_session):
-    user = User(username='regular_test', role=None)
-    db_session.add(user)
-    db_session.flush()
-    return user
-
-
-@pytest.fixture
-def regular_client(client, regular_user):
-    token = create_access_token(subject=regular_user.username, role=regular_user.role)
-    client.headers.update({'Authorization': f'Bearer {token}'})
-    return client
-
 
 # ---------------------------------------------------------------------------
 # GET /api/v1/admin/shipments
@@ -72,23 +28,92 @@ def test_admin_list_requires_admin_role(regular_client, shipment):
 def test_admin_update_status(admin_client, shipment):
     res = admin_client.patch(
         f'/api/v1/admin/shipments/{shipment.id}/status',
-        json={'status': 'paid'},
+        json={'status': 'at_warehouse'},
     )
     assert res.status_code == 200
-    assert res.json()['status'] == 'paid'
+    assert res.json()['status'] == 'at_warehouse'
+
+
+def test_admin_update_status_all_values(admin_client, shipment):
+    for status in ('incoming', 'at_warehouse', 'customs_cleared', 'shipped'):
+        res = admin_client.patch(
+            f'/api/v1/admin/shipments/{shipment.id}/status',
+            json={'status': status},
+        )
+        assert res.status_code == 200, f'Expected 200 for status={status}'
+        assert res.json()['status'] == status
 
 
 def test_admin_update_status_invalid_value(admin_client, shipment):
     res = admin_client.patch(
         f'/api/v1/admin/shipments/{shipment.id}/status',
-        json={'status': 'lost'},
+        json={'status': 'paid'},          # old value — now invalid
     )
     assert res.status_code == 422
 
 
 def test_admin_update_status_not_found(admin_client):
-    res = admin_client.patch('/api/v1/admin/shipments/99999/status', json={'status': 'paid'})
+    res = admin_client.patch('/api/v1/admin/shipments/99999/status', json={'status': 'shipped'})
     assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/v1/admin/shipments/{id}/paid
+# ---------------------------------------------------------------------------
+
+def test_admin_set_paid_true(admin_client, shipment):
+    res = admin_client.patch(
+        f'/api/v1/admin/shipments/{shipment.id}/paid',
+        json={'paid': True},
+    )
+    assert res.status_code == 200
+    assert res.json()['paid'] is True
+
+
+def test_admin_set_paid_false(admin_client, shipment):
+    """Admin can un-pay a shipment."""
+    # First mark as paid
+    admin_client.patch(f'/api/v1/admin/shipments/{shipment.id}/paid', json={'paid': True})
+    # Then revert
+    res = admin_client.patch(
+        f'/api/v1/admin/shipments/{shipment.id}/paid',
+        json={'paid': False},
+    )
+    assert res.status_code == 200
+    assert res.json()['paid'] is False
+
+
+def test_admin_update_paid_not_found(admin_client):
+    res = admin_client.patch('/api/v1/admin/shipments/99999/paid', json={'paid': True})
+    assert res.status_code == 404
+
+
+def test_admin_update_paid_requires_admin(regular_client, shipment):
+    res = regular_client.patch(
+        f'/api/v1/admin/shipments/{shipment.id}/paid',
+        json={'paid': True},
+    )
+    assert res.status_code == 403
+
+
+def test_admin_update_paid_requires_auth(client, shipment):
+    res = client.patch(
+        f'/api/v1/admin/shipments/{shipment.id}/paid',
+        json={'paid': True},
+    )
+    assert res.status_code == 401
+
+
+def test_paid_independent_of_status(admin_client, shipment):
+    """Paid flag and status are independent — both can be set freely."""
+    admin_client.patch(f'/api/v1/admin/shipments/{shipment.id}/paid', json={'paid': True})
+    res = admin_client.patch(
+        f'/api/v1/admin/shipments/{shipment.id}/status',
+        json={'status': 'at_warehouse'},
+    )
+    data = res.json()
+    assert data['status'] == 'at_warehouse'
+    assert data['paid'] is True
 
 
 # ---------------------------------------------------------------------------

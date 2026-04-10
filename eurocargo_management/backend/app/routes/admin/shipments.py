@@ -15,11 +15,15 @@ from app.schemas.shipment import ShipmentResponse
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix='/shipments', tags=['admin-shipments'])
 
-ALLOWED_STATUSES = {'pending', 'paid', 'shipped'}
+SHIPMENT_STATUSES = ('incoming', 'at_warehouse', 'customs_cleared', 'shipped')
 
 
 class StatusUpdate(BaseModel):
-    status: Literal['pending', 'paid', 'shipped']
+    status: Literal['incoming', 'at_warehouse', 'customs_cleared', 'shipped']
+
+
+class PaidUpdate(BaseModel):
+    paid: bool
 
 
 class TrackingUpdate(BaseModel):
@@ -47,14 +51,65 @@ def update_status(
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    """Change the status of a shipment."""
+    """Change the logistics status of a shipment.
+
+    When status changes to 'shipped', automatically attempts to create a
+    carrier consignment (e.g. DHL label). Failures are logged but do NOT
+    prevent the status update from succeeding.
+    """
     shipment = db.query(Shipment).filter_by(id=shipment_id).first()
     if not shipment:
         raise HTTPException(status_code=404, detail='Shipment not found')
+
+    previous_status = shipment.status
     shipment.status = body.status
+
+    # Auto-create consignment when transitioning to 'shipped'
+    if body.status == 'shipped' and previous_status != 'shipped':
+        carrier = shipment.shipment_type
+        if carrier is not None:
+            try:
+                carrier.create_consignment(shipment, db)
+                logger.info(
+                    'Auto-created consignment for shipment %s via carrier %s',
+                    shipment_id,
+                    carrier.code,
+                )
+            except NotImplementedError:
+                logger.debug(
+                    'Carrier %s does not support auto-consignment for shipment %s',
+                    carrier.code,
+                    shipment_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    'Auto-consignment failed for shipment %s (carrier %s): %s',
+                    shipment_id,
+                    carrier.code,
+                    exc,
+                )
+
     db.commit()
     db.refresh(shipment)
     logger.info('Shipment %s status changed to %s by admin', shipment_id, body.status)
+    return shipment
+
+
+@router.patch('/{shipment_id}/paid', response_model=ShipmentResponse)
+def update_paid(
+    shipment_id: int,
+    body: PaidUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Toggle the paid flag of a shipment."""
+    shipment = db.query(Shipment).filter_by(id=shipment_id).first()
+    if not shipment:
+        raise HTTPException(status_code=404, detail='Shipment not found')
+    shipment.paid = body.paid
+    db.commit()
+    db.refresh(shipment)
+    logger.info('Shipment %s paid set to %s by admin', shipment_id, body.paid)
     return shipment
 
 
