@@ -81,3 +81,6 @@ app/static/invoices/
 cache/
 tenants/
 temp.json
+
+.next
+node_modules

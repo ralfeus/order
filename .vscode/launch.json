@@ -16,9 +16,11 @@
             "justMyCode": false
         },
         {
-            "name": "Flask  - app",
+            "name": "OM",
+            "consoleName": "OM",
             "type": "debugpy",
             "request": "launch",
+            "python": "${command:python.interpreterPath}",
             "module": "flask",
             "env": {
                 "FLASK_APP": "app:create_app()",
