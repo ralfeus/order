@@ -67,12 +67,21 @@ def _curl_with_jar(url: str, jar_path: str, raw_data: str = '',
 def _solve_altcha(stdout: str) -> tuple:
     """Parse challenge JSON and brute-force the ALTCHA nonce.
     :returns: (payload_b64, took_ms)"""
-    data = json.loads(stdout)
-    challenge  = data["challenge"]
-    signature  = data["signature"]
-    algorithm  = data["algorithm"]
-    salt       = data["salt"]
-    max_number = int(data["maxNumber"])
+    try:
+        data = json.loads(stdout)
+        challenge  = data["challenge"]
+        signature  = data["signature"]
+        algorithm  = data["algorithm"]
+        salt       = data["salt"]
+        max_number = int(data["maxNumber"])
+    except json.JSONDecodeError:
+        logger.error("Failed to decode challenge JSON")
+        logger.error("Challenge response was: %s", stdout)
+        raise AtomyLoginError(message="Failed to decode challenge JSON")
+    except KeyError as exc:
+        logger.error("Missing expected key in challenge JSON: %s", exc)
+        raise AtomyLoginError(message=f"Missing expected key in challenge JSON: {exc}") from exc
+
 
     start = time.monotonic()
     for i in range(max_number + 1):
