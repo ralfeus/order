@@ -38,7 +38,7 @@
             "justMyCode": false
         },
         {
-            "name": "Flask - network_manager",
+            "name": "NetMan",
             "type": "debugpy",
             "request": "launch",
             "module": "flask",
@@ -60,7 +60,7 @@
             "justMyCode": false
         },
         {
-            "name": "network_builder",
+            "name": "NetBuild",
             "type": "debugpy",
             "request": "launch",
             "module": "build_network",
@@ -72,14 +72,14 @@
             "justMyCode": false
         },
         {
-            "name": "eurocargo frontend",
+            "name": "EC FE",
             "type": "node-terminal",
             "request": "launch",
             "command": "npm run dev",
             "cwd": "${workspaceFolder}/eurocargo_management/frontend"
         },
         {
-            "name": "eurocargo backend",
+            "name": "EC BE",
             "type": "debugpy",
             "request": "launch",
             "python": "/Users/ralfeus/.virtualenvs/eurocargo/bin/python",
