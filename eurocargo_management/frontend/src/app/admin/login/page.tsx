@@ -1,9 +1,10 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { getApiUrl } from '@/lib/env'
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [username, setUsername] = useState('')
@@ -11,13 +12,12 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function doLogin() {
     setError(null)
     setLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+      const apiUrl = getApiUrl()
       const res = await fetch(`${apiUrl}/api/v1/admin/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,11 +43,20 @@ export default function AdminLoginPage() {
     }
   }
 
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    doLogin()
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !loading) doLogin()
+  }
+
   return (
     <main style={{ maxWidth: 360, margin: '80px auto', fontFamily: 'sans-serif', padding: '0 16px' }}>
       <h1 style={{ fontSize: 22, marginBottom: 24 }}>Admin Login</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
           Username
           <input
@@ -89,6 +98,14 @@ export default function AdminLoginPage() {
         </button>
       </form>
     </main>
+  )
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
 

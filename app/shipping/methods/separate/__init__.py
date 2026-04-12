@@ -12,8 +12,8 @@ bp_client_admin = Blueprint('shipping_separate_client_admin', __name__,
 
 def register_blueprints(flask_app):
     from . import routes  # noqa: F401
-    from app.orders.signals import sale_order_packed
-    from .signal_handlers import on_sale_order_packed
-    sale_order_packed.connect(on_sale_order_packed)
+    from app.orders.signals import sale_order_shipped
+    from .signal_handlers import on_sale_order_shipped
+    sale_order_shipped.connect(on_sale_order_shipped)
     flask_app.register_blueprint(bp_api_admin)
     flask_app.register_blueprint(bp_client_admin)

@@ -179,8 +179,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://eurocargo:eurocargo@eurocargo-db/eurocargo
       - BASE_URL=http://localhost:3000
-      - REVOLUT_API_KEY=
-      - REVOLUT_WEBHOOK_SECRET=
+      - ECM_API_KEY=supersecretkey
     networks:
       - order
     ports:
@@ -193,7 +192,7 @@ services:
     depends_on:
       - eurocargo-backend
     environment:
-      - NEXT_PUBLIC_API_URL=http://eurocargo-backend:8000
+      - ECM_API_URL=http://eurocargo-backend:8000
     networks:
       - order
     ports:

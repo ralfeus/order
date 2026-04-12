@@ -19,6 +19,9 @@ class ShipmentCreate(BaseModel):
     phone: Optional[str] = None
     shipment_type_code: str
     weight_kg: Decimal
+    length_cm: Optional[Decimal] = None
+    width_cm: Optional[Decimal] = None
+    height_cm: Optional[Decimal] = None
     tracking_code: Optional[str] = None
 
 
@@ -35,6 +38,9 @@ class ShipmentResponse(BaseModel):
     phone: Optional[str]
     shipment_type: ShipmentTypeResponse
     weight_kg: Decimal
+    length_cm: Optional[Decimal] = None
+    width_cm: Optional[Decimal] = None
+    height_cm: Optional[Decimal] = None
     tracking_code: Optional[str]
     amount_eur: Optional[Decimal] = None
     status: str
@@ -51,3 +57,7 @@ class ShipmentCreatedResponse(BaseModel):
     id: int
     token: str
     shipment_url: str
+
+
+class CostResponse(BaseModel):
+    cost_eur: Decimal

@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from app.carriers.gls import GLSCarrier
+from app.models.carrier import BaseCarrier
 from app.models.shipping_rate import ShippingFlatRate, ShippingRateEntry
 
 
@@ -88,3 +89,64 @@ def test_weight_exceeds_max_tier_raises(carrier, flat_rate, de_rates, db_session
 def test_no_rate_entries_raises(carrier, flat_rate, db_session):
     with pytest.raises(ValueError, match='No rate for'):
         carrier.calculate_cost(Decimal('2.000'), 'DE', db_session)
+
+
+# ---------------------------------------------------------------------------
+# Volumetric weight
+# ---------------------------------------------------------------------------
+
+def test_volumetric_weight_formula():
+    """L × W × H (cm) / 5000 = kg."""
+    # 50 × 40 × 30 / 5000 = 12.0 kg
+    vol = BaseCarrier.volumetric_weight_kg(
+        Decimal('50'), Decimal('40'), Decimal('30')
+    )
+    assert vol == Decimal('12.000')
+
+
+def test_volumetric_weight_missing_dimension_returns_zero():
+    assert BaseCarrier.volumetric_weight_kg(Decimal('50'), None, Decimal('30')) == Decimal(0)
+    assert BaseCarrier.volumetric_weight_kg(None, None, None) == Decimal(0)
+
+
+def test_volumetric_weight_used_when_larger_than_actual(carrier, flat_rate, de_rates, db_session):
+    """A light but large box: volumetric weight drives the cost."""
+    # 50×40×30 cm → 12 kg volumetric; actual weight 1 kg → billable = 12 kg
+    # 12 kg > 5 kg max tier → should raise NoRateError (no tier covers 12 kg)
+    with pytest.raises(ValueError, match='billable 12'):
+        carrier.calculate_cost(
+            Decimal('1.000'), 'DE', db_session,
+            length_cm=Decimal('50'), width_cm=Decimal('40'), height_cm=Decimal('30'),
+        )
+
+
+def test_actual_weight_used_when_larger_than_volumetric(carrier, flat_rate, de_rates, db_session):
+    """Dense parcel: actual weight dominates; volumetric weight is irrelevant."""
+    # 10×10×10 cm → 0.2 kg volumetric; actual 2 kg → billable = 2 kg
+    # 12.00 × 2 + 3.00 = 27.00
+    cost = carrier.calculate_cost(
+        Decimal('2.000'), 'DE', db_session,
+        length_cm=Decimal('10'), width_cm=Decimal('10'), height_cm=Decimal('10'),
+    )
+    assert cost == Decimal('27.00')
+
+
+def test_cost_uses_volumetric_weight_in_calculation(carrier, flat_rate, de_rates, db_session):
+    """Volumetric weight is also used in the flat-rate multiplication."""
+    # 30×20×25 cm → 30×20×25/5000 = 3 kg volumetric; actual 1 kg → billable = 3 kg
+    # 12.00 × 3 + 3.00 (≤3 kg tier) = 39.00
+    cost = carrier.calculate_cost(
+        Decimal('1.000'), 'DE', db_session,
+        length_cm=Decimal('30'), width_cm=Decimal('20'), height_cm=Decimal('25'),
+    )
+    assert cost == Decimal('39.00')
+
+
+def test_no_dimensions_falls_back_to_actual_weight(carrier, flat_rate, de_rates, db_session):
+    """Omitting dimensions is equivalent to the pre-existing behaviour."""
+    cost_no_dims = carrier.calculate_cost(Decimal('2.000'), 'DE', db_session)
+    cost_with_none = carrier.calculate_cost(
+        Decimal('2.000'), 'DE', db_session,
+        length_cm=None, width_cm=None, height_cm=None,
+    )
+    assert cost_no_dims == cost_with_none

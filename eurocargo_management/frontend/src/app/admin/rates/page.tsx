@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { getApiUrl } from '@/lib/env'
 
 interface RateEntry {
   id: number
@@ -51,7 +52,7 @@ function applyMultiplier(cost: string, multiplier: string): string {
 
 export default function AdminRatesPage() {
   const router = useRouter()
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const apiUrl = getApiUrl()
 
   const [carriers, setCarriers] = useState<CarrierRates[]>([])
   const [selectedCode, setSelectedCode] = useState<string>('')

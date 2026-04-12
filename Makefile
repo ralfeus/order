@@ -29,3 +29,9 @@ network-manager-docker:
 	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
 	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-manager:latest -t ralfeus/network-manager:$(TAG) . -f network_manager/Dockerfile
 	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/network-builder:latest -t ralfeus/network-builder:$(TAG) . -f network_builder/Dockerfile
+
+eurocargo-management-docker:
+	$(eval TAG := b$(shell date +%Y%m%d%H%M))
+	cat ~/.docker/ralfeus.pass | docker login -u ralfeus --password-stdin
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/ec-mgmt-be:latest -t ralfeus/ec-mgmt-be:$(TAG) eurocargo_management/backend -f eurocargo_management/backend/Dockerfile
+	docker buildx build --push --platform linux/arm64,linux/amd64 -t ralfeus/ec-mgmt-fe:latest -t ralfeus/ec-mgmt-fe:$(TAG) eurocargo_management/frontend -f eurocargo_management/frontend/Dockerfile

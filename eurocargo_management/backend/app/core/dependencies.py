@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
@@ -43,3 +44,34 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail='Admin access required')
     return current_user
+
+
+def require_api_key(
+    x_api_key: Optional[str] = Header(default=None, alias='X-API-Key'),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> None:
+    """Accept requests that carry either:
+    - a valid X-API-Key header (service-to-service), or
+    - a valid Bearer JWT (admin UI or any authenticated user).
+    """
+    # 1. API key check
+    if x_api_key is not None:
+        if not settings.ecm_api_key:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail='API key authentication is not configured')
+        if x_api_key == settings.ecm_api_key:
+            return
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Invalid API key')
+
+    # 2. JWT check
+    if credentials:
+        try:
+            decode_access_token(credentials.credentials)
+            return
+        except JWTError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail='Invalid or expired token')
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail='Not authenticated')

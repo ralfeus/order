@@ -84,6 +84,20 @@ def regular_client(client, regular_user):
     return client
 
 
+TEST_API_KEY = 'test-api-key'
+
+
+@pytest.fixture
+def api_client(client):
+    """TestClient with X-API-Key header pre-set, simulating OM service calls."""
+    from app.core.config import settings
+    original = settings.ecm_api_key
+    settings.ecm_api_key = TEST_API_KEY
+    client.headers.update({'X-API-Key': TEST_API_KEY})
+    yield client
+    settings.ecm_api_key = original
+
+
 @pytest.fixture
 def shipment_type(db_session):
     from app.carriers.gls import GLSCarrier

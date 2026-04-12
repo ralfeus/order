@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { getApiUrl } from '@/lib/env'
 import AttachmentIcon from './AttachmentIcon'
 
 interface Attachment {
@@ -205,7 +206,7 @@ function ConsignmentButton({
   shipment: Shipment
   onSuccess: (updated: Shipment) => void
 }) {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const apiUrl = getApiUrl()
   const [busy, setBusy] = useState(false)
 
   function authHeaders(): Record<string, string> {
@@ -282,7 +283,7 @@ function ConsignmentButton({
 // ---------------------------------------------------------------------------
 export default function AdminShipmentsPage() {
   const router = useRouter()
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const apiUrl = getApiUrl()
 
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)

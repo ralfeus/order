@@ -30,6 +30,10 @@ interface Shipment {
   phone: string | null
   shipment_type: ShipmentType
   tracking_code: string | null
+  weight_kg: number
+  length_cm: number | null
+  width_cm: number | null
+  height_cm: number | null
   amount_eur: string | null
   status: string
   paid: boolean
@@ -95,6 +99,13 @@ export default async function ShipmentPage({
         <Row label="Address"    value={`${shipment.address}, ${shipment.city}, ${shipment.country} ${shipment.zip}`} />
         {shipment.phone && <Row label="Phone" value={shipment.phone} />}
         {shipment.tracking_code && <Row label="Tracking" value={shipment.tracking_code} />}
+        <EmptyRow />
+        <Row label='Dimensions' value={
+          shipment.length_cm && shipment.width_cm && shipment.height_cm
+            ? `${shipment.length_cm} x ${shipment.width_cm} x ${shipment.height_cm} cm`
+            : 'N/A'
+        } />
+        <Row label='Weight' value={`${shipment.weight_kg} kg`} />
         <Row label="Amount"  value={shipment.amount_eur != null ? `€${Number(shipment.amount_eur).toFixed(2)}` : 'Pending'} />
         <Row label="Status"  value={<StatusBadge status={shipment.status} />} />
         <Row label="Payment" value={<PaidBadge paid={shipment.paid} />} />
@@ -141,6 +152,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
       <span style={{ fontWeight: 500, textAlign: 'right' }}>{value}</span>
     </div>
   )
+}
+
+function EmptyRow() {
+  return <div style={{ height: 16 }} />
 }
 
 function StatusBadge({ status }: { status: string }) {

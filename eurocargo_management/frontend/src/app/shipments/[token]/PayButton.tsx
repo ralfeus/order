@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { getApiUrl } from '@/lib/env'
 
 interface Props {
   token: string
@@ -16,7 +17,7 @@ export default function PayButton({ token, amountEur }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ''
+      const apiUrl = getApiUrl()
       const res = await fetch(`${apiUrl}/api/v1/shipments/${token}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

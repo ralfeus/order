@@ -80,6 +80,7 @@
         },
         {
             "name": "EC BE",
+            "consoleName": "EC BE",
             "type": "debugpy",
             "request": "launch",
             "python": "/Users/ralfeus/.virtualenvs/eurocargo/bin/python",
@@ -87,7 +88,8 @@
             "args": ["app.main:app", "--reload"],
             "cwd": "${workspaceFolder}/eurocargo_management/backend",
             "env": {
-                "DATABASE_URL": "postgresql://ralfeus@localhost/shipment"
+                "DATABASE_URL": "postgresql://ralfeus@localhost/shipment",
+                "ECM_API_KEY": "supersecretkey",
             }
         }
     ]
