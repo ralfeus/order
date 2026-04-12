@@ -40,6 +40,8 @@
     "ATOMY_CENTER": true,
     "ATOMY_RECEIVER_NAME_FORMAT": "{id2}-{id1}-{id0}",
     "NETWORK_MANAGER_URL": "http://localhost:5001",
+    "EUROCARGO_API_URL": "http://localhost:8000",
+    "EUROCARGO_BASE_URL": "http://localhost:3000",
 
     "CACHE_TYPE": "SimpleCache",
     "CACHE_MEMCACHED_SERVERS": [

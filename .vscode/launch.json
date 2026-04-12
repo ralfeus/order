@@ -38,7 +38,7 @@
             "justMyCode": false
         },
         {
-            "name": "Flask - network_manager",
+            "name": "NetMan",
             "type": "debugpy",
             "request": "launch",
             "module": "flask",
@@ -60,7 +60,7 @@
             "justMyCode": false
         },
         {
-            "name": "network_builder",
+            "name": "NetBuild",
             "type": "debugpy",
             "request": "launch",
             "module": "build_network",
@@ -70,6 +70,27 @@
             },
             "jinja": true,
             "justMyCode": false
+        },
+        {
+            "name": "EC FE",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "npm run dev",
+            "cwd": "${workspaceFolder}/eurocargo_management/frontend"
+        },
+        {
+            "name": "EC BE",
+            "consoleName": "EC BE",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "/Users/ralfeus/.virtualenvs/eurocargo/bin/python",
+            "module": "uvicorn",
+            "args": ["app.main:app", "--reload"],
+            "cwd": "${workspaceFolder}/eurocargo_management/backend",
+            "env": {
+                "DATABASE_URL": "postgresql://ralfeus@localhost/shipment",
+                "ECM_API_KEY": "supersecretkey",
+            }
         }
     ]
 }

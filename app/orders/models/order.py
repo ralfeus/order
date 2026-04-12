@@ -136,7 +136,7 @@ class Order(db.Model, BaseModel): # type: ignore
 
     def set_status(self, value, actor):
         ''' Sets status of the order '''
-        logger = logging.getLogger(f'orders.models.Order::set_status():{self.id}')
+        logger = logging.getLogger(f'set_status():{self.id}')
         if isinstance(value, str):
             value = OrderStatus[value.lower()]
         elif isinstance(value, int):
@@ -161,6 +161,9 @@ class Order(db.Model, BaseModel): # type: ignore
                 ao.set_status(value, actor)
             self.__pay(actor)
         self.status = value
+        if self.status == OrderStatus.packed:
+            from app.orders.signals import sale_order_packed
+            sale_order_packed.send(self)
         if self.status == OrderStatus.shipped:
             from app.orders.signals import sale_order_shipped
             sale_order_shipped.send(self)

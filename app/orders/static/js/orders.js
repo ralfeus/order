@@ -94,6 +94,9 @@ function init_orders_table() {
                         class="btn btn-sm btn-secondary btn-open" \
                         onclick="open_order(this);">Open</button> \
                     <button \
+                        class="btn btn-sm btn-warning btn-pay-shipment" \
+                        onclick="pay_shipment(this);">Pay the shipment</button> \
+                    <button \
                         class="btn btn-sm btn-secondary btn-invoice" \
                         onclick="open_order_invoice(this);">Invoice</button>'
             },
@@ -113,6 +116,9 @@ function init_orders_table() {
         createdRow: (row, data) => {
             if (data.status != 'shipped') {
                 $('.btn-invoice', row).remove();
+            }
+            if (data.status != 'packed' || data.shipping?.type != 'separate') {
+                $('.btn-pay-shipment', row).remove();
             }
         },
         initComplete: function() { init_search(this, g_filter_sources) }
@@ -179,4 +185,15 @@ function open_order_invoice(target) {
     window.location = '/orders/' +
         g_orders_table.row($(target).parents('tr')).data().id +
         '/excel';
+}
+
+function pay_shipment(target) {
+    var data = g_orders_table.row($(target).parents('tr')).data();
+    var shipmentUrl = data.params && data.params.eurocargo && data.params.eurocargo.shipment_url;
+    if (!shipmentUrl) {
+        alert('Shipment payment link is not available yet. Please try again in a moment.');
+        return;
+    }
+    var url = shipmentUrl + '?user=' + encodeURIComponent(data.user || '');
+    window.location.href = url;
 }

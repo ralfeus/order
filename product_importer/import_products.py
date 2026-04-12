@@ -146,12 +146,15 @@ def _get_products(products_page: BeautifulSoup):
     ]
 
 def _get_product_options(product_id, url_base: str, jwt:str='') -> list[dict[str, Any]]:
-    options = get_json(
-        f"{url_base}/goods/itemStatus",
-        headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-urlencoded'}],
-        raw_data=f'goodsNo={product_id}&goodsTypeCd=101'
-    )
-    return list(options.values()) if isinstance(options, dict) else options
+    try:
+        options = get_json(
+            f"{url_base}/goods/itemStatus",
+            headers=[{"Cookie": jwt}, {"Content-Type": 'application/x-www-form-urlencoded'}],
+            raw_data=f'goodsNo={product_id}&goodsTypeCd=101'
+        )
+        return list(options.values()) if isinstance(options, dict) else options
+    except Exception as ex:
+        raise Exception(f"Couldn't get options for product {product_id}: {ex}")
 
 if __name__ == "__main__":
     url_base = sys.argv[1]

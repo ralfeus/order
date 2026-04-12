@@ -131,5 +131,5 @@ def get_json(url, raw_data=None, headers=[], method='GET', retries=0,
         logging.exception("Couldn't get JSON out of response")
         logging.error("STDOUT: %s", stdout)
         logging.error("STDERR: %s", stderr)
-        raise Exception("Uknown error. Couldn't get JSON out of response", stdout, stderr)
+        raise Exception("Unknown error. Couldn't get JSON out of response", stdout, stderr)
 
