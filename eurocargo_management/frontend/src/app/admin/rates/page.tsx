@@ -150,11 +150,6 @@ export default function AdminRatesPage() {
 
   return (
     <main style={mainStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>Rate Tables</h1>
-        <a href="/admin/shipments" style={{ fontSize: 13, color: '#1d4ed8' }}>← Shipments</a>
-      </div>
-
       {/* Controls */}
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap' }}>
         {/* Carrier selector */}

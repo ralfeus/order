@@ -5,6 +5,7 @@ from operator import itemgetter
 from typing import Any, Optional
 
 from flask import Response, abort, current_app, jsonify, request
+from sqlalchemy.exc import IntegrityError
 from flask_security import login_required, roles_required  # type: ignore
 
 from app import db, cache
@@ -200,7 +201,14 @@ def admin_delete_shipping_method(shipping_method_id):
             Response(f"No shipping method <{shipping_method_id}> was found", status=404)
         )
     db.session.delete(shipping_method) #type: ignore
-    db.session.commit() #type: ignore
+    try:
+        db.session.commit() #type: ignore
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({
+            'error': f'Cannot delete shipping method "{shipping_method.name}": '
+                      'it is still used in one or more orders.'
+        }), 409
     return jsonify({})
 
 

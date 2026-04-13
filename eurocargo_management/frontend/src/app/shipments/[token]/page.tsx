@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import AttachmentManager from './AttachmentManager'
+import CarrierSelector from './CarrierSelector'
 import InvoiceSection from './InvoiceSection'
 
 interface ShipmentType {
@@ -28,7 +29,7 @@ interface Shipment {
   country: string
   zip: string
   phone: string | null
-  shipment_type: ShipmentType
+  shipment_type: ShipmentType | null
   tracking_code: string | null
   weight_kg: number
   length_cm: number | null
@@ -94,7 +95,11 @@ export default async function ShipmentPage({
 
       <section style={{ background: '#f9f9f9', borderRadius: 8, padding: 24, marginBottom: 24 }}>
         <Row label="Order ID"   value={shipment.order_id} />
-        <Row label="Carrier"    value={`${shipment.shipment_type.name} (${shipment.shipment_type.code})`} />
+        <Row label="Carrier"    value={
+          shipment.shipment_type
+            ? `${shipment.shipment_type.name} (${shipment.shipment_type.code})`
+            : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Not selected yet</span>
+        } />
         <Row label="Recipient"  value={shipment.customer_name} />
         <Row label="Address"    value={`${shipment.address}, ${shipment.city}, ${shipment.country} ${shipment.zip}`} />
         {shipment.phone && <Row label="Phone" value={shipment.phone} />}
@@ -130,6 +135,13 @@ export default async function ShipmentPage({
         >
           🔍 Track parcel
         </a>
+      )}
+
+      {!shipment.paid && (
+        <CarrierSelector
+          token={token}
+          currentCarrierCode={shipment.shipment_type?.code ?? null}
+        />
       )}
 
       {!shipment.paid && shipment.amount_eur != null && (

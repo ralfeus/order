@@ -1,16 +1,20 @@
-'''SeparateShipping method - shipping cost is charged separately when order is packed'''
+'''SeparateShipping method - shipping cost is charged separately via eurocargo_management'''
 from __future__ import annotations
-from typing import Optional
 
+from app import db
+from app.models.country import Country
 from app.shipping.models.shipping import Shipping
+from app.shipping.models.shipping_rate import ShippingRate
 
 
 class SeparateShipping(Shipping):
-    '''Shipping method where cost is charged separately after the order is packed.
+    '''Shipping method where cost is charged separately via eurocargo_management.
 
-    At order creation the shipping cost is 0. When the order transitions to
-    "packed", the actual shipping cost is calculated via the standard rate
-    lookup and the customer is prompted to pay via Revolut through eurocargo_management.
+    At order creation the shipping cost is 0 (the customer pays later on the
+    ECmgmt payment page after selecting a carrier).  Country availability is
+    controlled by ShippingRate entries for this shipping method: any row whose
+    ``destination`` matches the order country means "this country is available",
+    regardless of the weight / rate values stored.
     '''
 
     __mapper_args__ = {'polymorphic_identity': 'separate'}  # type: ignore
@@ -21,10 +25,22 @@ class SeparateShipping(Shipping):
         return f'/admin/shipping/separate/{self.id}'
 
     def get_shipping_cost(self, destination: str, weight: int) -> int:
-        '''Returns 0 at order creation time. Actual cost is set when packed.'''
-        #TODO: Raise NoShippingRateError if no rate configured for destination/weight
+        '''Returns 0 at order creation time.  Real cost is determined later in ECmgmt.'''
         return 0
 
-    def get_actual_shipping_cost(self, destination: Optional[str], weight: int) -> int:
-        '''Returns the actual shipping cost using the standard rate lookup.'''
-        return super().get_shipping_cost(destination or '', weight)
+    def can_ship(self, country: Country, weight: int, products: list = []) -> bool:
+        '''Returns True only when *country* is in the configured available-country list.
+
+        The list is stored as ShippingRate rows for this shipping method.
+        Weight and rate values in those rows are ignored; only the destination
+        country code is checked.
+        '''
+        if not self._are_all_products_shippable(products):
+            return False
+        if not country:
+            return True
+        country_id = country.id if isinstance(country, Country) else str(country)
+        return db.session.query(ShippingRate).filter_by(
+            shipping_method_id=self.id,
+            destination=country_id,
+        ).count() > 0
