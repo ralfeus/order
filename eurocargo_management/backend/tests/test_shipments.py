@@ -278,3 +278,189 @@ def test_get_cost_unauthenticated(client, shipment_type, rate_data):
         'shipment_type_code': 'GLS',
     })
     assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Carrier-at-payment-time behaviour
+# ---------------------------------------------------------------------------
+
+PAYLOAD_NO_CARRIER = {
+    'order_id': 'ORD-NO-CARRIER-001',
+    'customer_name': 'Alice Brown',
+    'email': 'alice@example.com',
+    'address': '1 Test Ave',
+    'city': 'Munich',
+    'country': 'DE',
+    'zip': '80331',
+    'weight_kg': '3.000',
+}
+
+
+def test_create_shipment_without_carrier_succeeds(api_client):
+    """OM can create a shipment without specifying a carrier."""
+    response = api_client.post('/api/v1/shipments', json=PAYLOAD_NO_CARRIER)
+    assert response.status_code == 201
+    data = response.json()
+    assert 'id' in data
+    assert 'token' in data
+
+
+def test_create_shipment_without_carrier_has_null_cost(api_client, db_session):
+    """When no carrier is given at creation, amount_eur is null."""
+    response = api_client.post('/api/v1/shipments', json=PAYLOAD_NO_CARRIER)
+    assert response.status_code == 201
+
+    from app.models.shipment import Shipment
+    db_session.expire_all()
+    s = db_session.query(Shipment).filter_by(order_id=PAYLOAD_NO_CARRIER['order_id']).first()
+    assert s is not None
+    assert s.shipment_type_id is None
+    assert s.amount_eur is None
+
+
+def test_set_shipment_type_assigns_carrier_and_cost(client, db_session, shipment_type, rate_data):
+    """PATCH /shipments/{token}/type sets the carrier and calculates the cost."""
+    from app.models.shipment import Shipment
+
+    # Create a carrier-less shipment directly
+    s = Shipment(
+        order_id='ORD-PATCH-001',
+        customer_name='Bob',
+        email='bob@example.com',
+        address='2 Other St',
+        city='Berlin',
+        country='DE',
+        zip='10115',
+        weight_kg='2.000',
+    )
+    db_session.add(s)
+    db_session.flush()
+    token = s.token
+
+    response = client.patch(
+        f'/api/v1/shipments/{token}/type',
+        json={'shipment_type_code': 'GLS'},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data['shipment_type'] is not None
+    assert data['shipment_type']['code'] == 'GLS'
+    # 12.00 × 2 + 4.00 (≤5 kg tier) = 28.00
+    assert float(data['amount_eur']) == pytest.approx(28.00)
+
+
+def test_set_shipment_type_can_change_carrier_before_payment(client, db_session, shipment_type, rate_data):
+    """Carrier can be changed as long as shipment is not paid."""
+    from app.models.shipment import Shipment
+
+    s = Shipment(
+        order_id='ORD-PATCH-002',
+        customer_name='Carol',
+        email='carol@example.com',
+        address='3 Another Rd',
+        city='Hamburg',
+        country='DE',
+        zip='20095',
+        weight_kg='2.000',
+        paid=False,
+    )
+    db_session.add(s)
+    db_session.flush()
+    token = s.token
+
+    # First assignment
+    resp1 = client.patch(
+        f'/api/v1/shipments/{token}/type',
+        json={'shipment_type_code': 'GLS'},
+    )
+    assert resp1.status_code == 200
+
+    # Change to same carrier again (allowed before payment)
+    resp2 = client.patch(
+        f'/api/v1/shipments/{token}/type',
+        json={'shipment_type_code': 'GLS'},
+    )
+    assert resp2.status_code == 200
+
+
+def test_set_shipment_type_rejected_after_payment(client, db_session, shipment_type, rate_data):
+    """Carrier change is rejected with 409 if the shipment is already paid."""
+    from app.models.shipment import Shipment
+
+    s = Shipment(
+        order_id='ORD-PATCH-003',
+        customer_name='Dave',
+        email='dave@example.com',
+        address='4 Paid Lane',
+        city='Cologne',
+        country='DE',
+        zip='50667',
+        weight_kg='2.000',
+        shipment_type_id=shipment_type.id,
+        paid=True,
+    )
+    db_session.add(s)
+    db_session.flush()
+
+    response = client.patch(
+        f'/api/v1/shipments/{s.token}/type',
+        json={'shipment_type_code': 'GLS'},
+    )
+    assert response.status_code == 409
+    assert 'paid' in response.json()['detail'].lower()
+
+
+def test_set_shipment_type_not_found(client):
+    """PATCH with an unknown token returns 404."""
+    response = client.patch(
+        '/api/v1/shipments/nonexistent-token/type',
+        json={'shipment_type_code': 'GLS'},
+    )
+    assert response.status_code == 404
+
+
+def test_set_shipment_type_unknown_carrier(client, db_session, shipment_type):
+    """PATCH with an unknown carrier code returns 422."""
+    from app.models.shipment import Shipment
+
+    s = Shipment(
+        order_id='ORD-PATCH-004',
+        customer_name='Eve',
+        email='eve@example.com',
+        address='5 Unknown Rd',
+        city='Frankfurt',
+        country='DE',
+        zip='60311',
+        weight_kg='1.500',
+    )
+    db_session.add(s)
+    db_session.flush()
+
+    response = client.patch(
+        f'/api/v1/shipments/{s.token}/type',
+        json={'shipment_type_code': 'UNKNOWN'},
+    )
+    assert response.status_code == 422
+
+
+def test_create_consignment_without_carrier_rejected(admin_client, db_session):
+    """POST /admin/shipments/{id}/consignment returns 400 when no carrier is assigned."""
+    from app.models.shipment import Shipment
+
+    s = Shipment(
+        order_id='ORD-CONSIGNMENT-NOCARRIER',
+        customer_name='Frank',
+        email='frank@example.com',
+        address='6 No-Carrier St',
+        city='Stuttgart',
+        country='DE',
+        zip='70173',
+        weight_kg='2.500',
+        shipment_type_id=None,  # no carrier
+    )
+    db_session.add(s)
+    db_session.flush()
+
+    response = admin_client.post(f'/api/v1/admin/shipments/{s.id}/consignment', json={})
+    assert response.status_code == 400
+    assert 'no carrier' in response.json()['detail'].lower()

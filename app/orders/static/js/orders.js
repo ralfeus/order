@@ -117,7 +117,7 @@ function init_orders_table() {
             if (data.status != 'shipped') {
                 $('.btn-invoice', row).remove();
             }
-            if (data.status != 'packed' || data.shipping?.type != 'separate') {
+            if (data.status != 'shipped' || data.shipping?.type != 'separate') {
                 $('.btn-pay-shipment', row).remove();
             }
         },

@@ -12,7 +12,7 @@ from app.shipping.methods.separate.models.separate_shipping import SeparateShipp
 from app.shipping.models.shipping import NoShipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
-from common.exceptions import NoShippingRateError
+from app.shipping.models.shipping_rate import ShippingRate as _ShippingRate
 
 PW_HASH = "pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576"
 
@@ -45,34 +45,21 @@ class TestSeparateShippingModel(BaseTestCase):
         self.assertEqual(shipping.get_shipping_cost('xx', 500), 0)
 
     # ------------------------------------------------------------------
-    # get_actual_shipping_cost – standard rate-table lookup
-    # ------------------------------------------------------------------
-
-    def test_get_actual_shipping_cost_returns_configured_rate(self):
-        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
-        cost = shipping.get_actual_shipping_cost('c1', 500)
-        self.assertEqual(cost, 5000)
-
-    def test_get_actual_shipping_cost_no_rate_raises_error(self):
-        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
-        with self.assertRaises(NoShippingRateError):
-            shipping.get_actual_shipping_cost('xx', 500)
-
-    # ------------------------------------------------------------------
-    # can_ship – always True (real rate check is deferred to packing)
+    # can_ship – depends on ShippingRate entries (country availability list)
     # ------------------------------------------------------------------
 
     def test_can_ship_for_country_with_rate(self):
+        """Country with a ShippingRate entry is available."""
         shipping = SeparateShipping.query.get(1)
         country = Country.query.get('c1')
         self.assertTrue(shipping.can_ship(country, 500))
 
     def test_can_ship_for_country_without_rate(self):
-        """SeparateShipping.can_ship() always True regardless of rate presence"""
+        """Country without a ShippingRate entry is NOT available."""
         self.try_add_entity(Country(id='xx', name='No-Rate Country'))
         shipping = SeparateShipping.query.get(1)
         country = Country.query.get('xx')
-        self.assertTrue(shipping.can_ship(country, 500))
+        self.assertFalse(shipping.can_ship(country, 500))
 
     # ------------------------------------------------------------------
     # polymorphic discriminator / to_dict
@@ -177,17 +164,7 @@ class _ShippedHandlerMixin:
         order.shipping_box_weight = 0
         order.boxes = boxes or []
         order.params = {}
-        # Numeric fields needed for cost-update arithmetic
-        order.subtotal_base_currency = 0
-        order.subtotal_user_currency = 0
-        order.service_fee = 0
-        order.shipping_base_currency = 0
-        order.shipping_user_currency = 0
-        order.total_base_currency = 0
-        order.total_user_currency = 0
-        order.user_currency_code = None
         shipping = MagicMock()
-        shipping.subtype_code = 'GLS'
         order.shipping = shipping
         return order
 
@@ -199,84 +176,29 @@ class _ShippedHandlerMixin:
         box.quantity = quantity
         return box
 
-    def _call_handler(self, order, cost_eur=100.0):
+    def _call_handler(self, order):
         from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
         from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
         order.shipping.__class__ = SeparateShipping
-        with patch('app.shipping.methods.separate.signal_handlers.requests.get') as mock_get, \
-             patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
-            mock_get.return_value.status_code = 200
-            mock_get.return_value.json.return_value = {'cost_eur': str(cost_eur)}
-            mock_get.return_value.raise_for_status = MagicMock()
+        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
             mock_post.return_value.status_code = 201
             mock_post.return_value.json.return_value = {
                 'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'
             }
             mock_post.return_value.raise_for_status = MagicMock()
             on_sale_order_shipped(order)
-            return mock_get, mock_post
+            return mock_post
 
     def _all_payloads(self, mock_post):
         return [c[1]['json'] for c in mock_post.call_args_list]
 
-    def _post(self, order, **kw):
-        """Convenience: call handler and return only mock_post."""
-        _, mock_post = self._call_handler(order, **kw)
-        return mock_post
+    def _post(self, order):
+        """Convenience: call handler and return mock_post."""
+        return self._call_handler(order)
 
 
 class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
     """Unit tests for the on_sale_order_shipped signal handler (eurocargo creation)."""
-
-    # ------------------------------------------------------------------
-    # Cost fetch via ECmgmt
-    # ------------------------------------------------------------------
-
-    def test_shipping_cost_set_on_order(self):
-        order = self._make_order()
-        self._call_handler(order, cost_eur=250.0)
-        self.assertAlmostEqual(float(order.shipping_base_currency), 250.0)
-
-    def test_total_base_currency_updated(self):
-        order = self._make_order()
-        order.subtotal_base_currency = 1000
-        order.service_fee = 50
-        self._call_handler(order, cost_eur=200.0)
-        self.assertAlmostEqual(float(order.total_base_currency), 1250.0)
-
-    def test_cost_endpoint_receives_correct_weight(self):
-        # total_weight=2000 g + shipping_box_weight=0 → 2.0 kg
-        order = self._make_order(total_weight=2000)
-        mock_get, _ = self._call_handler(order)
-        params = mock_get.call_args[1]['params']
-        self.assertAlmostEqual(float(params['weight_kg']), 2.0)
-
-    def test_single_box_dimensions_sent_to_cost_endpoint(self):
-        box = self._make_box(40, 30, 20)
-        order = self._make_order(boxes=[box], total_weight=1000)
-        mock_get, _ = self._call_handler(order)
-        params = mock_get.call_args[1]['params']
-        self.assertEqual(params['length_cm'], '40')
-        self.assertEqual(params['width_cm'], '30')
-        self.assertEqual(params['height_cm'], '20')
-
-    def test_multi_box_no_dimensions_in_cost_endpoint(self):
-        boxes = [self._make_box(40, 30, 20), self._make_box(50, 40, 30)]
-        order = self._make_order(boxes=boxes, total_weight=4000)
-        mock_get, _ = self._call_handler(order)
-        params = mock_get.call_args[1]['params']
-        self.assertNotIn('length_cm', params)
-
-    def test_aborts_when_cost_fetch_fails(self):
-        order = self._make_order()
-        from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
-        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
-        order.shipping.__class__ = SeparateShipping
-        with patch('app.shipping.methods.separate.signal_handlers.requests.get') as mock_get, \
-             patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
-            mock_get.return_value.raise_for_status.side_effect = Exception('no rate')
-            on_sale_order_shipped(order)
-            mock_post.assert_not_called()
 
     # ------------------------------------------------------------------
     # Single box (qty=1)
@@ -417,8 +339,131 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
     def test_non_separate_shipping_skipped(self):
         order = self._make_order()
         from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
-        with patch('app.shipping.methods.separate.signal_handlers.requests.get') as mock_get, \
-             patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
+        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
             on_sale_order_shipped(order)  # shipping.__class__ is MagicMock, not SeparateShipping
-            mock_get.assert_not_called()
             mock_post.assert_not_called()
+
+    def test_shipment_payload_does_not_include_carrier(self):
+        """Carrier is chosen by customer at payment time; must not be sent at creation."""
+        box = self._make_box(40, 30, 20)
+        order = self._make_order(boxes=[box], total_weight=1000)
+        mock_post = self._post(order)
+        payload = mock_post.call_args[1]['json']
+        self.assertNotIn('shipment_type_code', payload)
+
+
+class TestSeparateShippingAdminAPI(BaseTestCase):
+    """Tests for the admin API endpoints managing country availability."""
+
+    PW = 'pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576'
+
+    def setUp(self):
+        super().setUp()
+        db.create_all()
+        admin_role = Role(name='admin')
+        self.admin = User(
+            username='admin_separate_api',
+            email='admin_separate_api@test.com',
+            password_hash=self.PW,
+            enabled=True,
+            roles=[admin_role],
+        )
+        self.try_add_entities([
+            admin_role, self.admin,
+            Country(id='DE', name='Germany'),
+            Country(id='FR', name='France'),
+            Country(id='PL', name='Poland'),
+            SeparateShipping(id=10, name='Sep Ship'),
+            # DE is pre-enabled
+            _ShippingRate(shipping_method_id=10, destination='DE', weight=0, rate=0),
+        ])
+        self.login('admin_separate_api', '1')
+
+    # ------------------------------------------------------------------
+    # GET /<id>/countries
+    # ------------------------------------------------------------------
+
+    def test_get_countries_returns_configured_list(self):
+        res = self.client.get('/api/v1/admin/shipping/separate/10/countries')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('DE', res.json)
+
+    def test_get_countries_excludes_unconfigured(self):
+        res = self.client.get('/api/v1/admin/shipping/separate/10/countries')
+        self.assertEqual(res.status_code, 200)
+        self.assertNotIn('FR', res.json)
+
+    def test_get_countries_not_found(self):
+        res = self.client.get('/api/v1/admin/shipping/separate/999/countries')
+        self.assertEqual(res.status_code, 404)
+
+    # ------------------------------------------------------------------
+    # POST /<id>/countries
+    # ------------------------------------------------------------------
+
+    def test_save_countries_adds_new(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/countries',
+            json={'countries': ['DE', 'FR']},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('FR', res.json)
+        # Verify can_ship now returns True for FR
+        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        shipping = db.session.get(SS, 10)
+        db.session.expire_all()
+        fr = Country.query.get('FR')
+        self.assertTrue(shipping.can_ship(fr, 0))
+
+    def test_save_countries_removes_deselected(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/countries',
+            json={'countries': ['FR']},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        # DE was pre-enabled but not in new list → removed
+        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        shipping = db.session.get(SS, 10)
+        db.session.expire_all()
+        de = Country.query.get('DE')
+        self.assertFalse(shipping.can_ship(de, 0))
+
+    def test_save_countries_empty_list_clears_all(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/countries',
+            json={'countries': []},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        shipping = db.session.get(SS, 10)
+        db.session.expire_all()
+        de = Country.query.get('DE')
+        self.assertFalse(shipping.can_ship(de, 0))
+
+    def test_save_countries_unknown_code_rejected(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/countries',
+            json={'countries': ['XX']},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 422)
+
+    def test_save_countries_not_found(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/999/countries',
+            json={'countries': ['DE']},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_save_countries_requires_admin(self):
+        self.logout()
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/countries',
+            json={'countries': ['DE']},
+            content_type='application/json',
+        )
+        self.assertIn(res.status_code, [401, 403])

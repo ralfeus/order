@@ -361,19 +361,13 @@ export default function AdminShipmentsPage() {
     setShipments(prev => prev.map(s => s.id === shipmentId ? updated : s))
   }
 
-  function handleLogout() {
-    document.cookie = 'admin_token=; path=/; max-age=0'
-    router.push('/admin/login')
-  }
-
   if (loading) return <main style={mainStyle}><p>Loading…</p></main>
   if (error)   return <main style={mainStyle}><p style={{ color: '#dc2626' }}>{error}</p></main>
 
   return (
     <main style={mainStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, margin: 0 }}>All Shipments</h1>
-        <button onClick={handleLogout} style={logoutStyle}>Log out</button>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -495,11 +489,3 @@ const mainStyle: React.CSSProperties = {
   padding: '0 16px',
 }
 
-const logoutStyle: React.CSSProperties = {
-  background: 'none',
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  padding: '6px 14px',
-  cursor: 'pointer',
-  fontSize: 13,
-}

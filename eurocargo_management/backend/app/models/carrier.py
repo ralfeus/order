@@ -54,6 +54,7 @@ class BaseCarrier(Base):
         """
         from app.models.shipping_rate import ShippingFlatRate, ShippingRateEntry
 
+        weight_kg = Decimal(str(weight_kg))
         vol_kg = self.volumetric_weight_kg(length_cm, width_cm, height_cm)
         billable_kg = max(weight_kg, vol_kg)
 

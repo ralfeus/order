@@ -12,20 +12,21 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def on_sale_order_packed(order, **_extra):
-    '''For SeparateShipping, cost is calculated at ship time once box info is known.
-    Nothing to do at pack time.'''
+    '''For SeparateShipping, nothing to do at pack time.
+    The carrier and shipping cost are determined later in eurocargo_management
+    when the customer selects a carrier on the payment page.'''
     pass
 
 
 # ---------------------------------------------------------------------------
-# sale_order_shipped → calculate cost via ECmgmt, then create shipment(s)
+# sale_order_shipped → create ECmgmt shipment record(s), no carrier yet
 # ---------------------------------------------------------------------------
 
 def on_sale_order_shipped(order, **_extra):
-    '''When a SeparateShipping order is shipped:
-    1. Fetch actual shipping cost from ECmgmt (abort if unavailable).
-    2. Update order totals.
-    3. Create one or more eurocargo_management shipment records.
+    '''When a SeparateShipping order is shipped, create one or more shipment
+    records in eurocargo_management.  No carrier or cost is set at this point:
+    the customer will choose a carrier on the ECmgmt payment page, which then
+    calculates and presents the cost.
     '''
     from .models.separate_shipping import SeparateShipping
 
@@ -40,40 +41,6 @@ def on_sale_order_shipped(order, **_extra):
         len(order.boxes) == 1 and order.boxes[0].quantity > 1
     )
 
-    # Pass box dimensions for single-unit orders so ECmgmt applies volumetric weight
-    length_cm = width_cm = height_cm = None
-    if not is_multi_box and order.boxes:
-        box = order.boxes[0]
-        length_cm, width_cm, height_cm = box.length, box.width, box.height
-
-    weight_kg = (order.total_weight + order.shipping_box_weight) / 1000
-    actual_cost = _fetch_shipping_cost(
-        eurocargo_api_url,
-        country=order.country_id,
-        weight_kg=weight_kg,
-        shipment_type_code=order.shipping.subtype_code,
-        length_cm=length_cm,
-        width_cm=width_cm,
-        height_cm=height_cm,
-        order_id=order.id,
-        api_key=eurocargo_api_key,
-    )
-    if actual_cost is None:
-        return  # error already logged; abort shipment creation too
-
-    order.shipping_base_currency = actual_cost
-
-    from app import db
-    from app.currencies.models.currency import Currency
-    user_currency = (
-        db.session.get(Currency, order.user_currency_code)
-        if order.user_currency_code else None
-    )
-    user_rate = float(user_currency.rate) if (user_currency and not user_currency.base) else None
-    order.shipping_user_currency = actual_cost * user_rate if user_rate is not None else 0
-    order.total_base_currency = order.subtotal_base_currency + actual_cost + order.service_fee
-    order.total_user_currency = float(order.subtotal_user_currency) + float(order.shipping_user_currency)
-
     if is_multi_box:
         _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, eurocargo_api_key)
     else:
@@ -84,34 +51,11 @@ def on_sale_order_shipped(order, **_extra):
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_shipping_cost(eurocargo_api_url, country, weight_kg, shipment_type_code,
-                         length_cm=None, width_cm=None, height_cm=None,
-                         order_id=None, api_key=''):
-    '''Call GET /api/v1/shipments/cost on ECmgmt. Returns float cost or None on failure.'''
-    params = {
-        'country': country,
-        'weight_kg': str(weight_kg),
-        'shipment_type_code': shipment_type_code,
-    }
-    if length_cm is not None:
-        params['length_cm'] = str(length_cm)
-    if width_cm is not None:
-        params['width_cm'] = str(width_cm)
-    if height_cm is not None:
-        params['height_cm'] = str(height_cm)
-
-    try:
-        response = requests.get(
-            f'{eurocargo_api_url}/api/v1/shipments/cost',
-            params=params,
-            headers={'X-API-Key': api_key},
-            timeout=10,
-        )
-        response.raise_for_status()
-        return float(response.json()['cost_eur'])
-    except Exception as exc:
-        logger.error('Failed to fetch shipping cost for order %s: %s', order_id, exc)
-        return None
+def _volumetric_kg(box):
+    '''Return volumetric weight in kg for a single box unit: L × W × H / 5000.'''
+    if box.length and box.width and box.height:
+        return box.length * box.width * box.height / 5000
+    return 0
 
 
 def _box_units(boxes):
@@ -128,7 +72,11 @@ def _box_units(boxes):
 
 
 def _common_fields(order):
-    '''Return the recipient / carrier fields shared by every shipment payload.'''
+    '''Return the recipient fields shared by every shipment payload.
+
+    ``shipment_type_code`` is intentionally omitted: the carrier is chosen
+    by the customer on the ECmgmt payment page, not at creation time.
+    '''
     return {
         'customer_name': order.customer_name,
         'email': order.email or '',
@@ -137,7 +85,6 @@ def _common_fields(order):
         'country': order.country_id or '',
         'zip': order.zip or '',
         'phone': order.phone,
-        'shipment_type_code': order.shipping.subtype_code or '',
         'tracking_code': order.tracking_id,
     }
 
@@ -190,13 +137,6 @@ def _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, ap
                        eurocargo_api_url, eurocargo_base_url,
                        store_url=not first_url_stored, api_key=api_key)
         first_url_stored = True
-
-
-def _volumetric_kg(box):
-    '''Return volumetric weight in kg for a single box unit: L × W × H / 5000.'''
-    if box.length and box.width and box.height:
-        return box.length * box.width * box.height / 5000
-    return 0
 
 
 def _post_shipment(order, shipment_order_id, payload,

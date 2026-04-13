@@ -24,7 +24,7 @@ class Shipment(Base):
     country = Column(String(2), nullable=False)
     zip = Column(String(16), nullable=False)
     phone = Column(String(32), nullable=True)
-    shipment_type_id = Column(Integer, ForeignKey('shipment_types.id'), nullable=False)
+    shipment_type_id = Column(Integer, ForeignKey('shipment_types.id'), nullable=True)
     weight_kg = Column(Numeric(10, 3), nullable=False)
     length_cm = Column(Numeric(6, 1), nullable=True)
     width_cm = Column(Numeric(6, 1), nullable=True)

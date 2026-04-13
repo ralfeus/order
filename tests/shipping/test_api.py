@@ -157,3 +157,47 @@ class TestShippingAPI(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         shipping = Shipping.query.all()[0]
         self.assertIsInstance(shipping, FakeShipping2)
+
+    def test_delete_shipping_method_not_in_use(self):
+        """Deleting a shipping method that has no orders returns 200."""
+        res = self.try_admin_operation(
+            lambda: self.client.delete('/api/v1/admin/shipping/1')
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(db.session.get(Shipping, 1))
+
+    def test_delete_shipping_method_in_use_returns_409(self):
+        """Deleting a shipping method referenced by an order must return 409 with a message."""
+        from app.payments.models.payment_method import PaymentMethod
+        from app.purchase.models.company import Company
+        from app.models.address import Address
+
+        address = Address(id=10, address_1_eng='a', address_2_eng='b',
+                          city_eng='c', zip='00', country_id='c1')
+        company = Company(name='Co', address=address)
+        payment_method = PaymentMethod(id=10, payee=company)
+        self.try_add_entities([address, company, payment_method])
+
+        order = Order(
+            id='ORD-DELETE-CONFLICT',
+            user=self.user,
+            status=OrderStatus.pending,
+            payment_method_id=10,
+            address='addr',
+            city_eng='city',
+            zip='00',
+            country_id='c1',
+            shipping_box_weight=0,
+        )
+        order.shipping = db.session.get(Shipping, 1)
+        self.try_add_entity(order)
+
+        res = self.try_admin_operation(
+            lambda: self.client.delete('/api/v1/admin/shipping/1')
+        )
+        self.assertEqual(res.status_code, 409)
+        data = res.get_json()
+        self.assertIn('error', data)
+        self.assertIn('Shipping1', data['error'])
+        # Shipping method must still exist
+        self.assertIsNotNone(db.session.get(Shipping, 1))

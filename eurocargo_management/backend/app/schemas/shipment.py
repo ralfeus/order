@@ -17,12 +17,16 @@ class ShipmentCreate(BaseModel):
     country: str
     zip: str
     phone: Optional[str] = None
-    shipment_type_code: str
+    shipment_type_code: Optional[str] = None  # chosen later at payment time
     weight_kg: Decimal
     length_cm: Optional[Decimal] = None
     width_cm: Optional[Decimal] = None
     height_cm: Optional[Decimal] = None
     tracking_code: Optional[str] = None
+
+
+class ShipmentTypeUpdate(BaseModel):
+    shipment_type_code: str
 
 
 class ShipmentResponse(BaseModel):
@@ -36,7 +40,7 @@ class ShipmentResponse(BaseModel):
     country: str
     zip: str
     phone: Optional[str]
-    shipment_type: ShipmentTypeResponse
+    shipment_type: Optional[ShipmentTypeResponse] = None
     weight_kg: Decimal
     length_cm: Optional[Decimal] = None
     width_cm: Optional[Decimal] = None
