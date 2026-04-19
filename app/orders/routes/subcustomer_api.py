@@ -1,6 +1,7 @@
 """API endpoints for sale order subcustomer management"""
 
 import json
+import logging
 import requests
 
 from flask import Response, abort, current_app, jsonify, request
@@ -119,10 +120,14 @@ def admin_save_subcustomer(subcustomer_id):
         payload,
         ["name", "username", "password", "center_code", "in_network"],
     )
-    _invoke_node_api(
-        "/api/v1/node/" + subcustomer.username, method="patch", data=payload
-    )
+    try:
+        _invoke_node_api(
+            "/api/v1/node/" + subcustomer.username, method="patch", data=payload
+        )
+    except Exception as ex:
+        logging.warning("Failed to update subcustomer %s in network manager: %s", subcustomer_id, str(ex))
 
+    db.session.add(subcustomer) #type: ignore
     db.session.commit()
     return jsonify(subcustomer.to_dict())
 

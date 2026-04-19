@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import AttachmentManager from './AttachmentManager'
 import CarrierSelector from './CarrierSelector'
 import InvoiceSection from './InvoiceSection'
+import { getApiUrl } from '@/lib/env'
 
 interface ShipmentType {
   id: number
@@ -62,7 +63,7 @@ async function getAttachments(token: string, apiUrl: string): Promise<Attachment
 }
 
 async function getShipment(token: string, username?: string): Promise<Shipment | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const apiUrl = getApiUrl()
   const url = new URL(`${apiUrl}/api/v1/shipments/${token}`)
   if (username) url.searchParams.set('user', username)
 
@@ -81,7 +82,7 @@ export default async function ShipmentPage({
 }) {
   const { token } = await params
   const { user } = await searchParams
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+  const apiUrl = getApiUrl();
   const [shipment, initialAttachments] = await Promise.all([
     getShipment(token, user),
     getAttachments(token, apiUrl),

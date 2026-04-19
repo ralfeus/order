@@ -31,7 +31,7 @@ def create_consignment(
     shipment_id: int,
     body: ConsignmentCreate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     """Manually trigger consignment creation for a shipment.
 
@@ -79,8 +79,7 @@ def create_consignment(
     db.commit()
     db.refresh(shipment)
     logger.info(
-        'Consignment created for shipment %s: tracking=%s',
-        shipment_id,
-        shipment.tracking_code,
+        'AUDIT order=%s user=%s action=consignment_created tracking=%s',
+        shipment.order_id, admin.username, shipment.tracking_code,
     )
     return shipment

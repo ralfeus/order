@@ -1,11 +1,13 @@
 """Shipment attachment CRUD endpoints."""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response
+from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import decode_access_token
 from app.models.shipment import Shipment
 from app.models.shipment_attachment import (
     ShipmentAttachment,
@@ -16,6 +18,18 @@ from app.schemas.attachment import AttachmentMeta
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=['attachments'])
+
+
+def _get_actor(request: Request) -> str:
+    """Return the JWT subject (username) from the Bearer token, or 'api_key'."""
+    auth = request.headers.get('Authorization', '')
+    if auth.startswith('Bearer '):
+        try:
+            payload = decode_access_token(auth[7:])
+            return payload.get('sub', 'unknown')
+        except JWTError:
+            pass
+    return 'api_key'
 
 
 def _get_shipment(token: str, db: Session) -> Shipment:
@@ -36,6 +50,7 @@ def _get_attachment(shipment: Shipment, attachment_id: int) -> ShipmentAttachmen
              response_model=AttachmentMeta, status_code=201)
 async def upload_attachment(
     token: str,
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -66,8 +81,10 @@ async def upload_attachment(
     db.add(attachment)
     db.commit()
     db.refresh(attachment)
-    logger.info('Attachment %s uploaded for shipment %s (%d bytes)',
-                attachment.id, token, len(data))
+    logger.info(
+        'AUDIT order=%s user=%s action=attachment_added filename=%s size=%d',
+        shipment.order_id, _get_actor(request), attachment.filename, attachment.size_bytes,
+    )
     return attachment
 
 
@@ -103,11 +120,17 @@ def download_attachment(
 def delete_attachment(
     token: str,
     attachment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """Delete an attachment."""
     shipment = _get_shipment(token, db)
     attachment = _get_attachment(shipment, attachment_id)
+    order_id = shipment.order_id
+    filename = attachment.filename
     db.delete(attachment)
     db.commit()
-    logger.info('Attachment %s deleted from shipment %s', attachment_id, token)
+    logger.info(
+        'AUDIT order=%s user=%s action=attachment_removed filename=%s',
+        order_id, _get_actor(request), filename,
+    )

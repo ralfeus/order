@@ -2,7 +2,8 @@ import logging
 from operator import itemgetter
 
 from flask import Response, abort, current_app, jsonify, request
-from flask_security import current_user, login_required, roles_required
+from flask_login import login_required, current_user
+from flask_security.decorators import roles_required
 
 from sqlalchemy import or_
 
@@ -27,7 +28,7 @@ from app.purchase.models.vendor_manager import PurchaseOrderVendorManager
 @roles_required('po-admin')
 def get_purchase_orders(po_id):
     ''' Returns all or selected purchase orders in JSON '''
-    purchase_orders: list[PurchaseOrder] = PurchaseOrder.query
+    purchase_orders: list[PurchaseOrder] = PurchaseOrder.query #type: ignore
     if po_id is not None:
         purchase_orders = purchase_orders.filter_by(id=po_id) #type: ignore
         if purchase_orders.count() == 1: #type: ignore
@@ -40,7 +41,7 @@ def get_purchase_orders(po_id):
             purchase_orders, request.values,
             or_(
                 PurchaseOrder.id.like(f"%{request.values['search[value]']}%"), #type:ignore
-                PurchaseOrder.customer.has(
+                PurchaseOrder.customer.has( #type: ignore
                     Subcustomer.name.like(f"%{request.values['search[value]']}%")), #type:ignore
                 PurchaseOrder.status.like(f'%{request.values["search[value]"]}%') #type:ignore
             )
@@ -77,9 +78,9 @@ def admin_create_purchase_orders():
     payload = request.get_json()
     if not payload:
         abort(Response("No purchase order data was provided", status=400))
-    order = db.session.get(Order, payload['order_id'])
-    company = db.session.get(Company, payload['company_id'])
-    address = db.session.get(Address, payload['address_id'])
+    order: Order = db.session.get(Order, payload['order_id']) #type: ignore
+    company: Company = db.session.get(Company, payload['company_id']) #type: ignore
+    address: Address = db.session.get(Address, payload['address_id']) #type: ignore
     vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
     if not vendor:
         abort(Response("No vendor was found"))
@@ -111,7 +112,7 @@ def admin_create_purchase_orders():
 @roles_required('po-admin')
 def update_purchase_order(po_id):
     logger = logging.getLogger('update_purchase_order')
-    po: PurchaseOrder = db.session.get(PurchaseOrder, po_id)
+    po: PurchaseOrder = db.session.get(PurchaseOrder, po_id) #type: ignore
     if po is None:
         abort(Response("No purchase order <{po_id}> was found", status=404))
 

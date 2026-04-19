@@ -27,6 +27,7 @@ class PurchaseOrderStatus(enum.Enum):
     delivered = 7
     failed = 8
     cancelled = 9
+    posting = 10
 
 class PurchaseOrder(db.Model, BaseModel): #type: ignore
     ''' Represents purchase order '''

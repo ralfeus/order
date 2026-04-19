@@ -27,17 +27,19 @@ def post_po():
     # from flask import current_app
     # current_app.config['SOCKS5_PROXY'] = 'localhost:9050'
     current_app.config['HEADLESS'] = False
-    current_app.config['BROWSER_URL'] = None
-    po_id = "PO-2026-01-0001-001"
-    po = db.session.get(PurchaseOrder, po_id)
-    po.status = PurchaseOrderStatus.pending
+    current_app.config['BROWSER_URL'] = 'http://127.0.0.1:9222'
+    po_ids = ["PO-2025-03-0451-001"]
+    db.session.execute(update(PurchaseOrder) \
+        .where(PurchaseOrder.id.in_(po_ids)) \
+        .values(status=PurchaseOrderStatus.pending))
+    # po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    po.customer.username = '23426444'#'26046834'#'33191422'#
-    po.customer.password = 'atomy#01'#'IJ7492!!'#'LL7492!!'#
-    po.purchase_date = datetime.now()
-    db.session.flush()
-    post_purchase_orders(po_id=po_id)
+    # po.customer.username = '23426444'#'26046834'#'33191422'#
+    # po.customer.password = 'atomy#01'#'IJ7492!!'#'LL7492!!'#
+    # po.purchase_date = datetime.now()
+    db.session.commit()
+    post_purchase_orders()
 
     db.session.rollback()
     # print(po.to_dict())
@@ -186,7 +188,7 @@ def test_atomy_login():
 with create_app().app_context():
     logging.root.setLevel(logging.DEBUG)
     # test_atomy_login()
-    # post_po()
+    post_po()
     # update_purchase_orders_status()
-    import_products()
+    # import_products()
     # build_network()

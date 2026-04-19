@@ -26,7 +26,7 @@ interface Shipment {
   customer_name: string
   email: string
   country: string
-  shipment_type: ShipmentType
+  shipment_type: ShipmentType | null
   weight_kg: string
   amount_eur: string | null
   tracking_code: string | null
@@ -46,11 +46,11 @@ const STATUS_LABELS: Record<Status, string> = {
   shipped:         'Shipped',
 }
 
-const STATUS_COLOURS: Record<Status, string> = {
-  incoming:        '#d97706',
-  at_warehouse:    '#2563eb',
-  customs_cleared: '#7c3aed',
-  shipped:         '#16a34a',
+const STATUS_STYLE: Record<Status, { bg: string; color: string }> = {
+  incoming:        { bg: 'var(--status-incoming-bg)',  color: 'var(--status-incoming-text)' },
+  at_warehouse:    { bg: 'var(--status-warehouse-bg)', color: 'var(--status-warehouse-text)' },
+  customs_cleared: { bg: 'var(--status-customs-bg)',   color: 'var(--status-customs-text)' },
+  shipped:         { bg: 'var(--status-shipped-bg)',   color: 'var(--status-shipped-text)' },
 }
 
 function getCookie(name: string): string {
@@ -112,13 +112,10 @@ function TrackingCell({
         disabled={saving}
         placeholder="tracking code"
         style={{
-          border: '1px solid #93c5fd',
-          borderRadius: 4,
+          width: 148,
+          fontSize: 12,
           padding: '3px 6px',
-          fontSize: 13,
-          width: 160,
-          outline: 'none',
-          background: saving ? '#f3f4f6' : '#fff',
+          opacity: saving ? 0.6 : 1,
         }}
       />
     )
@@ -133,12 +130,14 @@ function TrackingCell({
         display: 'inline-block',
         minWidth: 80,
         padding: '3px 6px',
-        borderRadius: 4,
-        color: value ? '#111' : '#9ca3af',
+        borderRadius: 3,
+        fontSize: 12,
+        color: value ? 'var(--text)' : 'var(--text-3)',
         border: '1px solid transparent',
+        transition: 'border-color 0.1s',
       }}
-      onMouseEnter={e => (e.currentTarget.style.border = '1px solid #d1d5db')}
-      onMouseLeave={e => (e.currentTarget.style.border = '1px solid transparent')}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent' }}
     >
       {value ?? '—'}
     </span>
@@ -146,7 +145,7 @@ function TrackingCell({
 }
 
 // ---------------------------------------------------------------------------
-// Paid toggle with confirmation
+// Paid toggle
 // ---------------------------------------------------------------------------
 function PaidToggle({
   shipmentId,
@@ -179,25 +178,29 @@ function PaidToggle({
       disabled={busy}
       title={paid ? 'Click to mark as unpaid' : 'Click to mark as paid'}
       style={{
-        background: paid ? '#16a34a' : '#9ca3af',
-        color: '#fff',
-        border: 'none',
-        borderRadius: 12,
-        padding: '3px 12px',
-        fontSize: 12,
+        background: paid ? 'var(--paid-bg)' : 'var(--unpaid-bg)',
+        color: paid ? 'var(--paid-text)' : 'var(--unpaid-text)',
+        border: `1px solid ${paid ? 'oklch(0.80 0.08 155)' : 'var(--border)'}`,
+        borderRadius: 3,
+        padding: '2px 10px',
+        fontSize: 11,
+        fontFamily: 'var(--font-display)',
         fontWeight: 600,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
         cursor: busy ? 'not-allowed' : 'pointer',
-        opacity: busy ? 0.7 : 1,
+        opacity: busy ? 0.6 : 1,
         whiteSpace: 'nowrap',
+        transition: 'opacity 0.1s',
       }}
     >
-      {paid ? '✓ Paid' : 'Unpaid'}
+      {paid ? 'Paid' : 'Unpaid'}
     </button>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Create-consignment button (DHL label generation)
+// Consignment button
 // ---------------------------------------------------------------------------
 function ConsignmentButton({
   shipment,
@@ -262,16 +265,22 @@ function ConsignmentButton({
       disabled={busy}
       title="Create carrier consignment (generates DHL label)"
       style={{
-        background: busy ? '#9ca3af' : '#1d4ed8',
-        color: '#fff',
+        background: busy ? 'var(--bg-sunken)' : 'var(--accent)',
+        color: busy ? 'var(--text-3)' : 'var(--text-inv)',
         border: 'none',
-        borderRadius: 6,
+        borderRadius: 3,
         padding: '3px 10px',
-        fontSize: 12,
+        fontSize: 11,
+        fontFamily: 'var(--font-display)',
         fontWeight: 600,
+        letterSpacing: '0.04em',
+        textTransform: 'uppercase',
         cursor: busy ? 'not-allowed' : 'pointer',
         whiteSpace: 'nowrap',
+        transition: 'background 0.1s',
       }}
+      onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'var(--accent-hover)' }}
+      onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--accent)' }}
     >
       {busy ? '…' : '+ Label'}
     </button>
@@ -361,131 +370,202 @@ export default function AdminShipmentsPage() {
     setShipments(prev => prev.map(s => s.id === shipmentId ? updated : s))
   }
 
-  if (loading) return <main style={mainStyle}><p>Loading…</p></main>
-  if (error)   return <main style={mainStyle}><p style={{ color: '#dc2626' }}>{error}</p></main>
+  if (loading) return (
+    <div style={{ padding: 'var(--space-8)', color: 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.03em' }}>
+      Loading…
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ padding: 'var(--space-8)', color: 'var(--danger)' }}>
+      {error}
+    </div>
+  )
 
   return (
-    <main style={mainStyle}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>All Shipments</h1>
-      </div>
-
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
-              <Th>Order ID</Th>
-              <Th>Recipient</Th>
-              <Th>Carrier</Th>
-              <Th>Country</Th>
-              <Th>Weight (kg)</Th>
-              <Th>Amount (€)</Th>
-              <Th>Status</Th>
-              <Th>Payment</Th>
-              <Th>Tracking</Th>
-              <Th>Consignment</Th>
-              <Th>Files</Th>
-              <Th>Created</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {shipments.map(s => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                <Td>
-                  <a
-                    href={`/shipments/${s.token}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#1d4ed8', textDecoration: 'none' }}
-                  >
-                    {s.order_id}
-                  </a>
-                </Td>
-                <Td>{s.customer_name}</Td>
-                <Td>{s.shipment_type.code}</Td>
-                <Td>{s.country}</Td>
-                <Td>{Number(s.weight_kg).toFixed(3)}</Td>
-                <Td>{s.amount_eur != null ? `€${Number(s.amount_eur).toFixed(2)}` : '—'}</Td>
-                <Td>
-                  <select
-                    value={s.status}
-                    disabled={updatingId === s.id}
-                    onChange={e => handleStatusChange(s.id, e.target.value as Status)}
-                    style={{
-                      background: STATUS_COLOURS[s.status as Status] ?? '#6b7280',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 12,
-                      padding: '3px 10px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {STATUS_OPTIONS.map(opt => (
-                      <option key={opt} value={opt} style={{ background: '#fff', color: '#111' }}>
-                        {STATUS_LABELS[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </Td>
-                <Td>
-                  <PaidToggle
-                    shipmentId={s.id}
-                    paid={s.paid}
-                    onToggle={handlePaidToggle}
-                  />
-                </Td>
-                <Td>
-                  <TrackingCell
-                    shipmentId={s.id}
-                    value={s.tracking_code}
-                    onSave={handleTrackingChange}
-                  />
-                </Td>
-                <Td>
-                  <ConsignmentButton
-                    shipment={s}
-                    onSuccess={handleConsignmentCreated}
-                  />
-                </Td>
-                <Td>
-                  <AttachmentIcon
-                    token={s.token}
-                    attachments={s.attachments}
-                    apiUrl={apiUrl}
-                  />
-                </Td>
-                <Td>{new Date(s.created_at).toLocaleDateString()}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {shipments.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#6b7280', marginTop: 32 }}>No shipments yet.</p>
+    <div style={{ padding: 'var(--space-6) var(--space-8)' }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 22,
+          fontWeight: 700,
+          letterSpacing: '0.02em',
+          color: 'var(--text)',
+        }}>
+          Shipments
+        </h1>
+        {shipments.length > 0 && (
+          <p style={{ marginTop: 'var(--space-1)', fontSize: 12, color: 'var(--text-3)' }}>
+            {shipments.length} total
+          </p>
         )}
       </div>
-    </main>
+
+      {shipments.length === 0 ? (
+        <p style={{ color: 'var(--text-3)', fontSize: 13 }}>No shipments yet.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: 'var(--bg-sunken)' }}>
+                {['Order ID', 'Recipient', 'Carrier', 'Country', 'kg', '€', 'Status', 'Payment', 'Tracking', 'Label', 'Files', 'Created'].map(col => (
+                  <th key={col} style={{
+                    padding: '7px 10px',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 600,
+                    fontSize: 11,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-2)',
+                    textAlign: col === 'kg' || col === '€' ? 'right' : 'left',
+                    whiteSpace: 'nowrap',
+                    borderBottom: '1px solid var(--border)',
+                  }}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shipments.map((s, i) => {
+                const statusStyle = STATUS_STYLE[s.status as Status] ?? { bg: 'var(--bg-sunken)', color: 'var(--text-2)' }
+                return (
+                  <tr
+                    key={s.id}
+                    style={{
+                      background: i % 2 === 0 ? 'var(--bg)' : 'var(--bg-raised)',
+                      borderBottom: '1px solid var(--border)',
+                    }}
+                  >
+                    {/* Order ID */}
+                    <td style={tdStyle}>
+                      <a
+                        href={`/shipments/${s.token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}
+                        onMouseEnter={e => { e.currentTarget.style.textDecoration = 'underline' }}
+                        onMouseLeave={e => { e.currentTarget.style.textDecoration = 'none' }}
+                      >
+                        {s.order_id}
+                      </a>
+                    </td>
+
+                    {/* Recipient */}
+                    <td style={tdStyle}>{s.customer_name}</td>
+
+                    {/* Carrier */}
+                    <td style={{ ...tdStyle, color: 'var(--text-2)' }}>{s.shipment_type?.code ?? '—'}</td>
+
+                    {/* Country */}
+                    <td style={{ ...tdStyle, color: 'var(--text-2)' }}>{s.country}</td>
+
+                    {/* Weight */}
+                    <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {Number(s.weight_kg).toFixed(3)}
+                    </td>
+
+                    {/* Amount */}
+                    <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {s.amount_eur != null ? `€${Number(s.amount_eur).toFixed(2)}` : <span style={{ color: 'var(--text-3)' }}>—</span>}
+                    </td>
+
+                    {/* Status */}
+                    <td style={tdStyle}>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <select
+                          value={s.status}
+                          disabled={updatingId === s.id}
+                          onChange={e => handleStatusChange(s.id, e.target.value as Status)}
+                          style={{
+                            appearance: 'none',
+                            WebkitAppearance: 'none',
+                            background: statusStyle.bg,
+                            color: statusStyle.color,
+                            border: 'none',
+                            borderRadius: 3,
+                            padding: '2px 20px 2px 8px',
+                            fontSize: 11,
+                            fontFamily: 'var(--font-display)',
+                            fontWeight: 600,
+                            letterSpacing: '0.04em',
+                            cursor: updatingId === s.id ? 'not-allowed' : 'pointer',
+                            opacity: updatingId === s.id ? 0.6 : 1,
+                            outline: 'none',
+                          }}
+                        >
+                          {STATUS_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>
+                              {STATUS_LABELS[opt]}
+                            </option>
+                          ))}
+                        </select>
+                        {/* Custom dropdown arrow */}
+                        <span style={{
+                          position: 'absolute',
+                          right: 5,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          pointerEvents: 'none',
+                          fontSize: 8,
+                          color: statusStyle.color,
+                          lineHeight: 1,
+                        }}>▾</span>
+                      </div>
+                    </td>
+
+                    {/* Payment */}
+                    <td style={tdStyle}>
+                      <PaidToggle
+                        shipmentId={s.id}
+                        paid={s.paid}
+                        onToggle={handlePaidToggle}
+                      />
+                    </td>
+
+                    {/* Tracking */}
+                    <td style={tdStyle}>
+                      <TrackingCell
+                        shipmentId={s.id}
+                        value={s.tracking_code}
+                        onSave={handleTrackingChange}
+                      />
+                    </td>
+
+                    {/* Consignment */}
+                    <td style={tdStyle}>
+                      <ConsignmentButton
+                        shipment={s}
+                        onSuccess={handleConsignmentCreated}
+                      />
+                    </td>
+
+                    {/* Files */}
+                    <td style={tdStyle}>
+                      <AttachmentIcon
+                        token={s.token}
+                        attachments={s.attachments}
+                        apiUrl={apiUrl}
+                      />
+                    </td>
+
+                    {/* Created */}
+                    <td style={{ ...tdStyle, color: 'var(--text-3)' }}>
+                      {new Date(s.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   )
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th style={{ padding: '10px 12px', fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>
-      {children}
-    </th>
-  )
+const tdStyle: React.CSSProperties = {
+  padding: '7px 10px',
+  verticalAlign: 'middle',
 }
-
-function Td({ children }: { children: React.ReactNode }) {
-  return <td style={{ padding: '10px 12px', verticalAlign: 'middle' }}>{children}</td>
-}
-
-const mainStyle: React.CSSProperties = {
-  maxWidth: 1300,
-  margin: '32px auto',
-  fontFamily: 'sans-serif',
-  padding: '0 16px',
-}
-

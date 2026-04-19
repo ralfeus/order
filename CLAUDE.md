@@ -4,3 +4,4 @@
 4. If a task requires changes to more than 3 files, stop and break the task to smaller tasks first
 5. When there is a bug, start by writing a test that reproduces it, then fix until the test passes.
 6. After any changes are performed, run all tests and ensure they all pass
+7. Do not run preview verification after code edits. Do not start dev servers or mention dev server checks.

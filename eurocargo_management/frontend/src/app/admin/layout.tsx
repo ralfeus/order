@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 
 const NAV_ITEMS = [
   { href: '/admin/shipments', label: 'Shipments' },
-  { href: '/admin/rates',     label: 'Shipment Rates' },
+  { href: '/admin/rates',     label: 'Rates' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -23,30 +23,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar */}
       <nav style={{
-        width: 220,
-        background: '#1e293b',
-        color: '#f1f5f9',
+        width: 192,
+        background: 'var(--bg-sunken)',
+        borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
-        padding: '24px 0',
+        padding: `var(--space-6) 0`,
       }}>
+        {/* Wordmark */}
         <div style={{
-          fontSize: 15,
+          fontFamily: 'var(--font-display)',
+          fontSize: 17,
           fontWeight: 700,
-          letterSpacing: '0.05em',
-          padding: '0 20px 24px',
-          borderBottom: '1px solid #334155',
-          color: '#94a3b8',
+          letterSpacing: '0.04em',
           textTransform: 'uppercase',
+          color: 'var(--text)',
+          padding: `0 var(--space-4) var(--space-6)`,
+          borderBottom: `1px solid var(--border)`,
         }}>
           Eurocargo
         </div>
 
-        <ul style={{ listStyle: 'none', margin: 0, padding: '16px 0' }}>
+        {/* Nav links */}
+        <ul style={{ listStyle: 'none', padding: `var(--space-3) 0`, flex: 1 }}>
           {NAV_ITEMS.map(({ href, label }) => {
             const active = pathname.startsWith(href)
             return (
@@ -55,14 +58,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   href={href}
                   style={{
                     display: 'block',
-                    padding: '10px 20px',
-                    color: active ? '#f1f5f9' : '#94a3b8',
-                    background: active ? '#334155' : 'transparent',
-                    textDecoration: 'none',
-                    borderLeft: active ? '3px solid #3b82f6' : '3px solid transparent',
+                    padding: `var(--space-2) var(--space-4)`,
+                    fontFamily: 'var(--font-display)',
                     fontSize: 14,
                     fontWeight: active ? 600 : 400,
-                    transition: 'background 0.15s',
+                    letterSpacing: '0.02em',
+                    color: active ? 'var(--accent)' : 'var(--text-2)',
+                    background: active ? 'var(--accent-dim)' : 'transparent',
+                    textDecoration: 'none',
+                    borderRadius: 4,
+                    margin: `2px var(--space-2)`,
+                    transition: 'background 0.1s, color 0.1s',
                   }}
                 >
                   {label}
@@ -72,19 +78,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </ul>
 
-        {/* Log out pinned to bottom */}
-        <div style={{ marginTop: 'auto', padding: '0 12px 16px' }}>
+        {/* Logout */}
+        <div style={{ padding: `0 var(--space-2) var(--space-2)` }}>
           <button
             onClick={handleLogout}
             style={{
               width: '100%',
               background: 'none',
-              border: '1px solid #475569',
-              borderRadius: 6,
-              color: '#94a3b8',
-              padding: '8px 0',
-              fontSize: 13,
+              border: `1px solid var(--border)`,
+              borderRadius: 4,
+              color: 'var(--text-3)',
+              padding: `var(--space-2) 0`,
+              fontSize: 12,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.03em',
               cursor: 'pointer',
+              transition: 'border-color 0.1s, color 0.1s',
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget
+              b.style.borderColor = 'var(--text-3)'
+              b.style.color = 'var(--text-2)'
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget
+              b.style.borderColor = 'var(--border)'
+              b.style.color = 'var(--text-3)'
             }}
           >
             Log out
@@ -92,8 +111,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </nav>
 
-      {/* Main content */}
-      <main style={{ flex: 1, overflow: 'auto' }}>
+      {/* Main content area */}
+      <main style={{ flex: 1, overflow: 'auto', background: 'var(--bg)' }}>
         {children}
       </main>
     </div>

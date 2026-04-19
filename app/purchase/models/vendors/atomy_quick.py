@@ -113,9 +113,18 @@ def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=T
                 logger.debug(f"Retrying click on {object}")
     raise exception
 
-def fill(object: Locator, data: str):
+def fill(object: Locator, data: str, logger: logging.Logger=logging.root):
+    exc: Optional[Exception] = None
     object.fill(data)
-    expect(object).to_have_value(data)
+    for _ in range(5):
+        try:
+            expect(object).to_have_value(data, timeout=5000)
+            return
+        except Exception as e:
+            exc = e
+            logger.warning("The value is not set yet. Waiting...")
+            sleep(1)
+    raise PurchaseOrderError(message=f"Failed to fill the field with value {data}") from exc
 
 def find_address(page: Page, base_address: str):
     fill(page.locator('#lyr_pay_sch_bx33'), base_address)  # Base address
@@ -218,16 +227,19 @@ def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
 def update_address(address_element: Locator, name: str, detailed_address: str, 
                    logger: logging.Logger):
     logger.debug("Updating address name to %s", name)
+    logger.debug("Finding the address edit button and clicking it")
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
     try_click(address_element.locator('button[data-owns="lyr_pay_addr_edit"]'),
               lambda: expect(edit_window).to_be_visible())
     is_name_changed = False
     try:
+        logger.debug("Filling the address name")
         fill(edit_window.locator('#dlvpNm'), name)
         is_name_changed = True
     except Exception as e:
         logger.warning("Couldn't set the address name. Leaving as is")
         logger.warning(str(e))
+    logger.debug("Submitting the address form")
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
@@ -235,8 +247,17 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
         edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
               lambda: expect(edit_window).not_to_be_attached(), check_popups=False)
+    logger.debug("Address form submitted. Expecting the address list to be shown again")
     if is_name_changed:
-        expect(address_element.locator('dt>b')).to_have_text(name)
+        for _ in range(5):
+            try:
+                logger.debug("Verifying the address name is updated")
+                expect(address_element.locator('dt>b')).to_have_text(name, timeout=5000)
+                break
+            except Exception as e:
+                logger.warning("The address name is not updated yet. Retrying...")
+                logger.warning(str(e))
+                sleep(1)
 
 def verify_address_set(page: Page, logger: logging.Logger):
     try:
@@ -284,7 +305,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             else:
                 log_level = logging.INFO
         logging.basicConfig(level=log_level)
-        logger = logging.getLogger("AtomyQuick")
+        logger = logging.getLogger()
         logger.setLevel(log_level)  # type: ignore
         self.__original_logger = self._logger = logger
         self._logger.info(logging.getLevelName(self._logger.getEffectiveLevel()))
@@ -329,7 +350,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
         with sync_playwright() as p:
             if self.__config.get('BROWSER_URL'):
                 self._logger.debug("Connecting to the browser")
-                browser = p.chromium.connect(self.__config['BROWSER_URL'])
+                try:
+                    browser = p.chromium.connect(self.__config['BROWSER_URL'])
+                except Exception as e:
+                    self._logger.error("Failed to connect to the browser via `connect`. Try connecting via CDP.")
+                    browser = p.chromium.connect_over_cdp(self.__config['BROWSER_URL'])
             else:
                 self._logger.debug("Starting the browser")
                 browser = p.chromium.launch(
@@ -818,9 +843,13 @@ class AtomyQuick(PurchaseOrderVendorBase):
         self._logger.debug("Setting recipient's name")
         rcpt_name = get_receiver_name(purchase_order, 
             self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}"))
-        fill(page.locator("#psn-txt_0_0"), rcpt_name)
-        try_click(page.locator('label[for="psn-ck_waybill"]'),
-                  lambda: expect(page.locator('#psn-ck_waybill')).to_be_checked(checked=True))
+        try:
+            fill(page.locator("#psn-txt_0_0"), rcpt_name)
+            try_click(page.locator('label[for="psn-ck_waybill"]'),
+                    lambda: expect(page.locator('#psn-ck_waybill')).to_be_checked(checked=True))
+        except PurchaseOrderError as ex:
+            raise PurchaseOrderError(self.__purchase_order, self,
+                f"Couldn't set recipient's name: {ex.message}", screenshot=True, retry=True)
         self._logger.debug(f"Recipient's name set to {rcpt_name}")
 
 
@@ -838,7 +867,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
 
 
     def __set_receiver_address(self, page: Page, address: Address, phone: str):
-        self._logger.debug("Setting recipient's address")
+        self._logger.debug("Setting recipient's address to: %s", address.to_dict())
         try:
             try_click(
                 page.locator('button[data-owns="lyr_pay_addr_lst"]'),
@@ -855,7 +884,10 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
                 detailed_address=address.address_2,
                 logger=self._logger)
+            self._logger.debug("Selecting the address")
             select_address(page, address_element, self._logger)
+            sleep(2)
+            self._logger.debug("Ensuring the address is set")
             ensure_address_set(page, address_element, self._logger)
 
         except PurchaseOrderError:

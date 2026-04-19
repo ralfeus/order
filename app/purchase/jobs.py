@@ -8,11 +8,12 @@ from pytz import timezone
 from celery.schedules import crontab
 from celery.utils.log import get_task_logger
 from flask import current_app
-from sqlalchemy import not_
+from sqlalchemy import not_, select, text, update
 
 from app import celery, db
 from common.exceptions import AtomyLoginError, PurchaseOrderError
 from app.orders.models.order_product import OrderProductStatus
+from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from .models.vendor_manager import PurchaseOrderVendorManager
 
@@ -23,41 +24,30 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(crontab(hour=16, minute=0), post_purchase_orders,
         name="Run pending POs every day")
 
-@celery.task
-def post_purchase_orders(po_id=None):
-    # def is_purchase_date_valid(purchase_date):
-    #     tz = timezone("Asia/Seoul")
-    #     today = datetime.now().astimezone(tz)
-    #     days_back = 3 if today.weekday() < 2 else 2
-    #     days_forth = 2 if today.weekday() == 5 else 1
-    #     min_date = (today - timedelta(days=days_back)).date()
-    #     max_date = (today + timedelta(days=days_forth)).date()
-    #     return purchase_date is None or (
-    #         purchase_date >= min_date and purchase_date <= max_date
-    #     )
-    logger = get_task_logger(__name__)
-    logger.setLevel(current_app.config['LOG_LEVEL'])
-    pending_purchase_orders = PurchaseOrder.query
-    if po_id:
-        pending_purchase_orders = pending_purchase_orders.filter_by(id=po_id)
-    pending_purchase_orders = pending_purchase_orders.filter_by(
-        status=PurchaseOrderStatus.pending)
+def _get_posting_pos_for_customer(subcustomer_id, worker_id, logger):
+    ''' Return all POs currently in "posting" state for a customer.
+        Caller must hold the advisory lock for this customer. '''
+    posting_pos = db.session.execute( #type: ignore
+        select(PurchaseOrder).where(
+            PurchaseOrder.customer_id == subcustomer_id,
+            PurchaseOrder.status == PurchaseOrderStatus.posting
+        )
+    ).scalars().all()
+    if posting_pos:
+        logger.info("[%s] Found %d posting POs for customer id=%s",
+                    worker_id, len(posting_pos), subcustomer_id)
+    return posting_pos
+
+
+def _post_claimed_pos(claimed_pos, username, worker_id, logger):
+    ''' Post a pre-claimed list of POs to their vendors and update their statuses. '''
     try:
-        # Wrap whole operation in order to
-        # mark all pending POs as failed in case of any failure
-        logger.info("There are %s purchase orders to post", pending_purchase_orders.count())
-        grouped_vendors = map_reduce(
-            pending_purchase_orders,
-            lambda po: po.vendor
-        )        
+        grouped_vendors = map_reduce(claimed_pos, lambda po: po.vendor)
         for vendor_id, pos in grouped_vendors.items():
             vendor = PurchaseOrderVendorManager.get_vendor(
                 vendor_id, logger=logger, config=current_app.config)
             for po in pos:
-                # if not is_purchase_date_valid(po.purchase_date):
-                #     logger.info("Skip <%s>: purchase date is %s", po.id, po.purchase_date)
-                #     continue
-                logger.info("Posting a purchase order %s", po.id)
+                logger.info("[%s] Posting a purchase order %s", worker_id, po.id)
                 try:
                     sleep(current_app.config.get("PO_POSTING_DELAY_SECONDS", 0))
                     _, failed_products = vendor.post_purchase_order(po)
@@ -70,31 +60,144 @@ def post_purchase_orders(po_id=None):
                         po.set_status(PurchaseOrderStatus.partially_posted)
                         po.when_changed = po.when_posted = datetime.now()
                         failed_products = failed_products or \
-                            {po.product_id: '' for po in po.order_products
-                                if po.status != OrderProductStatus.purchased}
+                            {op.product_id: '' for op in po.order_products
+                                if op.status != OrderProductStatus.purchased}
                         po.status_details = "Not posted products:\n" + \
                             '\n'.join([f"{id}: {reason}"
                                 for id, reason in failed_products.items()])
                     else:
-                        raise PurchaseOrderError(po, vendor, 
-                            "No products were posted.")
-                        po.set_status(PurchaseOrderStatus.failed)
-                        po.when_changed = datetime.now()
-                        logger.warning("Purchase order %s posting went successfully but no products were ordered", po.id)
-                    logger.info("Posted a purchase order %s", po.id)
+                        raise PurchaseOrderError(po, vendor, "No products were posted.")
+                    logger.info("[%s] Posted a purchase order %s", worker_id, po.id)
                 except (PurchaseOrderError, AtomyLoginError) as ex:
-                    logger.warning("Failed to post the purchase order %s.", po.id)
+                    logger.warning("[%s] Failed to post the purchase order %s.", worker_id, po.id)
                     logger.warning(ex)
                     po.set_status(PurchaseOrderStatus.failed)
                     po.status_details = str(ex)
                     po.when_changed = datetime.now()
                 db.session.commit() #type: ignore
-        logger.info('Done posting purchase orders')
     except Exception as ex:
-        for po in pending_purchase_orders:
-            po.set_status(PurchaseOrderStatus.failed)
+        logger.exception("[%s] Unexpected error processing customer %s POs", worker_id, username)
+        for po in claimed_pos:
+            if po.status == PurchaseOrderStatus.posting:
+                po.set_status(PurchaseOrderStatus.failed)
+                po.when_changed = datetime.now()
         db.session.commit() #type: ignore
         raise ex
+
+
+@celery.task(bind=True)
+def post_purchase_orders(self, po_id=None):
+    logger = get_task_logger(__name__)
+    logger.setLevel(current_app.config['LOG_LEVEL'])
+    worker_id = self.request.id
+
+    if po_id:
+        # Atomically transition the requested PO from pending → posting BEFORE
+        # acquiring the advisory lock.  This registers intent so that if another
+        # worker already holds the lock for this customer, it will see this PO in
+        # its "posting" loop and post it on our behalf.
+        result = db.session.execute( #type: ignore
+            update(PurchaseOrder)
+            .where(PurchaseOrder.id == po_id,
+                   PurchaseOrder.status == PurchaseOrderStatus.pending)
+            .values(status=PurchaseOrderStatus.posting)
+        )
+        db.session.commit() #type: ignore
+        if result.rowcount == 0:
+            logger.info("[%s] PO %s is not in pending state, nothing to do", worker_id, po_id)
+            return
+
+        # Look up the customer username so we can name the advisory lock.
+        username = db.session.execute( #type: ignore
+            select(Subcustomer.username)
+            .join(PurchaseOrder, PurchaseOrder.customer_id == Subcustomer.id)
+            .where(PurchaseOrder.id == po_id)
+        ).scalar_one_or_none()
+        if not username:
+            logger.warning("[%s] Could not find customer for PO %s", worker_id, po_id)
+            return
+        usernames = [username]
+    else:
+        # Batch mode (beat task): collect all customers that still have pending POs.
+        usernames = db.session.execute( #type: ignore
+            select(Subcustomer.username)
+            .join(PurchaseOrder, PurchaseOrder.customer_id == Subcustomer.id)
+            .where(PurchaseOrder.status == PurchaseOrderStatus.pending)
+            .distinct()
+        ).scalars().all()
+        logger.info("[%s] Found %d customers with pending purchase orders",
+                    worker_id, len(usernames))
+
+    for username in usernames:
+        lock_name = f'po_posting:{username}'
+        # Use a dedicated connection for the advisory lock so it is held
+        # independently of the working session's commit/rollback cycle.
+        # MySQL automatically releases the lock when the connection closes,
+        # so a crashed worker never leaves a username permanently locked.
+        with db.engine.connect() as lock_conn:
+            acquired = lock_conn.execute(
+                text("SELECT GET_LOCK(:name, 0)"), {'name': lock_name}
+            ).scalar()
+            # Commit so SQLAlchemy's autobegun transaction is closed and the
+            # cursor is fully finalised.  Without this MySQLdb raises
+            # "Commands out of sync" (2014) on pool return.
+            lock_conn.commit()
+
+            if not acquired:
+                if po_id:
+                    # Our PO is already marked "posting"; the current lock holder
+                    # will find it in its loop and post it for us.
+                    logger.info("[%s] Customer %s is being processed by another worker; "
+                                "PO %s is queued as 'posting' and will be picked up by "
+                                "the lock holder", worker_id, username, po_id)
+                else:
+                    logger.info("[%s] Customer %s is already being processed by another "
+                                "worker, skipping", worker_id, username)
+                continue
+
+            try:
+                subcustomer = db.session.execute( #type: ignore
+                    select(Subcustomer).where(Subcustomer.username == username)
+                ).scalar_one_or_none()
+                if not subcustomer:
+                    logger.warning("[%s] Subcustomer not found for username %s",
+                                   worker_id, username)
+                    continue
+
+                # Loop: keep posting until no "posting" POs remain for this customer.
+                # Other tasks may pre-mark additional POs while we are busy here,
+                # so we re-check after every batch.
+                while True:
+                    if not po_id:
+                        # Batch mode: claim any remaining pending POs under the lock.
+                        db.session.execute( #type: ignore
+                            update(PurchaseOrder)
+                            .where(
+                                PurchaseOrder.customer_id == subcustomer.id,
+                                PurchaseOrder.status == PurchaseOrderStatus.pending
+                            )
+                            .values(status=PurchaseOrderStatus.posting)
+                        )
+                        db.session.commit() #type: ignore
+
+                    posting_pos = _get_posting_pos_for_customer(
+                        subcustomer.id, worker_id, logger)
+                    if not posting_pos:
+                        logger.info("[%s] No more posting POs for customer %s",
+                                    worker_id, username)
+                        break
+
+                    logger.info("[%s] Posting following POs for customer %s", worker_id, username)
+                    logger.info("\n" + "\n".join([f"- {po.id}" for po in posting_pos]))
+                    _post_claimed_pos(posting_pos, username, worker_id, logger)
+
+            finally:
+                lock_conn.execute(
+                    text("SELECT RELEASE_LOCK(:name)"), {'name': lock_name}
+                ).scalar()
+                lock_conn.commit()
+
+    logger.info("[%s] Done posting purchase orders", worker_id)
 
 @celery.task
 def update_purchase_orders_status(po_id=None, browser=None):

@@ -46,11 +46,11 @@ services:
       - /Users/ralfeus/Projects/order/network_manager/config.json:/app/config.json
       - builder-output:/app/output
     environment:
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
       - NEO4J_URL=bolt://neo4j:1@neo4j
       - BUILDER_IMAGE=ralfeus/network-builder
       - BUILDER_NETWORK=order
-      - BUILDER_LOG_LEVEL=DEBUG
+      - BUILDER_LOG_LEVEL=INFO
     privileged: true
     networks:
       - order
@@ -129,7 +129,8 @@ services:
       
   browser:
     image: mcr.microsoft.com/playwright:v1.58.0-noble
-    command: ["npx", "playwright", "run-server", "--port", "3000", "--host", "0.0.0.0"]
+    init: true
+    command: ["npx", "playwright@1.58.0", "run-server", "--port", "3333", "--host", "0.0.0.0"]
     networks:
       - order
 
@@ -150,7 +151,8 @@ services:
       - CELERY=1
       - OM_QUEUE_SERVER=rabbitmq
       - CELERY_QUEUE=order
-      - BROWSER_URL=ws://browser:3000
+      - BROWSER_URL=ws://browser:3333
+      - SQLALCHEMY_DATABASE_URI=mysql+mysqldb://root@host.docker.internal/talya
     networks:
       - order
 

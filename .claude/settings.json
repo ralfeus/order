@@ -12,5 +12,13 @@
     "deny": [
       "Bash(git push *)"
     ]
+  },
+  "mcpServers": {
+    "dhl-api-assistant": {
+      "url": "https://api-sandbox.dhl.com/development/mcp/v1/",
+      "headers": {
+        "dhl-api-key": "UjiyBXDIJyQXbt1YSmfirFsED6RQHCgZ"
+      }
+    }
   }
 }

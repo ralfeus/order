@@ -59,7 +59,6 @@ export default function AdminRatesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Multiplier editing state
   const [multiplierDraft, setMultiplierDraft] = useState<string>('')
   const [multiplierSaving, setMultiplierSaving] = useState(false)
   const [multiplierError, setMultiplierError] = useState<string | null>(null)
@@ -111,7 +110,6 @@ export default function AdminRatesPage() {
       return
     }
 
-    // Debounce save by 600 ms
     if (saveTimeout.current) clearTimeout(saveTimeout.current)
     saveTimeout.current = setTimeout(() => saveMultiplier(raw), 600)
   }
@@ -142,34 +140,81 @@ export default function AdminRatesPage() {
     }
   }
 
-  if (loading) return <main style={mainStyle}><p>Loading…</p></main>
-  if (error)   return <main style={mainStyle}><p style={{ color: '#dc2626' }}>{error}</p></main>
+  if (loading) return (
+    <div style={{ padding: 'var(--space-8)', color: 'var(--text-3)', fontFamily: 'var(--font-display)', letterSpacing: '0.03em' }}>
+      Loading…
+    </div>
+  )
 
-  const { weights, countries, table } = carrier ? pivot(carrier.entries) : { weights: [], countries: [], table: {} }
-  const effectiveMultiplier = multiplierDraft
+  if (error) return (
+    <div style={{ padding: 'var(--space-8)', color: 'var(--danger)' }}>
+      {error}
+    </div>
+  )
+
+  const { weights, countries, table } = carrier
+    ? pivot(carrier.entries)
+    : { weights: [], countries: [], table: {} }
 
   return (
-    <main style={mainStyle}>
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap' }}>
+    <div style={{ padding: 'var(--space-6) var(--space-8)' }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 'var(--space-6)' }}>
+        <h1 style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 22,
+          fontWeight: 700,
+          letterSpacing: '0.02em',
+          color: 'var(--text)',
+        }}>
+          Shipping Rates
+        </h1>
+      </div>
+
+      {/* Controls row */}
+      <div style={{
+        display: 'flex',
+        gap: 'var(--space-8)',
+        alignItems: 'flex-start',
+        marginBottom: 'var(--space-6)',
+        flexWrap: 'wrap',
+      }}>
         {/* Carrier selector */}
-        <label style={labelStyle}>
-          Carrier
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <label style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-2)',
+          }}>
+            Carrier
+          </label>
           <select
             value={selectedCode}
             onChange={e => handleCarrierChange(e.target.value)}
-            style={selectStyle}
+            style={{ minWidth: 200, fontSize: 13 }}
           >
             {carriers.map(c => (
               <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
             ))}
           </select>
-        </label>
+        </div>
 
         {/* Multiplier */}
-        <label style={labelStyle}>
-          Multiplier
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <label style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-2)',
+          }}>
+            Multiplier
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="number"
               min="0.0001"
@@ -177,34 +222,46 @@ export default function AdminRatesPage() {
               value={multiplierDraft}
               onChange={e => handleMultiplierChange(e.target.value)}
               style={{
-                ...inputStyle,
-                borderColor: multiplierError ? '#dc2626' : '#d1d5db',
+                width: 90,
+                fontSize: 13,
+                borderColor: multiplierError ? 'var(--danger)' : undefined,
               }}
             />
-            {multiplierSaving && <span style={{ fontSize: 12, color: '#6b7280' }}>Saving…</span>}
+            {multiplierSaving && (
+              <span style={{
+                fontSize: 11,
+                color: 'var(--text-3)',
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.03em',
+              }}>
+                Saving…
+              </span>
+            )}
           </div>
           {multiplierError && (
-            <span style={{ fontSize: 12, color: '#dc2626' }}>{multiplierError}</span>
+            <span style={{ fontSize: 11, color: 'var(--danger)' }}>{multiplierError}</span>
           )}
-          <span style={{ fontSize: 11, color: '#9ca3af' }}>
-            Displayed rates = table cost × multiplier
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            Rate shown = table cost × multiplier
           </span>
-        </label>
+        </div>
       </div>
 
       {/* Rate table */}
       {carrier && countries.length === 0 && (
-        <p style={{ color: '#6b7280' }}>No rate entries for {carrier.name}.</p>
+        <p style={{ color: 'var(--text-3)', fontSize: 13 }}>No rate entries for {carrier.name}.</p>
       )}
 
       {carrier && countries.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f3f4f6' }}>
-                <Th style={{ textAlign: 'left' }}>Country</Th>
+              <tr style={{ background: 'var(--bg-sunken)' }}>
+                <th style={{ ...thStyle, textAlign: 'left' }}>Country</th>
                 {weights.map(w => (
-                  <Th key={w}>≤ {Number(w).toFixed(3)} kg</Th>
+                  <th key={w} style={{ ...thStyle, textAlign: 'right' }}>
+                    ≤ {Number(w).toFixed(3)} kg
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -212,16 +269,19 @@ export default function AdminRatesPage() {
               {countries.map((country, i) => (
                 <tr
                   key={country}
-                  style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #e5e7eb' }}
+                  style={{
+                    background: i % 2 === 0 ? 'var(--bg)' : 'var(--bg-raised)',
+                    borderBottom: '1px solid var(--border)',
+                  }}
                 >
-                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>{country}</td>
+                  <td style={{ padding: '6px 10px', fontWeight: 500 }}>{country}</td>
                   {weights.map(w => {
                     const raw = table[country]?.[w]
                     return (
-                      <td key={w} style={{ padding: '8px 12px', textAlign: 'right' }}>
+                      <td key={w} style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {raw != null
-                          ? `€${applyMultiplier(raw, effectiveMultiplier)}`
-                          : <span style={{ color: '#d1d5db' }}>—</span>
+                          ? `€${applyMultiplier(raw, multiplierDraft)}`
+                          : <span style={{ color: 'var(--text-3)' }}>—</span>
                         }
                       </td>
                     )
@@ -232,54 +292,18 @@ export default function AdminRatesPage() {
           </table>
         </div>
       )}
-    </main>
+    </div>
   )
 }
 
-function Th({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <th style={{
-      padding: '10px 12px',
-      fontWeight: 600,
-      color: '#374151',
-      whiteSpace: 'nowrap',
-      textAlign: 'right',
-      ...style,
-    }}>
-      {children}
-    </th>
-  )
-}
-
-const mainStyle: React.CSSProperties = {
-  maxWidth: 1100,
-  margin: '32px auto',
-  fontFamily: 'sans-serif',
-  padding: '0 16px',
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 6,
-  fontSize: 13,
+const thStyle: React.CSSProperties = {
+  padding: '7px 10px',
+  fontFamily: 'var(--font-display)',
   fontWeight: 600,
-  color: '#374151',
-}
-
-const selectStyle: React.CSSProperties = {
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  padding: '7px 10px',
-  fontSize: 14,
-  minWidth: 200,
-}
-
-const inputStyle: React.CSSProperties = {
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  padding: '7px 10px',
-  fontSize: 14,
-  width: 100,
-  outline: 'none',
+  fontSize: 11,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  color: 'var(--text-2)',
+  whiteSpace: 'nowrap',
+  borderBottom: '1px solid var(--border)',
 }

@@ -36,7 +36,8 @@
     "PROFILER": true,
 
     "PO_POSTING_DELAY_SECONDS": 0,
-    "CELERY_TASK_DEFAULT_QUEUE": "order",
+    "OM_QUEUE_SERVER": "localhost",
+    "CELERY_QUEUE": "order",
     "ATOMY_CENTER": true,
     "ATOMY_RECEIVER_NAME_FORMAT": "{id2}-{id1}-{id0}",
     "NETWORK_MANAGER_URL": "http://localhost:5001",

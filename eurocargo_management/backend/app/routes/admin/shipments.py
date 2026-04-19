@@ -49,7 +49,7 @@ def update_status(
     shipment_id: int,
     body: StatusUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     """Change the logistics status of a shipment.
 
@@ -91,7 +91,10 @@ def update_status(
 
     db.commit()
     db.refresh(shipment)
-    logger.info('Shipment %s status changed to %s by admin', shipment_id, body.status)
+    logger.info(
+        'AUDIT order=%s user=%s action=status_changed old=%s new=%s',
+        shipment.order_id, admin.username, previous_status, body.status,
+    )
     return shipment
 
 
@@ -100,16 +103,20 @@ def update_paid(
     shipment_id: int,
     body: PaidUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     """Toggle the paid flag of a shipment."""
     shipment = db.query(Shipment).filter_by(id=shipment_id).first()
     if not shipment:
         raise HTTPException(status_code=404, detail='Shipment not found')
+    previous_paid = shipment.paid
     shipment.paid = body.paid
     db.commit()
     db.refresh(shipment)
-    logger.info('Shipment %s paid set to %s by admin', shipment_id, body.paid)
+    logger.info(
+        'AUDIT order=%s user=%s action=paid_changed old=%s new=%s',
+        shipment.order_id, admin.username, previous_paid, body.paid,
+    )
     return shipment
 
 
@@ -118,14 +125,18 @@ def update_tracking(
     shipment_id: int,
     body: TrackingUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     """Set or clear the tracking code of a shipment."""
     shipment = db.query(Shipment).filter_by(id=shipment_id).first()
     if not shipment:
         raise HTTPException(status_code=404, detail='Shipment not found')
+    previous_tracking = shipment.tracking_code
     shipment.tracking_code = body.tracking_code
     db.commit()
     db.refresh(shipment)
-    logger.info('Shipment %s tracking_code set to %r by admin', shipment_id, body.tracking_code)
+    logger.info(
+        'AUDIT order=%s user=%s action=tracking_changed old=%s new=%s',
+        shipment.order_id, admin.username, previous_tracking, body.tracking_code,
+    )
     return shipment
