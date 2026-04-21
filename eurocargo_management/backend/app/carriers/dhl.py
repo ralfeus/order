@@ -1,7 +1,10 @@
 """DHL Parcel DE carrier — encapsulates all DHL-specific logic.
 
 Config keys required:
-  dhl_app_id, dhl_app_token, dhl_billing_number,
+  dhl_api_key      — developer portal API key (sent as dhl-api-key header)
+  dhl_username     — business customer username (Basic Auth)
+  dhl_password     — business customer password (Basic Auth)
+  dhl_billing_number,
   dhl_sandbox (optional, default 'true'),
   dhl_product_code (optional, default 'V01PAK'),
   shipper_name, shipper_street, shipper_postal_code,
@@ -27,8 +30,9 @@ _SANDBOX_URL = 'https://api-sandbox.dhl.com/parcel/de/shipping/v2'
 _PROD_URL = 'https://api.dhl.com/parcel/de/shipping/v2'
 
 _REQUIRED_CONFIG = [
-    'dhl_app_id',
-    'dhl_app_token',
+    'dhl_api_key',
+    'dhl_username',
+    'dhl_password',
     'dhl_billing_number',
     'shipper_name',
     'shipper_street',
@@ -88,7 +92,7 @@ class DHLCarrier(BaseCarrier):
         return _SANDBOX_URL if sandbox == 'true' else _PROD_URL
 
     def _auth_header(self, cfg: dict) -> str:
-        credentials = f'{cfg["dhl_app_id"]}:{cfg["dhl_app_token"]}'
+        credentials = f'{cfg["dhl_username"]}:{cfg["dhl_password"]}'
         encoded = base64.b64encode(credentials.encode()).decode()
         return f'Basic {encoded}'
 
@@ -131,6 +135,7 @@ class DHLCarrier(BaseCarrier):
     def _call_dhl_api(self, shipment, cfg: dict) -> Tuple[str, Optional[bytes]]:
         url = self._base_url(cfg) + '/orders'
         headers = {
+            'dhl-api-key': cfg['dhl_api_key'],
             'Authorization': self._auth_header(cfg),
             'Content-Type': 'application/json',
         }

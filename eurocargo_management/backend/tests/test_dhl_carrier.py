@@ -74,8 +74,9 @@ def _make_db(config_entries: dict) -> MagicMock:
 
 _FULL_CONFIG = {
     'dhl_sandbox': 'true',
-    'dhl_app_id': 'test_app_id',
-    'dhl_app_token': 'test_token',
+    'dhl_api_key': 'test_api_key',
+    'dhl_username': 'test_user',
+    'dhl_password': 'test_pass',
     'dhl_billing_number': '33333333330101',
     'dhl_product_code': 'V01PAK',
     'shipper_name': 'EuroCargo GmbH',
@@ -108,7 +109,8 @@ def test_load_config_all_present():
     carrier = _make_carrier()
     db = _make_db(_FULL_CONFIG)
     cfg = carrier._load_config(db)
-    assert cfg['dhl_app_id'] == 'test_app_id'
+    assert cfg['dhl_api_key'] == 'test_api_key'
+    assert cfg['dhl_username'] == 'test_user'
     assert cfg['shipper_name'] == 'EuroCargo GmbH'
 
 
@@ -127,7 +129,8 @@ def test_load_config_multiple_missing_listed():
     with pytest.raises(ValueError) as exc_info:
         carrier._load_config(db)
     msg = str(exc_info.value)
-    assert 'dhl_app_id' in msg
+    assert 'dhl_api_key' in msg
+    assert 'dhl_username' in msg
     assert 'shipper_name' in msg
 
 
@@ -159,11 +162,11 @@ def test_base_url_defaults_to_sandbox():
 
 def test_auth_header_is_basic():
     carrier = _make_carrier()
-    cfg = {'dhl_app_id': 'myid', 'dhl_app_token': 'mytoken'}
+    cfg = {'dhl_username': 'myuser', 'dhl_password': 'mypass'}
     header = carrier._auth_header(cfg)
     assert header.startswith('Basic ')
     decoded = base64.b64decode(header[6:]).decode()
-    assert decoded == 'myid:mytoken'
+    assert decoded == 'myuser:mypass'
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +212,23 @@ def test_build_payload_ref_no_is_order_id():
 # ---------------------------------------------------------------------------
 # create_consignment — success path
 # ---------------------------------------------------------------------------
+
+def test_call_dhl_api_sends_api_key_header():
+    """The dhl-api-key header must be present in every request."""
+    carrier = _make_carrier()
+    shipment = _make_shipment()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 201
+    mock_response.json.return_value = _DHL_SUCCESS_RESPONSE
+
+    with patch('app.carriers.dhl.httpx.post', return_value=mock_response) as mock_post:
+        carrier._call_dhl_api(shipment, _FULL_CONFIG)
+
+    _, kwargs = mock_post.call_args
+    assert kwargs['headers']['dhl-api-key'] == 'test_api_key'
+    assert kwargs['headers']['Authorization'].startswith('Basic ')
+
 
 def test_create_consignment_sets_tracking_and_status():
     carrier = _make_carrier()

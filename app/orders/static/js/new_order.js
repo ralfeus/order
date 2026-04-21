@@ -82,7 +82,35 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+async function show_disclaimer() {
+    var res = await fetch('/api/v1/user/disclaimer_consent');
+    var data = await res.json();
+    if (!data.text || data.permanent_consent) {
+        return;
+    }
+    var bodyHtml =
+        '<div style="max-height:300px;overflow-y:auto;white-space:pre-line;">' + data.text + '</div>' +
+        '<div class="mt-3"><label><input type="checkbox" id="disclaimer-accept"> ' +
+        'I have read, understood and accepted those terms</label></div>' +
+        '<div class="mt-2"><label><input type="checkbox" id="disclaimer-permanent"> ' +
+        'I accept these terms for all future orders</label></div>';
+    modal('Disclaimer', bodyHtml, 'info');
+    $('.modal-footer').html(
+        '<button type="button" id="btn-disclaimer-close" class="btn btn-secondary" ' +
+        'data-bs-dismiss="modal" disabled>Close</button>'
+    );
+    $('#disclaimer-accept').on('change', function() {
+        $('#btn-disclaimer-close').prop('disabled', !this.checked);
+    });
+    $('#disclaimer-permanent').on('change', function() {
+        if (this.checked) {
+            fetch('/api/v1/user/disclaimer_consent', {method: 'POST'});
+        }
+    });
+}
+
 $(document).ready(function() {
+    show_disclaimer();
     itemTemplate = $('#userItems0_0')[0].outerHTML;
     subcustomerTemplate = $('.subcustomer-card')[0].outerHTML;
 

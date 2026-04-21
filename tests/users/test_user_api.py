@@ -1,10 +1,12 @@
 from datetime import datetime
+import json
 
 from tests import BaseTestCase, db
 
 from flask_security import current_user
 
 from app.orders.models.order import Order
+from app.settings.models import Setting
 from app.users.models.role import Role
 from app.users.models.user import User
 
@@ -75,6 +77,53 @@ class TestAdminApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         user = db.session.get(User, id)
         self.assertTrue(user.has_role(db.session.get(Role, 10)))
+
+    def test_get_disclaimer_consent_no_setting(self):
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/user/disclaimer_consent'),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertIsNone(data['text'])
+        self.assertFalse(data['permanent_consent'])
+
+    def test_get_disclaimer_consent_with_setting(self):
+        self.try_add_entities([
+            Setting(key='order.new.disclaimer', value='Test disclaimer text')
+        ])
+        res = self.try_user_operation(
+            lambda: self.client.get('/api/v1/user/disclaimer_consent'),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(data['text'], 'Test disclaimer text')
+        self.assertFalse(data['permanent_consent'])
+
+    def test_set_disclaimer_consent(self):
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/user/disclaimer_consent'),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['permanent_consent'])
+        user = db.session.get(User, 10)
+        self.assertTrue(user.get_profile().get('disclaimer_permanent_consent'))
+
+    def test_get_disclaimer_consent_after_set(self):
+        self.try_add_entities([
+            Setting(key='order.new.disclaimer', value='Terms')
+        ])
+        self.try_user_operation(
+            lambda: self.client.post('/api/v1/user/disclaimer_consent'),
+            user_name='user1'
+        )
+        res = self.client.get('/api/v1/user/disclaimer_consent')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertTrue(data['permanent_consent'])
 
     def test_signup(self):
         with self.client:

@@ -28,8 +28,9 @@ _DHL_SUCCESS_RESPONSE = {
 
 _DHL_CONFIG = {
     'dhl_sandbox': 'true',
-    'dhl_app_id': 'test_app_id',
-    'dhl_app_token': 'test_token',
+    'dhl_api_key': 'test_api_key',
+    'dhl_username': 'test_user',
+    'dhl_password': 'test_pass',
     'dhl_billing_number': '33333333330101',
     'dhl_product_code': 'V01PAK',
     'shipper_name': 'EuroCargo GmbH',

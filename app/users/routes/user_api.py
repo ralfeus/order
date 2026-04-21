@@ -9,10 +9,30 @@ from flask_security import current_user, login_required, login_user, roles_requi
 
 from app import db, security
 from app.network.models.node import Node
+from app.settings.models import Setting
 from app.tools import modify_object
 from app.users import bp_api_admin, bp_api_user
 from app.users.models.user import Role, User
 from app.users.validators.user import UserValidator, UserEditValidator
+
+@bp_api_user.route('/disclaimer_consent', methods=['GET'])
+@login_required
+def get_disclaimer_consent():
+    '''Get disclaimer text and current user's permanent consent status'''
+    return jsonify({
+        'text': Setting.get('order.new.disclaimer'),
+        'permanent_consent': current_user.get_profile().get('disclaimer_permanent_consent', False)
+    })
+
+@bp_api_user.route('/disclaimer_consent', methods=['POST'])
+@login_required
+def set_disclaimer_consent():
+    '''Store permanent disclaimer consent in current user's profile'''
+    profile = current_user.get_profile()
+    profile['disclaimer_permanent_consent'] = True
+    current_user.set_profile(profile)
+    db.session.commit()
+    return jsonify({'permanent_consent': True})
 
 @bp_api_user.route('/currency', methods=['POST'])
 @login_required
