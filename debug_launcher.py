@@ -29,15 +29,14 @@ def post_po():
     current_app.config['HEADLESS'] = False
     current_app.config['BROWSER_URL'] = 'http://127.0.0.1:9222'
     po_ids = ["PO-2025-03-0451-001"]
-    db.session.execute(update(PurchaseOrder) \
-        .where(PurchaseOrder.id.in_(po_ids)) \
-        .values(status=PurchaseOrderStatus.pending))
+    for po in PurchaseOrder.query.filter(PurchaseOrder.id.in_(po_ids)):
+        po.status = PurchaseOrderStatus.pending
+        po.customer.username = '23426444'#'26046834'#'33191422'#
+        po.customer.password = 'atomy#01'#'IJ7492!!'#'LL7492!!'#
+        po.purchase_date = datetime(2026, 5, 26)
     # po.status = PurchaseOrderStatus.pending
     # po.vendor = 'AtomyQuick'
     # po.company_id = 4
-    # po.customer.username = '23426444'#'26046834'#'33191422'#
-    # po.customer.password = 'atomy#01'#'IJ7492!!'#'LL7492!!'#
-    # po.purchase_date = datetime.now()
     db.session.commit()
     post_purchase_orders()
 

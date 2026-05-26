@@ -18,6 +18,17 @@
             <span class="text-muted">Loading countries…</span>
         </div>
     </div>
+    <div class="mb-3" style="max-width: 600px;">
+        <label for="shipper-currency" class="form-label fw-semibold">Shipper currency</label>
+        <input type="text" id="shipper-currency" name="currency" class="form-control"
+               placeholder="e.g. KRW, USD" maxlength="10">
+    </div>
+    <div class="mb-4" style="max-width: 600px;">
+        <label for="first-leg-rate" class="form-label fw-semibold">First leg rate (per kg)</label>
+        <div class="form-text mb-2">Cost per kilogram in shipper currency for the first leg.</div>
+        <input type="number" id="first-leg-rate" name="first_leg" class="form-control"
+               placeholder="e.g. 1500" min="0" step="any">
+    </div>
     <button type="submit" class="btn btn-primary">Save</button>
     <button type="button" id="cancel-btn" class="btn btn-secondary ms-2">Cancel</button>
 </form>

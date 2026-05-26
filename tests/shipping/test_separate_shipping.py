@@ -176,11 +176,15 @@ class _ShippedHandlerMixin:
         box.quantity = quantity
         return box
 
-    def _call_handler(self, order):
+    def _call_handler(self, order, first_leg=None):
         from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
         from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
         order.shipping.__class__ = SeparateShipping
-        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
+        order.shipping.id = 1
+        setting_value = str(first_leg) if first_leg is not None else None
+        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post, \
+             patch('app.shipping.methods.separate.signal_handlers.Setting.get',
+                   return_value=setting_value):
             mock_post.return_value.status_code = 201
             mock_post.return_value.json.return_value = {
                 'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'
@@ -192,9 +196,9 @@ class _ShippedHandlerMixin:
     def _all_payloads(self, mock_post):
         return [c[1]['json'] for c in mock_post.call_args_list]
 
-    def _post(self, order):
+    def _post(self, order, first_leg=None):
         """Convenience: call handler and return mock_post."""
-        return self._call_handler(order)
+        return self._call_handler(order, first_leg=first_leg)
 
 
 class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
@@ -336,6 +340,40 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         self.assertAlmostEqual(float(payloads[0]['weight_kg']), 0.5)
         self.assertAlmostEqual(float(payloads[1]['weight_kg']), 12.0)
 
+    # ------------------------------------------------------------------
+    # additional_cost_eur
+    # ------------------------------------------------------------------
+
+    def test_no_additional_cost_when_first_leg_not_set(self):
+        order = self._make_order(boxes=[], total_weight=2000)
+        mock_post = self._post(order)  # first_leg=None
+        payload = mock_post.call_args[1]['json']
+        self.assertNotIn('additional_cost_eur', payload)
+
+    def test_single_box_additional_cost_eur(self):
+        # no box → actual weight 2000 g = 2.0 kg; first_leg=5.0 → 10.0
+        order = self._make_order(boxes=[], total_weight=2000)
+        mock_post = self._post(order, first_leg=5.0)
+        payload = mock_post.call_args[1]['json']
+        self.assertAlmostEqual(float(payload['additional_cost_eur']), 10.0)
+
+    def test_single_box_additional_cost_eur_uses_volumetric_when_heavier(self):
+        # 50×40×30 → 12.0 kg vol > actual 1.0 kg; first_leg=2.0 → 24.0
+        box = self._make_box(50, 40, 30)
+        order = self._make_order(boxes=[box], total_weight=1000)
+        mock_post = self._post(order, first_leg=2.0)
+        payload = mock_post.call_args[1]['json']
+        self.assertAlmostEqual(float(payload['additional_cost_eur']), 24.0)
+
+    def test_multi_box_additional_cost_eur_per_unit(self):
+        # 2 boxes, total_weight=4000 g → 2.0 kg each (vol 0.2 < actual); first_leg=3.0 → 6.0
+        box1 = self._make_box(10, 10, 10)
+        box2 = self._make_box(10, 10, 10)
+        order = self._make_order(boxes=[box1, box2], total_weight=4000)
+        mock_post = self._post(order, first_leg=3.0)
+        for payload in self._all_payloads(mock_post):
+            self.assertAlmostEqual(float(payload['additional_cost_eur']), 6.0)
+
     def test_non_separate_shipping_skipped(self):
         order = self._make_order()
         from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
@@ -467,3 +505,73 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
             content_type='application/json',
         )
         self.assertIn(res.status_code, [401, 403])
+
+    # ------------------------------------------------------------------
+    # GET /<id>/settings
+    # ------------------------------------------------------------------
+
+    def test_get_settings_returns_none_when_not_configured(self):
+        res = self.client.get('/api/v1/admin/shipping/separate/10/settings')
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(res.json['currency'])
+        self.assertIsNone(res.json['first_leg'])
+
+    def test_get_settings_returns_stored_values(self):
+        from app.settings.models.setting import Setting
+        db.session.add(Setting(key='shipping.separate.10.currency', value='KRW'))
+        db.session.add(Setting(key='shipping.separate.10.first_leg', value='1.5'))
+        db.session.commit()
+        res = self.client.get('/api/v1/admin/shipping/separate/10/settings')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['currency'], 'KRW')
+        self.assertEqual(res.json['first_leg'], '1.5')
+
+    def test_get_settings_not_found(self):
+        res = self.client.get('/api/v1/admin/shipping/separate/999/settings')
+        self.assertEqual(res.status_code, 404)
+
+    # ------------------------------------------------------------------
+    # POST /<id>/settings
+    # ------------------------------------------------------------------
+
+    def test_save_settings_creates_new_entries(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/settings',
+            json={'currency': 'KRW', 'first_leg': '1.5'},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        from app.settings.models.setting import Setting
+        self.assertEqual(Setting.get('shipping.separate.10.currency'), 'KRW')
+        self.assertEqual(Setting.get('shipping.separate.10.first_leg'), '1.5')
+
+    def test_save_settings_updates_existing(self):
+        from app.settings.models.setting import Setting
+        db.session.add(Setting(key='shipping.separate.10.currency', value='USD'))
+        db.session.commit()
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/10/settings',
+            json={'currency': 'KRW'},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Setting.get('shipping.separate.10.currency'), 'KRW')
+
+    def test_save_settings_partial_update_leaves_other_unchanged(self):
+        from app.settings.models.setting import Setting
+        db.session.add(Setting(key='shipping.separate.10.first_leg', value='2.0'))
+        db.session.commit()
+        self.client.post(
+            '/api/v1/admin/shipping/separate/10/settings',
+            json={'currency': 'EUR'},
+            content_type='application/json',
+        )
+        self.assertEqual(Setting.get('shipping.separate.10.first_leg'), '2.0')
+
+    def test_save_settings_not_found(self):
+        res = self.client.post(
+            '/api/v1/admin/shipping/separate/999/settings',
+            json={'currency': 'USD'},
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 404)

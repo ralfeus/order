@@ -184,6 +184,7 @@ def admin_save_shipping_method(shipping_method_id):
     )
     id = shipping_method.id
     db.session.commit() #type: ignore
+    cache.clear()
     if id == None:
         id = shipping_method.id
     db.session.expunge(shipping_method) #type: ignore

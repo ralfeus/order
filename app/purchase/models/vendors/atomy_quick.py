@@ -81,10 +81,10 @@ def select_address(page: Page, address_element: Locator, logger: logging.Logger=
     logger.debug("Address should be set now")
 
 
-def triage_error(message: str, page: Page, logger: logging.Logger=logging.root):
+def triage_error(message: str, page: Page, po: PurchaseOrder, logger: logging.Logger=logging.root):
     if ERROR_SHIPPING_INFO in message:
         logger.info("The shipping information is missing.")
-        verify_address_set(page, logger)
+        verify_address_set(page, po.address, logger)
     return
 
 def try_click(object: Locator, execute_criteria, retries=3, check_popups: bool=True,
@@ -190,8 +190,8 @@ def create_address(page: Page, address: Address, phone: str):
         sleep(1)
     return find_existing_address(page, address)
 
-def ensure_address_set(page, address_element, logger):
-    while not verify_address_set(page, logger):
+def ensure_address_set(page, address_element, address, logger):
+    while not verify_address_set(page, address, logger):
         logger.warning("Address was not set properly. Retrying...")
         try_click(
             page.locator('button[data-owns="lyr_pay_addr_lst"]'),
@@ -224,8 +224,8 @@ def get_receiver_name(purchase_order: PurchaseOrder, template: str) -> str:
     }
     return template.format(**parts)
 
-def update_address(address_element: Locator, name: str, detailed_address: str, 
-                   logger: logging.Logger):
+def update_address(address_element: Locator, name: str, address: Address, 
+                   logger: logging.Logger) -> Locator:
     logger.debug("Updating address name to %s", name)
     logger.debug("Finding the address edit button and clicking it")
     edit_window = address_element.page.locator('#lyr_pay_addr_add')
@@ -243,7 +243,7 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
     submit_button = edit_window.locator('#btnSubmit')
     if submit_button.is_disabled():
         logger.error("The detailed address is missing. Adding...")
-        fill(edit_window.locator('#dtlAddr'), detailed_address)
+        fill(edit_window.locator('#dtlAddr'), address.address_2)
         edit_window.locator('#dtlAddr').dispatch_event('keyup')          
     try_click(submit_button, 
               lambda: expect(edit_window).not_to_be_attached(), check_popups=False)
@@ -252,22 +252,27 @@ def update_address(address_element: Locator, name: str, detailed_address: str,
         for _ in range(5):
             try:
                 logger.debug("Verifying the address name is updated")
-                expect(address_element.locator('dt>b')).to_have_text(name, timeout=5000)
+                new_address_element = find_existing_address(address_element.page, address)
+                if new_address_element is None:
+                    raise Exception("The updated address is not found in the address list")
+                expect(new_address_element.locator('dt>b')).to_have_text(name, timeout=5000)
                 break
             except Exception as e:
                 logger.warning("The address name is not updated yet. Retrying...")
                 logger.warning(str(e))
                 sleep(1)
+    return new_address_element if new_address_element is not None else address_element
 
-def verify_address_set(page: Page, logger: logging.Logger):
+def verify_address_set(page: Page, address: Address, logger: logging.Logger):
     try:
-        address = page.evaluate("$('.address-base').css('display')")
+        address_element = page.evaluate("$('.address-base').css('display')")
         cartGroup = page.evaluate('() => new Promise(r => overpass.require.load(["__CARTGROUP__"], r))')
         deliForm = page.evaluate('() => new Promise(r => overpass.require.load(["__SHEET__"], r)).then(sheet => sheet.data.deliForm)')
         myCenter = page.evaluate('() =>  new Promise(r => overpass.require.load(["/common/const"], r)).then(c => c.VD_VEND_DELI_FORM_CD_MY_CENTER)')
         mbrInfo = page.evaluate('() => new Promise(r => overpass.require.load(["mbrInfo"], r))')
-        assert address != 'none', "The address block is not shown"
-        deliPriceLists = [ l.get('deliPriceList', []) for l in cartGroup.get('dlvpCartGroupList', []) ]
+        assert address_element != 'none', "The address block is not shown"
+        dlvpCartGroupList = cartGroup.get('dlvpCartGroupList', [])
+        deliPriceLists = [ l.get('deliPriceList', []) for l in dlvpCartGroupList ]
         # logger.debug(f"Delivery price lists: {deliPriceLists}")
         assert all([ len(l) > 0 for l in deliPriceLists ]), "The delivery price list is empty, probably because the shipping information is not set"
         if (deliForm == myCenter and mbrInfo.get('siteNo', '') in ['KZ', 'UZ']) \
@@ -277,7 +282,14 @@ def verify_address_set(page: Page, logger: logging.Logger):
             logger.debug(f'deliCostAmt: {deliPriceLists[0][0].get("deliCostAmt", 0)}')
             raise Exception(f"deliCostAmt is {deliPriceLists[0][0].get('deliCostAmt', 0)} "
                             "while the deliForm == myCenter and site is KZ or UZ")
-        
+        used_address = dlvpCartGroupList[0].get('address', {})
+        assert used_address.get('recvrBaseAddr', '') == address.address_1, \
+            "The receiver base address doesn't match the expected one"
+        assert used_address.get('recvrDtlAddr', '') == address.address_2, \
+            "The receiver detailed address doesn't match the expected one"
+        assert str(used_address.get('recvrPostNo', '')) == address.zip, \
+            "The receiver postal code doesn't match the expected one"
+
         return True
     except Exception as e:
         logger.warning("The shipping information is not properly set.")
@@ -318,6 +330,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
             _data_path = os.path.join(os.getcwd(), _data_path)
         self.__screenshots_path = os.path.join(_data_path, 'po')
         os.makedirs(self.__screenshots_path, exist_ok=True)
+        self.__video_path = os.path.join(_data_path, 'po', 'video')
         self._retries = 3
 
     def __str__(self):
@@ -333,18 +346,18 @@ class AtomyQuick(PurchaseOrderVendorBase):
             and the list of products that couldn't be ordered"""
         self._logger = self.__original_logger.getChild(purchase_order.id)
         # First check whether purchase date set is in acceptable bounds
-        if not self.__is_purchase_date_valid(purchase_order.purchase_date):
-            if purchase_order.purchase_date < datetime.now().date():
-                raise PurchaseOrderError(
-                    purchase_order, self,
-                    f"The purchase date {purchase_order.purchase_date} is not available"
-                )
-            self._logger.info(
-                "Skip <%s>: purchase date is %s",
-                purchase_order.id,
-                purchase_order.purchase_date,
-            )
-            return purchase_order, {}
+        # if not self.__is_purchase_date_valid(purchase_order.purchase_date):
+        #     if purchase_order.purchase_date < datetime.now().date():
+        #         raise PurchaseOrderError(
+        #             purchase_order, self,
+        #             f"The purchase date {purchase_order.purchase_date} is not available"
+        #         )
+        #     self._logger.info(
+        #         "Skip <%s>: purchase date is %s",
+        #         purchase_order.id,
+        #         purchase_order.purchase_date,
+        #     )
+        #     return purchase_order, {}
         self.__purchase_order = purchase_order
         self._logger.debug("Initializing playwright")
         with sync_playwright() as p:
@@ -362,7 +375,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     proxy={
                         "server": f"socks5://{self.__config['SOCKS5_PROXY']}"
                     } if self.__config.get('SOCKS5_PROXY') else None)
-            context = browser.new_context()
+            record_video = self.__config.get('PO_RECORD_VIDEO', False)
+            if record_video:
+                os.makedirs(self.__video_path, exist_ok=True)
+            context = browser.new_context(
+                record_video_dir=self.__video_path if record_video else None
+            )
             page = context.new_page()
             try:
                 page.set_viewport_size({"width": 1420, "height": 1080})
@@ -415,7 +433,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
                     self._logger.warning("Failed to take screenshot: %s", screenshot_ex)
                 raise ex
             finally:
+                video = page.video if record_video else None
                 context.close()
+                if video:
+                    try:
+                        target = os.path.join(
+                            self.__video_path, f'{purchase_order.id}.webm'
+                        )
+                        video.save_as(target)
+                        self._logger.info("Video saved to %s", target)
+                    except Exception as video_ex:
+                        self._logger.warning("Failed to save video: %s", video_ex)
                 browser.close()
 
         # Only way to reach here is the retry is needed
@@ -433,8 +461,8 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 close_btn.first.click(timeout=3000)
             except Exception:
                 pass
-        page.fill("#login_id", purchase_order.customer.username)
-        page.fill("#login_pw", purchase_order.customer.password)
+        page.fill("#login_id", str(purchase_order.customer.username))
+        page.fill("#login_pw", str(purchase_order.customer.password))
         page.click(".login_btn button")
         # Race: resolve when alert appears OR login form disappears.
         # Returns 'alert' or 'form_gone' so we know which condition triggered
@@ -653,10 +681,15 @@ class AtomyQuick(PurchaseOrderVendorBase):
             raise ProductNotAvailableError(product_id, "Not found")
         if product_count > 1 and product_count < 15:
             raise ProductNotAvailableError(product_id, "More than one product found")
-        if product_count >= 15:
-            self._logger.info("The result isn't shown yet")
-            while product.count() >= 15:
+        for _ in range(15):
+            if product.count() >= 15:
+                self._logger.info("The result isn't shown yet")
                 sleep(1)
+            else:
+                break
+        if product.count() >= 15:
+            raise ProductNotAvailableError(product_id, 
+                    "The result has too many products, probably not loaded properly")
         product_info_attr = product.get_attribute('data-goodsinfo')
         product_info = json.loads(product_info_attr) #type: ignore
         button = page.locator('button[cart-role="btn-solo"]')
@@ -879,16 +912,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 self._logger.debug("No address found, creating:")
                 self._logger.debug(address.to_dict())
                 address_element = create_address(page, address, phone)
-            update_address(address_element, 
+            address_element = update_address(address_element, 
                 name=get_receiver_name(self.__purchase_order, 
                     self.__config.get("ATOMY_RECEIVER_NAME_FORMAT", "{company} {id1}")),
-                detailed_address=address.address_2,
+                address=address,
                 logger=self._logger)
             self._logger.debug("Selecting the address")
             select_address(page, address_element, self._logger)
             sleep(2)
             self._logger.debug("Ensuring the address is set")
-            ensure_address_set(page, address_element, self._logger)
+            ensure_address_set(page, address_element, address, self._logger)
 
         except PurchaseOrderError:
             raise
@@ -966,7 +999,7 @@ class AtomyQuick(PurchaseOrderVendorBase):
         sleep(1)
         if message.count() > 0:
             # Some error happened. As I don't know what exactly, retry the PO
-            triage_error(message.text_content() or '', page)
+            triage_error(message.text_content() or '', page, self.__purchase_order)
             self._logger.error("Couldn't submit the order: %s", message.text_content())
             raise PurchaseOrderError(self.__purchase_order, self,
                 message.text_content() or "Unknown error", screenshot=True, retry=True)

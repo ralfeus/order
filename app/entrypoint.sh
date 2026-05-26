@@ -2,7 +2,7 @@
 set -e
 
 if [ "$CELERY" = "1" ]; then
-    exec celery -A app.worker worker --loglevel=INFO --concurrency 2 -E -B \
+    exec celery -A app.worker worker --loglevel=INFO --concurrency ${CELERY_WORKERS:-1} -E -B \
          --schedule-filename /tmp/celerybeat-schedule \
          --queues "$CELERY_QUEUE"
 else

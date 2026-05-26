@@ -201,3 +201,19 @@ class TestShippingAPI(BaseTestCase):
         self.assertIn('Shipping1', data['error'])
         # Shipping method must still exist
         self.assertIsNotNone(db.session.get(Shipping, 1))
+
+    def test_cache_cleared_when_shipping_method_disabled(self):
+        """Disabling a shipping method must invalidate the shipping methods cache."""
+        # Populate the cache by fetching available methods as a logged-in user
+        res = self.try_user_operation(lambda: self.client.get('/api/v1/shipping'))
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(any(m['id'] == 1 for m in res.get_json()))
+
+        # Disable the shipping method via admin API
+        self.try_admin_operation(
+            lambda: self.client.post('/api/v1/admin/shipping/1', json={'enabled': False}),
+        )
+
+        # The cache must have been cleared; the only method is now disabled → 409
+        res = self.client.get('/api/v1/shipping')
+        self.assertEqual(res.status_code, 409)

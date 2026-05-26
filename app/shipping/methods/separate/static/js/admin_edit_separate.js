@@ -6,15 +6,20 @@ let enabledCodes = new Set();
 
 async function loadData() {
     try {
-        const [allRes, enabledRes] = await Promise.all([
+        const [allRes, enabledRes, settingsRes] = await Promise.all([
             fetch('/api/v1/country'),
             fetch(`/api/v1/admin/shipping/separate/${shippingId}/countries`),
+            fetch(`/api/v1/admin/shipping/separate/${shippingId}/settings`),
         ]);
-        if (!allRes.ok || !enabledRes.ok) throw new Error('Failed to load data');
+        if (!allRes.ok || !enabledRes.ok || !settingsRes.ok) throw new Error('Failed to load data');
 
-        const allCountries = await allRes.json();   // [{id, name, ...}, ...]
-        const enabledList  = await enabledRes.json(); // ['DE', 'FR', ...]
+        const allCountries = await allRes.json();
+        const enabledList  = await enabledRes.json();
+        const settings     = await settingsRes.json();
         enabledCodes = new Set(enabledList);
+
+        if (settings.currency) document.getElementById('shipper-currency').value = settings.currency;
+        if (settings.first_leg) document.getElementById('first-leg-rate').value = settings.first_leg;
 
         renderCountries(allCountries);
     } catch (err) {
@@ -57,15 +62,29 @@ document.getElementById('separate-form').addEventListener('submit', async functi
         document.querySelectorAll('#country-list input[type=checkbox]:checked')
     ).map(cb => cb.value);
 
+    const currency  = document.getElementById('shipper-currency').value.trim();
+    const first_leg = document.getElementById('first-leg-rate').value.trim();
+
     try {
-        const res = await fetch(`/api/v1/admin/shipping/separate/${shippingId}/countries`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ countries: selected }),
-        });
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
+        const [countriesRes, settingsRes] = await Promise.all([
+            fetch(`/api/v1/admin/shipping/separate/${shippingId}/countries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ countries: selected }),
+            }),
+            fetch(`/api/v1/admin/shipping/separate/${shippingId}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currency: currency || null, first_leg: first_leg || null }),
+            }),
+        ]);
+        if (!countriesRes.ok) {
+            const data = await countriesRes.json().catch(() => ({}));
             throw new Error(data.error ?? 'Save failed');
+        }
+        if (!settingsRes.ok) {
+            const data = await settingsRes.json().catch(() => ({}));
+            throw new Error(data.error ?? 'Settings save failed');
         }
         window.location.href = '/admin/shipping/';
     } catch (err) {

@@ -4,6 +4,7 @@ from flask_security import login_required, roles_required
 
 from app import db
 from app.models.country import Country
+from app.settings.models.setting import Setting
 from app.shipping.models.shipping_rate import ShippingRate
 
 from .. import bp_api_admin
@@ -71,3 +72,48 @@ def save_countries(shipping_id):
 
     db.session.commit()
     return jsonify(sorted(new_codes))
+
+
+_SETTING_FIELDS = ('currency', 'first_leg')
+
+
+@bp_api_admin.route('/<int:shipping_id>/settings', methods=['GET'])
+@login_required
+@roles_required('admin')
+def get_settings(shipping_id):
+    '''Return shipper currency and first-leg rate for this shipping method.'''
+    if not db.session.get(SeparateShipping, shipping_id):
+        return jsonify({'error': f'Shipping {shipping_id} not found'}), 404
+    return jsonify({
+        field: Setting.get(f'shipping.separate.{shipping_id}.{field}')
+        for field in _SETTING_FIELDS
+    })
+
+
+@bp_api_admin.route('/<int:shipping_id>/settings', methods=['POST'])
+@login_required
+@roles_required('admin')
+def save_settings(shipping_id):
+    '''Save shipper currency and/or first-leg rate for this shipping method.
+
+    Expects JSON body with any subset of: ``{"currency": "USD", "first_leg": "1.5"}``
+    '''
+    if not db.session.get(SeparateShipping, shipping_id):
+        return jsonify({'error': f'Shipping {shipping_id} not found'}), 404
+
+    payload = request.get_json() or {}
+    result = {}
+    for field in _SETTING_FIELDS:
+        if field not in payload:
+            continue
+        key = f'shipping.separate.{shipping_id}.{field}'
+        value = str(payload[field]) if payload[field] is not None else None
+        setting = db.session.get(Setting, key)
+        if setting is None:
+            setting = Setting(key=key, value=value)
+            db.session.add(setting)
+        else:
+            setting.value = value
+        result[field] = value
+    db.session.commit()
+    return jsonify(result)

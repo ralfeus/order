@@ -36,6 +36,7 @@
     "PROFILER": true,
 
     "PO_POSTING_DELAY_SECONDS": 0,
+    "PO_RECORD_VIDEO": true,
     "OM_QUEUE_SERVER": "localhost",
     "CELERY_QUEUE": "order",
     "ATOMY_CENTER": true,

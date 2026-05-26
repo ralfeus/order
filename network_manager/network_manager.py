@@ -113,6 +113,7 @@ def start_builder():
             },
             network=BUILDER_NETWORK,
             extra_hosts={'host.docker.internal': 'host-gateway'},
+            volumes={'builder-output': {'bind': '/app/output', 'mode': 'rw'}},
             detach=True,
             auto_remove=True,
         )

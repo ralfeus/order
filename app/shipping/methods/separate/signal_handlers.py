@@ -4,6 +4,8 @@ import logging
 import requests
 from flask import current_app
 
+from app.settings.models.setting import Setting
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,14 +39,20 @@ def on_sale_order_shipped(order, **_extra):
     eurocargo_base_url = current_app.config.get('EUROCARGO_BASE_URL', 'http://localhost:3000')
     eurocargo_api_key = current_app.config.get('EUROCARGO_API_KEY', 'supersecretkey')
 
+    shipping_id = order.shipping.id
+    first_leg_raw = Setting.get(f'shipping.separate.{shipping_id}.first_leg')
+    first_leg = float(first_leg_raw) if first_leg_raw else None
+
     is_multi_box = len(order.boxes) > 1 or (
         len(order.boxes) == 1 and order.boxes[0].quantity > 1
     )
 
     if is_multi_box:
-        _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, eurocargo_api_key)
+        _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url,
+                                    eurocargo_api_key, first_leg=first_leg)
     else:
-        _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url, eurocargo_api_key)
+        _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url,
+                                eurocargo_api_key, first_leg=first_leg)
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +97,8 @@ def _common_fields(order):
     }
 
 
-def _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url, api_key=''):
+def _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url, api_key='',
+                            first_leg=None):
     '''Single physical box (or no box info): one shipment with the original order_id.'''
     weight_kg = round(order.total_weight / 1000, 3)
 
@@ -102,17 +111,22 @@ def _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url, api_ke
     if order.boxes:
         box = order.boxes[0]
         vol_kg = _volumetric_kg(box)
-        payload['weight_kg'] = str(round(max(weight_kg, vol_kg), 3))
+        weight_kg = round(max(weight_kg, vol_kg), 3)
+        payload['weight_kg'] = str(weight_kg)
         if box.length and box.width and box.height:
             payload['length_cm'] = box.length
             payload['width_cm'] = box.width
             payload['height_cm'] = box.height
 
+    if first_leg is not None:
+        payload['additional_cost_eur'] = str(round(weight_kg * first_leg, 2))
+
     _post_shipment(order, order.id, payload, eurocargo_api_url, eurocargo_base_url,
                    store_url=True, api_key=api_key)
 
 
-def _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, api_key=''):
+def _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, api_key='',
+                                first_leg=None):
     '''Multiple physical boxes: one shipment per unit, order_id = <order_id>-<seq>.'''
     total_units = sum(b.quantity for b in order.boxes)
     content_weight_per_unit_kg = order.total_weight / 1000 / total_units
@@ -132,6 +146,9 @@ def _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, ap
             payload['length_cm'] = box.length
             payload['width_cm'] = box.width
             payload['height_cm'] = box.height
+
+        if first_leg is not None:
+            payload['additional_cost_eur'] = str(round(unit_weight_kg * first_leg, 2))
 
         _post_shipment(order, shipment_order_id, payload,
                        eurocargo_api_url, eurocargo_base_url,

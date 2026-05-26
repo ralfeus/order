@@ -156,40 +156,41 @@ def post_purchase_orders(self, po_id=None):
                 continue
 
             try:
-                subcustomer = db.session.execute( #type: ignore
+                subcustomers = db.session.execute( #type: ignore
                     select(Subcustomer).where(Subcustomer.username == username)
-                ).scalar_one_or_none()
-                if not subcustomer:
+                ).scalars().all()
+                if not subcustomers:
                     logger.warning("[%s] Subcustomer not found for username %s",
                                    worker_id, username)
                     continue
 
-                # Loop: keep posting until no "posting" POs remain for this customer.
-                # Other tasks may pre-mark additional POs while we are busy here,
-                # so we re-check after every batch.
-                while True:
-                    if not po_id:
-                        # Batch mode: claim any remaining pending POs under the lock.
-                        db.session.execute( #type: ignore
-                            update(PurchaseOrder)
-                            .where(
-                                PurchaseOrder.customer_id == subcustomer.id,
-                                PurchaseOrder.status == PurchaseOrderStatus.pending
+                for subcustomer in subcustomers:
+                    # Loop: keep posting until no "posting" POs remain for this customer.
+                    # Other tasks may pre-mark additional POs while we are busy here,
+                    # so we re-check after every batch.
+                    while True:
+                        if not po_id:
+                            # Batch mode: claim any remaining pending POs under the lock.
+                            db.session.execute( #type: ignore
+                                update(PurchaseOrder)
+                                .where(
+                                    PurchaseOrder.customer_id == subcustomer.id,
+                                    PurchaseOrder.status == PurchaseOrderStatus.pending
+                                )
+                                .values(status=PurchaseOrderStatus.posting)
                             )
-                            .values(status=PurchaseOrderStatus.posting)
-                        )
-                        db.session.commit() #type: ignore
+                            db.session.commit() #type: ignore
 
-                    posting_pos = _get_posting_pos_for_customer(
-                        subcustomer.id, worker_id, logger)
-                    if not posting_pos:
-                        logger.info("[%s] No more posting POs for customer %s",
-                                    worker_id, username)
-                        break
+                        posting_pos = _get_posting_pos_for_customer(
+                            subcustomer.id, worker_id, logger)
+                        if not posting_pos:
+                            logger.info("[%s] No more posting POs for customer %s",
+                                        worker_id, username)
+                            break
 
-                    logger.info("[%s] Posting following POs for customer %s", worker_id, username)
-                    logger.info("\n" + "\n".join([f"- {po.id}" for po in posting_pos]))
-                    _post_claimed_pos(posting_pos, username, worker_id, logger)
+                        logger.info("[%s] Posting following POs for customer %s", worker_id, username)
+                        logger.info("\n" + "\n".join([f"- {po.id}" for po in posting_pos]))
+                        _post_claimed_pos(posting_pos, username, worker_id, logger)
 
             finally:
                 lock_conn.execute(
