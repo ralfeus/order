@@ -1,7 +1,10 @@
 from datetime import datetime
+from io import BytesIO
+import os
 
 from tests import BaseTestCase, db
 from app.models import Country
+from app.models.file import File
 from app.currencies.models import Currency
 from app.orders.models.order import Order
 from app.orders.models.order_product import OrderProduct
@@ -218,3 +221,117 @@ class TestProductsApi(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self.client.delete(f"/api/v1/admin/product/{gen_id}")
         )
+
+    def _upload_image(self, product_id, data=b"\x89PNG\r\n\x1a\nfake", filename="pic.png"):
+        return self.client.post(
+            f"/api/v1/admin/product/{product_id}/image",
+            data={"file": (BytesIO(data), filename)},
+            content_type="multipart/form-data",
+        )
+
+    def _remove_stored_file(self, url_path):
+        from app.tools import get_products_path
+        path = get_products_path(url_path.split("/products/", 1)[1])
+        if os.path.exists(path):
+            os.remove(path)
+        return path
+
+    def test_upload_product_image(self):
+        res = self.try_admin_operation(lambda: self._upload_image("0000"))
+        self.assertEqual(res.status_code, 200)
+        product = db.session.get(Product, "0000")
+        self.assertIsNotNone(product.image)
+        self.assertEqual(product.image.file_name, "pic.png")
+        self.assertTrue(product.image.path.startswith("/products/0000-"))
+        self.assertTrue(product.image.path.endswith(".png"))
+        self.assertEqual(res.json["image"], product.image.path)
+        stored = self._remove_stored_file(product.image.path)
+        self.assertTrue(stored.endswith(".png"))
+
+    def test_upload_product_image_writes_file(self):
+        self.try_admin_operation(lambda: self._upload_image("0000", data=b"content"))
+        product = db.session.get(Product, "0000")
+        from app.tools import get_products_path
+        path = get_products_path(product.image.path.split("/products/", 1)[1])
+        try:
+            with open(path, "rb") as f:
+                self.assertEqual(f.read(), b"content")
+        finally:
+            self._remove_stored_file(product.image.path)
+
+    def test_upload_product_image_replaces_existing(self):
+        self.try_admin_operation(lambda: self._upload_image("0000", filename="a.png"))
+        first_path = db.session.get(Product, "0000").image.path
+        res = self._upload_image("0000", filename="b.jpg")
+        self.assertEqual(res.status_code, 200)
+        product = db.session.get(Product, "0000")
+        self.assertEqual(product.image.file_name, "b.jpg")
+        self.assertNotEqual(product.image.path, first_path)
+        # Old file is kept on disk
+        from app.tools import get_products_path
+        self.assertTrue(os.path.exists(
+            get_products_path(first_path.split("/products/", 1)[1])))
+        self._remove_stored_file(first_path)
+        self._remove_stored_file(product.image.path)
+
+    def test_upload_product_image_unknown_product(self):
+        res = self.try_admin_operation(lambda: self._upload_image("nonexistent"))
+        self.assertEqual(res.status_code, 404)
+
+    def test_upload_product_image_no_file(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product/0000/image",
+            data={}, content_type="multipart/form-data"))
+        self.assertEqual(res.status_code, 400)
+        self.assertIsNone(db.session.get(Product, "0000").image)
+
+    def test_upload_product_image_bad_extension(self):
+        res = self.try_admin_operation(
+            lambda: self._upload_image("0000", filename="evil.html"))
+        self.assertEqual(res.status_code, 400)
+        self.assertIsNone(db.session.get(Product, "0000").image)
+
+    def test_upload_product_image_too_large(self):
+        res = self.try_admin_operation(lambda: self._upload_image(
+            "0000", data=b"0" * (5 * 1024 * 1024 + 1)))
+        self.assertEqual(res.status_code, 413)
+        self.assertIsNone(db.session.get(Product, "0000").image)
+
+    def test_delete_product_image(self):
+        self.try_add_entities([
+            File(id=2222, file_name="x.png", path="/products/x.png")])
+        product = db.session.get(Product, "0000")
+        product.image_id = 2222
+        db.session.commit()
+        res = self.try_admin_operation(
+            lambda: self.client.delete("/api/v1/admin/product/0000/image"))
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertEqual(res.json["image"], "/static/images/no_image.jpg")
+
+    def test_delete_product_image_unknown_product(self):
+        res = self.try_admin_operation(
+            lambda: self.client.delete("/api/v1/admin/product/nonexistent/image"))
+        self.assertEqual(res.status_code, 404)
+
+    def test_upload_product_image_uppercase_extension(self):
+        res = self.try_admin_operation(
+            lambda: self._upload_image("0000", filename="PIC.PNG"))
+        self.assertEqual(res.status_code, 200)
+        product = db.session.get(Product, "0000")
+        self.assertTrue(product.image.path.endswith(".png"))
+        self._remove_stored_file(product.image.path)
+
+    def test_upload_product_image_max_size(self):
+        res = self.try_admin_operation(lambda: self._upload_image(
+            "0000", data=b"0" * (5 * 1024 * 1024)))
+        self.assertEqual(res.status_code, 200)
+        self._remove_stored_file(db.session.get(Product, "0000").image.path)
+
+    def test_product_image_forbidden_for_user(self):
+        self.login(self.user.username, "1")
+        res = self._upload_image("0000")
+        self.assertEqual(res.status_code, 403)
+        res = self.client.delete("/api/v1/admin/product/0000/image")
+        self.assertEqual(res.status_code, 403)
+        self.assertIsNone(db.session.get(Product, "0000").image)

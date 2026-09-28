@@ -6,6 +6,7 @@ from tests import BaseTestCase
 from app import db
 import app.jobs as jobs
 import app.products.models as p
+from app.models.file import File
     
 class TestJobs(BaseTestCase):
     def setUp(self):
@@ -80,3 +81,20 @@ class TestJobs(BaseTestCase):
         jobs.import_products()
         product = db.session.get(p.Product, '000')
         self.assertEqual(product.vendor_id, '000')
+    @patch('app.jobs.save_image')
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_keeps_uploaded_image(self, get_atomy_products, save_image):
+        get_atomy_products.return_value = [{
+            'id': '000', 'atomy_id': '000', 'name': 'Test product',
+            'price': 10, 'points': 10, 'available': True,
+            'image_url': 'https://image.atomy.com/vendor.jpg'
+        }]
+        self.try_add_entity(p.Product(
+            id='000', vendor_id='000', name='Test product', price=10, points=10,
+            available=True, synchronize=True,
+            image=File(file_name='mine.png', path='/products/000-uploaded.png')
+        ))
+        jobs.import_products()
+        save_image.assert_not_called()
+        product = db.session.get(p.Product, '000')
+        self.assertEqual(product.image.path, '/products/000-uploaded.png')

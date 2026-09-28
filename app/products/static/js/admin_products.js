@@ -5,6 +5,11 @@ var g_filter_sources = {
     'purchase': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
 };
 var g_shipping_methods;
+var NO_IMAGE = '/static/images/no_image.jpg';
+var IMAGE_MAX_SIZE = 5 * 1024 * 1024;
+// Picture change requested in the editor: null - no change,
+// File - upload new picture, false - remove picture
+var g_image_change = null;
 
 $(document).ready(function() {
     get_dictionaries()
@@ -66,6 +71,66 @@ function format ( d ) {
 
 }
 
+function init_image_field(editor) {
+    g_image_change = null;
+    var row = editor.mode() === 'edit' ? table_row_data(editor) : null;
+    var image = row ? row.image : NO_IMAGE;
+    $('#image-preview').attr('src', image);
+    $('#image-remove').toggle(image !== NO_IMAGE);
+    $('#image-file')
+        .val('')
+        .off('change')
+        .on('change', event => {
+            var file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            if (file.size > IMAGE_MAX_SIZE) {
+                modal("Product picture", "Picture must not exceed 5 MB");
+                event.target.value = '';
+                return;
+            }
+            g_image_change = file;
+            $('#image-preview').attr('src', URL.createObjectURL(file));
+            $('#image-remove').show();
+        });
+    $('#image-remove')
+        .off('click')
+        .on('click', () => {
+            g_image_change = false;
+            $('#image-file').val('');
+            $('#image-preview').attr('src', NO_IMAGE);
+            $('#image-remove').hide();
+        });
+}
+
+function table_row_data(editor) {
+    var rows = $('#products').DataTable().rows(editor.modifier()).data();
+    return rows.length === 1 ? rows[0] : null;
+}
+
+function save_image(product_id, product) {
+    var change = g_image_change;
+    g_image_change = null;
+    var url = '/api/v1/admin/product/' + encodeURIComponent(product_id) + '/image';
+    if (change === null) {
+        return Promise.resolve(product);
+    }
+    if (change === false) {
+        return Promise.resolve($.ajax({url: url, method: 'delete', dataType: 'json'}));
+    }
+    var form = new FormData();
+    form.append('file', change);
+    return Promise.resolve($.ajax({
+        url: url,
+        method: 'post',
+        dataType: 'json',
+        data: form,
+        processData: false,
+        contentType: false
+    }));
+}
+
 function init_table() {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
@@ -89,7 +154,15 @@ function init_table() {
                 dataType: 'json',
                 contentType: 'application/json',
                 data: JSON.stringify(target),
-                success: data => {success(({data: [data]}))},
+                success: data => {
+                    save_image(product_id, data)
+                        .then(data => success({data: [data]}))
+                        .catch(xhr => {
+                            modal("Product picture update error", xhr.responseText);
+                            // Product itself is saved, so show it anyway
+                            success({data: [data]});
+                        });
+                },
                 error: (xhr, err, thrown) => {
                     modal(
                         "Product update error", 
@@ -155,6 +228,7 @@ function init_table() {
         } else {
             editor.field('id').enable();
         }
+        init_image_field(editor);
         $('#color-text').on('change', () => {
             editor.field('color').val($('#color-text').val());
         })

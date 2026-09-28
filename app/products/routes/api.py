@@ -1,6 +1,7 @@
 from app.shipping.models.shipping import Shipping
 from datetime import datetime
 from decimal import Decimal
+import os
 
 from flask import Response, abort, jsonify, request
 from flask_security import login_required, roles_required
@@ -9,9 +10,14 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app import db
+from app.models.file import File
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
-from app.tools import modify_object, prepare_datatables_query
+from app.tools import get_products_path, modify_object, \
+    prepare_datatables_query, write_to_file
+
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+IMAGE_MAX_SIZE = 5 * 1024 * 1024
 
 
 @bp_api_user.route('', defaults={'product_id': None})
@@ -145,6 +151,47 @@ def save_product(product_id):
 
     db.session.commit()
 
+    return jsonify(product.to_dict(details=True))
+
+
+@bp_api_admin.route('/<product_id>/image', methods=['POST'])
+@login_required
+@roles_required('admin')
+def upload_product_image(product_id):
+    '''Sets product image from uploaded file. Previous image file is kept'''
+    product = db.session.get(Product, product_id)
+    if product is None:
+        abort(Response(f"No product with code <{product_id}> was found", status=404))
+    file = request.files.get('file')
+    if file is None or not file.filename:
+        abort(Response('No file is uploaded', status=400))
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in IMAGE_EXTENSIONS:
+        abort(Response(
+            f"Unsupported image type <{ext}>. Allowed: "
+            f"{', '.join(sorted(IMAGE_EXTENSIONS))}", status=400))
+    image_data = file.stream.read(IMAGE_MAX_SIZE + 1)
+    if len(image_data) > IMAGE_MAX_SIZE:
+        abort(Response('Image is larger than 5 MB', status=413))
+    file_name = f"{product_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}{ext}"
+    write_to_file(get_products_path(file_name), image_data)
+    product.image = File(file_name=file.filename, path=f'/products/{file_name}')
+    product.when_changed = datetime.now()
+    db.session.commit()
+    return jsonify(product.to_dict(details=True))
+
+
+@bp_api_admin.route('/<product_id>/image', methods=['DELETE'])
+@login_required
+@roles_required('admin')
+def delete_product_image(product_id):
+    '''Removes image from product. Image file is kept'''
+    product = db.session.get(Product, product_id)
+    if product is None:
+        abort(Response(f"No product with code <{product_id}> was found", status=404))
+    product.image = None
+    product.when_changed = datetime.now()
+    db.session.commit()
     return jsonify(product.to_dict(details=True))
 
 
