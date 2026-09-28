@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any
+import math
+from typing import Any, Callable, Optional
 from flask.globals import current_app
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -48,6 +49,46 @@ def set_currency():
     current_user.currency_code = code
     db.session.commit()
     return jsonify({'currency_code': code})
+
+
+def _validate_catalog_country(value) -> Optional[str]:
+    from app.models import Country
+    if not isinstance(value, str) or db.session.get(Country, value) is None:
+        return f'Unknown country: {value}'
+    return None
+
+def _validate_catalog_markup(value) -> Optional[str]:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) \
+       or not math.isfinite(value) or value <= 0:
+        return f'Markup must be a positive number: {value}'
+    return None
+
+_preference_validators: dict[str, Callable[[Any], Optional[str]]] = {
+    'catalog_country': _validate_catalog_country,
+    'catalog_markup': _validate_catalog_markup,
+}
+
+@bp_api_user.route('/preferences', methods=['POST'])
+@login_required
+def set_preferences():
+    '''Store non-essential preferences (e.g. catalog calculation base)
+    in current user's profile. Payload is applied only if all fields are valid'''
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or not payload:
+        return jsonify({'error': 'No preferences provided'}), 400
+    errors = [
+        _preference_validators[key](value) if key in _preference_validators
+        else f'Unknown preference: {key}'
+        for key, value in payload.items()
+    ]
+    errors = [error for error in errors if error]
+    if errors:
+        return jsonify({'error': '; '.join(errors)}), 400
+    profile = current_user.get_profile()
+    profile.update(payload)
+    current_user.set_profile(profile)
+    db.session.commit()
+    return jsonify(payload)
 
 
 @bp_api_user.route('/signup', methods=['POST'])

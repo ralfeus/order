@@ -35,6 +35,21 @@ def get_product(product_id):
     abort(Response(error_message, status=404))
 
 
+@bp_api_user.route('/catalog')
+@login_required
+def get_catalog():
+    '''Returns available products for the end-user catalog.
+    Prices are in base currency, weight in grams'''
+    products = Product.query.filter_by(available=True)
+    return jsonify([{
+        'id': product.id,
+        'name': product.name_english or product.name,
+        'image': product.to_dict()['image'],
+        'price': product.price or 0,
+        'weight': product.weight or 0
+    } for product in products])
+
+
 @bp_api_user.route('/search/<term>')
 @login_required
 def get_product_by_term(term):

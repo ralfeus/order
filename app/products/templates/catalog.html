@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .catalog-toolbar { gap: 1rem; }
+    .catalog-toolbar .form-select { min-width: 14rem; }
+    .catalog-toolbar .markup-input { width: 7rem; }
+    #catalog .product-cell { display: flex; align-items: center; gap: .75rem; min-width: 16rem; }
+    #catalog .product-thumb {
+        width: 48px; height: 48px; flex: 0 0 48px;
+        object-fit: cover; border-radius: .375rem; background: var(--bs-light);
+    }
+    #catalog .product-name { font-weight: 600; line-height: 1.25; }
+    #catalog .product-id { font-size: .8125rem; color: var(--bs-secondary); }
+    #catalog td.money, #catalog th.money { text-align: right; white-space: nowrap; }
+    #catalog td.money-total, #catalog td.money-recommended { font-weight: 600; }
+    #catalog td.money-recommended { color: var(--bs-success); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const EMS_SHIPPING_ID = {{ ems_shipping_id | tojson }};
+    const CATALOG_PARCEL_WEIGHT = 10000;
+    let catalogMarkup = {{ catalog_markup | tojson }};
+    let catalogCountry = {{ catalog_country | tojson }};
+    var base_country = {{ base_country | tojson }};
+    var USER_CURRENCY_CODE = "{{ user_currency.code if user_currency else '' }}";
+</script>
+<script src="{{ url_for('products_client_catalog.static', filename='js/catalog.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap align-items-end justify-content-between mb-3 catalog-toolbar">
+        <div>
+            <h1 class="h3 mb-1">Product catalog</h1>
+            <p class="text-muted mb-0 small">
+                Prices in {{ user_currency.code if user_currency else '' }}.
+                Delivery is the product's share (by weight) of a 10&nbsp;kg EMS parcel.
+            </p>
+        </div>
+        <div class="d-flex flex-wrap align-items-end catalog-toolbar">
+            <div>
+                <label for="catalog-country" class="form-label small mb-1">Delivery country</label>
+                <select id="catalog-country" class="form-select" disabled></select>
+            </div>
+            <div>
+                <label for="catalog-markup" class="form-label small mb-1">Markup ×</label>
+                <input id="catalog-markup" class="form-control markup-input" type="number"
+                       min="0.01" step="0.05" value="{{ catalog_markup }}" />
+            </div>
+        </div>
+    </div>
+    <div id="catalog-alert" class="alert alert-warning d-none" role="alert"></div>
+    <table id="catalog" class="table table-hover align-middle w-100">
+        <thead>
+            <tr>
+                <th scope="col">Product</th>
+                <th scope="col" class="money">Price</th>
+                <th scope="col" class="money">Delivery</th>
+                <th scope="col" class="money">Total</th>
+                <th scope="col" class="money">Recommended price</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+{% endblock %}

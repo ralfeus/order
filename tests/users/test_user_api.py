@@ -5,6 +5,7 @@ from tests import BaseTestCase, db
 
 from flask_security import current_user
 
+from app.models import Country
 from app.orders.models.order import Order
 from app.settings.models import Setting
 from app.users.models.role import Role
@@ -124,6 +125,58 @@ class TestAdminApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         data = json.loads(res.data)
         self.assertTrue(data['permanent_consent'])
+
+    def test_set_preferences(self):
+        self.try_add_entities([Country(id='de', name='Germany')])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/user/preferences', json={
+                'catalog_country': 'de', 'catalog_markup': 1.5
+            }),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json, {'catalog_country': 'de', 'catalog_markup': 1.5})
+        profile = db.session.get(User, 10).get_profile()
+        self.assertEqual(profile['catalog_country'], 'de')
+        self.assertEqual(profile['catalog_markup'], 1.5)
+
+    def test_set_preferences_keeps_other_profile_data(self):
+        self.try_add_entities([Country(id='de', name='Germany')])
+        user = db.session.get(User, 10)
+        user.set_profile({'disclaimer_permanent_consent': True, 'catalog_markup': 2})
+        db.session.commit()
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/user/preferences',
+                                     json={'catalog_country': 'de'}),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        profile = db.session.get(User, 10).get_profile()
+        self.assertTrue(profile['disclaimer_permanent_consent'])
+        self.assertEqual(profile['catalog_markup'], 2)
+        self.assertEqual(profile['catalog_country'], 'de')
+
+    def test_set_preferences_invalid(self):
+        self.try_add_entities([Country(id='de', name='Germany')])
+        self.login('user1', '1')
+        for payload in [
+            None,
+            {},
+            {'catalog_country': 'xx'},
+            {'catalog_country': 5},
+            {'catalog_markup': 0},
+            {'catalog_markup': -1},
+            {'catalog_markup': '2'},
+            {'catalog_markup': True},
+            {'catalog_markup': float('inf')},
+            {'unknown': 1},
+            # Whole payload is rejected if any field is invalid
+            {'catalog_country': 'de', 'catalog_markup': 0},
+        ]:
+            with self.subTest(payload=payload):
+                res = self.client.post('/api/v1/user/preferences', json=payload)
+                self.assertEqual(res.status_code, 400)
+        self.assertNotIn('catalog_country', db.session.get(User, 10).get_profile())
 
     def test_signup(self):
         with self.client:

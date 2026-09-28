@@ -13,6 +13,13 @@ upgrade:
 	sudo systemctl reload order.*
 	sudo supervisorctl restart all
 
+test:
+	python -m pytest tests
+
+# Browser tests. Require Chromium: python -m playwright install chromium
+test-e2e:
+	python -m pytest e2e
+
 analyze:
 	coverage run -m pytest tests
 	coverage xml

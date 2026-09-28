@@ -42,6 +42,31 @@ class TestProductsApi(BaseTestCase):
             ]
         )
 
+    def test_get_catalog(self):
+        self.try_add_entities([
+            Product(id="0001", name="Korean name", name_english="English name",
+                    price=20, weight=500),
+            Product(id="0002", name="Unavailable", price=30, available=False),
+        ])
+        res = self.try_user_operation(lambda: self.client.get("/api/v1/product/catalog"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(
+            sorted(res.json, key=lambda p: p['id']),
+            [
+                {"id": "0000", "name": "Test product", "price": 10, "weight": 10,
+                 "image": "/static/images/no_image.jpg"},
+                {"id": "0001", "name": "English name", "price": 20, "weight": 500,
+                 "image": "/static/images/no_image.jpg"},
+            ]
+        )
+
+    def test_get_catalog_empty(self):
+        Product.query.delete()
+        db.session.commit()
+        res = self.try_user_operation(lambda: self.client.get("/api/v1/product/catalog"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json, [])
+
     def test_get_products(self):
         res = self.try_user_operation(lambda: self.client.get("/api/v1/product"))
         self.assertEqual(
