@@ -178,6 +178,35 @@ class TestAdminApi(BaseTestCase):
                 self.assertEqual(res.status_code, 400)
         self.assertNotIn('catalog_country', db.session.get(User, 10).get_profile())
 
+    def test_set_preferences_shipping(self):
+        from app.shipping.models.shipping import Shipping
+        self.try_add_entities([Shipping(id=5, name='Carrier', enabled=True)])
+        res = self.try_user_operation(
+            lambda: self.client.post('/api/v1/user/preferences',
+                                     json={'catalog_shipping': 5}),
+            user_name='user1'
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(
+            db.session.get(User, 10).get_profile()['catalog_shipping'], 5)
+
+    def test_set_preferences_shipping_invalid(self):
+        from app.shipping.models.shipping import (
+            NoShipping, PostponeShipping, Shipping)
+        self.try_add_entities([
+            Shipping(id=5, name='Disabled', enabled=False),
+            NoShipping(id=6, enabled=True),
+            PostponeShipping(id=7, enabled=True),
+            Shipping(id=8, name='Carrier', enabled=True)
+        ])
+        self.login('user1', '1')
+        for value in [5, 6, 7, 999, '8', True, None, 8.0]:
+            with self.subTest(value=value):
+                res = self.client.post('/api/v1/user/preferences',
+                                       json={'catalog_shipping': value})
+                self.assertEqual(res.status_code, 400)
+        self.assertNotIn('catalog_shipping', db.session.get(User, 10).get_profile())
+
     def test_signup(self):
         with self.client:
             res = self.client.post(

@@ -47,30 +47,46 @@ class TestProductsClient(BaseTestCase):
 
     def test_catalog(self):
         from app.shipping.methods.ems.models.ems import EMS
+        from app.shipping.models.shipping import (
+            NoShipping, PostponeShipping, Shipping)
         self._add_base_currency()
-        self.try_add_entities([EMS(id=77, name='EMS', enabled=True)])
+        self.try_add_entities([
+            EMS(id=77, name='EMS', enabled=True),
+            Shipping(id=78, name='Cargo', enabled=True),
+            Shipping(id=79, name='Disabled', enabled=False),
+            NoShipping(id=80, enabled=True),
+            PostponeShipping(id=81, enabled=True)
+        ])
         res = self.try_user_operation(lambda: self.client.get('/catalog'))
         self.assertEqual(res.status_code, 200)
         page = res.get_data(as_text=True)
+        # Only enabled real carriers, sorted by name
+        self.assertIn('const SHIPPING_METHODS = [{"id": 78, "name": "Cargo"}, '
+                      '{"id": 77, "name": "EMS"}];', page)
         self.assertIn('const EMS_SHIPPING_ID = 77;', page)
         self.assertIn('let catalogMarkup = 1;', page)
         self.assertIn('let catalogCountry = null;', page)
+        self.assertIn('let catalogShipping = null;', page)
 
     def test_catalog_saved_preferences(self):
         self._add_base_currency()
-        self.user.set_profile({'catalog_country': 'DE', 'catalog_markup': 1.5})
+        self.user.set_profile({'catalog_country': 'DE', 'catalog_markup': 1.5,
+                               'catalog_shipping': 78})
         db.session.commit()
         res = self.try_user_operation(lambda: self.client.get('/catalog'))
         self.assertEqual(res.status_code, 200)
         page = res.get_data(as_text=True)
         self.assertIn('let catalogMarkup = 1.5;', page)
         self.assertIn('let catalogCountry = "DE";', page)
+        self.assertIn('let catalogShipping = 78;', page)
 
-    def test_catalog_no_ems(self):
+    def test_catalog_no_shipping_methods(self):
         self._add_base_currency()
         res = self.try_user_operation(lambda: self.client.get('/catalog'))
         self.assertEqual(res.status_code, 200)
-        self.assertIn('const EMS_SHIPPING_ID = null;', res.get_data(as_text=True))
+        page = res.get_data(as_text=True)
+        self.assertIn('const SHIPPING_METHODS = [];', page)
+        self.assertIn('const EMS_SHIPPING_ID = null;', page)
 
     def test_admin_products_list(self):
         res = self.try_admin_operation(

@@ -1,11 +1,12 @@
 /*
  * End-user product catalog.
- * Delivery cost of a product is its share (by weight) of a 10kg EMS parcel
- * to the chosen country. All amounts come in base currency and are converted
+ * Delivery cost of a product is its share (by weight) of a 10kg parcel
+ * sent by the chosen shipping method to the chosen country. All amounts come in base currency and are converted
  * to the user's currency the same way as on the new order page.
  */
 var currencyRates = {};
-var parcelRate = null; // EMS rate of 10kg parcel in base currency, null if unknown
+var parcelRate = null; // rate of 10kg parcel in base currency, null if unknown
+var rateUnavailable = null; // reason why the rate is unknown, shown as a tooltip
 var rateRequestId = 0;
 var catalogTable;
 
@@ -19,8 +20,10 @@ $(document).ready(async () => {
         currencyRates[currency.code] = currency.rate;
     }
     init_country_select(countries);
+    init_shipping_select();
     init_table(products);
     $('#catalog-country').on('change', country_changed);
+    $('#catalog-shipping').on('change', shipping_changed);
     $('#catalog-markup').on('change', markup_changed);
     await update_parcel_rate();
 });
@@ -35,6 +38,22 @@ function init_country_select(countries) {
         catalogCountry = select.val();
     }
     select.prop('disabled', false);
+}
+
+/**
+ * Preselects the saved shipping method if it's still available,
+ * otherwise EMS, otherwise the first one
+ */
+function init_shipping_select() {
+    const select = $('#catalog-shipping');
+    select.html(SHIPPING_METHODS.map(s =>
+        `<option value="${escape_html(s.id)}">${escape_html(s.name)}</option>`));
+    const ids = SHIPPING_METHODS.map(s => s.id);
+    if (!ids.includes(catalogShipping)) {
+        catalogShipping = ids.includes(EMS_SHIPPING_ID) ? EMS_SHIPPING_ID : (ids[0] ?? null);
+    }
+    select.val(catalogShipping);
+    select.prop('disabled', SHIPPING_METHODS.length == 0);
 }
 
 function init_table(products) {
@@ -69,6 +88,9 @@ function init_table(products) {
                 render: (product, type) => {
                     if (type == 'display' && parcelRate !== null && !product.weight) {
                         return '<span class="text-muted" title="Weight unknown">—</span>';
+                    }
+                    if (type == 'display' && parcelRate === null && rateUnavailable) {
+                        return `<span class="text-muted" title="${escape_html(rateUnavailable)}">n/a</span>`;
                     }
                     return render_money(calc_prices(product).delivery, type);
                 }
@@ -116,26 +138,33 @@ function render_money(amount_base, type) {
 async function update_parcel_rate() {
     const requestId = ++rateRequestId;
     const country = catalogCountry;
+    const shipping = catalogShipping;
     let rate = null;
     let error = null;
-    if (EMS_SHIPPING_ID === null) {
-        error = 'EMS delivery is not available. Delivery costs can\'t be estimated.';
+    let unavailable = null;
+    if (shipping === null) {
+        error = 'No shipping methods are available. Delivery costs can\'t be estimated.';
     } else if (country) {
         try {
             const response = await fetch(
-                `/api/v1/shipping/rate/${country}/${EMS_SHIPPING_ID}/${CATALOG_PARCEL_WEIGHT}`);
+                `/api/v1/shipping/rate/${country}/${shipping}/${CATALOG_PARCEL_WEIGHT}`);
             if (response.ok) {
                 rate = (await response.json()).shipping_cost;
             } else {
-                error = `There is no EMS delivery to ${$('#catalog-country option:selected').text()}. ` +
+                const shippingName = $('#catalog-shipping option:selected').text();
+                const countryName = $('#catalog-country option:selected').text();
+                unavailable = `${shippingName} doesn't deliver to ${countryName}`;
+                error = `There is no ${shippingName} delivery to ${countryName}. ` +
                         'Delivery costs can\'t be estimated.';
             }
         } catch (e) {
             error = 'Couldn\'t get delivery rate. Try again later.';
         }
     }
-    if (requestId != rateRequestId) return; // a newer country was selected meanwhile
+    // a newer country or shipping method was selected meanwhile
+    if (requestId != rateRequestId) return;
     parcelRate = rate;
+    rateUnavailable = unavailable;
     show_alert(error);
     redraw();
 }
@@ -143,6 +172,12 @@ async function update_parcel_rate() {
 async function country_changed() {
     catalogCountry = $('#catalog-country').val();
     save_preferences({ catalog_country: catalogCountry });
+    await update_parcel_rate();
+}
+
+async function shipping_changed() {
+    catalogShipping = parseInt($('#catalog-shipping').val());
+    save_preferences({ catalog_shipping: catalogShipping });
     await update_parcel_rate();
 }
 

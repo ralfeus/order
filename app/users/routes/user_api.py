@@ -63,9 +63,18 @@ def _validate_catalog_markup(value) -> Optional[str]:
         return f'Markup must be a positive number: {value}'
     return None
 
+def _validate_catalog_shipping(value) -> Optional[str]:
+    from app.shipping.models.shipping import NoShipping, Shipping
+    shipping = db.session.get(Shipping, value) \
+        if isinstance(value, int) and not isinstance(value, bool) else None
+    if shipping is None or not shipping.enabled or isinstance(shipping, NoShipping):
+        return f'Unknown shipping method: {value}'
+    return None
+
 _preference_validators: dict[str, Callable[[Any], Optional[str]]] = {
     'catalog_country': _validate_catalog_country,
     'catalog_markup': _validate_catalog_markup,
+    'catalog_shipping': _validate_catalog_shipping,
 }
 
 @bp_api_user.route('/preferences', methods=['POST'])
