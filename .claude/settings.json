@@ -8,10 +8,7 @@
       "Write",
       "Bash",
       "WebFetch"
-    ],
-    "deny": [
-      "Bash(git push *)"
-    ]
+    ]  
   },
   "mcpServers": {
     "dhl-api-assistant": {
