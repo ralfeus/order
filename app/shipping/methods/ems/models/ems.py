@@ -82,29 +82,23 @@ class EMS(Shipping):
         from .. import bp_client_admin
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
-    def can_ship(self, country: str, weight: int, products: list[str] = []) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
         logger = logging.getLogger("EMS::can_ship()")
         if not self._are_all_products_shippable(products):
             logger.debug(f"Not all products are shippable to {country}")
             return False
-        if weight and weight > 30000:
-            logger.debug(f"The parcel is too heavy: {weight}g")
-            return False
+        if not weight:
+            weight = 1
         if country is None:
             return True
 
         try:
-            rates = get_rates(country)
-        except:
-            rates = []
-        rates = [rate for rate in rates if weight is None or rate["weight"] >= weight]
-        
-        rate_exists = len(rates) > 0
-        if rate_exists:
+            rates = self.get_shipping_cost(country.id, weight) #type: ignore
             logger.debug(f"There is a rate to country {country}. Can ship")
-        else:
+        except:
+            rates = None
             logger.debug(f"There is no rate to country {country}. Can't ship")
-        return rate_exists
+        return rates is not None
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
                 recipient: Address, rcpt_contact: ShippingContact,
@@ -417,26 +411,27 @@ def __get_rates(country, url: str) -> list[dict]:
     if country_code == 'LT':
         country_code = 'PL'
     try:
-        result = get_json(url=url.format(country_code), retry=False, ignore_ssl_check=True)
+        result = get_json(url=url.format(country_code), retry=False, 
+                          ignore_ssl_check=True, timeout=5)
         rates: list[dict] = result["charge_info"]
         weight_limit = int(result["country_info"]["weight_limit"]) * 1000
         return [
-            {"weight": int(rate["code_name2"]), "rate": int(rate["charge"])}
+            {"weight": int(rate["code_name"]), "rate": int(rate["charge"])}
             for rate in rates
-            if int(rate["code_name2"]) <= weight_limit or weight_limit == 0
+            if int(rate["code_name"]) <= weight_limit or weight_limit == 0
         ]
     except:
         raise NoShippingRateError
 
 
-def get_rates(country):
+def get_rate(country, weight):
     return __get_rates(
-        country, f'{BASE_URL}/common/emsChargeList/type/EMS/country/{{}}'
+        country, f'{BASE_URL}/common/emsChargeList/type/EMS/country/{{}}/weight/{weight}'
     )
 
 
-def get_premium_rates(country):
+def get_premium_rate(country, weight):
     return __get_rates(
         country,
-        f'{BASE_URL}/common/emsChargeList/type/PREMIUM/country/{{}}',
+        f'{BASE_URL}/common/emsChargeList/type/PREMIUM/country/{{}}/weight/{weight}',
     )

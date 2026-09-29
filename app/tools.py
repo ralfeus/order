@@ -207,7 +207,7 @@ def stream_and_close(file_handle):
 
 def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
                 method='GET', use_proxy: bool=True, retries=2,
-                ignore_ssl_check=False) -> tuple[str, str]:
+                ignore_ssl_check=False, timeout=60) -> tuple[str, str]:
     '''Calls curl and returns its stdout and stderr'''
     _logger = logging.root.getChild('invoke_curl')
     headers_list = list(itertools.chain.from_iterable([
@@ -218,6 +218,7 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         ['--socks5', current_app.config.get('SOCKS5_PROXY')] #type: ignore
             if use_proxy and current_app.config.get('SOCKS5_PROXY') is not None else [])
     ignore_ssl_check_param = ['-k'] if ignore_ssl_check else []
+    timeout_param = ['--max-time', str(timeout)] if timeout else []
     if raw_data and method == 'GET':
         method = 'POST'
     run_params = [ #type: ignore
@@ -227,7 +228,8 @@ def invoke_curl(url: str, raw_data: str='', headers: list[dict[str, str]]=[],
         '-v',
         '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
         '--compressed' # need this for cases that response is zipped
-        ] + headers_list + raw_data_param + socks5_proxy_param + ignore_ssl_check_param
+        ] + headers_list + raw_data_param + socks5_proxy_param \
+          + ignore_ssl_check_param + timeout_param
     _logger.debug(' '.join(run_params))
     try:
         for _ in range(retries + 1):
@@ -267,14 +269,14 @@ def get_html(url, raw_data: str='', headers: list=[], method='GET', retry=True,
     raise HTTPError(f"Couldn't get page {url}: {stderr}")
 
 def get_json(url, raw_data=None, headers: list=[], method='GET', retry=True, 
-             get_data: Callable=invoke_curl, ignore_ssl_check=False
+             get_data: Callable=invoke_curl, ignore_ssl_check=False, timeout=60
              ) -> dict[str, Any]:
     content_type = [h for h in headers if list(h.keys())[0].lower() == 'content-type']
     stdout, stderr = get_data(url, method=method, raw_data=raw_data,
         headers=headers + ([{'Content-Type': 'application/json'}]
                            if len(content_type) == 0 else []), 
         retries=3 if retry else 0, 
-        ignore_ssl_check=ignore_ssl_check)
+        ignore_ssl_check=ignore_ssl_check, timeout=timeout)
     try:
         return json.loads(stdout)
     except:

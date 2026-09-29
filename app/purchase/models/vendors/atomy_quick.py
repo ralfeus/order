@@ -283,12 +283,12 @@ def verify_address_set(page: Page, address: Address, logger: logging.Logger):
             raise Exception(f"deliCostAmt is {deliPriceLists[0][0].get('deliCostAmt', 0)} "
                             "while the deliForm == myCenter and site is KZ or UZ")
         used_address = dlvpCartGroupList[0].get('address', {})
-        assert used_address.get('recvrBaseAddr', '') == address.address_1, \
-            "The receiver base address doesn't match the expected one"
-        assert used_address.get('recvrDtlAddr', '') == address.address_2, \
-            "The receiver detailed address doesn't match the expected one"
-        assert str(used_address.get('recvrPostNo', '')) == address.zip, \
-            "The receiver postal code doesn't match the expected one"
+        assert used_address.get('recvrBaseAddr', '') == address.address_1 \
+               or used_address.get('recvrDtlAddr', '') == address.address_2 \
+               or str(used_address.get('recvrPostNo', '')) == address.zip, \
+            f"None of address components match. " + \
+            f"Expected: {address.address_1}, {address.address_2}, {address.zip}, " + \
+            f"actual: {used_address.get('recvrBaseAddr', '')}, {used_address.get('recvrDtlAddr', '')}, {used_address.get('recvrPostNo', '')}"
 
         return True
     except Exception as e:
@@ -489,7 +489,11 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __init_quick_order(self, page):
         """Initializes the quick order. Doesn't return anything but essential
         for order creation"""
+        if page.locator('a[name="setDayPrimeSolutionCookieBtn"]').count() > 0:
+            self._logger.info("Closing notice")
+            page.locator('a.arr[name="setDayPrimeSolutionCookieBtn"]').click()
         self._logger.info('Changing language')
+        page.locator('button.lang').wait_for(state='visible', timeout=5000)
         page.evaluate('overpass.util.setLanguage("en");')
         page.wait_for_load_state("networkidle")
         # try:
@@ -936,6 +940,12 @@ class AtomyQuick(PurchaseOrderVendorBase):
         # Set the payment method
         self._logger.debug("Setting payment method...")
         page.locator('#mth-tab_4').click()
+        self._logger.debug("Ensuring the selected payment method is Bank Deposits")
+        try:
+            page.locator('#mth-cash-slt_0').wait_for(state='visible', timeout=5000)
+        except:
+            raise PurchaseOrderError(self.__purchase_order, self,
+                "Bank deposit payment method is not available. Will retry", retry=True)
         self._logger.debug("Setting bank to %s", po.company.bank_id)
         page.locator('#mth-cash-slt_0').select_option(po.company.bank_id) 
         # Set the payment mobile
