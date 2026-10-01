@@ -111,3 +111,75 @@ def test_too_large_picture_is_rejected(admin_page: Page):
     expect(admin_page.locator('.modal-title')).to_have_text('Product picture')
     expect(admin_page.locator('#image-preview')).to_have_attribute('src', NO_IMAGE)
     expect(admin_page.locator('#image-file')).to_have_value('')
+
+
+@pytest.fixture
+def shared_id_page(admin_page: Page) -> Page:
+    '''Products of two vendors with the same ID'''
+    db.session.add(Product(id='A1', vendor='AtomyAza', name='AZA product', price=200))
+    db.session.commit()
+    admin_page.reload()
+    expect(admin_page.locator('#products tbody tr')).to_have_count(2)
+    return admin_page
+
+
+def product(key: str):
+    db.session.expire_all()
+    return Product.get_by_key(key)
+
+
+def row(page: Page, text: str):
+    return page.locator('#products tbody tr', has_text=text)
+
+
+def test_name_shows_vendor(admin_page: Page):
+    expect(row(admin_page, 'Product A').locator('td').nth(2)).to_have_text(
+        '(Atomy) Product A')
+
+
+def test_edit_product_of_vendor_with_shared_id(shared_id_page: Page):
+    row(shared_id_page, '(AtomyAza)').locator('td').nth(1).click()
+    shared_id_page.get_by_role('button', name='Edit').click()
+    expect(shared_id_page.locator('div.DTE')).to_be_visible()
+    shared_id_page.locator('div.DTE input[id$="_name"]').first.fill('AZA renamed')
+    submit_editor(shared_id_page)
+
+    assert product('AtomyAza:A1').name == 'AZA renamed'
+    assert product('Atomy:A1').name == 'Product A'
+    expect(row(shared_id_page, '(AtomyAza)').locator('td').nth(2)).to_have_text(
+        '(AtomyAza) AZA renamed')
+
+
+def test_picture_of_vendor_with_shared_id(shared_id_page: Page, cleanup_images):
+    row(shared_id_page, '(AtomyAza)').locator('td').nth(1).click()
+    shared_id_page.get_by_role('button', name='Edit').click()
+    shared_id_page.locator('#image-file').set_input_files(
+        files=[{'name': 'pic.png', 'mimeType': 'image/png', 'buffer': PNG}])
+    submit_editor(shared_id_page)
+
+    image = product('AtomyAza:A1').image
+    assert image is not None
+    cleanup_images.append(image.path)
+    assert product('Atomy:A1').image is None
+
+
+def test_details_save_of_vendor_with_shared_id(shared_id_page: Page):
+    row(shared_id_page, '(AtomyAza)').locator('td.details-control').click()
+    details = shared_id_page.locator('tr:not(.shown) .product-details')
+    expect(details).to_be_visible()
+    details.locator('#name_english').fill('AZA english')
+    details.locator('.btn-save').click()
+
+    expect(row(shared_id_page, '(AtomyAza)').locator('td').nth(3)).to_have_text('AZA english')
+    assert product('AtomyAza:A1').name_english == 'AZA english'
+    assert product('Atomy:A1').name_english is None
+
+
+def test_delete_product_of_vendor_with_shared_id(shared_id_page: Page):
+    row(shared_id_page, '(AtomyAza)').locator('td').nth(1).click()
+    shared_id_page.get_by_role('button', name='Delete').click()
+    shared_id_page.locator('div.DTE button', has_text='Delete').click()
+    expect(row(shared_id_page, '(AtomyAza)')).to_have_count(0)
+
+    assert product('AtomyAza:A1') is None
+    assert product('Atomy:A1') is not None

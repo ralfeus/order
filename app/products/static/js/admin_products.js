@@ -20,7 +20,7 @@ function delete_product(rows) {
     rows.every(function() {
         var row = this
         $.ajax({
-            url: '/api/v1/admin/product/' + row.data().id,
+            url: product_url(row.data().key),
             method: 'delete',
             success: function() {
                 row.remove().draw();
@@ -30,6 +30,11 @@ function delete_product(rows) {
             }
         });
     });
+}
+
+// Products are addressed by key "<vendor>:<id>" as ID may be the same in several vendors
+function product_url(product_key) {
+    return '/api/v1/admin/product/' + encodeURIComponent(product_key);
 }
 
 async function get_dictionaries() {
@@ -109,10 +114,10 @@ function table_row_data(editor) {
     return rows.length === 1 ? rows[0] : null;
 }
 
-function save_image(product_id, product) {
+function save_image(product) {
     var change = g_image_change;
     g_image_change = null;
-    var url = '/api/v1/admin/product/' + encodeURIComponent(product_id) + '/image';
+    var url = product_url(product.key) + '/image';
     if (change === null) {
         return Promise.resolve(product);
     }
@@ -134,13 +139,12 @@ function save_image(product_id, product) {
 function init_table() {
     var editor = new $.fn.dataTable.Editor({
         ajax: (_method, _url, data, success, error) => {
-            var product_id = Object.entries(data.data)[0][0];
+            var product_key = Object.entries(data.data)[0][0];
             var target = Object.entries(data.data)[0][1];
             var method = 'post';
-            var url = '/api/v1/admin/product/' + product_id;
+            var url = product_url(product_key);
             if (data.action === 'create') {
-                var url = '/api/v1/admin/product';
-                product_id = target.id;
+                url = '/api/v1/admin/product';
             } else if (data.action === 'remove') {
                 method = 'delete';
             }
@@ -155,7 +159,7 @@ function init_table() {
                 contentType: 'application/json',
                 data: JSON.stringify(target),
                 success: data => {
-                    save_image(product_id, data)
+                    save_image(data)
                         .then(data => success({data: [data]}))
                         .catch(xhr => {
                             modal("Product picture update error", xhr.responseText);
@@ -173,7 +177,7 @@ function init_table() {
         },
         table: '#products',
         template: '#product-form',
-        idSrc: 'id',
+        idSrc: 'key',
         fields: [
             {label: 'Product ID', name: 'id'},
             {label: 'Name', name: 'name'},
@@ -257,7 +261,12 @@ function init_table() {
                 "defaultContent": ''
             },
             {name: 'id', data: 'id'},
-            {data: 'name'},
+            {
+                data: 'name',
+                render: (data, type, row) => type === 'display'
+                    ? `(${row.vendor}) ${data || ''}`
+                    : data
+            },
             {data: 'name_english'},
             {data: 'weight'},
             {data: 'price'},
@@ -300,7 +309,6 @@ function init_table() {
             $('.btn-save').on('click', function() {
                 var product_node = $(this).closest('.product-details');
                 var data = {
-                    id: row.data().id,
                     name: $('#name', product_node).val(),
                     name_english: $('#name_english', product_node).val(),
                     name_russian: $('#name_russian', product_node).val(),
@@ -312,7 +320,7 @@ function init_table() {
                 };
                 $('.wait').show();
                 $.ajax({
-                    url: '/api/v1/admin/product',
+                    url: product_url(row.data().key),
                     method: 'post',
                     dataType: 'json',
                     contentType: 'application/json',
@@ -320,8 +328,8 @@ function init_table() {
                     complete: function() {
                         $('.wait').hide();
                     },
-                    success: function() {
-                        row.data(data).draw();
+                    success: function(product) {
+                        row.data(product).draw();
                     }
                 })
             })
