@@ -31,10 +31,8 @@ def get_product(product_id):
     error_message = None
     if product_id:
         error_message = f"No product with code <{product_id}> was found"
-        stripped_id = product_id.lstrip('0')
-        products = Product.query.filter(Product.id.endswith(stripped_id))
-        products = [product for product in products
-                    if product.id.lstrip('0') == stripped_id]
+        # Same code may exist in several vendors so all are returned
+        products = Product.find_all_by_code(product_id)
     else:
         error_message = "There are no products in store now"
         products = Product.query.all()

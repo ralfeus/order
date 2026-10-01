@@ -8,7 +8,7 @@ from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from flask import current_app
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, or_, select
+from sqlalchemy import Boolean, Column, Integer, String, Text, select
 from sqlalchemy.orm import relationship, reconstructor
 from sqlalchemy.sql.schema import ForeignKey
 
@@ -60,22 +60,20 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         self.__init__()
 
     def _are_all_products_shippable(self, products: list[str]):
+        '''Products are product keys or codes. A code may match products
+        of several vendors, then all of them must be shippable'''
         from app.products.models.product import Product
-        product_ids: list[str] = []
-        for product_id in products:
-            product_ids += [product_id, product_id.zfill(6)]
-        if products:
-            shippable_products = Product.query.filter(
-                Product.id.in_(product_ids),
-                or_(
-                    Product.available_shipping.any(Shipping.id == self.id),
-                    Product.available_shipping == None))
-            non_shippable_products = [
-                p for p in products if p not in [sp.id for sp in shippable_products]
-            ]
-            logging.debug(f"These products are not shippable by {self}: {non_shippable_products}")
-            return shippable_products.count() == len(products)
-        return True
+        non_shippable_products = []
+        for code in products:
+            matching_products = Product.find_all_by_code(code)
+            if not matching_products or not all(
+                    len(p.available_shipping) == 0 or self in p.available_shipping
+                    for p in matching_products):
+                non_shippable_products.append(code)
+        if non_shippable_products:
+            logging.debug("These products are not shippable by %s: %s",
+                          self, non_shippable_products)
+        return len(non_shippable_products) == 0
 
     def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
         if not self._are_all_products_shippable(products):

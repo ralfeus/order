@@ -119,19 +119,23 @@ class Product(db.Model, BaseModel): #type: ignore
         return cls._single(query.all(), identifier)
 
     @classmethod
-    def find_by_code(cls, code: str) -> Product | None:
-        '''Finds product by code typed by a user. The code is either
+    def find_all_by_code(cls, code: str) -> list[Product]:
+        '''Finds products by code typed by a user. The code is either
         a product ID looked up across all vendors or "<vendor>:<id>".
-        Leading zeros of the ID are ignored.
-        Raises AmbiguousProductError if the code matches several products'''
+        Leading zeros of the ID are ignored'''
         vendor, product_id = cls.split_key(code)
         query = cls.query
         if vendor is not None:
             query = query.filter_by(vendor=vendor)
         stripped_id = product_id.lstrip('0')
-        products = [product for product in query.filter(cls.id.endswith(stripped_id))
-                    if product.id.lstrip('0') == stripped_id]
-        return cls._single(products, code)
+        return [product for product in query.filter(cls.id.endswith(stripped_id))
+                if product.id.lstrip('0') == stripped_id]
+
+    @classmethod
+    def find_by_code(cls, code: str) -> Product | None:
+        '''Finds product by code typed by a user (see find_all_by_code).
+        Raises AmbiguousProductError if the code matches several products'''
+        return cls._single(cls.find_all_by_code(code), code)
 
     @staticmethod
     def get_product_by_id(product_id):

@@ -226,6 +226,18 @@ class TestProductsApi(BaseTestCase):
             lambda: self.client.delete(f"/api/v1/admin/product/{gen_id}")
         )
 
+    def test_get_product_by_code_of_several_vendors(self):
+        self.try_add_entities([
+            Product(id='0000', vendor='AtomyAza', name='AZA product', price=20)])
+        res = self.try_user_operation(lambda: self.client.get("/api/v1/product/0"))
+        self.assertEqual(sorted(p['key'] for p in res.json), ['Atomy:0000', 'AtomyAza:0000'])
+        res = self.client.get("/api/v1/product/AtomyAza:0000")
+        self.assertEqual([p['key'] for p in res.json], ['AtomyAza:0000'])
+        res = self.client.get("/api/v1/product/AtomyAza:0")
+        self.assertEqual([p['key'] for p in res.json], ['AtomyAza:0000'])
+        res = self.client.get("/api/v1/product/AtomyAza:999")
+        self.assertEqual(res.status_code, 404)
+
     def test_admin_get_product_by_key(self):
         res = self.try_admin_operation(
             lambda: self.client.get("/api/v1/admin/product/Atomy:0000"))
