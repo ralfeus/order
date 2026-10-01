@@ -21,6 +21,7 @@ from app.invoices.models.invoice import Invoice
 from app.invoices.models.invoice_item import InvoiceItem
 from app.invoices.validators.invoice import InvoiceValidator
 from app.orders.models.order import Order
+from app.products.models.product import AmbiguousProductError, Product
 from app.tools import modify_object, prepare_datatables_query, stream_and_close
 
 
@@ -131,6 +132,8 @@ def get_invoice_order_products(invoice: Invoice):
             ii.product.name_russian if ii.product.name_russian else ii.product.name,
             ii.product.weight,
             ii.price,
+            # Products of different vendors may have the same ID
+            ii.product_key,
         ),
         valuefunc=lambda op: op.quantity,
         reducefunc=sum,
@@ -354,7 +357,16 @@ def save_invoice_item(invoice_id, invoice_item_id):
     else:
         invoice_item = InvoiceItem(invoice=invoice, when_created=datetime.now())
 
-    modify_object(invoice_item, payload, ["product_id", "price", "quantity"])
+    if payload.get("product_id"):
+        # Product ID or product key
+        try:
+            product = Product.resolve(payload["product_id"])
+        except AmbiguousProductError as ex:
+            abort(Response(str(ex), status=409))
+        if product is None:
+            abort(Response(f"No product <{payload['product_id']}> was found", status=404))
+        invoice_item.product = product
+    modify_object(invoice_item, payload, ["price", "quantity"])
     if invoice_item_id == "new":
         db.session.add(invoice_item) #type: ignore
     db.session.commit() #type: ignore

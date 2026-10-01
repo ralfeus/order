@@ -119,13 +119,14 @@ class Invoice(db.Model):  # type: ignore
             total += invoice_item.price * invoice_item.quantity
             weight += invoice_item.product.weight * invoice_item.quantity \
                 if invoice_item.product is not None else 0
-            if invoice_items_dict.get(invoice_item.product_id):
-                invoice_items_dict[invoice_item.product_id]['quantity'] += invoice_item.quantity
-                invoice_items_dict[invoice_item.product_id]['subtotal'] = \
-                    round(invoice_items_dict[invoice_item.product_id]['subtotal'] +
+            product_key = invoice_item.product_key
+            if invoice_items_dict.get(product_key):
+                invoice_items_dict[product_key]['quantity'] += invoice_item.quantity
+                invoice_items_dict[product_key]['subtotal'] = \
+                    round(invoice_items_dict[product_key]['subtotal'] +
                           float(invoice_item.price * invoice_item.quantity), 2)
             else:
-                invoice_items_dict[invoice_item.product_id] = invoice_item.to_dict()
+                invoice_items_dict[product_key] = invoice_item.to_dict()
         # print(f"{self.id}: orders {','.join(map(lambda o: str(o.id), self.orders))}")
         is_dirty = False
         if not self.customer and self.orders:

@@ -31,6 +31,12 @@ class InvoiceItem(db.Model, BaseModel):
         resolve_product_reference(kwargs)
         super().__init__(**kwargs)
 
+    @property
+    def product_key(self) -> str:
+        '''Product key. Items without product (e.g. "SHIPPING") are identified by product ID.
+        Product is used as unsaved items (made from order products) have no vendor set yet'''
+        return self.product.key if self.product else self.product_id
+
     def __repr__(self):
         return f"<InvoiceItem: {self.id} - Invoice: {self.invoice_id}>"
 
@@ -46,6 +52,8 @@ class InvoiceItem(db.Model, BaseModel):
             'id': self.id,
             'invoice_id': self.invoice_id,
             'product_id': self.product_id,
+            'product_vendor': self.product.vendor if self.product else self.product_vendor,
+            'product_key': self.product_key,
             'product': name,
             'weight': weight,
             'price': float(self.price),
