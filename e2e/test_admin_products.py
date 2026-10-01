@@ -63,7 +63,7 @@ def submit_editor(page: Page):
 
 def product_image(product_id: str = 'A1'):
     db.session.expire_all()
-    return db.session.get(Product, product_id).image
+    return db.session.get(Product, (product_id, 'Atomy')).image
 
 
 def test_upload_picture(admin_page: Page, cleanup_images):
@@ -88,7 +88,7 @@ def test_upload_picture(admin_page: Page, cleanup_images):
 
 
 def test_remove_picture(admin_page: Page):
-    product = db.session.get(Product, 'A1')
+    product = db.session.get(Product, ('A1', 'Atomy'))
     product.image = File(file_name='old.png', path='/products/old.png')
     db.session.commit()
     admin_page.reload()

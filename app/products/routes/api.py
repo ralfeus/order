@@ -13,6 +13,8 @@ from app import db
 from app.models.file import File
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
+from app.products.models.product import (
+    DEFAULT_VENDOR, KEY_SEPARATOR, AmbiguousProductError)
 from app.tools import get_products_path, modify_object, \
     prepare_datatables_query, write_to_file
 
@@ -80,13 +82,16 @@ def admin_get_product(product_id):
     '''
     products = None
     if product_id:
+        vendor, product_id = Product.split_key(product_id)
         products = Product.query.filter_by(id=product_id)
+        if vendor is not None:
+            products = products.filter_by(vendor=vendor)
     else:
         products = Product.query
     if request.values.get('draw') is not None:  # Args were provided by DataTables
         return _filter_products(products, request.values)
     if request.values.get('initialValue') is not None:
-        sub = db.session.get(Product, request.values.get('value')[1:-1])
+        sub = _resolve_product(request.values.get('value')[1:-1])
         return jsonify(
             {'id': sub.id, 'text': sub.name}
             if sub is not None else {})
@@ -134,10 +139,10 @@ def save_product(product_id):
         else:
             product_id = payload['id']
 
-    product = db.session.get(Product, product_id)
+    product = _resolve_product(product_id)
     if not product:
-        product = Product()
-        product.id = product_id
+        vendor, product_id = Product.split_key(product_id)
+        product = Product(id=product_id, vendor=vendor or DEFAULT_VENDOR)
         db.session.add(product)
     if 'shipping' in payload.keys():
         product.available_shipping = []
@@ -159,7 +164,7 @@ def save_product(product_id):
 @roles_required('admin')
 def upload_product_image(product_id):
     '''Sets product image from uploaded file. Previous image file is kept'''
-    product = db.session.get(Product, product_id)
+    product = _resolve_product(product_id)
     if product is None:
         abort(Response(f"No product with code <{product_id}> was found", status=404))
     file = request.files.get('file')
@@ -173,7 +178,8 @@ def upload_product_image(product_id):
     image_data = file.stream.read(IMAGE_MAX_SIZE + 1)
     if len(image_data) > IMAGE_MAX_SIZE:
         abort(Response('Image is larger than 5 MB', status=413))
-    file_name = f"{product_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}{ext}"
+    safe_id = product.id.replace(KEY_SEPARATOR, '_')
+    file_name = f"{safe_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}{ext}"
     write_to_file(get_products_path(file_name), image_data)
     product.image = File(file_name=file.filename, path=f'/products/{file_name}')
     product.when_changed = datetime.now()
@@ -186,7 +192,7 @@ def upload_product_image(product_id):
 @roles_required('admin')
 def delete_product_image(product_id):
     '''Removes image from product. Image file is kept'''
-    product = db.session.get(Product, product_id)
+    product = _resolve_product(product_id)
     if product is None:
         abort(Response(f"No product with code <{product_id}> was found", status=404))
     product.image = None
@@ -202,17 +208,30 @@ def delete_product(product_id):
     '''
     Deletes a product by its product code
     '''
+    product = _resolve_product(product_id)
+    if product is None:
+        abort(Response(f"No product with code <{product_id}> was found", status=404))
     result = None
     try:
-        Product.query.filter_by(id=product_id).delete()
+        db.session.delete(product)
         db.session.commit()
         result = jsonify({
             'status': 'success'
         })
     except IntegrityError:
+        db.session.rollback()
         result = jsonify({
             'message': f"Can't delete product {product_id} as it's used in some orders"
         })
         result.status_code = 409
 
     return result
+
+
+def _resolve_product(identifier: str) -> Product | None:
+    '''Returns product by key or product ID.
+    Aborts with HTTP 409 if the product ID exists in several vendors'''
+    try:
+        return Product.resolve(identifier)
+    except AmbiguousProductError as ex:
+        abort(Response(str(ex), status=409))

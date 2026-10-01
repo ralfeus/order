@@ -79,7 +79,7 @@ class TestJobs(BaseTestCase):
             id='000', synchronize=True
         ))
         jobs.import_products()
-        product = db.session.get(p.Product, '000')
+        product = db.session.get(p.Product, ('000', 'Atomy'))
         self.assertEqual(product.vendor_id, '000')
     @patch('app.jobs.save_image')
     @patch('app.jobs.get_atomy_products')
@@ -96,5 +96,199 @@ class TestJobs(BaseTestCase):
         ))
         jobs.import_products()
         save_image.assert_not_called()
-        product = db.session.get(p.Product, '000')
+        product = db.session.get(p.Product, ('000', 'Atomy'))
         self.assertEqual(product.image.path, '/products/000-uploaded.png')
+
+
+def _item(product_id, **kwargs):
+    return {'id': product_id, 'vendor_id': product_id, 'name': f'Name {product_id}',
+            'price': 100, 'points': 10, 'available': True,
+            'image_url': f'https://img/{product_id}.jpg', **kwargs}
+
+
+@patch('app.jobs.save_image', return_value=('/products/x.jpg', 'x.jpg'))
+class TestSyncProducts(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        db.create_all()
+        self.try_add_entities([
+            p.Product(id='000123', vendor='Atomy', name='Atomy 123', price=1),
+            p.Product(id='000123', vendor='AtomyAza', name='AZA 123', price=2),
+            p.Product(id='555', vendor='AtomyAza', name='AZA 555', price=5),
+        ])
+
+    def _get(self, key):
+        db.session.expire_all()
+        return p.Product.get_by_key(key)
+
+    def test_atomy_import_keeps_other_vendors(self, _save_image):
+        with patch('app.jobs.get_atomy_products', return_value=[{
+                'id': '000999', 'atomy_id': '000999', 'name': 'New', 'price': 9,
+                'points': 1, 'available': True, 'image_url': ''}]):
+            jobs.import_products()
+        self.assertFalse(self._get('Atomy:000123').available)
+        self.assertTrue(self._get('AtomyAza:000123').available)
+        self.assertTrue(self._get('AtomyAza:555').available)
+        self.assertEqual(self._get('Atomy:000999').name, 'New')
+
+    def test_sync_vendor(self, _save_image):
+        jobs._sync_products('AtomyAza', [
+            _item('000123', name='Renamed', price=200),
+            _item('695221:4540592')
+        ])
+        self.assertEqual(self._get('AtomyAza:000123').name, 'Renamed')
+        self.assertEqual(self._get('AtomyAza:000123').price, 200)
+        self.assertEqual(self._get('AtomyAza:695221:4540592').vendor_id, '695221:4540592')
+        self.assertFalse(self._get('AtomyAza:555').available)
+        # Other vendor's product with the same ID isn't touched
+        atomy = self._get('Atomy:000123')
+        self.assertEqual((atomy.name, atomy.price, atomy.available), ('Atomy 123', 1, True))
+
+    def test_unknown_price_keeps_existing(self, _save_image):
+        jobs._sync_products('AtomyAza', [
+            _item('555', price=None, points=None, available=False),
+            _item('777', price=None, points=None)])
+        product = self._get('AtomyAza:555')
+        self.assertEqual(product.price, 5)
+        self.assertFalse(product.available)
+        self.assertEqual(self._get('AtomyAza:777').price, 0)
+        self.assertEqual(self._get('AtomyAza:777').points, 0)
+
+    def test_empty_feed_changes_nothing(self, _save_image):
+        jobs._sync_products('AtomyAza', [])
+        self.assertTrue(self._get('AtomyAza:555').available)
+
+    def test_image_failure_doesnt_stop_import(self, save_image):
+        save_image.side_effect = [Exception('timeout'), ('/products/b.jpg', 'b.jpg')]
+        jobs._sync_products('AtomyAza', [_item('777'), _item('888'), _item('555')])
+        self.assertIsNone(self._get('AtomyAza:777').image)
+        self.assertEqual(self._get('AtomyAza:888').image.path, '/products/b.jpg')
+
+    def test_missing_image_is_retried(self, save_image):
+        jobs._sync_products('AtomyAza', [_item('555')])
+        self.assertEqual(self._get('AtomyAza:555').image.path, '/products/x.jpg')
+
+    def test_too_long_id_is_skipped(self, _save_image):
+        jobs._sync_products('AtomyAza', [_item('1234567:123456789'), _item('555')])
+        self.assertIsNone(self._get('AtomyAza:1234567:123456789'))
+        self.assertTrue(self._get('AtomyAza:555').available)
+
+    def test_not_synchronized_product_missing_in_feed_is_kept(self, _save_image):
+        product = self._get('AtomyAza:555')
+        product.synchronize = False
+        db.session.commit()
+        jobs._sync_products('AtomyAza', [_item('000123')])
+        self.assertTrue(self._get('AtomyAza:555').available)
+
+    def test_not_synchronized_product_in_feed_isnt_updated(self, _save_image):
+        product = self._get('AtomyAza:555')
+        product.synchronize = False
+        db.session.commit()
+        jobs._sync_products('AtomyAza', [_item('555', name='Changed', price=999)])
+        product = self._get('AtomyAza:555')
+        self.assertEqual((product.name, product.price), ('AZA 555', 5))
+
+    def test_leading_zeros_are_ignored_in_matching(self, _save_image):
+        '''Leading zeros are ignored for all vendors, so "0555" is the same as "555"'''
+        jobs._sync_products('AtomyAza', [_item('0555', name='Zero'), _item('000123')])
+        self.assertEqual(self._get('AtomyAza:555').name, 'Zero')
+        self.assertTrue(self._get('AtomyAza:555').available)
+        self.assertIsNone(self._get('AtomyAza:0555'))
+
+    def test_product_missing_in_partial_feed_is_reenabled_later(self, _save_image):
+        '''A product whose page failed to load is disabled until the next import'''
+        jobs._sync_products('AtomyAza', [_item('000123')])
+        self.assertFalse(self._get('AtomyAza:555').available)
+        jobs._sync_products('AtomyAza', [_item('000123'), _item('555')])
+        self.assertTrue(self._get('AtomyAza:555').available)
+
+    def test_duplicates_in_feed(self, _save_image):
+        jobs._sync_products('AtomyAza', [_item('777'), _item('777', name='Again')])
+        self.assertEqual(
+            p.Product.query.filter_by(vendor='AtomyAza', id='777').count(), 1)
+
+
+@patch('app.jobs.save_image', return_value=('', ''))
+@patch('app.jobs.get_aza_products')
+class TestImportAzaProducts(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        db.create_all()
+        from app.settings.models.setting import Setting
+        self.setting = Setting(key='product_import.aza.categories', value='011, 007\n015001')
+        self.try_add_entities([
+            self.setting,
+            p.Product(id='555', vendor='Atomy', name='Atomy 555'),
+            p.Product(id='555', vendor='AtomyAza', name='AZA 555'),
+            p.Product(id='666', vendor='AtomyAza', name='AZA 666'),
+        ])
+        self.app.config['AZA_LOGIN'] = '12345678'
+        self.app.config['AZA_PASSWORD'] = 'secret'
+        self.app.config['AZA_SOCKS5_PROXY'] = ''
+
+    def tearDown(self):
+        for key in ['AZA_LOGIN', 'AZA_PASSWORD', 'AZA_SOCKS5_PROXY']:
+            self.app.config.pop(key, None)
+        super().tearDown()
+
+    def _get(self, key):
+        db.session.expire_all()
+        return p.Product.get_by_key(key)
+
+    def test_import(self, get_aza_products, _save_image):
+        get_aza_products.return_value = [
+            {'vendor': 'AtomyAza', 'vendor_id': '555', 'name': 'Renamed', 'price': 10,
+             'points': 1, 'available': True, 'image_url': ''},
+            {'vendor': 'AtomyAza', 'vendor_id': '695221:4540592', 'name': 'Option',
+             'price': 20, 'points': 2, 'available': True, 'image_url': ''},
+        ]
+        jobs.import_aza_products()
+        args, kwargs = get_aza_products.call_args
+        self.assertEqual(args[:3], ('12345678', 'secret', ['011', '007', '015001']))
+        self.assertEqual(self._get('AtomyAza:555').name, 'Renamed')
+        self.assertEqual(self._get('AtomyAza:695221:4540592').vendor_id, '695221:4540592')
+        self.assertFalse(self._get('AtomyAza:666').available)
+        self.assertEqual(self._get('Atomy:555').name, 'Atomy 555')
+        self.assertTrue(self._get('Atomy:555').available)
+
+    def test_no_categories(self, get_aza_products, _save_image):
+        self.setting.value = ' , '
+        db.session.commit()
+        jobs.import_aza_products()
+        get_aza_products.assert_not_called()
+        self.assertTrue(self._get('AtomyAza:666').available)
+
+    def test_no_setting(self, get_aza_products, _save_image):
+        db.session.delete(self.setting)
+        db.session.commit()
+        jobs.import_aza_products()
+        get_aza_products.assert_not_called()
+
+    def test_no_credentials(self, get_aza_products, _save_image):
+        del self.app.config['AZA_PASSWORD']
+        with self.assertLogs('import_aza_products', level='ERROR'):
+            jobs.import_aza_products()
+        get_aza_products.assert_not_called()
+
+    def test_login_error_doesnt_sync(self, get_aza_products, _save_image):
+        from common.utils.aza import AzaLoginError
+        get_aza_products.side_effect = AzaLoginError('Session expired')
+        with self.assertLogs('import_aza_products', level='ERROR'):
+            jobs.import_aza_products()
+        self.assertTrue(self._get('AtomyAza:555').available)
+        self.assertTrue(self._get('AtomyAza:666').available)
+
+    def test_empty_result_doesnt_disable(self, get_aza_products, _save_image):
+        get_aza_products.return_value = []
+        jobs.import_aza_products()
+        self.assertTrue(self._get('AtomyAza:666').available)
+
+
+class TestPeriodicTasks(BaseTestCase):
+    def test_schedule(self):
+        from unittest.mock import MagicMock
+        sender = MagicMock()
+        jobs.setup_periodic_tasks(sender)
+        tasks = {call.args[1]: call.args[0] for call in sender.add_periodic_task.call_args_list}
+        self.assertEqual(tasks[jobs.import_products], 28800)
+        self.assertEqual(tasks[jobs.import_aza_products], 86400)

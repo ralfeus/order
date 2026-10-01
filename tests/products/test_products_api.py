@@ -79,6 +79,8 @@ class TestProductsApi(BaseTestCase):
                     "available": True,
                     "synchronize": True,
                     "id": "0000",
+                    "vendor": "Atomy",
+                    "key": "Atomy:0000",
                     "vendor_id": None,
                     "name": "Test product",
                     "name_english": None,
@@ -125,6 +127,8 @@ class TestProductsApi(BaseTestCase):
             [
                 {
                     "id": "0001",
+                    "vendor": "Atomy",
+                    "key": "Atomy:0001",
                     "vendor_id": None,
                     "name": "Korean name 1",
                     "name_english": "English name",
@@ -151,7 +155,7 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, gen_id)
+        product = db.session.get(Product, (gen_id, 'Atomy'))
         self.assertIsNotNone(product)
 
     def test_edit_product(self):
@@ -176,7 +180,7 @@ class TestProductsApi(BaseTestCase):
             )
         )
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, gen_id)
+        product = db.session.get(Product, (gen_id, 'Atomy'))
         self.assertIsNotNone(product)
         self.assertEqual(product.name, "Test product")
 
@@ -201,7 +205,7 @@ class TestProductsApi(BaseTestCase):
             })
         )
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, '0001')
+        product = db.session.get(Product, ('0001', 'Atomy'))
         self.assertEqual(len(product.available_shipping), 1)
         self.assertEqual(product.available_shipping[0].id, 1)
 
@@ -222,6 +226,58 @@ class TestProductsApi(BaseTestCase):
             lambda: self.client.delete(f"/api/v1/admin/product/{gen_id}")
         )
 
+    def test_admin_get_product_by_key(self):
+        res = self.try_admin_operation(
+            lambda: self.client.get("/api/v1/admin/product/Atomy:0000"))
+        self.assertEqual([p['key'] for p in res.json], ['Atomy:0000'])
+        res = self.client.get("/api/v1/admin/product/AtomyAza:0000")
+        self.assertEqual(res.json, [])
+        res = self.client.get("/api/v1/admin/product/0000")
+        self.assertEqual([p['key'] for p in res.json], ['Atomy:0000'])
+
+    def test_admin_get_product_initial_value_by_key(self):
+        res = self.try_admin_operation(lambda: self.client.get(
+            "/api/v1/admin/product?initialValue=1&value='Atomy:0000'"))
+        self.assertEqual(res.json, {'id': '0000', 'text': 'Test product'})
+
+    def test_create_product_of_vendor(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product/AtomyAza:695221:4540592",
+            json={"name": "AZA product"}))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['key'], 'AtomyAza:695221:4540592')
+        product = Product.get_by_key('AtomyAza:695221:4540592')
+        self.assertEqual(product.name, 'AZA product')
+
+    def test_edit_product_by_key(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product/Atomy:0000", json={"name": "Renamed"}))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Product.get_by_key('Atomy:0000').name, 'Renamed')
+        self.assertEqual(Product.query.count(), 1)
+
+    def test_delete_product_by_key(self):
+        res = self.try_admin_operation(
+            lambda: self.client.delete("/api/v1/admin/product/Atomy:0000"))
+        self.assertEqual(res.status_code, 200)
+        self.assertIsNone(Product.get_by_key('Atomy:0000'))
+
+    def test_delete_nonexistent_product(self):
+        res = self.try_admin_operation(
+            lambda: self.client.delete("/api/v1/admin/product/AtomyAza:0000"))
+        self.assertEqual(res.status_code, 404)
+        self.assertIsNotNone(Product.get_by_key('Atomy:0000'))
+
+    def test_upload_product_image_by_key(self):
+        self.try_add_entities([
+            Product(id='695221:4540592', vendor='AtomyAza', name='AZA')])
+        res = self.try_admin_operation(
+            lambda: self._upload_image("AtomyAza:695221:4540592"))
+        self.assertEqual(res.status_code, 200)
+        path = Product.get_by_key('AtomyAza:695221:4540592').image.path
+        self.assertTrue(path.startswith('/products/695221_4540592-'))
+        self._remove_stored_file(path)
+
     def _upload_image(self, product_id, data=b"\x89PNG\r\n\x1a\nfake", filename="pic.png"):
         return self.client.post(
             f"/api/v1/admin/product/{product_id}/image",
@@ -239,7 +295,7 @@ class TestProductsApi(BaseTestCase):
     def test_upload_product_image(self):
         res = self.try_admin_operation(lambda: self._upload_image("0000"))
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, "0000")
+        product = db.session.get(Product, ("0000", 'Atomy'))
         self.assertIsNotNone(product.image)
         self.assertEqual(product.image.file_name, "pic.png")
         self.assertTrue(product.image.path.startswith("/products/0000-"))
@@ -250,7 +306,7 @@ class TestProductsApi(BaseTestCase):
 
     def test_upload_product_image_writes_file(self):
         self.try_admin_operation(lambda: self._upload_image("0000", data=b"content"))
-        product = db.session.get(Product, "0000")
+        product = db.session.get(Product, ("0000", 'Atomy'))
         from app.tools import get_products_path
         path = get_products_path(product.image.path.split("/products/", 1)[1])
         try:
@@ -261,10 +317,10 @@ class TestProductsApi(BaseTestCase):
 
     def test_upload_product_image_replaces_existing(self):
         self.try_admin_operation(lambda: self._upload_image("0000", filename="a.png"))
-        first_path = db.session.get(Product, "0000").image.path
+        first_path = db.session.get(Product, ("0000", 'Atomy')).image.path
         res = self._upload_image("0000", filename="b.jpg")
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, "0000")
+        product = db.session.get(Product, ("0000", 'Atomy'))
         self.assertEqual(product.image.file_name, "b.jpg")
         self.assertNotEqual(product.image.path, first_path)
         # Old file is kept on disk
@@ -283,30 +339,30 @@ class TestProductsApi(BaseTestCase):
             "/api/v1/admin/product/0000/image",
             data={}, content_type="multipart/form-data"))
         self.assertEqual(res.status_code, 400)
-        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertIsNone(db.session.get(Product, ("0000", 'Atomy')).image)
 
     def test_upload_product_image_bad_extension(self):
         res = self.try_admin_operation(
             lambda: self._upload_image("0000", filename="evil.html"))
         self.assertEqual(res.status_code, 400)
-        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertIsNone(db.session.get(Product, ("0000", 'Atomy')).image)
 
     def test_upload_product_image_too_large(self):
         res = self.try_admin_operation(lambda: self._upload_image(
             "0000", data=b"0" * (5 * 1024 * 1024 + 1)))
         self.assertEqual(res.status_code, 413)
-        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertIsNone(db.session.get(Product, ("0000", 'Atomy')).image)
 
     def test_delete_product_image(self):
         self.try_add_entities([
             File(id=2222, file_name="x.png", path="/products/x.png")])
-        product = db.session.get(Product, "0000")
+        product = db.session.get(Product, ("0000", 'Atomy'))
         product.image_id = 2222
         db.session.commit()
         res = self.try_admin_operation(
             lambda: self.client.delete("/api/v1/admin/product/0000/image"))
         self.assertEqual(res.status_code, 200)
-        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertIsNone(db.session.get(Product, ("0000", 'Atomy')).image)
         self.assertEqual(res.json["image"], "/static/images/no_image.jpg")
 
     def test_delete_product_image_unknown_product(self):
@@ -318,7 +374,7 @@ class TestProductsApi(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self._upload_image("0000", filename="PIC.PNG"))
         self.assertEqual(res.status_code, 200)
-        product = db.session.get(Product, "0000")
+        product = db.session.get(Product, ("0000", 'Atomy'))
         self.assertTrue(product.image.path.endswith(".png"))
         self._remove_stored_file(product.image.path)
 
@@ -326,7 +382,7 @@ class TestProductsApi(BaseTestCase):
         res = self.try_admin_operation(lambda: self._upload_image(
             "0000", data=b"0" * (5 * 1024 * 1024)))
         self.assertEqual(res.status_code, 200)
-        self._remove_stored_file(db.session.get(Product, "0000").image.path)
+        self._remove_stored_file(db.session.get(Product, ("0000", 'Atomy')).image.path)
 
     def test_product_image_forbidden_for_user(self):
         self.login(self.user.username, "1")
@@ -334,4 +390,4 @@ class TestProductsApi(BaseTestCase):
         self.assertEqual(res.status_code, 403)
         res = self.client.delete("/api/v1/admin/product/0000/image")
         self.assertEqual(res.status_code, 403)
-        self.assertIsNone(db.session.get(Product, "0000").image)
+        self.assertIsNone(db.session.get(Product, ("0000", 'Atomy')).image)

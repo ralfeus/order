@@ -1,11 +1,11 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, ForeignKeyConstraint, Integer, String
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.orm import attribute_keyed_dict
 
 from app import db
 from app.models.base import BaseModel
-from app.products.models.product import Product
+from app.products.models.product import Product, resolve_product_reference
 
 class Warehouse(db.Model, BaseModel):
     '''Represents a warehouse'''
@@ -52,6 +52,10 @@ class Warehouse(db.Model, BaseModel):
 class WarehouseProduct(db.Model):
     '''Intermediate entity represents a product in the warehouse'''
     __tablename__ = 'warehouse_products'
+    __table_args__ = (
+        ForeignKeyConstraint(['product_id', 'product_vendor'],
+                             ['products.id', 'products.vendor']),
+    )
 
     warehouse_id = Column(Integer, ForeignKey('warehouses.id'), primary_key=True)
     warehouse = relationship(Warehouse,
@@ -59,9 +63,14 @@ class WarehouseProduct(db.Model):
             collection_class=attribute_keyed_dict('product'),
             cascade='all, delete-orphan')
     )
-    product_id = Column(String(16), ForeignKey('products.id'), primary_key=True)
+    product_id = Column(String(16), primary_key=True)
+    product_vendor = Column(String(16), primary_key=True)
     product = relationship(Product)
     quantity = Column(Integer)
+
+    def __init__(self, **kwargs):
+        resolve_product_reference(kwargs)
+        super().__init__(**kwargs)
 
     def to_dict(self):
         return {

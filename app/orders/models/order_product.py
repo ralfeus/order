@@ -6,14 +6,15 @@ from functools import reduce
 
 from flask_security import current_user
 
-from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, Integer, String, select
+from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, ForeignKeyConstraint, \
+    Integer, String, select
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
 from app.models.base import BaseModel
 from app.orders.signals import order_product_model_preparing
-from app.products.models.product import Product
+from app.products.models.product import Product, resolve_product_reference
 from app.shipping.models.shipping import PostponeShipping
 
 from .order_status import OrderStatus
@@ -54,13 +55,18 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     Represents an ordered item of the order. Doesn't exist apart from order
     '''
     __tablename__ = 'order_products'
+    __table_args__ = (
+        ForeignKeyConstraint(['product_id', 'product_vendor'],
+                             ['products.id', 'products.vendor']),
+    )
 
     # Keep for back compatibility, remove when not needed
     order_id = Column(String(16), ForeignKey('orders.id'))
     suborder_id = Column(String(20), ForeignKey('suborders.id', onupdate='CASCADE'),
         nullable=False)
     suborder = relationship('Suborder', foreign_keys=[suborder_id], back_populates='order_products')
-    product_id = Column(String(16), ForeignKey('products.id'))
+    product_id = Column(String(16))
+    product_vendor = Column(String(16))
     product: Product = relationship('Product')
     price = Column(Integer)
     quantity = Column(Integer)
@@ -70,11 +76,9 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
     status_history = relationship("OrderProductStatusEntry", lazy='select', back_populates='order_product')
 
     def __init__(self, **kwargs):
+        resolve_product_reference(kwargs)
         if not kwargs.get('product'):
-            from app.products.models import Product
-            kwargs['product'] = db.session.get(Product, kwargs['product_id'])
-            if not kwargs['product']:
-                raise AttributeError("Order product must refer to existing product")
+            raise AttributeError("Order product must refer to existing product")
         if not kwargs.get('price'):
             kwargs['price'] = kwargs['product'].price
         

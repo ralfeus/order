@@ -45,7 +45,7 @@ def create_invoice():
     cumulative_order_products = map_reduce(
         [order_product for order in orders for order_product in order.order_products],
         keyfunc=lambda ii: (
-            ii.product_id,
+            ii.product,
             ii.product.name_english if ii.product.name_english else ii.product.name,
             ii.price,
         ),
@@ -60,7 +60,7 @@ def create_invoice():
         [
             InvoiceItem(
                 invoice=invoice,
-                product_id=op[0][0],
+                product=op[0][0],
                 price=round(op[0][2] * rate, 2),
                 quantity=op[1],
             )

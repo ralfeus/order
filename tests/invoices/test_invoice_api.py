@@ -122,7 +122,7 @@ class TestInvoiceClient(BaseTestCase):
                     user=self.user,
                 ),
                 InvoiceItem(
-                    invoice_id="INV-2020-00-00", product_id="0001", price=10, quantity=1
+                    invoice_id="INV-2020-00-00", product_id="0001", product_vendor="Atomy", price=10, quantity=1
                 ),
                 Order(
                     id=__name__ + "-1",
@@ -239,7 +239,8 @@ class TestInvoiceClient(BaseTestCase):
                 Product(id=gen_id, weight=1),
                 Invoice(id=gen_id, country_id="c1", currency_code="USD", user=self.user),
                 Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
-                InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
+                InvoiceItem(
+                    invoice_id=gen_id, product_id=gen_id, product_vendor="Atomy", price=1, quantity=1),
             ]
         )
         self.try_user_operation(
@@ -262,7 +263,8 @@ class TestInvoiceClient(BaseTestCase):
                 Product(id=gen_id, weight=1),
                 Invoice(id=gen_id, country_id="c1", currency_code="USD", user=self.user),
                 Order(id=gen_id, invoice_id=gen_id, country_id="c1", user=self.user),
-                InvoiceItem(invoice_id=gen_id, product_id=gen_id, price=1, quantity=1),
+                InvoiceItem(
+                    invoice_id=gen_id, product_id=gen_id, product_vendor="Atomy", price=1, quantity=1),
             ]
         )
         res = self.try_user_operation(
@@ -313,7 +315,8 @@ class TestInvoiceClient(BaseTestCase):
                 ),
                 Invoice(id=gen_id, order_id=gen_id, currency_code="USD"),
                 InvoiceItem(
-                    id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10
+                    id=10, invoice_id=gen_id, product_id=gen_id, product_vendor="Atomy",
+                    price=10, quantity=10
                 ),
             ]
         )
@@ -340,7 +343,8 @@ class TestInvoiceClient(BaseTestCase):
                 ),
                 Invoice(id=gen_id, order_id=gen_id, currency_code="USD"),
                 InvoiceItem(
-                    id=10, invoice_id=gen_id, product_id=gen_id, price=10, quantity=10
+                    id=10, invoice_id=gen_id, product_id=gen_id, product_vendor="Atomy",
+                    price=10, quantity=10
                 ),
             ]
         )
@@ -397,7 +401,7 @@ class TestInvoiceClient(BaseTestCase):
                     user=self.user,
                 ),
                 InvoiceItem(
-                    invoice_id=gen_id, product_id="0001", price=10, quantity=1
+                    invoice_id=gen_id, product_id="0001", product_vendor="Atomy", price=10, quantity=1
                 ),
                 Order(
                     id=gen_id,
@@ -428,7 +432,7 @@ class TestInvoiceClient(BaseTestCase):
                     user=self.admin,
                 ),
                 InvoiceItem(
-                    invoice_id=gen_id, product_id="0001", price=10, quantity=1
+                    invoice_id=gen_id, product_id="0001", product_vendor="Atomy", price=10, quantity=1
                 ),
                 Order(
                     id=gen_id,
