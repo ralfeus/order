@@ -209,6 +209,8 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
             'subcustomer': self.suborder.subcustomer.name if self.suborder and self.suborder.subcustomer else None,
             'buyout_date': self.suborder.buyout_date.strftime('%Y-%m-%d') if self.suborder and self.suborder.buyout_date else None,
             'product_id': self.product_id,
+            'product_vendor': self.product_vendor,
+            'product_key': self.product.key,
             'product': self.product.name_english,
             'name': self.product.name,
             'name_english': self.product.name_english,

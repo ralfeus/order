@@ -1,8 +1,7 @@
 '''API endpoints for sale order management'''
 from datetime import datetime, timedelta
 import logging
-from typing import Any
-from more_itertools import map_reduce
+from typing import Any, Optional
 import re
 
 from flask import Response, abort, current_app, jsonify, request
@@ -21,6 +20,7 @@ from app.orders import bp_api_admin, bp_api_user
 from app.orders.models.order import OrderBox
 from app.orders.validators.order import OrderEditValidator, OrderValidator
 from app.products.models import Product
+from app.products.models.product import AmbiguousProductError
 from app.shipping.models.shipping import Shipping, PostponeShipping
 from app.tools import cleanse_payload, prepare_datatables_query, modify_object, \
     try_perform
@@ -342,13 +342,7 @@ def _add_suborder(order, suborder_data, errors):
                         Erroneous data is: {suborder_data['subcustomer']}""",
                     status=400))
 
-    suborder_products = map_reduce(suborder_data['items'],
-        keyfunc=lambda op: op['item_code'],
-        valuefunc=lambda op: int(op['quantity']),
-        reducefunc=sum
-    )
-    suborder_products = [{'item_code': i[0], 'quantity': i[1]}
-                            for i in suborder_products.items()]
+    suborder_products = _group_items(suborder_data['items'])
     for item in suborder_products:
         try:
             add_order_product(suborder, item, errors)
@@ -479,18 +473,18 @@ def _update_suborder(order, order_products, suborder_data, errors):
             suborder.buyout_date = datetime.strptime(suborder_data['buyout_date'], '%Y-%m-%d') \
                 if suborder_data.get('buyout_date') else None
             suborder.subcustomer = subcustomer
-            suborder_products = map_reduce(suborder_data['items'],
-                keyfunc=lambda op: op['item_code'],
-                valuefunc=lambda op: int(op['quantity']),
-                reducefunc=sum
-            )
-            suborder_products = [{'item_code': i[0], 'quantity': i[1]} 
-                                 for i in suborder_products.items()]
+            suborder_products = _group_items(suborder_data['items'])
             if len(suborder_products) > 10:
                 errors.append(f'The suborder for {subcustomer.name} has more than 10 products')
             for item in suborder_products:
+                try:
+                    product = _get_item_product(item)
+                except Exception as ex:
+                    errors.append((str(ex),))
+                    continue
                 order_product = [op for op in suborder.order_products
-                                    if op.product_id == item['item_code']]
+                                    if op.product_id == product.id
+                                    and op.product_vendor == product.vendor]
                 if len(order_product) > 0:
                     update_order_product(order, order_product[0], item)
                     try:
@@ -501,7 +495,7 @@ def _update_suborder(order, order_products, suborder_data, errors):
                             order_product[0].id)
                 else:
                     try:
-                        add_order_product(suborder, item, errors)
+                        add_order_product(suborder, item, errors, product)
                     except Exception as ex:
                         current_app.logger.debug("Didn't add product: %s", ex)
             if suborder.buyout_date and (
@@ -532,7 +526,18 @@ def admin_save_order_product(order_product_id):
         abort(Response(f"Order product ID={order_product_id} wasn't found", status=404))
     payload = cleanse_payload(order_product, payload)
 
-    modify_object(order_product, payload, ['product_id', 'price', 'quantity',
+    if payload.get('product_id'):
+        # Product ID or product key
+        try:
+            product = Product.resolve(payload['product_id'])
+        except AmbiguousProductError as ex:
+            abort(Response(str(ex), status=409))
+        if product is None:
+            abort(Response(f"No product <{payload['product_id']}> was found", status=404))
+        if product is not order_product.product:
+            order_product.product = product
+            order_product.when_changed = datetime.now()
+    modify_object(order_product, payload, ['price', 'quantity',
                                            'private_comment', 'public_comment',
                                            'status'])
     order_product_saving.send(order_product, payload=payload)
@@ -585,24 +590,48 @@ def admin_set_order_product_status(order_product_id, order_product_status):
         'status': 'success'
     })
 
-def add_order_product(suborder, item, errors):
+def _group_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    '''Combines quantities of the same products. Product is identified by
+    product key if provided (product selected in UI) or by typed product code'''
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in items:
+        identifier = item.get('product_key') or item['item_code']
+        if identifier in grouped:
+            grouped[identifier]['quantity'] += int(item['quantity'])
+        else:
+            grouped[identifier] = {
+                'item_code': item['item_code'],
+                'product_key': item.get('product_key'),
+                'quantity': int(item['quantity'])
+            }
+    return list(grouped.values())
+
+def _get_item_product(item: dict[str, Any]) -> Product:
+    '''Returns product of the order item by product key or product code.
+    Raises ProductNotFoundError or AmbiguousProductError'''
+    product = Product.get_by_key(item['product_key']) if item.get('product_key') \
+        else Product.find_by_code(item['item_code'])
+    if product is None:
+        raise ProductNotFoundError(item.get('product_key') or item['item_code'])
+    return product
+
+def add_order_product(suborder, item, errors, product: Optional[Product]=None):
     # with db.session.no_autoflush:
     try:
-        product = Product.get_product_by_id(item['item_code'])
-        if product:
-            order_product = OrderProduct(
-                suborder=suborder,
-                product=product,
-                price=product.price,
-                quantity=int(item['quantity']),
-                status=OrderProductStatus.pending)
-            db.session.add(order_product)
-            suborder.order.total_weight += product.weight * order_product.quantity
-            suborder.order.subtotal_base_currency += product.price * order_product.quantity
-            return order_product
-        raise ProductNotFoundError(item['item_code'])
+        if product is None:
+            product = _get_item_product(item)
+        order_product = OrderProduct(
+            suborder=suborder,
+            product=product,
+            price=product.price,
+            quantity=int(item['quantity']),
+            status=OrderProductStatus.pending)
+        db.session.add(order_product)
+        suborder.order.total_weight += product.weight * order_product.quantity
+        suborder.order.subtotal_base_currency += product.price * order_product.quantity
+        return order_product
     except Exception as ex:
-        errors.append(ex.args)
+        errors.append((str(ex),))
         raise ex
 
 @bp_api_user.route('/product/<int:order_product_id>/postpone', methods=['POST'])
