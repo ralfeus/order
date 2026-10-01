@@ -18,7 +18,7 @@ test:
 
 # Browser tests. Require Chromium: python -m playwright install chromium
 test-e2e:
-	python -m pytest e2e
+	python -m pytest tests-e2e
 
 analyze:
 	coverage run -m pytest tests
