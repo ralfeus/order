@@ -30,13 +30,18 @@ function init_warehouse_products_table() {
             }
         },
         table: '#warehouse_products',
-        idSrc: 'product_id',
+        // Product ID may be the same in several vendors so product key is used
+        idSrc: 'product_key',
         fields: [
-            { 
-                name: 'product_id', 
+            {
+                name: 'product_id',
+                data: 'product_key',
                 label: 'Product',
                 type: 'select2',
-                options: g_products.map(p => ({value: p.id, label: p.id + ': ' + p.name}))
+                options: g_products.map(p => ({
+                    value: p.key,
+                    label: p.id + ': (' + p.vendor + ') ' + p.name
+                }))
             },
             { name: 'quantity', label: 'Quantity' }
         ]
@@ -54,14 +59,14 @@ function init_warehouse_products_table() {
             url: '/api/v1/admin/warehouse/' + g_warehouse_id + '/product',
             dataSrc: 'data'
         },
-        rowId: 'product_id',
+        rowId: 'product_key',
         columns: [
             {name: 'product_id', data: 'product_id'},
             {
                 data: 'product.name',
-                render: (data, _d1, object) => 
-                    "<a href=\"/admin/products?id=" + object.product_id + "\">" + 
-                        data + "<br />" +
+                render: (data, _d1, object) =>
+                    "<a href=\"/admin/products?id=" + object.product_id + "\">" +
+                        "(" + object.product_vendor + ") " + data + "<br />" +
                         object.product.name_english + "<br />" +
                         object.product.name_russian + 
                     "</a>"

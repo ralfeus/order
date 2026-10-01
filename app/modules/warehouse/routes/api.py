@@ -1,10 +1,11 @@
 '''API routes for warehouse module'''
-from typing import Any
+from typing import Any, Optional
 from flask import Response, abort, current_app, jsonify, request
 from flask_security import current_user, login_required, roles_required
 
 from app import db
 from app.tools import modify_object, prepare_datatables_query
+from app.products.models.product import AmbiguousProductError, Product
 
 from app.modules.warehouse import bp_api_admin
 from app.modules.warehouse.models.warehouse import Warehouse, WarehouseProduct
@@ -89,12 +90,27 @@ def admin_get_warehouse_products(warehouse_id, product_id):
     warehouse = db.session.get(Warehouse, warehouse_id)
     if warehouse is None:
         return jsonify({})
-    products = warehouse.products if product_id is None \
-        else warehouse.products.filter_by(product_id=product_id)
+    if product_id is not None:
+        product = _get_warehouse_product(warehouse_id, product_id)
+        return jsonify({'data': [product.to_dict()] if product else []})
+    products = warehouse.products
     if request.values.get('draw') is not None: # Args were provided by DataTables
         return _filter_objects(products, request.values)
 
     return jsonify({'data': [entry[1].to_dict() for entry in products.col.items()]})
+
+def _get_warehouse_product(warehouse_id, product_id: str) -> Optional[WarehouseProduct]:
+    '''Returns warehouse product by product key or product ID.
+    Aborts with HTTP 409 if product ID exists in several vendors'''
+    try:
+        product = Product.resolve(product_id)
+    except AmbiguousProductError as ex:
+        abort(Response(str(ex), status=409))
+    if product is None:
+        return None
+    return WarehouseProduct.query.filter_by(
+        warehouse_id=warehouse_id, product_id=product.id, product_vendor=product.vendor
+    ).first()
 
 @bp_api_admin.route('/<warehouse_id>/product', defaults={'product_id': None}, methods=['POST'])
 @bp_api_admin.route('/<warehouse_id>/product/<product_id>', methods=['POST'])
@@ -115,7 +131,9 @@ def admin_save_warehouse_product(warehouse_id, product_id):
             return jsonify({
                 'data': [],
                 'error': "Couldn't edit a warehouse",
-                'fieldErrors': [{'name': message.split(':')[0], 'status': message.split(':')[1]}
+                # Messages may contain product keys with ":"
+                'fieldErrors': [{'name': message.split(':', 1)[0],
+                                 'status': message.split(':', 1)[1]}
                                 for message in validator.errors]
             })
     payload: dict[str, Any] = request.get_json() #type: ignore
@@ -123,8 +141,10 @@ def admin_save_warehouse_product(warehouse_id, product_id):
         product = WarehouseProduct(warehouse_id=warehouse_id, product_id=payload['product_id'])
         db.session.add(product) #type: ignore
     else:
-        product = WarehouseProduct.query.filter_by(
-            warehouse_id=warehouse_id, product_id=product_id).first()
+        product = _get_warehouse_product(warehouse_id, product_id)
+        if product is None:
+            abort(Response(f'No product {product_id} in warehouse {warehouse_id} was found',
+                status=404))
     logger.info('Modifying product %s in warehouse %s by %s with data: %s',
                 product_id, warehouse_id, current_user, payload)
     modify_object(product, payload, ['quantity'])
@@ -140,8 +160,7 @@ def admin_delete_warehouse_product(warehouse_id, product_ids):
     if warehouse is None:
         abort(Response(f'No warehouse {warehouse_id} was found', status=404))
     for product_id in product_ids.split(','):
-        product = WarehouseProduct.query.filter_by(
-            warehouse_id=warehouse_id, product_id=product_id).first()
+        product = _get_warehouse_product(warehouse_id, product_id)
         if product is None:
             abort(Response(f'No product {product_id} in warehouse {warehouse_id} was found',
                 status=404))
