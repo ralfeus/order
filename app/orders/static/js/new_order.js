@@ -254,6 +254,83 @@ function delete_product(target) {
     }
 }
 
+// Product objects come from product list (id, key, vendor) or
+// from order products (product_id, product_key, product_vendor)
+function product_code(product) {
+    return product.product_id || product.id;
+}
+
+function product_key(product) {
+    return product.key || product.product_key;
+}
+
+function product_vendor(product) {
+    return product.vendor || product.product_vendor;
+}
+
+// Product code without leading zeros
+function strip_code(code) {
+    return String(code).replace(/^0+/, '');
+}
+
+function product_label(product) {
+    return '(' + product_vendor(product) + ') ' + (product.name_english == null
+        ? product.name
+        : product.name_english + " | " + product.name_russian);
+}
+
+/**
+ * Finds products by typed code. Code may be "<vendor>:<code>".
+ * Same code may exist in several vendors
+ */
+function find_products(code) {
+    var vendor = null;
+    var separator = code.indexOf(':');
+    if (separator > 0 && g_products.some(p => p.vendor == code.substring(0, separator))) {
+        vendor = code.substring(0, separator);
+        code = code.substring(separator + 1);
+    }
+    return g_products.filter(p =>
+        strip_code(p.id) == strip_code(code) && (vendor === null || p.vendor == vendor));
+}
+
+/**
+ * Sets product of the row. If several products match the typed code,
+ * the one already set in the row is kept or user chooses one
+ */
+function set_matching_product(product_row, products, batch_load) {
+    if (products.length == 1) {
+        return update_product(product_row, {...products[0]}, batch_load);
+    }
+    var current = g_cart[product_row.id];
+    var selected = current && products.find(p => product_key(p) == product_key(current));
+    if (selected) {
+        return update_product(product_row, {...selected}, batch_load);
+    }
+    show_product_chooser(product_row, products);
+}
+
+function show_product_chooser(product_row, products) {
+    delete g_cart[product_row.id];
+    $('.item-code', product_row)
+        .attr('title', 'Several products have this code. Choose one')
+        .addClass('is-invalid')
+        .removeClass('is-valid');
+    $('.item-price', product_row).html('');
+    $('.item-points', product_row).html('');
+    var chooser = $('<select class="form-control form-control-sm product-chooser">' +
+        '<option value="">Choose product...</option></select>');
+    products.forEach(p => chooser.append(new Option(product_label(p), product_key(p))));
+    chooser.on('change', () => {
+        var product = products.find(p => product_key(p) == chooser.val());
+        if (product) {
+            update_product(product_row, {...product});
+        }
+    });
+    $('.item-name', product_row).empty().append(chooser);
+    update_item_subtotal(product_row);
+}
+
 async function update_product(product_row, product, batch_load) {
     if (product.product_id) {
         $('.item-code', product_row).val(product.product_id);
@@ -275,7 +352,7 @@ async function update_product(product_row, product, batch_load) {
     var color = product.color ? product.color : '#0000FF';
 ////////////////////////////////////////////////////////    
     $('.item-name', product_row).html(
-        "<a href='#' onclick=show_product('" + product.id + "')><font color=\"" + color + "\">"+(product.name_english == null ? product.name : product.name_english + " | " + product.name_russian)+"</a>" +
+        "<a href='#' onclick=show_product('" + product_key(product) + "')><font color=\"" + color + "\">" + product_label(product) + "</a>" +
         "</font>");
     $('.item-price', product_row).html(fmtCurr(base_country).format(product.price));
     $('.item-points', product_row).html(product.points);
@@ -283,8 +360,8 @@ async function update_product(product_row, product, batch_load) {
     await update_item_subtotal(product_row, batch_load);
 }
 ///////////////////////////////////////////////////
-function show_product(product_id) {
-    var product = g_products.filter(p => p.value == product_id)[0];
+function show_product(key) {
+    var product = g_products.filter(p => p.key == key)[0];
     modal(product.label,
     '<img src=' + product.image + ' width="250"; height=250; align="left";>' +    
     'price: ' + fmtCurr(base_country).format(product.price) + '\n'+
@@ -328,15 +405,12 @@ function get_product(line_input, batch_load=false) {
     var promise = $.Deferred()
     var product_line = $(line_input).closest('tr')[0];
     if (line_input.value) {
-        var product = g_products.find(
-            e => e.id == line_input.value
-              || e.id == line_input.value.padStart(6, '0')
-        );
-        if (product === undefined) {
+        var products = find_products(line_input.value);
+        if (products.length == 0) {
             $.ajax({
-                url: '/api/v1/product/' + line_input.value,
+                url: '/api/v1/product/' + encodeURIComponent(line_input.value),
                 success: data => {
-                    update_product(product_line, data[0], batch_load)
+                    set_matching_product(product_line, data, batch_load);
                     promise.resolve();
                 },
                 error: (data) => {
@@ -347,7 +421,7 @@ function get_product(line_input, batch_load=false) {
                 }
             });
         } else {
-            update_product(product_line, {...product}, batch_load);
+            set_matching_product(product_line, products, batch_load);
             promise.resolve();
         }
     } else {
@@ -370,13 +444,13 @@ function get_products() {
                 g_products = data.map(product => ({
                     value: product.id,
                     id: product.id,
+                    key: product.key,
+                    vendor: product.vendor,
                     product_id: product.id,
                     name: product.name,
                     name_english: product.name_english,
                     name_russian: product.name_russian,
-                    label: product.name_english == null
-                                ? product.name
-                                : product.name_english + " | " + product.name_russian,
+                    label: product_label(product),
                     price: product.price,
                     points: product.points,
                     separate_shipping: product.separate_shipping,
@@ -411,7 +485,7 @@ function update_shipping_methods(country, weight) {
         url: `/api/v1/shipping/${country}/${weight}`,
         data: 'products=' +
             Object.entries(g_cart)
-                .map(e => e[1].product_id ? e[1].product_id : e[1].id)
+                .map(e => product_key(e[1]) || product_code(e[1]))
                 .filter((value, index, self) => self.indexOf(value) === index),
         complete: () => {
             $('.wait').hide();
@@ -474,6 +548,10 @@ function product_code_autocomplete(target) {
                 || (product.label && product.label.includes(query.term))
             );
             response(result);
+        },
+        // Selected product is set directly as its code may be the same in several vendors
+        select: (event, ui) => {
+            update_product($(event.target).closest('tr')[0], {...ui.item});
         },
         minLength: 2
     });
@@ -713,10 +791,18 @@ function submit_changes(_sender, draft=false) {
                 subcustomer_center_code: $('.subcustomer-center-code', user).val(),
                 buyout_date: $('.subcustomer-buyout-date', user).val(),
                 seq_num: $('.subcustomer-seq-num', user).val(),
-                items: $('.item', user).toArray().map(item => ({
-                    item_code: $('.item-code', item).val(),
-                    quantity: $('input.item-quantity', item).val()
-                }))
+                items: $('.item', user).toArray().map(item => {
+                    var code = $('.item-code', item).val();
+                    var product = g_cart[item.id];
+                    return {
+                        item_code: code,
+                        // Product chosen for the row unless the code was changed since then
+                        product_key: product && strip_code(product_code(product)) == strip_code(code)
+                            ? product_key(product)
+                            : undefined,
+                        quantity: $('input.item-quantity', item).val()
+                    };
+                })
             })),
             params: g_order.params
         }),

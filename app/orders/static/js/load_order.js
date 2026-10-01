@@ -97,11 +97,7 @@ function add_product(product_row, product) {
     }
     var color = product.color ? product.color : '#000000';
     $('.item-name', product_row).html(
-        "<font color=\"" + color + "\">" +
-        (product.name_english == null
-            ? product.name
-            : product.name_english + " | " + product.name_russian) +
-        "</font>");
+        "<font color=\"" + color + "\">" + product_label(product) + "</font>");
     $('.item-price', product_row).html(fmtCurr(base_country).format(product.price));
     $('.item-points', product_row).html(product.points);
     g_cart[product_row.id] = product;
