@@ -122,3 +122,8 @@ class TestPurchaseOrderVendors(BaseTestCase):
                                json={'order_id': self.order.id})
         self.assertEqual(res.json['status'], 'success')
         self.assertEqual(login_mock.call_count, 1)
+
+    def test_api_default_vendors(self):
+        self.login(self.admin.username, '1')
+        res = self.client.get('/api/v1/admin/purchase/vendor/default')
+        self.assertEqual(res.json, {'Atomy': 'AtomyQuick', 'AtomyAza': None})

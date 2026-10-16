@@ -4,6 +4,7 @@ var g_addresses;
 var g_companies;
 // var g_customers;
 var g_create_editor;
+var g_default_vendors;
 var g_edit_editor;
 var g_filter_sources;
 var g_orders;
@@ -86,6 +87,7 @@ async function get_dictionaries() {
             return {value:entry[0], label:entry[1]};
         });
     g_po_statuses = await get_list('/api/v1/admin/purchase/status')
+    g_default_vendors = await get_list('/api/v1/admin/purchase/vendor/default');
     g_filter_sources = {
         vendor: g_vendors.map(v => ({id: v.value, text: v.label})),
         status: g_po_statuses
@@ -174,13 +176,16 @@ function init_table() {
                 options: g_addresses
             },
             {label: 'Contact phone', name: 'contact_phone'},
-            {
-                label: 'Vendor',
-                name: 'vendor',
+            // PO vendor for suborders of each product vendor
+            ...Object.entries(g_default_vendors).map(([product_vendor, default_vendor]) => ({
+                label: `Vendor for ${product_vendor}`,
+                name: `vendors.${product_vendor}`,
                 type: 'select2',
-                def: 'AtomyQuick',
-                options: g_vendors
-            },
+                def: default_vendor || '',
+                options: default_vendor
+                    ? g_vendors
+                    : [{label: '-- Choose vendor --', value: ''}, ...g_vendors]
+            })),
             {% for field in extension.fields %}
                 {{ field }} ,
             {% endfor %}
@@ -382,6 +387,7 @@ function on_company_change() {
 }
 
 function on_order_change() {
+    show_order_vendors(g_create_editor.field('order_id').val());
     if (g_create_editor.field('order_id').val()) {
         $.ajax({
             url: '/api/v1/transaction?order_id=' + g_create_editor.field('order_id').val(),
@@ -412,6 +418,23 @@ async function on_recreate_po_change() {
         promise.resolve();
     }
     return promise;
+}
+
+async function show_order_vendors(order_id) {
+    // Only product vendors of the order suborders need PO vendor
+    var order_vendors = Object.keys(g_default_vendors);
+    if (order_id) {
+        var order = await get_list('/api/v1/admin/order/' + order_id);
+        order_vendors = (order.suborders || []).map(s => s.vendor);
+    }
+    for (var product_vendor of Object.keys(g_default_vendors)) {
+        var field = 'vendors.' + product_vendor;
+        if (order_vendors.includes(product_vendor)) {
+            g_create_editor.show(field);
+        } else {
+            g_create_editor.hide(field);
+        }
+    }
 }
 
 function open_purchase_order(target) {

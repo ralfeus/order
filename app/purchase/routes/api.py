@@ -17,7 +17,8 @@ from app.orders.models.subcustomer import Subcustomer
 from app.products.models.product import DEFAULT_VENDOR
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
-from app.purchase.po_manager import NoPurchaseOrderVendorError, create_purchase_orders
+from app.purchase.po_manager import NoPurchaseOrderVendorError, create_purchase_orders, \
+    get_default_vendor_id
 from common.exceptions import AtomyLoginError, PurchaseOrderError
 from common.utils.atomy import atomy_login2
 
@@ -184,6 +185,15 @@ def get_statuses():
 def get_vendors():
     vendor_mgmt = PurchaseOrderVendorManager()
     return jsonify([v.to_dict() for v in vendor_mgmt.get_vendors(config=current_app.config)])
+
+@bp_api_admin.route('/vendor/default')
+@login_required
+@roles_required('po-admin')
+def get_default_vendors():
+    '''Returns default purchase order vendor ID for each product vendor'''
+    from app.products.models.product import VENDORS
+    return jsonify({product_vendor: get_default_vendor_id(product_vendor)
+                    for product_vendor in VENDORS})
 
 @bp_api_admin.route('/order/validate', methods=['POST'])
 @login_required
