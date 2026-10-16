@@ -35,19 +35,21 @@ class TestOrderVendors(BaseTestCase):
             NoShipping(id=999),
         ])
 
-    def _order_payload(self, items, seq_num=None):
-        suborder = {'subcustomer': 'A000, Subcustomer1, P@ssw0rd', 'items': items}
-        if seq_num is not None:
-            suborder['seq_num'] = seq_num
+    def _order_payload(self, items, seq_num=None, suborders=None):
+        if suborders is None:
+            suborder = {'subcustomer': 'A000, Subcustomer1, P@ssw0rd', 'items': items}
+            if seq_num is not None:
+                suborder['seq_num'] = seq_num
+            suborders = [suborder]
         return {
             'customer_name': 'User1', 'address': 'Address1', 'city_eng': 'City1',
             'country': 'c1', 'zip': '0000', 'shipping': '1', 'phone': '1',
-            'comment': '', 'suborders': [suborder]
+            'comment': '', 'suborders': suborders
         }
 
-    def _create_order(self, items):
+    def _create_order(self, items, suborders=None):
         self.login(self.user.username, '1')
-        res = self.client.post('/api/v1/order', json=self._order_payload(items))
+        res = self.client.post('/api/v1/order', json=self._order_payload(items, suborders=suborders))
         self.assertEqual(res.status_code, 200)
         return res.json, db.session.get(Order, res.json['order_id'])
 
@@ -57,16 +59,30 @@ class TestOrderVendors(BaseTestCase):
         return sorted((op.product.key, op.quantity) for op in order.order_products)
 
     def test_create_order_with_product_keys(self):
-        _, order = self._create_order([
-            {'item_code': '0001', 'product_key': 'AtomyAza:0001', 'quantity': '1'},
-            {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '2'},
-            {'item_code': 'Z9', 'quantity': '3'},
+        subcustomer = 'A000, Subcustomer1, P@ssw0rd'
+        _, order = self._create_order(None, suborders=[
+            {'subcustomer': subcustomer, 'items': [
+                {'item_code': '0001', 'product_key': 'AtomyAza:0001', 'quantity': '1'},
+                {'item_code': 'Z9', 'quantity': '3'}]},
+            {'subcustomer': subcustomer, 'items': [
+                {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '2'}]},
         ])
         self.assertEqual(self._lines(order),
                          [('Atomy:0001', 2), ('AtomyAza:0001', 1), ('AtomyAza:Z9', 3)])
         self.assertEqual(
             sorted((op.product_id, op.product_vendor) for op in order.order_products),
             [('0001', 'Atomy'), ('0001', 'AtomyAza'), ('Z9', 'AtomyAza')])
+        self.assertEqual(sorted(s.vendor for s in order.suborders), ['Atomy', 'AtomyAza'])
+
+    def test_create_order_mixed_vendors_in_suborder(self):
+        result, order = self._create_order([
+            {'item_code': '0001', 'product_key': 'AtomyAza:0001', 'quantity': '1'},
+            {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '2'},
+        ])
+        self.assertEqual(self._lines(order), [('AtomyAza:0001', 1)])
+        self.assertEqual(order.suborders[0].vendor, 'AtomyAza')
+        self.assertEqual(result['status'], 'warning')
+        self.assertIn('Atomy', str(result['message']))
 
     def test_create_order_same_key_is_combined(self):
         _, order = self._create_order([
@@ -109,7 +125,24 @@ class TestOrderVendors(BaseTestCase):
         res = self.client.post(f'/api/v1/order/{order_id}', json=self._order_payload([
             {'item_code': '0001', 'product_key': 'AtomyAza:0001', 'quantity': '2'}], seq_num))
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(self._lines(db.session.get(Order, order_id)), [('AtomyAza:0001', 2)])
+        order = db.session.get(Order, order_id)
+        self.assertEqual(self._lines(order), [('AtomyAza:0001', 2)])
+        self.assertEqual(order.suborders[0].vendor, 'AtomyAza')
+
+    def test_save_order_mixed_vendors_in_suborder(self):
+        _, order = self._create_order([
+            {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '1'}])
+        order_id, seq_num = order.id, order.suborders[0].seq_num
+        self.logout()
+        self.login(self.admin.username, '1')
+        res = self.client.post(f'/api/v1/order/{order_id}', json=self._order_payload([
+            {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '1'},
+            {'item_code': 'Z9', 'quantity': '1'}], seq_num))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['status'], 'warning')
+        order = db.session.get(Order, order_id)
+        self.assertEqual(self._lines(order), [('Atomy:0001', 1)])
+        self.assertEqual(order.suborders[0].vendor, 'Atomy')
 
     def test_save_order_keeps_line_without_key(self):
         '''Lines of orders saved before vendors were introduced have no key in UI'''
@@ -150,6 +183,21 @@ class TestOrderVendors(BaseTestCase):
         self.assertEqual(res.status_code, 404)
         db.session.expire_all()
         self.assertEqual(db.session.get(OrderProduct, op_id).product.key, 'AtomyAza:Z9')
+
+    def test_admin_change_order_product_to_other_vendor(self):
+        _, order = self._create_order([
+            {'item_code': '0001', 'product_key': 'Atomy:0001', 'quantity': '1'}])
+        self.try_add_entities([Product(id='0003', vendor='Atomy', name='Atomy 3', price=10, weight=10)])
+        self.try_add_entities([OrderProduct(suborder=order.suborders[0], product_id='Atomy:0003',
+                                            quantity=1)])
+        op_id = order.order_products[0].id
+        self.logout()
+        self.login(self.admin.username, '1')
+        res = self.client.post(f'/api/v1/admin/order/product/{op_id}',
+                               json={'product_id': 'AtomyAza:Z9'})
+        self.assertEqual(res.status_code, 409)
+        db.session.expire_all()
+        self.assertEqual(db.session.get(OrderProduct, op_id).product.key, 'Atomy:0001')
 
     def test_order_product_to_dict(self):
         _, order = self._create_order([

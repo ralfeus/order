@@ -8,7 +8,7 @@ from flask_security import current_user
 
 from sqlalchemy import and_, Column, DateTime, Enum, ForeignKey, ForeignKeyConstraint, \
     Integer, String, select
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app import db
@@ -81,8 +81,20 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
             raise AttributeError("Order product must refer to existing product")
         if not kwargs.get('price'):
             kwargs['price'] = kwargs['product'].price
-        
+        # Check before suborder gets the new product in its collection
+        if kwargs.get('suborder') is not None:
+            kwargs['suborder'].check_product_vendor(kwargs['product'].vendor)
+
         super().__init__(**kwargs)
+
+    @validates('suborder', 'product')
+    def _validate_vendor(self, key, value):
+        '''Suborder must contain products of a single vendor'''
+        suborder = value if key == 'suborder' else self.suborder
+        product = value if key == 'product' else self.product
+        if suborder is not None and product is not None:
+            suborder.check_product_vendor(product.vendor, self)
+        return value
 
     def __repr__(self):
         return "<OrderProduct: Suborder: {}, Product: {}, Status: {}".format(
@@ -162,13 +174,15 @@ class OrderProduct(db.Model, BaseModel): # type: ignore
         suborder = db.session.execute(
             select(Suborder).where(
                 Suborder.order_id == postponed_order.id,
-                Suborder.subcustomer_id == self.suborder.subcustomer_id
+                Suborder.subcustomer_id == self.suborder.subcustomer_id,
+                Suborder.vendor == self.suborder.vendor
             )
         ).scalar_one_or_none()
         if not suborder:
             suborder = Suborder(
                 order=postponed_order,
-                subcustomer=self.suborder.subcustomer)
+                subcustomer=self.suborder.subcustomer,
+                vendor=self.suborder.vendor)
             db.session.add(suborder)
         postponed_order_product = OrderProduct(
             suborder=suborder,

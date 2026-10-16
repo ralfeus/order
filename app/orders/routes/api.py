@@ -476,12 +476,18 @@ def _update_suborder(order, order_products, suborder_data, errors):
             suborder_products = _group_items(suborder_data['items'])
             if len(suborder_products) > 10:
                 errors.append(f'The suborder for {subcustomer.name} has more than 10 products')
+            item_products = []
             for item in suborder_products:
                 try:
-                    product = _get_item_product(item)
+                    item_products.append((item, _get_item_product(item)))
                 except Exception as ex:
                     errors.append((str(ex),))
-                    continue
+            # Lines of other vendor not in the payload are removed afterwards.
+            # So suborder takes the vendor of new products if it's single
+            vendors = {product.vendor for _, product in item_products}
+            if len(vendors) == 1:
+                suborder.vendor = vendors.pop()
+            for item, product in item_products:
                 order_product = [op for op in suborder.order_products
                                     if op.product_id == product.id
                                     and op.product_vendor == product.vendor]
@@ -535,7 +541,10 @@ def admin_save_order_product(order_product_id):
         if product is None:
             abort(Response(f"No product <{payload['product_id']}> was found", status=404))
         if product is not order_product.product:
-            order_product.product = product
+            try:
+                order_product.product = product
+            except OrderError as ex:
+                abort(Response(str(ex), status=409))
             order_product.when_changed = datetime.now()
     modify_object(order_product, payload, ['price', 'quantity',
                                            'private_comment', 'public_comment',

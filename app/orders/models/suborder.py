@@ -18,6 +18,8 @@ from app.currencies.models.currency import Currency
 from app.models.base import BaseModel
 import app.orders.models.order as o
 from app.products.models import Product
+from app.products.models.product import DEFAULT_VENDOR
+from common.exceptions import OrderError
 
 from .order_product import OrderProduct, OrderProductStatus
 
@@ -35,6 +37,9 @@ class Suborder(db.Model, BaseModel): #type: ignore
     buyout_date: datetime = Column(DateTime, index=True)
     order_products = relationship('OrderProduct', lazy='select', cascade='all, delete-orphan', back_populates='suborder')
     local_shipping: int = Column(Integer(), default=0)
+    # Product vendor. Suborder contains products of a single vendor only
+    vendor: str = Column(String(16), nullable=False, default=DEFAULT_VENDOR,
+                         server_default=DEFAULT_VENDOR)
 
     def __init__(self, order=None, order_id=None, seq_num=None, **kwargs):
         # Resolve order_id first so we can compute self.id before setting
@@ -81,6 +86,19 @@ class Suborder(db.Model, BaseModel): #type: ignore
         for op in self.order_products:
             op.delete()
         super().delete()
+
+    def check_product_vendor(self, vendor: str, order_product=None):
+        '''Ensures the suborder contains products of a single vendor.
+        Empty suborder takes the vendor of the product being added.
+        Raises OrderError if the product vendor differs from the suborder one'''
+        with db.session.no_autoflush:
+            other_products = [op for op in self.order_products if op is not order_product]
+        if len(other_products) == 0:
+            self.vendor = vendor
+        elif vendor != self.vendor:
+            raise OrderError(
+                f"Suborder {self.id} contains products of {self.vendor}. "
+                f"Products of {vendor} can't be added to it")
 
     def get_order_products(self) -> list:
         return [op for op in self.order_products
@@ -139,6 +157,7 @@ class Suborder(db.Model, BaseModel): #type: ignore
             'subcustomer': f"{self.subcustomer.username}, {self.subcustomer.name}, {self.subcustomer.password}" \
                 if self.subcustomer else None,
             'buyout_date': self.buyout_date.strftime('%Y-%m-%d') if self.buyout_date else None,
+            'vendor': self.vendor,
             'order_products': [op.to_dict() for op in self.order_products],
             'when_created': self.when_created.strftime('%Y-%m-%d %H:%M:%S') if self.when_created else None,
             'when_changed': self.when_changed.strftime('%Y-%m-%d %H:%M:%S') if self.when_changed else None

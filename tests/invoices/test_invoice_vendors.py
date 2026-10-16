@@ -54,9 +54,11 @@ class TestInvoiceVendors(BaseTestCase):
         order = Order(user=self.admin, invoice=self.invoice, country_id='c1')
         suborder = Suborder(order=order)
         self.try_add_entities([order, suborder])
+        aza_suborder = Suborder(order=order)
+        self.try_add_entities([aza_suborder])
         self.try_add_entities([
             OrderProduct(suborder=suborder, product_id='Atomy:0001', price=10, quantity=1),
-            OrderProduct(suborder=suborder, product_id='AtomyAza:0001', price=10, quantity=2),
+            OrderProduct(suborder=aza_suborder, product_id='AtomyAza:0001', price=10, quantity=2),
         ])
         db.session.expire_all()
         invoice = db.session.get(Invoice, self.invoice.id)
