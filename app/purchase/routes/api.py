@@ -14,9 +14,10 @@ from app.tools import prepare_datatables_query, modify_object
 from app.models.address import Address
 from app.orders.models.order import Order
 from app.orders.models.subcustomer import Subcustomer
+from app.products.models.product import DEFAULT_VENDOR
 from app.purchase.models import Company, PurchaseOrder, PurchaseOrderStatus
 from app.purchase.validators.purchase_order import PurchaseOrderValidator
-from app.purchase.po_manager import create_purchase_orders
+from app.purchase.po_manager import NoPurchaseOrderVendorError, create_purchase_orders
 from common.exceptions import AtomyLoginError, PurchaseOrderError
 from common.utils.atomy import atomy_login2
 
@@ -81,16 +82,22 @@ def admin_create_purchase_orders():
     order: Order = db.session.get(Order, payload['order_id']) #type: ignore
     company: Company = db.session.get(Company, payload['company_id']) #type: ignore
     address: Address = db.session.get(Address, payload['address_id']) #type: ignore
-    vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config)
-    if not vendor:
-        abort(Response("No vendor was found"))
-    del payload['vendor']
+    vendor_ids = [v.id for v in PurchaseOrderVendorManager.get_vendors(config=current_app.config)]
+    vendors = payload.get('vendors') or {}
+    for vendor_id in [payload.get('vendor'), *vendors.values()]:
+        if vendor_id and vendor_id not in vendor_ids:
+            abort(Response(f"No vendor <{vendor_id}> was found", status=400))
+    vendor = PurchaseOrderVendorManager.get_vendor(payload['vendor'], config=current_app.config) \
+        if payload.get('vendor') else None
+    payload.pop('vendor', None)
     payload['purchase_restricted_products'] = payload.get('purchase_restricted_products', False)
 
     try:
         purchase_orders = create_purchase_orders(
             order, company, address, vendor, **payload
         )
+    except NoPurchaseOrderVendorError as ex:
+        abort(Response(str(ex), status=400))
     except PurchaseOrderError:
         return jsonify({
                 'data': [],
@@ -190,7 +197,8 @@ def validate_po_input():
         order = db.session.get(Order, payload['order_id'])
         if order is not None:
             error_subcustomers = []
-            for suborder in order.suborders:
+            # Suborders of other vendors are purchased with the company account
+            for suborder in [s for s in order.suborders if s.vendor == DEFAULT_VENDOR]:
                 try:
                     atomy_login2(suborder.subcustomer.username,
                                 suborder.subcustomer.password)
