@@ -1,0 +1,50 @@
+<html><body><script>var tb_is_member = "1";
+function fbuyform_submit(f) { if (!f.b_name.value) { alert("받으시는 분 이름을 입력하세요."); location.href = "#b_name"; return false; } return true; }
+</script>
+<form name="buyform" method="post" action="https://atomyaza.co.kr/shop/orderformupdate.php" onsubmit="return fbuyform_submit(this);">
+  <input type="hidden" name="ss_cart_id" value="2610180001">
+  <input type="hidden" name="tot_price_valid" value="30,900">
+  <input type="hidden" name="tot_price" value="30900">
+  <input type="hidden" name="baesong_price" value="0">
+  <input type="hidden" name="gs_id[0]" value="100002">
+  <input type="hidden" name="gs_price[0]" value="30900">
+  <input type="hidden" name="cart_id[0]" value="777000111">
+  <input type="hidden" name="baesong_chk[]" value="0||100002">
+  <input type="radio" name="sales_date" value="2026-10-16">
+  <input type="radio" name="sales_date" value="2026-10-17" checked>
+  <input type="radio" name="sales_date" value="2026-10-19">
+  <input type="text" name="name" value="Account holder">
+  <input type="text" name="cellphone" value="01000000000">
+  <input type="radio" name="ad_sel_addr" value="1">
+  <input type="radio" name="ad_sel_addr" value="2">
+  <input type="radio" name="ad_sel_addr" value="3">
+  <input type="text" name="addr_nm" value="">
+  <input type="text" name="b_name" value="Account holder">
+  <input type="text" name="b_cellphone" value="01000000000">
+  <input type="text" name="b_zip" value="11111">
+  <input type="text" name="b_addr1" value="Holder address 1">
+  <input type="text" name="b_addr2" value="Holder address 2">
+  <input type="text" name="b_addr3" value=" (Holder dong)">
+  <input type="hidden" name="b_addr_jibeon" value="J">
+  <input type="checkbox" name="addr_add" value="1">
+  <select name="sel_memo"><option value="">요청사항 선택하기</option><option value="빠른 배송 부탁드립니다.">빠른 배송 부탁드립니다.</option></select>
+  <textarea name="memo"></textarea>
+  <input type="radio" name="info_receive_yes" value="Y" checked>
+  <input type="radio" name="info_receive_yes" value="N">
+  <input type="radio" name="paymethod" value="일반결제">
+  <input type="radio" name="paymethod" value="가상계좌" checked>
+  <input type="radio" name="paymethod" value="카드번호결제">
+  <select name="virtualAcc_code"><option value="">은행 선택</option><option value="004">국민은행</option><option value="088">신한은행</option></select>
+  <input type="text" name="virtualAcc_hp" value="">
+  <input type="text" name="cardNumber1" value="">
+  <input type="password" name="cardPassword" value="">
+  <select name="cardInstallmentPlan"><option value="0">일시불</option><option value="2">2개월</option></select>
+  <input type="radio" name="taxsave_yes" value="N">
+  <input type="radio" name="taxsave_yes" value="Y" checked>
+  <input type="radio" name="taxsave_yes" value="S">
+  <input type="text" name="tax_hp" value="01000000000">
+  <input type="text" name="tax_saupja_no" value="">
+  <input type="text" name="disabled_field" value="x" disabled>
+  <input type="submit" id="submit_btn" value="주문하기(Pay)">
+</form>
+</body></html>
