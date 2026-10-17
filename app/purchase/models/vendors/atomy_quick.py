@@ -19,6 +19,7 @@ import logging
 from pytz import timezone
 import re
 from playwright.sync_api import Locator, Page, expect, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from app import db
 from common.exceptions import (
@@ -42,6 +43,8 @@ PRODUCTS_ADDED_TO_CART = 'The product has been added.'
 ERROR_AFFILIATED_BRANCH = "at you affiliated branch"
 MESSAGE_INACTIVE = "12개월 무실적 회원으로 일괄정리 대상자입니다. 상품 구매시 대상자에서 제외 됩니다."
 MESSAGE_REGISTRATION_NEEDED = "수당발생 안내"
+MESSAGE_VISA_RENEWAL = "비자갱신 안내"
+LOGIN_ATTEMPTS = 3
 
 ORDER_STATUSES = {
     "Order Placed": PurchaseOrderStatus.posted,
@@ -465,21 +468,50 @@ class AtomyQuick(PurchaseOrderVendorBase):
         page.fill("#login_pw", str(purchase_order.customer.password))
         page.click(".login_btn button")
         # Race: resolve when alert appears OR login form disappears.
-        # Returns 'alert' or 'form_gone' so we know which condition triggered
-        # without relying on page.url (which may still be /login during navigation).
+        # Returns 'alert', 'visa' or 'form_gone' so we know which condition
+        # triggered without relying on page.url (which may still be /login
+        # during navigation).
         # Use specific login-alert IDs to avoid matching promotional/next-page popups.
         # div#layer_alert   → wrong credentials / inactive account
         # div#lyr_login_allowance → registration required
-        triggered = page.wait_for_function(
-            """() => {
-                const form  = document.querySelector('div.login_form');
-                if (!form || form.offsetParent === null) return 'form_gone';
-                const alert = document.querySelector('div#layer_alert, div#lyr_login_allowance');
-                if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
-                return false;
-            }""",
-            timeout=30000
-        ).json_value()
+        # div.layer-box with visa title → visa expired, account became consumer
+        visa_box = page.locator(
+            f'div.layer-box:has(h3.title:has-text("{MESSAGE_VISA_RENEWAL}"))')
+        for _ in range(LOGIN_ATTEMPTS):
+            triggered = page.wait_for_function(
+                """(visaTitle) => {
+                    const form  = document.querySelector('div.login_form');
+                    if (!form || form.offsetParent === null) return 'form_gone';
+                    const alert = document.querySelector('div#layer_alert, div#lyr_login_allowance');
+                    if (alert && alert.getBoundingClientRect().height > 0) return 'alert';
+                    const visa = Array.from(document.querySelectorAll('div.layer-box'))
+                        .find(box => box.querySelector('h3.title')?.textContent.includes(visaTitle));
+                    if (visa && visa.getBoundingClientRect().height > 0) return 'visa';
+                    return false;
+                }""",
+                arg=MESSAGE_VISA_RENEWAL,
+                timeout=30000
+            ).json_value()
+            if triggered != 'visa':
+                break
+            self._logger.warning(
+                "Visa of %s has expired, the account is converted to consumer. "
+                "Closing the visa renewal notice and proceeding",
+                purchase_order.customer.username)
+            sleep(1)
+            visa_box.locator('[layer-role="close-button"]').click()
+            visa_box.wait_for(state='hidden', timeout=10000)
+            # Closed too early the popup disappears but the login doesn't
+            # redirect. The session is set already so just go on
+            try:
+                page.locator('div.login_form').wait_for(state='hidden', timeout=10000)
+            except PlaywrightTimeoutError:
+                self._logger.warning("Login didn't proceed after closing the visa notice")
+                page.goto(f"{URL_BASE}/main")
+        else:
+            raise AtomyLoginError(
+                username=purchase_order.customer.username,
+                message=f"{MESSAGE_VISA_RENEWAL} keeps appearing")
         if triggered == 'alert':
             handle_login_alert(purchase_order.customer, page, self._logger)
             page.locator('div.login_form').wait_for(state='detached', timeout=10000)

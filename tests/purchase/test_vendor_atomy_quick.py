@@ -1,8 +1,9 @@
 import logging
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from lxml.etree import fromstring
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from tests import BaseTestCase
 from flask import current_app
 
@@ -16,7 +17,10 @@ import app.products.models as pr
 import app.purchase.models as p
 from app.purchase.models.vendors.atomy_quick import (
     AtomyQuick,
+    MESSAGE_INACTIVE,
     MESSAGE_REGISTRATION_NEEDED,
+    URL_BASE,
+    try_click,
 )
 from app.users.models import Role, User
 from common.exceptions import AtomyLoginError, ProductNotAvailableError, PurchaseOrderError
@@ -335,3 +339,134 @@ class TestAtomyQuickLogin(BaseTestCase):
                         expect_success,
                         f"[{label}] expected login to succeed but got AtomyLoginError",
                     )
+
+
+# ---------------------------------------------------------------------------
+# Visa renewal popup during login
+# ---------------------------------------------------------------------------
+
+@patch("app.purchase.models.vendors.atomy_quick.sleep", MagicMock())
+class TestAtomyQuickLoginVisaPopup(BaseTestCase):
+    """Accounts with expired visa get a "비자갱신 안내" layer-box (no id) right
+    after login. It must be closed and the login must proceed."""
+
+    def _make_page_mock(self, race_results: list[str], alert_message: str = ''):
+        page = MagicMock()
+        visa_box = MagicMock()
+        other_locator = MagicMock()
+        other_locator.count.return_value = 0
+        other_locator.first.text_content.return_value = alert_message
+
+        def locator_side_effect(selector, *args, **kwargs):
+            if 'layer-box' in selector:
+                return visa_box
+            return other_locator
+
+        page.locator.side_effect = locator_side_effect
+        wff_results = []
+        for value in race_results:
+            wff = MagicMock()
+            wff.json_value.return_value = value
+            wff_results.append(wff)
+        page.wait_for_function.side_effect = wff_results
+        return page, visa_box
+
+    def test_login_closes_visa_popup_and_proceeds(self):
+        page, visa_box = self._make_page_mock(['visa', 'form_gone'])
+        po = SimpleNamespace(customer=SimpleNamespace(username='u', password='p'))
+        vendor = AtomyQuick(logger=logging.getLogger(self.__class__.__name__))
+        with self.assertLogs(level='WARNING') as logs:
+            vendor._AtomyQuick__login(page, po)
+        visa_box.locator.assert_called_with('[layer-role="close-button"]')
+        visa_box.locator.return_value.click.assert_called_once()
+        self.assertTrue(any('visa' in line.lower() for line in logs.output))
+        self.assertEqual(page.wait_for_function.call_count, 2)
+
+    def test_login_fails_when_visa_popup_keeps_appearing(self):
+        page, visa_box = self._make_page_mock(['visa'] * 10)
+        po = SimpleNamespace(customer=SimpleNamespace(username='u', password='p'))
+        vendor = AtomyQuick(logger=logging.getLogger(self.__class__.__name__))
+        with self.assertRaises(AtomyLoginError):
+            vendor._AtomyQuick__login(page, po)
+        self.assertLessEqual(page.wait_for_function.call_count, 3)
+
+    def _login(self, page):
+        po = SimpleNamespace(customer=SimpleNamespace(username='u', password='p'))
+        vendor = AtomyQuick(logger=logging.getLogger(self.__class__.__name__))
+        vendor._AtomyQuick__login(page, po)
+
+    def test_alert_takes_precedence_over_visa_popup(self):
+        """Wrong credentials alert must still fail login even if the visa
+        popup is present: the race reports 'alert' first."""
+        page, visa_box = self._make_page_mock(['alert'], 'Invalid credentials')
+        with self.assertRaises(AtomyLoginError):
+            self._login(page)
+        visa_box.locator.return_value.click.assert_not_called()
+
+    def test_visa_popup_followed_by_inactive_alert(self):
+        """After closing the visa popup the inactive-account alert is handled
+        as before and login proceeds."""
+        page, visa_box = self._make_page_mock(['visa', 'alert'], MESSAGE_INACTIVE)
+        self._login(page)
+        visa_box.locator.return_value.click.assert_called_once()
+        page.goto.assert_called_with(f'{URL_BASE}/main')
+
+    def test_visa_popup_followed_by_registration_alert(self):
+        page, _ = self._make_page_mock(['visa', 'alert'], MESSAGE_REGISTRATION_NEEDED)
+        with self.assertRaises(AtomyLoginError):
+            self._login(page)
+
+    def test_visa_popup_not_closing_propagates_error(self):
+        """If the popup stays visible after clicking close, the wait error must
+        propagate instead of the login silently continuing."""
+        page, visa_box = self._make_page_mock(['visa', 'form_gone'])
+        visa_box.wait_for.side_effect = TimeoutError('popup still visible')
+        with self.assertRaises(TimeoutError):
+            self._login(page)
+        self.assertEqual(page.wait_for_function.call_count, 1)
+
+    def test_visa_popup_renew_button_not_clicked(self):
+        """Only the close button may be clicked, never "바로 갱신하기"."""
+        page, visa_box = self._make_page_mock(['visa', 'form_gone'])
+        self._login(page)
+        selectors = [c.args[0] for c in visa_box.locator.call_args_list]
+        self.assertEqual(selectors, ['[layer-role="close-button"]'])
+
+    def test_visa_popup_closed_but_login_stalls_goes_to_main(self):
+        """Closing the popup too early leaves the login form in place without
+        redirect. Login must recover by opening the main page."""
+        page, _ = self._make_page_mock(['visa', 'form_gone'])
+        def form_wait_for(state, **kwargs):
+            if state == 'hidden':
+                raise PlaywrightTimeoutError('login form still visible')
+        page.locator('div.login_form').wait_for.side_effect = form_wait_for
+        self._login(page)
+        page.goto.assert_called_with(f'{URL_BASE}/main')
+
+    def test_visa_popup_closed_and_login_progresses_no_navigation(self):
+        page, _ = self._make_page_mock(['visa', 'form_gone'])
+        self._login(page)
+        self.assertNotIn(call(f'{URL_BASE}/main'), page.goto.call_args_list)
+
+
+@patch("app.purchase.models.vendors.atomy_quick.sleep", MagicMock())
+class TestTryClickClosesLatePopup(BaseTestCase):
+    """Visa popup appearing after the login redirect is closed by try_click's
+    generic popup removal before the target click."""
+
+    def test_popup_closed_before_click(self):
+        page = MagicMock()
+        popup = MagicMock()
+        popup.count.return_value = 1
+        page.locator.return_value = popup
+        target = MagicMock()
+        target.page = page
+        order = MagicMock()
+        order.attach_mock(popup.click, 'popup_click')
+        order.attach_mock(target.click, 'target_click')
+
+        try_click(target, lambda: None)
+
+        page.locator.assert_called_with('[layer-role="close-button"]')
+        self.assertEqual(
+            [c[0] for c in order.mock_calls], ['popup_click', 'target_click'])
