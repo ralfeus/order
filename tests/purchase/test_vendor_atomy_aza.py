@@ -3,7 +3,7 @@ All HTTP traffic is faked with fixtures from tests/purchase/fixtures/atomy_aza''
 from datetime import date, datetime
 import os
 from typing import Callable, Optional, Union
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
 from tests import BaseTestCase, db
@@ -13,10 +13,11 @@ from app.orders.models.order_product import OrderProduct
 from app.orders.models.subcustomer import Subcustomer
 from app.orders.models.suborder import Suborder
 from app.products.models import Product
-from app.purchase.models import PurchaseOrder
+from app.orders.models.order_product import OrderProductStatus
+from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.company import Company
 from app.purchase.models.vendors.atomy_aza import (
-    _add_to_cart, _clear_cart, _get_order_lines, _place_order)
+    AtomyAza, _add_to_cart, _clear_cart, _get_order_lines, _place_order)
 from app.users.models.user import User
 from common.exceptions import ProductNotAvailableError, PurchaseOrderError
 from common.utils.aza import URL_BASE, AzaLoginError
@@ -72,7 +73,8 @@ def _as_dict(data) -> dict:
     return result
 
 
-class TestAtomyAzaClient(BaseTestCase):
+class AzaTestCase(BaseTestCase):
+    '''Order of AtomyAza products with purchase order data'''
     def setUp(self):
         super().setUp()
         db.create_all()
@@ -108,6 +110,8 @@ class TestAtomyAzaClient(BaseTestCase):
         self.try_add_entity(po)
         return po
 
+
+class TestAtomyAzaClient(AzaTestCase):
     # --- cart -------------------------------------------------------------
 
     def _view_session(self, view: str='view_options.html', cartsave: Route=lambda u, p: ''):
@@ -302,3 +306,136 @@ class TestAtomyAzaClient(BaseTestCase):
         session = FakeSession({('GET', '/m/shop/orderinquiry.php'): 'view_anonymous.html'})
         with self.assertRaises(AzaLoginError):
             _get_order_lines(session, date(2026, 9, 1), date(2026, 10, 18))
+
+
+MODULE = 'app.purchase.models.vendors.atomy_aza'
+CONFIG = {'AZA_LOGIN': 'company', 'AZA_PASSWORD': 'secret', 'AZA_SOCKS5_PROXY': '',
+          'ATOMY_RECEIVER_NAME_FORMAT': '{company} {id1}', 'LOG_LEVEL': 'INFO'}
+ORDER_DETAILS = {'vendor_po': '26101803073003', 'payment_account': '국민은행 50789073464931',
+                 'total_price': 61800}
+
+class TestAtomyAzaVendor(AzaTestCase):
+    def setUp(self):
+        super().setUp()
+        self.ops = [self._op('100001:4541550', 1), self._op('100002', 1)]
+        self.po = self._po()
+        patches = {
+            'login': patch(f'{MODULE}.aza_login', return_value='session'),
+            'clear': patch(f'{MODULE}._clear_cart'),
+            'add': patch(f'{MODULE}._add_to_cart'),
+            'place': patch(f'{MODULE}._place_order', return_value=dict(ORDER_DETAILS)),
+            'lines': patch(f'{MODULE}._get_order_lines', return_value=[]),
+        }
+        self.mocks = {name: p.start() for name, p in patches.items()}
+        for p in patches.values():
+            self.addCleanup(p.stop)
+        self.vendor = AtomyAza(config=CONFIG)
+
+    def test_post_purchase_order(self):
+        po, unavailable = self.vendor.post_purchase_order(self.po)
+        self.assertEqual(unavailable, {})
+        self.mocks['login'].assert_called_once_with('company', 'secret', '')
+        self.mocks['clear'].assert_called_once_with('session')
+        self.assertEqual([c.args[1] for c in self.mocks['add'].call_args_list], self.ops)
+        session, placed_po, receiver = self.mocks['place'].call_args.args
+        self.assertIs(placed_po, self.po)
+        self.assertEqual(receiver, f"Company {self.po.id[8:].split('-')[1]}")
+        self.assertEqual((po.vendor_po_id, po.payment_account, po.total_krw),
+                         ('26101803073003', '국민은행 50789073464931', 61800))
+        self.assertEqual([op.status for op in self.ops], [OrderProductStatus.purchased] * 2)
+
+    def test_post_purchase_order_unavailable_product(self):
+        def add(_session, op):
+            if op.product_id == '100002':
+                raise ProductNotAvailableError('100002', 'Sold out')
+        self.mocks['add'].side_effect = add
+        _po, unavailable = self.vendor.post_purchase_order(self.po)
+        self.assertEqual(unavailable, {'100002': 'Sold out'})
+        self.mocks['place'].assert_called_once()
+        self.assertEqual([op.status for op in self.ops],
+                         [OrderProductStatus.purchased, OrderProductStatus.pending])
+
+    def test_post_purchase_order_no_products_available(self):
+        self.mocks['add'].side_effect = ProductNotAvailableError('x', 'Sold out')
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.mocks['place'].assert_not_called()
+
+    def test_post_purchase_order_skips_exempted_products(self):
+        self.ops[0].product.purchase = False
+        self.ops[1].quantity = 0
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.mocks['add'].assert_not_called()
+
+    def test_post_purchase_order_login_failure(self):
+        self.mocks['login'].side_effect = AzaLoginError('Wrong password')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            self.vendor.post_purchase_order(self.po)
+        self.assertIn('Wrong password', str(ctx.exception))
+
+    def test_post_purchase_order_no_credentials(self):
+        vendor = AtomyAza(config={**CONFIG, 'AZA_LOGIN': ''})
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            vendor.post_purchase_order(self.po)
+        self.assertIn('AZA_LOGIN', str(ctx.exception))
+        self.mocks['login'].assert_not_called()
+
+    def test_post_purchase_order_network_error(self):
+        import requests
+        self.mocks['place'].side_effect = requests.ConnectionError('Connection reset')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            self.vendor.post_purchase_order(self.po)
+        self.assertIn('Connection reset', str(ctx.exception))
+
+    def test_session_is_reused(self):
+        self.vendor.post_purchase_order(self.po)
+        self.vendor.post_purchase_order(self.po)
+        self.mocks['login'].assert_called_once()
+
+    def _update(self, *lines: tuple[int, ...]) -> PurchaseOrder:
+        self.po.vendor_po_id = '26101803073003'
+        self.po.status = PurchaseOrderStatus.posted
+        self.mocks['lines'].return_value = [
+            {'id': '26101803073003', 'gs_id': str(i), 'status_code': code, 'quantity': 1}
+            for i, code in enumerate(lines)] + [
+            {'id': '99999999999999', 'gs_id': '1', 'status_code': 5, 'quantity': 1}]
+        self.vendor.update_purchase_orders_status(self.po.customer, [self.po])
+        return self.po
+
+    def test_update_status(self):
+        for codes, status in [
+                ((1,), PurchaseOrderStatus.posted),
+                ((2,), PurchaseOrderStatus.paid),
+                ((3,), PurchaseOrderStatus.paid),
+                ((4,), PurchaseOrderStatus.shipped),
+                ((5,), PurchaseOrderStatus.delivered),
+                ((6,), PurchaseOrderStatus.cancelled),
+                ((6, 6), PurchaseOrderStatus.cancelled),
+                ((5, 6), PurchaseOrderStatus.delivered),  # partially cancelled
+                ((5, 3), PurchaseOrderStatus.paid),       # least advanced item decides
+                ((4, 5), PurchaseOrderStatus.shipped)]:
+            with self.subTest(codes):
+                self.assertEqual(self._update(*codes).status, status)
+
+    def test_update_status_period(self):
+        self.po.when_created = datetime(2026, 10, 10, 15, 0)
+        self._update(2)
+        from_date, to_date = self.mocks['lines'].call_args.args[1:]
+        self.assertEqual(from_date, date(2026, 10, 9))
+        self.assertEqual(to_date, date.today())
+
+    def test_update_status_unknown_code_keeps_status(self):
+        self.assertEqual(self._update(9).status, PurchaseOrderStatus.posted)
+
+    def test_update_status_not_found_keeps_status(self):
+        self.po.vendor_po_id = 'other'
+        self.mocks['lines'].return_value = [
+            {'id': '26101803073003', 'gs_id': '1', 'status_code': 5, 'quantity': 1}]
+        self.vendor.update_purchase_orders_status(self.po.customer, [self.po])
+        self.assertEqual(self.po.status, None)
+
+    def test_update_status_unchanged_isnt_set(self):
+        with patch.object(PurchaseOrder, 'set_status') as set_status:
+            self._update(1)
+        set_status.assert_not_called()

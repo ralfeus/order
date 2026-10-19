@@ -63,7 +63,7 @@ class TestPurchaseOrdersApi(BaseTestCase):
         res = self.try_admin_operation(
             lambda: self.client.get('/api/v1/admin/purchase/vendor')
         )
-        self.assertEqual(len(res.json), 1)
+        self.assertEqual(len(res.json), 2)
 
     @patch('app.purchase.jobs.post_purchase_orders')
     def test_create_purchase_order(self, po_mock):

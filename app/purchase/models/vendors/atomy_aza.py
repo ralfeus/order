@@ -1,7 +1,7 @@
 '''Manages purchase orders at AtomyAza (atomyaza.co.kr).
 Orders are placed with the company account via plain HTTP requests:
 cart -> order form -> virtual account payment'''
-from datetime import date
+from datetime import date, timedelta
 import logging
 import re
 from typing import Any, Optional
@@ -10,10 +10,13 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from bs4 import BeautifulSoup, Tag
 import requests
 
-from app.orders.models.order_product import OrderProduct
-from app.purchase.models.purchase_order import PurchaseOrder
+from app.orders.models.order_product import OrderProduct, OrderProductStatus
+from app.orders.models.subcustomer import Subcustomer
+from app.purchase.models.purchase_order import PurchaseOrder, PurchaseOrderStatus
 from common.exceptions import ProductNotAvailableError, PurchaseOrderError
-from common.utils.aza import TIMEOUT, URL_BASE, AzaLoginError
+from common.utils.aza import TIMEOUT, URL_BASE, AzaLoginError, aza_login
+from .atomy_quick import get_receiver_name
+from .vendor_base import PurchaseOrderVendorBase
 
 # Company bank IDs (see companies.js) to AtomyAza virtual account bank codes
 BANK_CODES = {
@@ -35,6 +38,17 @@ NEW_ADDRESS = '2'
 CASH_RECEIPT_NONE = 'N'
 CASH_RECEIPT_BUSINESS = 'S'
 MAX_REDIRECTS = 5
+# Order item status codes (em.dan_nm<code>) of the order history
+ORDER_STATUSES = {
+    1: PurchaseOrderStatus.posted,    # 입금대기
+    2: PurchaseOrderStatus.paid,      # 결제완료
+    3: PurchaseOrderStatus.paid,      # 배송준비
+    4: PurchaseOrderStatus.shipped,   # 배송중
+    5: PurchaseOrderStatus.delivered, # 배송완료
+    6: PurchaseOrderStatus.cancelled, # 취소완료
+}
+STATUS_PROGRESS = [PurchaseOrderStatus.posted, PurchaseOrderStatus.paid,
+                   PurchaseOrderStatus.shipped, PurchaseOrderStatus.delivered]
 
 _ALERT = re.compile(
     r'''alert\(\s*(["'])(?P<message>.*?)\1\s*\)\s*;?\s*'''
@@ -282,3 +296,127 @@ def _get_order_lines(session: requests.Session, from_date: date, to_date: date
                 'quantity': int(_digits(quantity.get_text()) or 0) if quantity else 0
             })
     return lines
+
+
+class AtomyAza(PurchaseOrderVendorBase):
+    '''Manages purchase orders at AtomyAza. All orders are placed with
+    the company account set by AZA_LOGIN and AZA_PASSWORD'''
+    def __init__(self, browser=None, logger: Optional[logging.Logger]=None,
+                 config: Optional[dict[str, Any]]=None, **_kwargs):
+        super().__init__()
+        if not config:
+            from flask import current_app
+            config = current_app.config
+        self.__config: dict[str, Any] = config
+        self._logger = logger or logging.getLogger(type(self).__name__)
+        self.__session: Optional[requests.Session] = None
+
+    def __str__(self):
+        return "AtomyAza"
+
+    def __get_session(self, purchase_order: Optional[PurchaseOrder]=None
+                      ) -> requests.Session:
+        '''Logs in once and reuses the session for all purchase orders'''
+        if self.__session is None:
+            username = self.__config.get('AZA_LOGIN')
+            password = self.__config.get('AZA_PASSWORD')
+            if not username or not password:
+                raise PurchaseOrderError(purchase_order, self,
+                    "AZA_LOGIN and AZA_PASSWORD must be configured")
+            try:
+                self.__session = aza_login(username, password,
+                                           self.__config.get('AZA_SOCKS5_PROXY', ''))
+            except (AzaLoginError, requests.RequestException) as ex:
+                raise PurchaseOrderError(purchase_order, self,
+                    f"Couldn't log in to AtomyAza: {ex}") from ex
+        return self.__session
+
+    def post_purchase_order(self, purchase_order: PurchaseOrder
+                            ) -> tuple[PurchaseOrder, dict[str, str]]:
+        '''Posts the purchase order to AtomyAza.
+        Returns the purchase order and products that couldn't be ordered'''
+        session = self.__get_session(purchase_order)
+        logger = self._logger.getChild(purchase_order.id)
+        try:
+            _clear_cart(session)
+            ordered_products, unavailable_products = \
+                self.__add_products(session, purchase_order, logger)
+            if len(ordered_products) == 0:
+                raise PurchaseOrderError(purchase_order, self, "No products could be added")
+            receiver_name = get_receiver_name(purchase_order,
+                self.__config.get('ATOMY_RECEIVER_NAME_FORMAT', '{company} {id1}'))
+            details = _place_order(session, purchase_order, receiver_name)
+        except AzaLoginError as ex:
+            self.__session = None
+            raise PurchaseOrderError(purchase_order, self, str(ex)) from ex
+        except requests.RequestException as ex:
+            raise PurchaseOrderError(purchase_order, self, str(ex)) from ex
+        except PurchaseOrderError as ex:
+            if ex.po_id is None:
+                raise PurchaseOrderError(purchase_order, self, ex.message) from ex
+            raise
+        logger.info("Created order %s", details['vendor_po'])
+        purchase_order.vendor_po_id = details['vendor_po']
+        purchase_order.payment_account = details['payment_account']
+        purchase_order.total_krw = details['total_price']
+        self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
+        return purchase_order, unavailable_products
+
+    def __add_products(self, session: requests.Session, purchase_order: PurchaseOrder,
+                       logger: logging.Logger
+                       ) -> tuple[list[tuple[OrderProduct]], dict[str, str]]:
+        ordered_products = []
+        unavailable_products = {}
+        for op in purchase_order.order_products:
+            if not op.product.purchase:
+                logger.warning("The product %s is exempted from purchase", op.product_id)
+                continue
+            if op.quantity <= 0:
+                logger.warning("The product %s has wrong quantity %s",
+                               op.product_id, op.quantity)
+                continue
+            try:
+                _add_to_cart(session, op)
+                ordered_products.append((op,))
+                logger.info("Added product %s", op.product_id)
+            except ProductNotAvailableError as ex:
+                logger.warning("Product %s is not available: %s", ex.product_id, ex.message)
+                unavailable_products[ex.product_id] = ex.message
+        return ordered_products, unavailable_products
+
+    def update_purchase_orders_status(self, customer: Subcustomer,
+                                      customer_pos: list[PurchaseOrder]):
+        '''Updates statuses of the purchase orders by AtomyAza order history.
+        The customer is irrelevant as all orders are made with the company account'''
+        created = [po.when_created.date() for po in customer_pos if po.when_created]
+        from_date = min(created) - timedelta(days=1) if created \
+            else date.today() - timedelta(weeks=1)
+        lines = _get_order_lines(self.__get_session(), from_date, date.today())
+        orders: dict[str, list[int]] = {}
+        for line in lines:
+            orders.setdefault(line['id'], []).append(line['status_code'])
+        for po in customer_pos:
+            codes = orders.get(str(po.vendor_po_id))
+            if codes is None:
+                self._logger.warning("No AtomyAza order <%s> of %s was found",
+                                     po.vendor_po_id, po.id)
+                continue
+            status = self.__get_order_status(codes)
+            if status is None:
+                self._logger.warning("Unknown status codes %s of AtomyAza order <%s>",
+                                     codes, po.vendor_po_id)
+            elif status != po.status:
+                self._logger.debug("Setting %s status to <%s>", po.id, status)
+                po.set_status(status)
+
+    @staticmethod
+    def __get_order_status(codes: list[int]) -> Optional[PurchaseOrderStatus]:
+        '''Order is cancelled if all its items are. Otherwise
+        the least advanced of not cancelled items defines the status'''
+        if any(code not in ORDER_STATUSES for code in codes):
+            return None
+        statuses = [ORDER_STATUSES[code] for code in codes
+                    if ORDER_STATUSES[code] != PurchaseOrderStatus.cancelled]
+        if len(statuses) == 0:
+            return PurchaseOrderStatus.cancelled
+        return min(statuses, key=STATUS_PROGRESS.index)
