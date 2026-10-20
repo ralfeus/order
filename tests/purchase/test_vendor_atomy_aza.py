@@ -17,7 +17,7 @@ from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.company import Company
 from app.purchase.models.vendors.atomy_aza import (
-    AtomyAza, _add_to_cart, _clear_cart, _get_order_lines, _place_order)
+    AtomyAza, _add_to_cart, _get_order_lines, _place_order)
 from app.users.models.user import User
 from common.exceptions import ProductNotAvailableError, PurchaseOrderError
 from common.utils.aza import URL_BASE, AzaLoginError
@@ -73,11 +73,21 @@ def _as_dict(data) -> dict:
     return result
 
 
+def _register_sqlite_lock_functions(get_lock: Callable=lambda name, timeout: 1,
+                                    release_lock: Callable=lambda name: 1):
+    '''MySQL named lock functions for SQLite (session and engine share connection)'''
+    with db.engine.connect() as conn:
+        raw = conn.connection.dbapi_connection
+        raw.create_function('GET_LOCK', 2, get_lock)
+        raw.create_function('RELEASE_LOCK', 1, release_lock)
+
+
 class AzaTestCase(BaseTestCase):
     '''Order of AtomyAza products with purchase order data'''
     def setUp(self):
         super().setUp()
         db.create_all()
+        _register_sqlite_lock_functions()
         self.user = User(username='user_aza', email='u@name.com', password_hash='', enabled=True)
         self.address = Address(name='Office', zip='03733', address_1='Seoul, Street 17',
                                address_2='Building 108, 504')
@@ -173,31 +183,14 @@ class TestAtomyAzaClient(AzaTestCase):
         with self.assertRaises(AzaLoginError):
             _add_to_cart(self._view_session('view_anonymous.html'), self._op('100002'))
 
-    def test_clear_cart(self):
-        session = FakeSession({
-            ('GET', '/m/shop/cart.php'): 'cart.html',
-            ('POST', '/m/shop/cartupdate.php'): 'cart_empty.html',
-        })
-        _clear_cart(session)
-        data = session.posted('/m/shop/cartupdate.php')[0]
-        self.assertEqual(data['act'], ['alldelete'])
-        self.assertEqual(data['ct_chk[0]'], ['1'])
-        self.assertEqual(data['ct_chk[1]'], ['1'])
-        self.assertEqual(data['gs_id[1]'], ['100002'])
-
-    def test_clear_empty_cart(self):
-        session = FakeSession({('GET', '/m/shop/cart.php'): 'cart_empty.html'})
-        _clear_cart(session)
-        self.assertEqual(session.posted('/m/shop/cartupdate.php'), [])
-
     # --- order ------------------------------------------------------------
 
     def _order_session(self, orderformupdate: Route=None, view: str='order_view.html',
-                       cart: str='cart.html'):
+                       cart: str='cart.html', orderform: Route='orderform.html'):
         return FakeSession({
             ('GET', '/m/shop/cart.php'): cart,
             ('POST', '/m/shop/cartupdate.php'): 'script_redirect_orderform.html',
-            ('GET', '/m/shop/orderform.php'): 'orderform.html',
+            ('GET', '/m/shop/orderform.php'): orderform,
             ('POST', '/shop/orderformupdate.php'): orderformupdate or (lambda u, p:
                 f"<script>location.replace('{URL_BASE}/shop/toss/virtualAccount.php"
                 "?od_id=26101803073003&tot_price=30900');</script>"),
@@ -207,7 +200,7 @@ class TestAtomyAzaClient(AzaTestCase):
 
     def test_place_order(self):
         session = self._order_session()
-        result = _place_order(session, self._po(), 'Company 0001')
+        result = _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertEqual(result, {
             'vendor_po': '26101803073003',
             'payment_account': '국민은행 50789073464931',
@@ -215,7 +208,10 @@ class TestAtomyAzaClient(AzaTestCase):
         })
         buy = session.posted('/m/shop/cartupdate.php')[0]
         self.assertEqual(buy['act'], ['buy'])
+        # Only ordered products are bought. Others in the cart aren't ours
         self.assertEqual(buy['ct_chk[1]'], ['1'])
+        self.assertNotIn('ct_chk[0]', buy)
+        self.assertNotIn('ct_all', buy)
         data = session.posted('/shop/orderformupdate.php')[0]
         expected = {
             'ss_cart_id': ['2610180001'], 'tot_price': ['30900'], 'cart_id[0]': ['777000111'],
@@ -239,7 +235,7 @@ class TestAtomyAzaClient(AzaTestCase):
     def test_place_order_no_tax_id(self):
         self.company.tax_id_1 = self.company.tax_id_2 = self.company.tax_id_3 = None
         session = self._order_session()
-        _place_order(session, self._po(), 'Company 0001')
+        _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         data = session.posted('/shop/orderformupdate.php')[0]
         self.assertEqual(data['taxsave_yes'], ['N'])
         self.assertEqual(data['tax_saupja_no'], [''])
@@ -247,7 +243,7 @@ class TestAtomyAzaClient(AzaTestCase):
     def test_place_order_without_purchase_date_takes_default(self):
         self.suborder.buyout_date = None
         session = self._order_session()
-        _place_order(session, self._po(), 'Company 0001')
+        _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertEqual(session.posted('/shop/orderformupdate.php')[0]['sales_date'],
                          ['2026-10-17'])
 
@@ -255,25 +251,46 @@ class TestAtomyAzaClient(AzaTestCase):
         self.suborder.buyout_date = datetime(2026, 10, 18)
         session = self._order_session()
         with self.assertRaises(PurchaseOrderError) as ctx:
-            _place_order(session, self._po(), 'Company 0001')
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('2026-10-18', str(ctx.exception))
         self.assertEqual(session.posted('/shop/orderformupdate.php'), [])
 
     def test_place_order_unsupported_bank(self):
         self.company.bank_id = 'ST'
         with self.assertRaises(PurchaseOrderError):
-            _place_order(self._order_session(), self._po(), 'Company 0001')
+            _place_order(self._order_session(), self._po(), 'Company 0001', {'100002': 1})
 
-    def test_place_order_empty_cart(self):
-        session = self._order_session(cart='cart_empty.html')
-        with self.assertRaises(PurchaseOrderError):
-            _place_order(session, self._po(), 'Company 0001')
-        self.assertEqual(session.posted('/m/shop/cartupdate.php'), [])
+    def test_place_order_product_not_in_cart(self):
+        for cart in ['cart_empty.html', 'cart.html']:
+            with self.subTest(cart):
+                session = self._order_session(cart=cart)
+                with self.assertRaises(PurchaseOrderError) as ctx:
+                    _place_order(session, self._po(), 'Company 0001',
+                                 {'100002': 1, '100009': 1})
+                self.assertIn('100009', str(ctx.exception.message))
+                self.assertEqual(session.posted('/m/shop/cartupdate.php'), [])
+
+    def test_place_order_form_mismatch(self):
+        foreign_line = lambda u, p: _fixture('orderform.html').replace(
+            '<input type="radio" name="sales_date"',
+            '<input type="hidden" name="gs_id[1]" value="100001">'
+            '<input type="hidden" name="sum_qty[1]" value="1">'
+            '<input type="radio" name="sales_date"', 1)
+        for orderform, quantities in [
+                (foreign_line, {'100002': 1}),       # product of another posting
+                ('orderform.html', {'100002': 2}),   # quantity merged with another posting
+                ('orderform.html', {'100002': 1, '100001': 1})]:  # product is missing
+            with self.subTest(quantities):
+                session = self._order_session(orderform=orderform)
+                with self.assertRaises(PurchaseOrderError) as ctx:
+                    _place_order(session, self._po(), 'Company 0001', quantities)
+                self.assertTrue(ctx.exception.retry)
+                self.assertEqual(session.posted('/shop/orderformupdate.php'), [])
 
     def test_place_order_site_alert(self):
         session = self._order_session(orderformupdate=lambda u, p: _fixture('alert.html'))
         with self.assertRaises(PurchaseOrderError) as ctx:
-            _place_order(session, self._po(), 'Company 0001')
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('재고가 부족합니다', str(ctx.exception))
 
     def test_place_order_failure_reason(self):
@@ -281,7 +298,7 @@ class TestAtomyAzaClient(AzaTestCase):
             f"<script>location.replace('{URL_BASE}/m/shop/orderinquiryview.php"
             "?od_id=&orderformresult=0&result_reason=가상계좌 발급 실패');</script>")
         with self.assertRaises(PurchaseOrderError) as ctx:
-            _place_order(session, self._po(), 'Company 0001')
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('가상계좌 발급 실패', str(ctx.exception))
 
     # --- order history ----------------------------------------------------
@@ -321,7 +338,6 @@ class TestAtomyAzaVendor(AzaTestCase):
         self.po = self._po()
         patches = {
             'login': patch(f'{MODULE}.aza_login', return_value='session'),
-            'clear': patch(f'{MODULE}._clear_cart'),
             'add': patch(f'{MODULE}._add_to_cart'),
             'place': patch(f'{MODULE}._place_order', return_value=dict(ORDER_DETAILS)),
             'lines': patch(f'{MODULE}._get_order_lines', return_value=[]),
@@ -335,14 +351,49 @@ class TestAtomyAzaVendor(AzaTestCase):
         po, unavailable = self.vendor.post_purchase_order(self.po)
         self.assertEqual(unavailable, {})
         self.mocks['login'].assert_called_once_with('company', 'secret', '')
-        self.mocks['clear'].assert_called_once_with('session')
         self.assertEqual([c.args[1] for c in self.mocks['add'].call_args_list], self.ops)
-        session, placed_po, receiver = self.mocks['place'].call_args.args
+        session, placed_po, receiver, quantities = self.mocks['place'].call_args.args
         self.assertIs(placed_po, self.po)
+        self.assertEqual(quantities, {'100001': 1, '100002': 1})
         self.assertEqual(receiver, f"Company {self.po.id[8:].split('-')[1]}")
         self.assertEqual((po.vendor_po_id, po.payment_account, po.total_krw),
                          ('26101803073003', '국민은행 50789073464931', 61800))
         self.assertEqual([op.status for op in self.ops], [OrderProductStatus.purchased] * 2)
+
+    def test_post_purchase_order_quantities_by_product(self):
+        '''Options of the same product are one line of the order form'''
+        self.ops.append(self._op('100001:4541551', 2))
+        self.vendor.post_purchase_order(self.po)
+        self.assertEqual(self.mocks['place'].call_args.args[3], {'100001': 3, '100002': 1})
+
+    def test_post_purchase_order_holds_account_lock(self):
+        calls = []
+        def place(*_args):
+            calls.append('place')
+            return dict(ORDER_DETAILS)
+        self.mocks['place'].side_effect = place
+        _register_sqlite_lock_functions(
+            lambda name, timeout: calls.append(('get', name, timeout)) or 1,
+            lambda name: calls.append(('release', name)) or 1)
+        self.vendor.post_purchase_order(self.po)
+        self.assertEqual(calls, [('get', 'po_posting:aza:company', 300), 'place',
+                                 ('release', 'po_posting:aza:company')])
+
+    def test_post_purchase_order_releases_lock_on_failure(self):
+        released = []
+        _register_sqlite_lock_functions(release_lock=lambda name: released.append(name) or 1)
+        self.mocks['place'].side_effect = PurchaseOrderError(message='Failed')
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.assertEqual(released, ['po_posting:aza:company'])
+
+    def test_post_purchase_order_account_busy(self):
+        _register_sqlite_lock_functions(get_lock=lambda name, timeout: 0)
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            self.vendor.post_purchase_order(self.po)
+        self.assertIn('in progress', str(ctx.exception))
+        self.mocks['add'].assert_not_called()
+        self.mocks['place'].assert_not_called()
 
     def test_post_purchase_order_unavailable_product(self):
         def add(_session, op):
@@ -417,6 +468,11 @@ class TestAtomyAzaVendor(AzaTestCase):
                 ((4, 5), PurchaseOrderStatus.shipped)]:
             with self.subTest(codes):
                 self.assertEqual(self._update(*codes).status, status)
+
+    def test_update_status_takes_no_lock(self):
+        _register_sqlite_lock_functions(
+            get_lock=lambda name, timeout: (_ for _ in ()).throw(AssertionError('locked')))
+        self._update(2)
 
     def test_update_status_period(self):
         self.po.when_created = datetime(2026, 10, 10, 15, 0)

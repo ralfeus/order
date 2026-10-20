@@ -1,6 +1,7 @@
 '''Manages purchase orders at AtomyAza (atomyaza.co.kr).
 Orders are placed with the company account via plain HTTP requests:
 cart -> order form -> virtual account payment'''
+from contextlib import contextmanager
 from datetime import date, timedelta
 import logging
 import re
@@ -9,7 +10,9 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from bs4 import BeautifulSoup, Tag
 import requests
+from sqlalchemy import text
 
+from app import db
 from app.orders.models.order_product import OrderProduct, OrderProductStatus
 from app.orders.models.subcustomer import Subcustomer
 from app.purchase.models.purchase_order import PurchaseOrder, PurchaseOrderStatus
@@ -38,6 +41,7 @@ NEW_ADDRESS = '2'
 CASH_RECEIPT_NONE = 'N'
 CASH_RECEIPT_BUSINESS = 'S'
 MAX_REDIRECTS = 5
+LOCK_TIMEOUT = 300
 # Order item status codes (em.dan_nm<code>) of the order history
 ORDER_STATUSES = {
     1: PurchaseOrderStatus.posted,    # 입금대기
@@ -183,31 +187,45 @@ def _add_to_cart(session: requests.Session, order_product: OrderProduct) -> None
     if response.text.strip():
         raise ProductNotAvailableError(product_id, response.text.strip())
 
-def _submit_cart(session: requests.Session, act: str) -> Optional[requests.Response]:
-    '''Submits all cart items with the action. Returns None if the cart is empty'''
+def _buy_cart_products(session: requests.Session, gs_ids: set[str]) -> requests.Response:
+    '''Proceeds to the order form with the provided products of the cart.
+    Other products in the cart are left intact as the account can be shared'''
     response = _get(session, f'{URL_BASE}/m/shop/cart.php')
     form = _get_form(response, 'form[name="frmcartlist"]')
-    fields = [field for field in _form_fields(form) if not field[0].startswith('ct_chk[')]
-    items = [str(c['name']) for c in form.select('input[name^="ct_chk["]')]
-    if len(items) == 0:
-        return None
-    fields += [(item, '1') for item in items]
-    _set_field(fields, 'act', act)
+    rows = {str(row.get('value')): str(row['name']).replace('gs_id', 'ct_chk', 1)
+            for row in form.select('input[name^="gs_id["]')}
+    missing = gs_ids - rows.keys()
+    if missing:
+        raise PurchaseOrderError(message=f"Products {sorted(missing)} aren't in the cart")
+    fields = [field for field in _form_fields(form)
+              if not field[0].startswith('ct_chk[') and field[0] != 'ct_all']
+    fields += [(rows[gs_id], '1') for gs_id in sorted(gs_ids)]
+    _set_field(fields, 'act', 'buy')
     return _post(session, urljoin(response.url, str(form.get('action', ''))), fields)
 
-def _clear_cart(session: requests.Session) -> None:
-    '''Removes all products from the cart. The account is shared by all
-    purchase orders, so a failed order may leave its products there'''
-    _submit_cart(session, 'alldelete')
+def _check_order_form(form: Tag, quantities: dict[str, int],
+                      purchase_order: PurchaseOrder) -> None:
+    '''Ensures the order form has exactly the products to be ordered.
+    Anything else got to the cart from another posting with the same account'''
+    lines: dict[str, int] = {}
+    for gs_id in form.select('input[name^="gs_id["]'):
+        quantity = form.select_one(
+            f'input[name="{str(gs_id["name"]).replace("gs_id", "sum_qty", 1)}"]')
+        value = _digits(str(quantity.get('value', ''))) if quantity is not None else ''
+        lines[str(gs_id.get('value'))] = \
+            lines.get(str(gs_id.get('value')), 0) + int(value or 0)
+    if lines != quantities:
+        raise PurchaseOrderError(purchase_order, message=
+            f"Order form products {lines} don't match ordered ones {quantities}", retry=True)
 
 def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
-                 receiver_name: str) -> dict[str, Any]:
-    '''Orders products in the cart with virtual account payment.
+                 receiver_name: str, quantities: dict[str, int]) -> dict[str, Any]:
+    '''Orders the products of the cart with virtual account payment.
+    :param quantities: quantities of the products to be ordered by gs_id
     Returns vendor's order ID, payment account and total price'''
-    response = _submit_cart(session, 'buy')
-    if response is None:
-        raise PurchaseOrderError(purchase_order, message="The cart is empty")
+    response = _buy_cart_products(session, set(quantities))
     form = _get_form(response, 'form[action*="orderformupdate"]')
+    _check_order_form(form, quantities, purchase_order)
     fields = _form_fields(form)
 
     sales_dates = [str(r['value']) for r in form.select('input[name="sales_date"]')]
@@ -298,6 +316,27 @@ def _get_order_lines(session: requests.Session, from_date: date, to_date: date
     return lines
 
 
+@contextmanager
+def _account_lock(username: str, timeout: int):
+    '''Holds MySQL named lock of the AtomyAza account while its cart is used.
+    Named locks are server wide, so tenants sharing the account wait for each other.
+    The lock is released by MySQL if the worker dies'''
+    name = f'po_posting:aza:{username}'
+    with db.engine.connect() as connection:
+        acquired = connection.execute(
+            text("SELECT GET_LOCK(:name, :timeout)"), {'name': name, 'timeout': timeout}
+        ).scalar()
+        connection.commit()
+        if not acquired:
+            raise PurchaseOrderError(message=
+                f"Another posting with AtomyAza account {username} is in progress")
+        try:
+            yield
+        finally:
+            connection.execute(text("SELECT RELEASE_LOCK(:name)"), {'name': name})
+            connection.commit()
+
+
 class AtomyAza(PurchaseOrderVendorBase):
     '''Manages purchase orders at AtomyAza. All orders are placed with
     the company account set by AZA_LOGIN and AZA_PASSWORD'''
@@ -338,14 +377,19 @@ class AtomyAza(PurchaseOrderVendorBase):
         session = self.__get_session(purchase_order)
         logger = self._logger.getChild(purchase_order.id)
         try:
-            _clear_cart(session)
-            ordered_products, unavailable_products = \
-                self.__add_products(session, purchase_order, logger)
-            if len(ordered_products) == 0:
-                raise PurchaseOrderError(purchase_order, self, "No products could be added")
-            receiver_name = get_receiver_name(purchase_order,
-                self.__config.get('ATOMY_RECEIVER_NAME_FORMAT', '{company} {id1}'))
-            details = _place_order(session, purchase_order, receiver_name)
+            with _account_lock(self.__config['AZA_LOGIN'],
+                               int(self.__config.get('AZA_PO_LOCK_TIMEOUT', LOCK_TIMEOUT))):
+                ordered_products, unavailable_products = \
+                    self.__add_products(session, purchase_order, logger)
+                if len(ordered_products) == 0:
+                    raise PurchaseOrderError(purchase_order, self, "No products could be added")
+                quantities: dict[str, int] = {}
+                for (op,) in ordered_products:
+                    gs_id = str(op.product_id).partition(':')[0]
+                    quantities[gs_id] = quantities.get(gs_id, 0) + op.quantity
+                receiver_name = get_receiver_name(purchase_order,
+                    self.__config.get('ATOMY_RECEIVER_NAME_FORMAT', '{company} {id1}'))
+                details = _place_order(session, purchase_order, receiver_name, quantities)
         except AzaLoginError as ex:
             self.__session = None
             raise PurchaseOrderError(purchase_order, self, str(ex)) from ex
