@@ -17,7 +17,7 @@ depends_on = None
 
 SETTINGS = {
     'purchase.default_vendor.Atomy': 'AtomyQuick',
-    'purchase.default_vendor.AtomyAza': '',
+    'purchase.default_vendor.AtomyAza': 'AtomyAza',
 }
 
 
