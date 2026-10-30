@@ -749,16 +749,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __is_product_allowed(self, page, product_id):
         '''Checks whether product is allowed'''
         self._logger.debug("Checking whether product %s allowed", product_id)
-        result = page.evaluate(f"""
+        script = f"""
             async () => {{
                 const res = await fetch('{URL_BASE}/cart/checkPurchaseRestrirction', {{
                     method: 'POST',
                     headers: {{'content-type': 'application/json'}},
-                    body: '{{"goodsNoNmList":{{"{product_id}":""}}}}'
+                    body: '{{"cartGoodsList": [{{"goodsNo": "{product_id}"}}]}}'
                 }});
                 return await res.ok
             }}
-        """) 
+        """
+        result = page.evaluate(script) 
         return result
 
     def __get_product_option(self, page: Page, base_product_id, option_id, 
