@@ -187,18 +187,21 @@ class TestAtomyAzaClient(AzaTestCase):
 
     # --- order ------------------------------------------------------------
 
-    def _order_session(self, orderformupdate: Route=None, view: str='order_view.html',
-                       cart: str='cart.html', orderform: Route='orderform.html',
-                       cartupdate: Route='cartupdate_buy.json'):
+    def _order_session(self, orderformupdate: Route='orderformupdate.json',
+                       view: str='order_view.html', cart: str='cart.html',
+                       orderform: Route='orderform.html',
+                       cartupdate: Route='cartupdate_buy.json',
+                       orderformresult: Route='orderformresult.html'):
         return FakeSession({
             ('GET', '/m/shop/cart.php'): cart,
             # Cart is updated by AJAX. Response tells where to go next
             ('POST', '/m/shop/cartupdate.php'): cartupdate,
             ('GET', '/m/shop/orderform.php'): orderform,
-            ('POST', '/shop/orderformupdate.php'): orderformupdate or (lambda u, p:
-                f"<script>location.replace('{URL_BASE}/shop/toss/virtualAccount.php"
-                "?od_id=26101803073003&tot_price=30900');</script>"),
+            # Order is submitted by AJAX. Response tells where to go next
+            ('POST', '/shop/orderformupdate.php'): orderformupdate,
+            # Page submitting the virtual account request form by itself
             ('GET', '/shop/toss/virtualAccount.php'): 'virtual_account.html',
+            ('POST', '/m/shop/orderformresult.php'): orderformresult,
             ('GET', '/m/shop/orderinquiryview.php'): view,
         })
 
@@ -235,6 +238,8 @@ class TestAtomyAzaClient(AzaTestCase):
             self.assertEqual(data.get(key), value, key)
         self.assertNotIn('disabled_field', data)
         self.assertNotIn('addr_add', data)
+        self.assertEqual(session.posted('/m/shop/orderformresult.php')[0]['od_id'],
+                         ['26101803073003'])
 
     def test_place_order_cart_update_error(self):
         session = self._order_session(
@@ -305,8 +310,16 @@ class TestAtomyAzaClient(AzaTestCase):
             _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('재고가 부족합니다', str(ctx.exception))
 
+    def test_place_order_error(self):
+        session = self._order_session(
+            orderformupdate=lambda u, p: '{"error":"재고가 부족합니다."}')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
+        self.assertIn('재고가 부족합니다', str(ctx.exception))
+        self.assertEqual(session.posted('/m/shop/orderformresult.php'), [])
+
     def test_place_order_failure_reason(self):
-        session = self._order_session(orderformupdate=lambda u, p:
+        session = self._order_session(orderformresult=lambda u, p:
             f"<script>location.replace('{URL_BASE}/m/shop/orderinquiryview.php"
             "?od_id=&orderformresult=0&result_reason=가상계좌 발급 실패');</script>")
         with self.assertRaises(PurchaseOrderError) as ctx:

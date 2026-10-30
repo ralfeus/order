@@ -1,3 +1,29 @@
-<html><head><title>주문서결제</title></head><body>
-<script>location.href = "https://atomyaza.co.kr/m/shop/orderinquiryview.php?od_id=26101803073003&uid=abc&orderformresult=1&result_reason=";</script>
-</body></html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <title>주문서결제</title>
+    <script>
+        function forderform_check(f)
+        {
+            f.submit();
+        }
+        $(function() {
+            $("#my-spinner").show();
+            forderform_check($("#forderform")[0]);
+        });
+    </script>
+</head>
+<body>
+<div id='my-spinner'><div><span><img src='https://www.atomyaza.co.kr/img/loader.gif'></span></div></div>
+<form name="forderform" id="forderform" method="post" action="https://atomyaza.co.kr/m/shop/orderformresult.php" autocomplete="off">
+    <input type="hidden" name="customerKey" id="customerKey" value="10000001">
+    <input type="hidden" name="amount" id="amount" value="30900" />
+    <input type="hidden" name="paymentKey" id="paymentKey" value="azaza20261018030900TEST1" />
+    <input type="hidden" name="secret" id="secret" value="ps_TEST" />
+    <input type="hidden" name="pcmode" value="">
+    <input type="hidden" name="od_id" value="26101803073003">
+    <input type="hidden" name="od_settle_case" value="가상계좌">
+</form>
+</body>
+</html>

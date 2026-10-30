@@ -94,6 +94,22 @@ def _follow(session: requests.Session, response: requests.Response) -> requests.
         response.raise_for_status()
     raise PurchaseOrderError(message=f"Too many redirects at {response.url}")
 
+def _ajax_post(session: requests.Session, url: str, data: Any) -> requests.Response:
+    '''Posts a form the way site's scripts do. The response is JSON with
+    the next page URL or an error. Then goes to the next page'''
+    response = session.post(url, data=data, headers={'X-Requested-With': 'XMLHttpRequest'},
+                            timeout=TIMEOUT)
+    response.raise_for_status()
+    try:
+        result = response.json()
+    except ValueError:
+        # Not JSON - an error page
+        return _follow(session, response)
+    if result.get('error') or not result.get('url'):
+        raise PurchaseOrderError(message=result.get('error') or
+                                 f"Unexpected response at {url}: {result}")
+    return _get(session, urljoin(url, result['url']))
+
 def _get_redirect(doc: BeautifulSoup, text: str) -> Optional[str]:
     '''Returns target URL of a page that only redirects'''
     meta = doc.select_one('meta[http-equiv="refresh" i]')
@@ -201,19 +217,7 @@ def _buy_cart_products(session: requests.Session, gs_ids: set[str]) -> requests.
               if not field[0].startswith('ct_chk[') and field[0] != 'ct_all']
     fields += [(rows[gs_id], '1') for gs_id in sorted(gs_ids)]
     _set_field(fields, 'act', 'buy')
-    # Cart is updated by AJAX. The response is JSON with the next page URL or an error
-    response = session.post(urljoin(response.url, str(form.get('action', ''))), data=fields,
-                            headers={'X-Requested-With': 'XMLHttpRequest'}, timeout=TIMEOUT)
-    response.raise_for_status()
-    try:
-        result = response.json()
-    except ValueError as ex:
-        raise PurchaseOrderError(message="Unexpected response on buying cart products: " +
-                                 response.text[:200]) from ex
-    if str(result.get('code')) != '1' or not result.get('url'):
-        raise PurchaseOrderError(message=result.get('error') or
-                                 f"Couldn't buy cart products: {result}")
-    return _get(session, urljoin(response.url, result['url']))
+    return _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
 
 def _check_order_form(form: Tag, quantities: dict[str, int],
                       purchase_order: PurchaseOrder) -> None:
@@ -269,7 +273,12 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
     }.items():
         _set_field(fields, name, value)
 
-    response = _post(session, urljoin(response.url, str(form.get('action', ''))), fields)
+    response = _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
+    # Virtual account is requested by the form the page submits by itself
+    form = BeautifulSoup(response.text, 'html.parser').select_one('form#forderform')
+    if form is not None:
+        response = _post(session, urljoin(response.url, str(form.get('action', ''))),
+                         _form_fields(form))
     query = parse_qs(urlparse(response.url).query)
     order_id = query.get('od_id', [''])[0]
     if not urlparse(response.url).path.endswith('orderinquiryview.php') or not order_id:
