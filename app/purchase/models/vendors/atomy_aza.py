@@ -201,7 +201,19 @@ def _buy_cart_products(session: requests.Session, gs_ids: set[str]) -> requests.
               if not field[0].startswith('ct_chk[') and field[0] != 'ct_all']
     fields += [(rows[gs_id], '1') for gs_id in sorted(gs_ids)]
     _set_field(fields, 'act', 'buy')
-    return _post(session, urljoin(response.url, str(form.get('action', ''))), fields)
+    # Cart is updated by AJAX. The response is JSON with the next page URL or an error
+    response = session.post(urljoin(response.url, str(form.get('action', ''))), data=fields,
+                            headers={'X-Requested-With': 'XMLHttpRequest'}, timeout=TIMEOUT)
+    response.raise_for_status()
+    try:
+        result = response.json()
+    except ValueError as ex:
+        raise PurchaseOrderError(message="Unexpected response on buying cart products: " +
+                                 response.text[:200]) from ex
+    if str(result.get('code')) != '1' or not result.get('url'):
+        raise PurchaseOrderError(message=result.get('error') or
+                                 f"Couldn't buy cart products: {result}")
+    return _get(session, urljoin(response.url, result['url']))
 
 def _check_order_form(form: Tag, quantities: dict[str, int],
                       purchase_order: PurchaseOrder) -> None:
@@ -288,10 +300,16 @@ def _get_order_lines(session: requests.Session, from_date: date, to_date: date
                      ) -> list[dict[str, Any]]:
     '''Returns ordered items of the account's orders made in the period.
     Status is per item'''
+    # All search form fields are needed. Otherwise the dates are ignored
+    # and the last week is shown
     response = _get(session, f'{URL_BASE}/m/shop/orderinquiry.php', params={
+        'dtbtnval': '',
         'shop_table_name': 'shop_order',
+        'mng_method': '',
+        'date_period': '',
         'fr_date': from_date.isoformat(),
-        'to_date': to_date.isoformat()
+        'to_date': to_date.isoformat(),
+        'gname': ''
     })
     lines = []
     for order in BeautifulSoup(response.text, 'html.parser').select('li'):

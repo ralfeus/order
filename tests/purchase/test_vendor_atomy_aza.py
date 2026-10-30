@@ -1,6 +1,7 @@
 '''Tests of AtomyAza (atomyaza.co.kr) purchase order functionality.
 All HTTP traffic is faked with fixtures from tests/purchase/fixtures/atomy_aza'''
 from datetime import date, datetime
+import json
 import os
 from typing import Callable, Optional, Union
 from unittest.mock import MagicMock, patch
@@ -31,6 +32,7 @@ def _fixture(name: str) -> str:
 def _response(text: str, url: str, status: int=200) -> MagicMock:
     response = MagicMock()
     response.text = text
+    response.json.side_effect = lambda: json.loads(text)
     response.url = url
     response.status_code = status
     response.raise_for_status.side_effect = None if status < 400 \
@@ -186,10 +188,12 @@ class TestAtomyAzaClient(AzaTestCase):
     # --- order ------------------------------------------------------------
 
     def _order_session(self, orderformupdate: Route=None, view: str='order_view.html',
-                       cart: str='cart.html', orderform: Route='orderform.html'):
+                       cart: str='cart.html', orderform: Route='orderform.html',
+                       cartupdate: Route='cartupdate_buy.json'):
         return FakeSession({
             ('GET', '/m/shop/cart.php'): cart,
-            ('POST', '/m/shop/cartupdate.php'): 'script_redirect_orderform.html',
+            # Cart is updated by AJAX. Response tells where to go next
+            ('POST', '/m/shop/cartupdate.php'): cartupdate,
             ('GET', '/m/shop/orderform.php'): orderform,
             ('POST', '/shop/orderformupdate.php'): orderformupdate or (lambda u, p:
                 f"<script>location.replace('{URL_BASE}/shop/toss/virtualAccount.php"
@@ -231,6 +235,14 @@ class TestAtomyAzaClient(AzaTestCase):
             self.assertEqual(data.get(key), value, key)
         self.assertNotIn('disabled_field', data)
         self.assertNotIn('addr_add', data)
+
+    def test_place_order_cart_update_error(self):
+        session = self._order_session(
+            cartupdate=lambda u, p: '{"code":0,"error":"주문할 수 없는 상품입니다."}')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
+        self.assertIn('주문할 수 없는 상품입니다.', str(ctx.exception))
+        self.assertEqual(session.posted('/shop/orderformupdate.php'), [])
 
     def test_place_order_no_tax_id(self):
         self.company.tax_id_1 = self.company.tax_id_2 = self.company.tax_id_3 = None
@@ -306,9 +318,11 @@ class TestAtomyAzaClient(AzaTestCase):
     def test_get_order_lines(self):
         session = FakeSession({('GET', '/m/shop/orderinquiry.php'): 'orderinquiry.html'})
         lines = _get_order_lines(session, date(2026, 9, 1), date(2026, 10, 18))
-        params = session.requests[0][2]
-        self.assertEqual((params['fr_date'], params['to_date'], params['shop_table_name']),
-                         ('2026-09-01', '2026-10-18', 'shop_order'))
+        # Without the full set of search form fields the site ignores the dates
+        # and shows the last week only
+        self.assertEqual(session.requests[0][2], {
+            'dtbtnval': '', 'shop_table_name': 'shop_order', 'mng_method': '',
+            'date_period': '', 'fr_date': '2026-09-01', 'to_date': '2026-10-18', 'gname': ''})
         self.assertEqual(lines, [
             {'id': '26091400270072', 'gs_id': '651536', 'status_code': 5, 'quantity': 1},
             {'id': '26091400270072', 'gs_id': '651537', 'status_code': 4, 'quantity': 3},
