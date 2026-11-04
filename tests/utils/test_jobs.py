@@ -99,6 +99,83 @@ class TestJobs(BaseTestCase):
         product = db.session.get(p.Product, ('000', 'Atomy'))
         self.assertEqual(product.image.path, '/products/000-uploaded.png')
 
+    @staticmethod
+    def _vendor_product(product_id, price=10, available=True):
+        return {
+            'id': product_id, 'atomy_id': product_id, 'name': 'Test product',
+            'price': price, 'points': 10, 'available': available,
+            'image_url': ''
+        }
+
+    def _add_local_product(self, product_id, price=10):
+        self.try_add_entity(p.Product(
+            id=product_id, vendor='Atomy', vendor_id=product_id, name='Test product',
+            price=price, points=10, available=True, synchronize=True,
+            image=File(file_name='img.png', path='/products/img.png')
+        ))
+
+    @staticmethod
+    def _get(product_id):
+        return db.session.get(p.Product, (product_id, 'Atomy'))
+
+    @patch('app.jobs.save_image', return_value=('', ''))
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_no_duplicate_for_zero_padded_id(
+            self, get_atomy_products, save_image):
+        self._add_local_product('247')
+        get_atomy_products.return_value = [
+            self._vendor_product('247'), self._vendor_product('000247')]
+        jobs.import_products()
+        self.assertIsNone(self._get('000247'))
+        self.assertEqual(p.Product.get_product_by_id('247').id, '247')
+        self.assertTrue(self._get('247').available)
+
+    @patch('app.jobs.save_image', return_value=('', ''))
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_matches_padded_vendor_id_to_short_local_id(
+            self, get_atomy_products, save_image):
+        self._add_local_product('247', price=10)
+        get_atomy_products.return_value = [
+            self._vendor_product('000247', price=20)]
+        jobs.import_products()
+        self.assertIsNone(self._get('000247'))
+        product = self._get('247')
+        self.assertEqual(product.price, 20)
+        self.assertTrue(product.available)
+
+    @patch('app.jobs.save_image', return_value=('', ''))
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_creates_single_product_for_duplicate_vendor_ids(
+            self, get_atomy_products, save_image):
+        get_atomy_products.return_value = [
+            self._vendor_product('247'), self._vendor_product('000247')]
+        jobs.import_products()
+        self.assertEqual(p.Product.query.count(), 1)
+        self.assertIsNotNone(p.Product.get_product_by_id('247'))
+
+    @patch('app.jobs.save_image', return_value=('', ''))
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_disables_unmatched_local_product(
+            self, get_atomy_products, save_image):
+        self._add_local_product('247')
+        self._add_local_product('300')
+        get_atomy_products.return_value = [self._vendor_product('000247')]
+        jobs.import_products()
+        self.assertTrue(self._get('247').available)
+        self.assertFalse(self._get('300').available)
+
+    @patch('app.jobs.save_image', return_value=('', ''))
+    @patch('app.jobs.get_atomy_products')
+    def test_import_products_disables_existing_local_duplicate(
+            self, get_atomy_products, save_image):
+        self._add_local_product('247')
+        self._add_local_product('000247')
+        get_atomy_products.return_value = [self._vendor_product('247')]
+        jobs.import_products()
+        self.assertEqual(p.Product.query.count(), 2)
+        self.assertEqual(
+            [self._get(i).available for i in ('247', '000247')].count(True), 1)
+
 
 def _item(product_id, **kwargs):
     return {'id': product_id, 'vendor_id': product_id, 'name': f'Name {product_id}',

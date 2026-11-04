@@ -1,8 +1,9 @@
 import logging
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from lxml.etree import fromstring
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from tests import BaseTestCase
 from flask import current_app
 
@@ -430,6 +431,22 @@ class TestAtomyQuickLoginVisaPopup(BaseTestCase):
         self._login(page)
         selectors = [c.args[0] for c in visa_box.locator.call_args_list]
         self.assertEqual(selectors, ['[layer-role="close-button"]'])
+
+    def test_visa_popup_closed_but_login_stalls_goes_to_main(self):
+        """Closing the popup too early leaves the login form in place without
+        redirect. Login must recover by opening the main page."""
+        page, _ = self._make_page_mock(['visa', 'form_gone'])
+        def form_wait_for(state, **kwargs):
+            if state == 'hidden':
+                raise PlaywrightTimeoutError('login form still visible')
+        page.locator('div.login_form').wait_for.side_effect = form_wait_for
+        self._login(page)
+        page.goto.assert_called_with(f'{URL_BASE}/main')
+
+    def test_visa_popup_closed_and_login_progresses_no_navigation(self):
+        page, _ = self._make_page_mock(['visa', 'form_gone'])
+        self._login(page)
+        self.assertNotIn(call(f'{URL_BASE}/main'), page.goto.call_args_list)
 
 
 @patch("app.purchase.models.vendors.atomy_quick.sleep", MagicMock())

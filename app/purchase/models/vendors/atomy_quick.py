@@ -19,6 +19,7 @@ import logging
 from pytz import timezone
 import re
 from playwright.sync_api import Locator, Page, expect, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from app import db
 from common.exceptions import (
@@ -497,8 +498,16 @@ class AtomyQuick(PurchaseOrderVendorBase):
                 "Visa of %s has expired, the account is converted to consumer. "
                 "Closing the visa renewal notice and proceeding",
                 purchase_order.customer.username)
+            sleep(1)
             visa_box.locator('[layer-role="close-button"]').click()
             visa_box.wait_for(state='hidden', timeout=10000)
+            # Closed too early the popup disappears but the login doesn't
+            # redirect. The session is set already so just go on
+            try:
+                page.locator('div.login_form').wait_for(state='hidden', timeout=10000)
+            except PlaywrightTimeoutError:
+                self._logger.warning("Login didn't proceed after closing the visa notice")
+                page.goto(f"{URL_BASE}/main")
         else:
             raise AtomyLoginError(
                 username=purchase_order.customer.username,
@@ -740,16 +749,17 @@ class AtomyQuick(PurchaseOrderVendorBase):
     def __is_product_allowed(self, page, product_id):
         '''Checks whether product is allowed'''
         self._logger.debug("Checking whether product %s allowed", product_id)
-        result = page.evaluate(f"""
+        script = f"""
             async () => {{
                 const res = await fetch('{URL_BASE}/cart/checkPurchaseRestrirction', {{
                     method: 'POST',
                     headers: {{'content-type': 'application/json'}},
-                    body: '{{"goodsNoNmList":{{"{product_id}":""}}}}'
+                    body: '{{"cartGoodsList": [{{"goodsNo": "{product_id}"}}]}}'
                 }});
                 return await res.ok
             }}
-        """) 
+        """
+        result = page.evaluate(script) 
         return result
 
     def __get_product_option(self, page: Page, base_product_id, option_id, 

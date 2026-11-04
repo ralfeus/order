@@ -90,8 +90,11 @@ def _sync_products(vendor: str, vendor_products: Iterable[dict[str, Any]],
         return
     id_length = Product.__table__.c.id.type.length
     local_products = {}
+    # Local duplicates ('247' and '000247') beyond the first one are disabled
+    local_duplicates = []
     for product in Product.query.filter_by(vendor=vendor):
-        local_products.setdefault(_match_key(product.id), product)
+        if local_products.setdefault(_normalize_id(product.id), product) is not product:
+            local_duplicates.append(product)
     processed = set()
     same = new = modified = ignored = 0
     for vendor_product in tqdm(vendor_products):
@@ -100,11 +103,11 @@ def _sync_products(vendor: str, vendor_products: Iterable[dict[str, Any]],
             logger.warning("%s: product ID is longer than %d characters. SKIPPED",
                            product_id, id_length)
             continue
-        if _match_key(product_id) in processed:
+        if _normalize_id(product_id) in processed:
             logger.debug('%s: duplicate in the catalog. SKIPPED', product_id)
             continue
-        processed.add(_match_key(product_id))
-        product = local_products.pop(_match_key(product_id), None)
+        processed.add(_normalize_id(product_id))
+        product = local_products.pop(_normalize_id(product_id), None)
         if product is None:
             logger.debug('%s: No local product found. ADDING', product_id)
             db.session.add(Product( #type: ignore
@@ -132,8 +135,8 @@ def _sync_products(vendor: str, vendor_products: Iterable[dict[str, Any]],
             logger.debug('\t%s: IGNORED', product.id)
             ignored += 1
     logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
-        len(local_products))
-    for product in local_products.values():
+        len(local_products) + len(local_duplicates))
+    for product in [*local_products.values(), *local_duplicates]:
         if product.synchronize:
             logger.debug("%s: should be synchronized. DISABLED", product.id)
             product.available = False
@@ -146,8 +149,10 @@ def _sync_products(vendor: str, vendor_products: Iterable[dict[str, Any]],
         vendor, same, new, modified, ignored)
     db.session.commit() #type: ignore
 
-def _match_key(product_id: str) -> str:
-    return product_id.lstrip('0')
+def _normalize_id(product_id: str) -> str:
+    '''Product IDs may come with or without leading zeroes ('247' vs '000247').
+    Normalized form is used to treat them as the same product.'''
+    return product_id.lstrip('0') or '0'
 
 def _update_product(product, vendor_product: dict[str, Any], logger: logging.Logger) -> bool:
     '''Updates local product with vendor's data. Returns whether anything changed'''
