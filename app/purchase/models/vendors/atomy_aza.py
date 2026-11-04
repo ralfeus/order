@@ -466,7 +466,9 @@ class AtomyAza(PurchaseOrderVendorBase):
         created = [po.when_created.date() for po in customer_pos if po.when_created]
         from_date = min(created) - timedelta(days=1) if created \
             else date.today() - timedelta(weeks=1)
-        lines = _get_order_lines(self.__get_session(), from_date, date.today())
+        # Orders are dated in Korean time, which can be the next day already
+        lines = _get_order_lines(self.__get_session(), from_date,
+                                 date.today() + timedelta(days=1))
         orders: dict[str, list[int]] = {}
         for line in lines:
             orders.setdefault(line['id'], []).append(line['status_code'])

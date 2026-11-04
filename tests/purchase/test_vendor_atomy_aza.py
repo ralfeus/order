@@ -1,6 +1,6 @@
 '''Tests of AtomyAza (atomyaza.co.kr) purchase order functionality.
 All HTTP traffic is faked with fixtures from tests/purchase/fixtures/atomy_aza'''
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import json
 import os
 from typing import Callable, Optional, Union
@@ -516,7 +516,8 @@ class TestAtomyAzaVendor(AzaTestCase):
         self._update(2)
         from_date, to_date = self.mocks['lines'].call_args.args[1:]
         self.assertEqual(from_date, date(2026, 10, 9))
-        self.assertEqual(to_date, date.today())
+        # Orders are dated in Korean time, which can be the next day already
+        self.assertEqual(to_date, date.today() + timedelta(days=1))
 
     def test_update_status_unknown_code_keeps_status(self):
         self.assertEqual(self._update(9).status, PurchaseOrderStatus.posted)
