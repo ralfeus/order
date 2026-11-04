@@ -169,6 +169,16 @@ class TestAtomyAzaClient(AzaTestCase):
                 self.assertEqual(ctx.exception.product_id, product_id)
                 self.assertEqual(session.posted('/shop/ajax.cartsave.php'), [])
 
+    def test_add_to_cart_discontinued(self):
+        '''Product page of discontinued product is an alert only.
+        Only the product is unavailable, not the whole purchase order'''
+        session = self._view_session('view_discontinued.html')
+        with self.assertRaises(ProductNotAvailableError) as ctx:
+            _add_to_cart(session, self._op('100001:4541550', 1))
+        self.assertEqual(ctx.exception.product_id, '100001:4541550')
+        self.assertIn('현재 판매가능한 상품이 아닙니다', str(ctx.exception))
+        self.assertEqual(session.posted('/shop/ajax.cartsave.php'), [])
+
     def test_add_to_cart_single_option_requires_no_option_id(self):
         '''Product with several options must refer to one of them'''
         self.try_add_entity(Product(id='100001', vendor='AtomyAza', name='Apple', price=1))

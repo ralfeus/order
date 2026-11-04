@@ -179,7 +179,11 @@ def _add_to_cart(session: requests.Session, order_product: OrderProduct) -> None
     Raises ProductNotAvailableError if the product can't be added'''
     product_id = str(order_product.product_id)
     gs_id, _, option_id = product_id.partition(':')
-    response = _get(session, f'{URL_BASE}/m/shop/view.php', params={'gs_id': gs_id})
+    try:
+        response = _get(session, f'{URL_BASE}/m/shop/view.php', params={'gs_id': gs_id})
+    except PurchaseOrderError as ex:
+        # Discontinued product's page is an alert only
+        raise ProductNotAvailableError(product_id, ex.message) from ex
     doc = BeautifulSoup(response.text, 'html.parser')
     ca_id = doc.select_one('form[name="fbuyform"] input[name="ca_id"]')
     if ca_id is None:
