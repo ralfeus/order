@@ -33,10 +33,20 @@ def import_products():
     if len(vendor_products) == 0: # Something went wrong
         logger.warning("Something went wrong. Didn't get any products from vendor. Exiting...")
         return
+    local_products = {}
+    for p in products:
+        # Keeps first one if DB already contains '247' and '000247'
+        local_products.setdefault(_normalize_id(p.id), p)
+    seen_ids = set()
     for atomy_product in tqdm(vendor_products):
-        try:
-            product = next(p for p in products
-                           if p.id.lstrip('0') == atomy_product['id'].lstrip('0'))
+        product_key = _normalize_id(atomy_product['id'])
+        if product_key in seen_ids:
+            logger.debug('%s: duplicate of already processed product. SKIPPED',
+                         atomy_product['id'])
+            continue
+        seen_ids.add(product_key)
+        product = local_products.get(product_key)
+        if product is not None:
             if product.synchronize:
                 logger.debug('Synchronizing product %s', atomy_product['id'])
                 is_dirty = False
@@ -81,9 +91,7 @@ def import_products():
             else:
                 logger.debug('\t%s: IGNORED', product.id)
                 ignored += 1
-
-            products.remove(product)
-        except StopIteration:
+        else:
             logger.debug('%s: No local product found. ADDING', atomy_product['id'])
             path_image, image_name = save_image(atomy_product['image_url'])
             product = Product(
@@ -104,6 +112,9 @@ def import_products():
                 db.session.add(product) #type: ignore
             except:
                 logger.exception("error")
+    products = [p for p in products
+                if local_products.get(_normalize_id(p.id)) is not p
+                or _normalize_id(p.id) not in seen_ids]
     logger.debug('%d local products left without matching vendor\'s ones. Will be disabled',
         len(products))
     for product in products:
@@ -118,6 +129,12 @@ def import_products():
         "Product synchronization result: same: %d, new: %d, modified: %d, ignored: %d",
         same, new, modified, ignored)
     db.session.commit() #type: ignore
+
+
+def _normalize_id(product_id: str) -> str:
+    '''Product IDs may come with or without leading zeroes ('247' vs '000247').
+    Normalized form is used to treat them as the same product.'''
+    return product_id.lstrip('0') or '0'
 
 
 def save_image(image_url):
