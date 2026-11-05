@@ -261,6 +261,49 @@ class TestProductsApi(BaseTestCase):
         product = Product.get_by_key('AtomyAza:695221:4540592')
         self.assertEqual(product.name, 'AZA product')
 
+    def test_create_product_with_vendor(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product",
+            json={"id": "695221:4540592", "vendor": "AtomyAza", "name": "AZA product"}))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['key'], 'AtomyAza:695221:4540592')
+        self.assertEqual(Product.get_by_key('AtomyAza:695221:4540592').name, 'AZA product')
+
+    def test_create_product_with_id_of_other_vendor(self):
+        """Creation doesn't touch a product of another vendor with the same ID"""
+        self.try_add_entities([Product(id='555', vendor='AtomyAza', name='AZA 555')])
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product", json={"id": "555", "name": "Atomy 555"}))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['key'], 'Atomy:555')
+        self.assertEqual(Product.get_by_key('AtomyAza:555').name, 'AZA 555')
+        self.assertEqual(Product.get_by_key('Atomy:555').name, 'Atomy 555')
+
+    def test_create_existing_product(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product",
+            json={"id": "0000", "vendor": "Atomy", "name": "Overwritten"}))
+        self.assertEqual(res.status_code, 409)
+        self.assertEqual(Product.get_by_key('Atomy:0000').name, 'Test product')
+
+    def test_create_product_of_unknown_vendor(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product", json={"id": "777", "vendor": "Unknown"}))
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(Product.query.filter_by(id='777').count(), 0)
+
+    def test_vendor_isnt_changed_on_edit(self):
+        res = self.try_admin_operation(lambda: self.client.post(
+            "/api/v1/admin/product/Atomy:0000", json={"vendor": "AtomyAza", "name": "Renamed"}))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json['key'], 'Atomy:0000')
+        self.assertIsNone(Product.get_by_key('AtomyAza:0000'))
+
+    def test_get_vendors(self):
+        res = self.try_admin_operation(lambda: self.client.get("/api/v1/admin/product/vendors"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json, ['Atomy', 'AtomyAza'])
+
     def test_edit_product_by_key(self):
         res = self.try_admin_operation(lambda: self.client.post(
             "/api/v1/admin/product/Atomy:0000", json={"name": "Renamed"}))

@@ -14,7 +14,7 @@ from app.models.file import File
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
 from app.products.models.product import (
-    DEFAULT_VENDOR, KEY_SEPARATOR, AmbiguousProductError)
+    DEFAULT_VENDOR, KEY_SEPARATOR, VENDORS, AmbiguousProductError)
 from app.tools import get_products_path, modify_object, \
     prepare_datatables_query, write_to_file
 
@@ -132,12 +132,9 @@ def save_product(product_id):
     '''Saves updates in product or creates new product'''
     payload = request.get_json()
     if product_id is None:
-        if not payload.get('id'):
-            abort(Response('No product ID is provided', status=400))
-        else:
-            product_id = payload['id']
-
-    product = _resolve_product(product_id)
+        product = _create_product(payload)
+    else:
+        product = _resolve_product(product_id)
     if not product:
         vendor, product_id = Product.split_key(product_id)
         product = Product(id=product_id, vendor=vendor or DEFAULT_VENDOR)
@@ -155,6 +152,29 @@ def save_product(product_id):
     db.session.commit()
 
     return jsonify(product.to_dict(details=True))
+
+
+def _create_product(payload: dict) -> Product:
+    '''Creates product of the vendor provided in the payload.
+    Aborts if the product exists already'''
+    if not payload.get('id'):
+        abort(Response('No product ID is provided', status=400))
+    vendor = payload.get('vendor') or DEFAULT_VENDOR
+    if vendor not in VENDORS:
+        abort(Response(f'Unknown vendor {vendor}', status=400))
+    if db.session.get(Product, (payload['id'], vendor)) is not None:
+        abort(Response(f"Product {payload['id']} of {vendor} already exists", status=409))
+    product = Product(id=payload['id'], vendor=vendor)
+    db.session.add(product)
+    return product
+
+
+@bp_api_admin.route('/vendors')
+@login_required
+@roles_required('admin')
+def get_vendors():
+    '''Returns vendors products can belong to'''
+    return jsonify(list(VENDORS))
 
 
 @bp_api_admin.route('/<product_id>/image', methods=['POST'])
