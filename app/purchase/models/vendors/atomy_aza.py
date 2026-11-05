@@ -292,6 +292,10 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
         'tax_saupja_no': business_number,
     }.items():
         _set_field(fields, name, value)
+    if business_number:
+        # Browser clears personal receipt phone for business receipt.
+        # Otherwise the payment fails
+        _set_field(fields, 'tax_hp', '')
 
     response = _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
     # Virtual account is requested by the form the page submits by itself

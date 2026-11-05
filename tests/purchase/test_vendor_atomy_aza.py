@@ -270,7 +270,9 @@ class TestAtomyAzaClient(AzaTestCase):
             'b_addr2': ['Building 108, 504'], 'b_addr3': [''],
             'paymethod': ['가상계좌'],
             'virtualAcc_code': ['004'], 'virtualAcc_hp': ['01062852045'],
-            'taxsave_yes': ['S'], 'tax_saupja_no': ['1234567890'],
+            # Browser clears personal receipt phone for business receipt.
+            # Otherwise the payment fails
+            'taxsave_yes': ['S'], 'tax_saupja_no': ['1234567890'], 'tax_hp': [''],
             'sel_memo': [''], 'memo': [''], 'info_receive_yes': ['Y'],
             'cardInstallmentPlan': ['0'],
         }
