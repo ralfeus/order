@@ -296,15 +296,29 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
     response = _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
     # Virtual account is requested by the form the page submits by itself
     form = BeautifulSoup(response.text, 'html.parser').select_one('form#forderform')
+    vendor_order_id = ''
     if form is not None:
+        vendor_order_id = dict(_form_fields(form)).get('od_id', '')
         response = _post(session, urljoin(response.url, str(form.get('action', ''))),
                          _form_fields(form))
     query = parse_qs(urlparse(response.url).query)
     order_id = query.get('od_id', [''])[0]
     if not urlparse(response.url).path.endswith('orderinquiryview.php') or not order_id:
         raise PurchaseOrderError(purchase_order, message=
-            query.get('result_reason', [''])[0] or f"Unexpected result page {response.url}")
+            f"AtomyAza order {vendor_order_id or order_id} wasn't completed: " +
+            (query.get('result_reason', [''])[0] or _get_page_message(response)))
     return _parse_order_details(response.text, purchase_order)
+
+def _get_page_message(response: requests.Response) -> str:
+    '''Returns the alert of an unexpected page or its text'''
+    alert = re.search(r'''alert\(\s*(["'])(?P<message>.*?)\1\s*\)''', response.text, re.S)
+    if alert:
+        return alert.group('message')
+    doc = BeautifulSoup(response.text, 'html.parser')
+    for element in doc(['script', 'style']):
+        element.decompose()
+    text = ' '.join(doc.get_text(' ').split())
+    return f"Unexpected page {response.url}: {text[:300]}"
 
 def _parse_order_details(text: str, purchase_order: PurchaseOrder) -> dict[str, Any]:
     details = {}

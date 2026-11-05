@@ -366,6 +366,25 @@ class TestAtomyAzaClient(AzaTestCase):
             _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('가상계좌 발급 실패', str(ctx.exception))
 
+    def test_place_order_failure_page_with_content(self):
+        '''Error page of the payment step has markup, so its alert must be reported'''
+        session = self._order_session(orderformresult=lambda u, p:
+            '<html><body><ul><li>메뉴</li></ul><form name="f"></form>'
+            '<script>alert("현금영수증 발급에 실패했습니다.");history.back();</script>'
+            '</body></html>')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
+        self.assertIn('현금영수증 발급에 실패했습니다.', str(ctx.exception))
+        # Vendor's order number helps to find the order on the site
+        self.assertIn('26101803073003', str(ctx.exception))
+
+    def test_place_order_failure_page_without_alert(self):
+        session = self._order_session(orderformresult=lambda u, p:
+            '<html><body><ul><li>결제 처리 중 오류가 발생했습니다</li></ul></body></html>')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            _place_order(session, self._po(), 'Company 0001', {'100002': 1})
+        self.assertIn('결제 처리 중 오류가 발생했습니다', str(ctx.exception))
+
     # --- order history ----------------------------------------------------
 
     def test_get_order_lines(self):
