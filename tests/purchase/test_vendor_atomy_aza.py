@@ -105,6 +105,8 @@ class AzaTestCase(BaseTestCase):
             Product(id='100001:9999999', vendor='AtomyAza', name='Apple gone', price=1),
             Product(id='100002', vendor='AtomyAza', name='Soup', price=30900),
             Product(id='100003', vendor='AtomyAza', name='No options', price=1000),
+            Product(id='100004', vendor='AtomyAza', name='Cooler bag', price=10000),
+            Product(id='100004:123', vendor='AtomyAza', name='Cooler bag option', price=1),
         ])
         self.suborder = Suborder(order=self.order, subcustomer=Subcustomer(),
                                  buyout_date=datetime(2026, 10, 17))
@@ -154,6 +156,34 @@ class TestAtomyAzaClient(AzaTestCase):
         data = session.posted('/shop/ajax.cartsave.php')[0]
         self.assertEqual(data['io_no[100002][]'], ['4418146'])
         self.assertEqual(data['io_id[100002][]'], ['된장국 500g 10팩'])
+
+    def test_add_to_cart_without_options(self):
+        '''Product without options has its option row in the form already'''
+        session = self._view_session('view_without_options.html')
+        _add_to_cart(session, self._op('100004', 2))
+        self.assertEqual(session.posted('/shop/ajax.cartsave.php'), [{
+            'gs_id[]': ['100004'],
+            'ca_id': ['015003'],
+            'sw_direct': [''],
+            'io_type[100004][]': ['0'],
+            'io_id[100004][]': [''],
+            'io_no[100004][]': [''],
+            'io_value[100004][]': ['[애터미굿즈]애터미 쿨러백(보냉백)'],
+            'ct_qty[100004][]': ['2'],
+        }])
+
+    def test_add_to_cart_without_options_unavailable(self):
+        sold_out = lambda u, p: _fixture('view_without_options.html').replace(
+            'class="io_stock" value="3393"', 'class="io_stock" value="0"')
+        for product_id, view in [
+                ('100004', sold_out),
+                ('100004:123', 'view_without_options.html')]:  # option doesn't exist
+            with self.subTest(product_id):
+                session = self._view_session(view)
+                with self.assertRaises(ProductNotAvailableError) as ctx:
+                    _add_to_cart(session, self._op(product_id))
+                self.assertEqual(ctx.exception.product_id, product_id)
+                self.assertEqual(session.posted('/shop/ajax.cartsave.php'), [])
 
     def test_add_to_cart_unavailable(self):
         for product_id, quantity in [

@@ -154,25 +154,41 @@ def _get_form(response: requests.Response, selector: str) -> Tag:
 
 def _get_option(doc: BeautifulSoup, product_id: str, option_id: Optional[str]
                 ) -> dict[str, Any]:
-    '''Returns the option to be ordered. Option's data-value is
+    '''Returns cart fields of the option to be ordered. Option's data-value is
     "name,additional price,stock,base price,PV,option ID"'''
     options = []
     for li in doc.select('li.opt_list_li[data-value]'):
         name, _add_price, stock, _price, _points, number = \
             str(li['data-value']).rsplit(',', 5)
-        options.append({'name': name, 'number': number.strip(), 'stock': int(stock),
-                        'possible': li.get('data-possible') == '1'})
+        options.append({'io_id': name, 'io_no': number.strip(), 'io_value': f'옵션선택:{name}',
+                        'stock': int(stock), 'possible': li.get('data-possible') == '1'})
     if len(options) == 0:
-        # Cart payload for products without options wasn't observed yet
-        raise ProductNotAvailableError(product_id, "Products without options aren't supported")
+        return _get_single_item(doc, product_id, option_id)
     if option_id is None:
         if len(options) > 1:
             raise ProductNotAvailableError(product_id, "Product option isn't specified")
         return options[0]
-    option = next((o for o in options if o['number'] == option_id), None)
+    option = next((o for o in options if o['io_no'] == option_id), None)
     if option is None:
         raise ProductNotAvailableError(product_id, "Product option doesn't exist")
     return option
+
+def _get_single_item(doc: BeautifulSoup, product_id: str, option_id: Optional[str]
+                     ) -> dict[str, Any]:
+    '''Returns cart fields of product without options.
+    Its option row is in the purchase form already'''
+    row = doc.select_one('form[name="fbuyform"] .sit_opt_list')
+    if row is None:
+        raise ProductNotAvailableError(product_id, "Product has no options to order")
+    if option_id is not None:
+        raise ProductNotAvailableError(product_id, "Product option doesn't exist")
+    def value(selector: str) -> str:
+        element = row.select_one(selector)
+        return str(element.get('value', '')) if element is not None else ''
+    stock = int(_digits(value('input.io_stock')) or 0)
+    return {'io_id': value('input[name^="io_id["]'), 'io_no': value('input[name^="io_no["]'),
+            'io_value': value('input[name^="io_value["]'), 'stock': stock,
+            'possible': stock > 0}
 
 def _add_to_cart(session: requests.Session, order_product: OrderProduct) -> None:
     '''Adds the order product to the cart.
@@ -197,9 +213,9 @@ def _add_to_cart(session: requests.Session, order_product: OrderProduct) -> None
         ('ca_id', str(ca_id.get('value', ''))),
         ('sw_direct', ''),
         (f'io_type[{gs_id}][]', '0'),
-        (f'io_id[{gs_id}][]', option['name']),
-        (f'io_no[{gs_id}][]', option['number']),
-        (f'io_value[{gs_id}][]', f"옵션선택:{option['name']}"),
+        (f'io_id[{gs_id}][]', option['io_id']),
+        (f'io_no[{gs_id}][]', option['io_no']),
+        (f'io_value[{gs_id}][]', option['io_value']),
         (f'ct_qty[{gs_id}][]', str(order_product.quantity)),
     ], headers={'X-Requested-With': 'XMLHttpRequest'}, timeout=TIMEOUT)
     response.raise_for_status()
