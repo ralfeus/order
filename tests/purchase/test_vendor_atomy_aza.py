@@ -18,7 +18,7 @@ from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.company import Company
 from app.purchase.models.vendors.atomy_aza import (
-    AtomyAza, _add_to_cart, _get_order_lines, _place_order)
+    AtomyAza, _add_to_cart, _get_order_lines, _place_order, _remove_cart_products)
 from app.users.models.user import User
 from common.exceptions import ProductNotAvailableError, PurchaseOrderError
 from common.utils.aza import URL_BASE, AzaLoginError
@@ -387,6 +387,33 @@ class TestAtomyAzaClient(AzaTestCase):
             _place_order(session, self._po(), 'Company 0001', {'100002': 1})
         self.assertIn('결제 처리 중 오류가 발생했습니다', str(ctx.exception))
 
+    # --- cart cleanup -----------------------------------------------------
+
+    def _cart_session(self, cart: str='cart.html'):
+        return FakeSession({
+            ('GET', '/m/shop/cart.php'): cart,
+            ('POST', '/m/shop/cartupdate.php'): lambda u, p:
+                '{"code":1,"url":"https:\\/\\/atomyaza.co.kr\\/m\\/shop\\/cart.php"}',
+        })
+
+    def test_remove_cart_products(self):
+        session = self._cart_session()
+        _remove_cart_products(session, {'100002', '100009'})
+        data = session.posted('/m/shop/cartupdate.php')
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['act'], ['seldelete'])
+        # Only our products are removed. Others in the cart aren't ours
+        self.assertEqual(data[0]['ct_chk[1]'], ['1'])
+        self.assertNotIn('ct_chk[0]', data[0])
+        self.assertNotIn('ct_all', data[0])
+
+    def test_remove_cart_products_not_in_cart(self):
+        for cart in ['cart.html', 'cart_empty.html']:
+            with self.subTest(cart):
+                session = self._cart_session(cart)
+                _remove_cart_products(session, {'100009'})
+                self.assertEqual(session.posted('/m/shop/cartupdate.php'), [])
+
     # --- order history ----------------------------------------------------
 
     def test_get_order_lines(self):
@@ -429,6 +456,7 @@ class TestAtomyAzaVendor(AzaTestCase):
             'add': patch(f'{MODULE}._add_to_cart'),
             'place': patch(f'{MODULE}._place_order', return_value=dict(ORDER_DETAILS)),
             'lines': patch(f'{MODULE}._get_order_lines', return_value=[]),
+            'remove': patch(f'{MODULE}._remove_cart_products'),
         }
         self.mocks = {name: p.start() for name, p in patches.items()}
         for p in patches.values():
@@ -474,6 +502,47 @@ class TestAtomyAzaVendor(AzaTestCase):
         with self.assertRaises(PurchaseOrderError):
             self.vendor.post_purchase_order(self.po)
         self.assertEqual(released, ['po_posting:aza:company'])
+
+    def test_post_purchase_order_cleans_cart_on_failure(self):
+        self.mocks['place'].side_effect = PurchaseOrderError(message='Payment failed')
+        with self.assertRaises(PurchaseOrderError) as ctx:
+            self.vendor.post_purchase_order(self.po)
+        self.assertIn('Payment failed', str(ctx.exception))
+        self.mocks['remove'].assert_called_once_with('session', {'100001', '100002'})
+
+    def test_post_purchase_order_cleanup_failure_keeps_error(self):
+        self.mocks['place'].side_effect = PurchaseOrderError(message='Payment failed')
+        self.mocks['remove'].side_effect = PurchaseOrderError(message='Cart is gone')
+        with self.assertLogs(level='WARNING') as logs, \
+                self.assertRaises(PurchaseOrderError) as ctx:
+            self.vendor.post_purchase_order(self.po)
+        self.assertIn('Payment failed', str(ctx.exception))
+        self.assertTrue(any('Cart is gone' in line for line in logs.output))
+
+    def test_post_purchase_order_cleans_only_added_products(self):
+        self.mocks['add'].side_effect = [None, ProductNotAvailableError('100002', 'Sold out')]
+        self.mocks['place'].side_effect = PurchaseOrderError(message='Payment failed')
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.mocks['remove'].assert_called_once_with('session', {'100001'})
+
+    def test_post_purchase_order_cleans_cart_on_adding_failure(self):
+        import requests
+        self.mocks['add'].side_effect = [None, requests.ConnectionError('Connection reset')]
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.mocks['remove'].assert_called_once_with('session', {'100001'})
+        self.mocks['place'].assert_not_called()
+
+    def test_post_purchase_order_success_doesnt_clean_cart(self):
+        self.vendor.post_purchase_order(self.po)
+        self.mocks['remove'].assert_not_called()
+
+    def test_post_purchase_order_nothing_added_nothing_cleaned(self):
+        self.mocks['add'].side_effect = ProductNotAvailableError('100001', 'Sold out')
+        with self.assertRaises(PurchaseOrderError):
+            self.vendor.post_purchase_order(self.po)
+        self.mocks['remove'].assert_not_called()
 
     def test_post_purchase_order_account_busy(self):
         _register_sqlite_lock_functions(get_lock=lambda name, timeout: 0)

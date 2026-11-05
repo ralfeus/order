@@ -226,17 +226,30 @@ def _add_to_cart(session: requests.Session, order_product: OrderProduct) -> None
 def _buy_cart_products(session: requests.Session, gs_ids: set[str]) -> requests.Response:
     '''Proceeds to the order form with the provided products of the cart.
     Other products in the cart are left intact as the account can be shared'''
+    response = _update_cart(session, gs_ids, 'buy')
+    if response is None:
+        raise PurchaseOrderError(message=f"Products {sorted(gs_ids)} aren't in the cart")
+    return response
+
+def _remove_cart_products(session: requests.Session, gs_ids: set[str]) -> None:
+    '''Removes the provided products from the cart. Others are left intact'''
+    _update_cart(session, gs_ids, 'seldelete', all_required=False)
+
+def _update_cart(session: requests.Session, gs_ids: set[str], act: str,
+                 all_required: bool=True) -> Optional[requests.Response]:
+    '''Applies the cart action to the provided products only.
+    Returns None if there are no products to apply the action to'''
     response = _get(session, f'{URL_BASE}/m/shop/cart.php')
     form = _get_form(response, 'form[name="frmcartlist"]')
     rows = {str(row.get('value')): str(row['name']).replace('gs_id', 'ct_chk', 1)
             for row in form.select('input[name^="gs_id["]')}
-    missing = gs_ids - rows.keys()
-    if missing:
-        raise PurchaseOrderError(message=f"Products {sorted(missing)} aren't in the cart")
+    found = gs_ids & rows.keys()
+    if not found or (all_required and found != gs_ids):
+        return None
     fields = [field for field in _form_fields(form)
               if not field[0].startswith('ct_chk[') and field[0] != 'ct_all']
-    fields += [(rows[gs_id], '1') for gs_id in sorted(gs_ids)]
-    _set_field(fields, 'act', 'buy')
+    fields += [(rows[gs_id], '1') for gs_id in sorted(found)]
+    _set_field(fields, 'act', act)
     return _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
 
 def _check_order_form(form: Tag, quantities: dict[str, int],
@@ -381,6 +394,16 @@ def _get_order_lines(session: requests.Session, from_date: date, to_date: date
     return lines
 
 
+def _get_quantities(ordered_products: list[tuple[OrderProduct]]) -> dict[str, int]:
+    '''Returns quantities by AtomyAza product (gs_id). Options of the same
+    product are one line of the order form'''
+    quantities: dict[str, int] = {}
+    for (op,) in ordered_products:
+        gs_id = str(op.product_id).partition(':')[0]
+        quantities[gs_id] = quantities.get(gs_id, 0) + op.quantity
+    return quantities
+
+
 @contextmanager
 def _account_lock(username: str, timeout: int):
     '''Holds MySQL named lock of the AtomyAza account while its cart is used.
@@ -444,17 +467,23 @@ class AtomyAza(PurchaseOrderVendorBase):
         try:
             with _account_lock(self.__config['AZA_LOGIN'],
                                int(self.__config.get('AZA_PO_LOCK_TIMEOUT', LOCK_TIMEOUT))):
-                ordered_products, unavailable_products = \
-                    self.__add_products(session, purchase_order, logger)
-                if len(ordered_products) == 0:
-                    raise PurchaseOrderError(purchase_order, self, "No products could be added")
-                quantities: dict[str, int] = {}
-                for (op,) in ordered_products:
-                    gs_id = str(op.product_id).partition(':')[0]
-                    quantities[gs_id] = quantities.get(gs_id, 0) + op.quantity
-                receiver_name = get_receiver_name(purchase_order,
-                    self.__config.get('ATOMY_RECEIVER_NAME_FORMAT', '{company} {id1}'))
-                details = _place_order(session, purchase_order, receiver_name, quantities)
+                ordered_products: list[tuple[OrderProduct]] = []
+                try:
+                    unavailable_products = self.__add_products(
+                        session, purchase_order, ordered_products, logger)
+                    if len(ordered_products) == 0:
+                        raise PurchaseOrderError(purchase_order, self,
+                                                 "No products could be added")
+                    receiver_name = get_receiver_name(purchase_order,
+                        self.__config.get('ATOMY_RECEIVER_NAME_FORMAT', '{company} {id1}'))
+                    details = _place_order(session, purchase_order, receiver_name,
+                                           _get_quantities(ordered_products))
+                except Exception:
+                    # Products left in the cart would break next posting
+                    if ordered_products:
+                        self.__clean_cart(session, set(_get_quantities(ordered_products)),
+                                          logger)
+                    raise
         except AzaLoginError as ex:
             self.__session = None
             raise PurchaseOrderError(purchase_order, self, str(ex)) from ex
@@ -471,10 +500,19 @@ class AtomyAza(PurchaseOrderVendorBase):
         self._set_order_products_status(ordered_products, OrderProductStatus.purchased)
         return purchase_order, unavailable_products
 
+    @staticmethod
+    def __clean_cart(session: requests.Session, gs_ids: set[str], logger: logging.Logger):
+        try:
+            _remove_cart_products(session, gs_ids)
+        except Exception as ex:
+            logger.warning("Couldn't remove products %s from the cart: %s", sorted(gs_ids), ex)
+
     def __add_products(self, session: requests.Session, purchase_order: PurchaseOrder,
-                       logger: logging.Logger
-                       ) -> tuple[list[tuple[OrderProduct]], dict[str, str]]:
-        ordered_products = []
+                       ordered_products: list[tuple[OrderProduct]], logger: logging.Logger
+                       ) -> dict[str, str]:
+        '''Adds products to the cart. Added ones are appended to ordered_products
+        right away, so they are known even if adding of others fails.
+        Returns products that couldn't be added'''
         unavailable_products = {}
         for op in purchase_order.order_products:
             if not op.product.purchase:
@@ -491,7 +529,7 @@ class AtomyAza(PurchaseOrderVendorBase):
             except ProductNotAvailableError as ex:
                 logger.warning("Product %s is not available: %s", ex.product_id, ex.message)
                 unavailable_products[ex.product_id] = ex.message
-        return ordered_products, unavailable_products
+        return unavailable_products
 
     def update_purchase_orders_status(self, customer: Subcustomer,
                                       customer_pos: list[PurchaseOrder]):
