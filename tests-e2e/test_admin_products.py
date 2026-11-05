@@ -183,3 +183,37 @@ def test_delete_product_of_vendor_with_shared_id(shared_id_page: Page):
 
     assert product('AtomyAza:A1') is None
     assert product('Atomy:A1') is not None
+
+
+def _field(page: Page, name: str):
+    return page.locator(f'div.DTE_Field_Name_{name}')
+
+
+def test_create_product_of_vendor(admin_page: Page):
+    admin_page.get_by_role('button', name='Create').click()
+    expect(admin_page.locator('div.DTE')).to_be_visible()
+    expect(_field(admin_page, 'vendor').locator('select')).to_have_value('Atomy')
+    _field(admin_page, 'id').locator('input').fill('A1')
+    _field(admin_page, 'vendor').locator('select').select_option('AtomyAza')
+    _field(admin_page, 'name').locator('input').fill('New AZA product')
+    admin_page.locator('div.DTE button', has_text='Create').click()
+    expect(admin_page.locator('div.DTE')).to_be_hidden()
+
+    assert product('AtomyAza:A1').name == 'New AZA product'
+    assert product('Atomy:A1').name == 'Product A'
+    expect(row(admin_page, '(AtomyAza)').locator('td').nth(2)).to_have_text(
+        '(AtomyAza) New AZA product')
+
+
+def test_create_existing_product_shows_error(admin_page: Page):
+    admin_page.get_by_role('button', name='Create').click()
+    _field(admin_page, 'id').locator('input').fill('A1')
+    admin_page.locator('div.DTE button', has_text='Create').click()
+    expect(admin_page.locator('.modal', has_text='already exists')).to_be_visible()
+    assert product('Atomy:A1').name == 'Product A'
+
+
+def test_vendor_isnt_editable(admin_page: Page):
+    open_editor(admin_page)
+    expect(_field(admin_page, 'vendor').locator('select')).to_have_value('Atomy')
+    expect(_field(admin_page, 'vendor').locator('select')).to_be_disabled()

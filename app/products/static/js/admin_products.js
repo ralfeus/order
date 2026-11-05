@@ -5,6 +5,7 @@ var g_filter_sources = {
     'purchase': [{id: 1, text: 'true'}, {id: 0, text: 'false'}]
 };
 var g_shipping_methods;
+var g_vendors;
 var NO_IMAGE = '/static/images/no_image.jpg';
 var IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 // Picture change requested in the editor: null - no change,
@@ -39,6 +40,7 @@ function product_url(product_key) {
 
 async function get_dictionaries() {
     g_shipping_methods = await get_list('/api/v1/admin/shipping');
+    g_vendors = await get_list('/api/v1/admin/product/vendors');
 }
 
 // Formatting function for row details
@@ -169,8 +171,8 @@ function init_table() {
                 },
                 error: (xhr, err, thrown) => {
                     modal(
-                        "Product update error", 
-                        xhr.responseJSON.message);
+                        "Product update error",
+                        xhr.responseJSON ? xhr.responseJSON.message : xhr.responseText);
                     error(xhr, err, thrown);
                 }
             });
@@ -180,6 +182,13 @@ function init_table() {
         idSrc: 'key',
         fields: [
             {label: 'Product ID', name: 'id'},
+            {
+                label: 'Vendor',
+                name: 'vendor',
+                type: 'select',
+                options: g_vendors,
+                def: g_vendors[0]
+            },
             {label: 'Name', name: 'name'},
             {label: 'Name english', name: 'name_english'},
             {label: 'Name russian', name: 'name_russian'},
@@ -227,10 +236,13 @@ function init_table() {
         ]
     });
     editor.on('open', () => {
-        if (editor.field('id').val()) {
-            editor.field('id').disable();
-        } else {
+        // Product ID and vendor make the product key, so they are set on creation only
+        if (editor.mode() === 'create') {
             editor.field('id').enable();
+            editor.field('vendor').enable();
+        } else {
+            editor.field('id').disable();
+            editor.field('vendor').disable();
         }
         init_image_field(editor);
         $('#color-text').on('change', () => {
