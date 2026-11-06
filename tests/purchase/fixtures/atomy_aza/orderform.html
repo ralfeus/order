@@ -10,7 +10,8 @@ function fbuyform_submit(f) { if (!f.b_name.value) { alert("받으시는 분 이
   <input type="hidden" name="gs_price[0]" value="30900">
   <input type="hidden" name="cart_id[0]" value="777000111">
   <input type="hidden" name="sum_qty[0]" value="1">
-  <input type="hidden" name="baesong_chk[]" value="0||100002">
+  <input type="hidden" name="add_island_array" id="add_island_array" value="0">
+  <input type="hidden" name="baesong_chk[]" class="baesong_chk_dst_9500" value="" />
   <input type="radio" name="sales_date" value="2026-10-16">
   <input type="radio" name="sales_date" value="2026-10-17" checked>
   <input type="radio" name="sales_date" value="2026-10-19">
@@ -51,4 +52,10 @@ function fbuyform_submit(f) { if (!f.b_name.value) { alert("받으시는 분 이
   <input type="text" name="disabled_field" value="x" disabled>
   <input type="submit" id="submit_btn" value="주문하기(Pay)">
 </form>
+<script>
+    function send_cost_bind() {
+        var sc_list = {"9500":3500};
+        var sg_list = {"9500":"100002"};
+    }
+</script>
 </body></html>

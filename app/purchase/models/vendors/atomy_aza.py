@@ -3,6 +3,7 @@ Orders are placed with the company account via plain HTTP requests:
 cart -> order form -> virtual account payment'''
 from contextlib import contextmanager
 from datetime import date, timedelta
+import json
 import logging
 import re
 from typing import Any, Optional
@@ -146,6 +147,30 @@ def _set_field(fields: list[tuple[str, str]], name: str, value: str) -> None:
     '''Sets the single value of the field'''
     fields[:] = [field for field in fields if field[0] != name] + [(name, value)]
 
+def _bind_shipping_fees(doc: BeautifulSoup, form: Tag,
+                        fields: list[tuple[str, str]]) -> None:
+    '''Sets shipping fees of destinations the way send_cost_bind() of the page does.
+    Without them the order isn't completed'''
+    script = ' '.join(s.get_text() for s in doc.find_all('script'))
+    lists = {}
+    for name in ('sc_list', 'sg_list'):
+        match = re.search(rf'var\s+{name}\s*=\s*(\{{.*?\}})\s*;', script, re.S)
+        try:
+            lists[name] = json.loads(match.group(1)) if match else {}
+        except ValueError:
+            lists[name] = {}
+    values = []
+    for element in form.select('input[name="baesong_chk[]"]:not([disabled])'):
+        value = str(element.get('value', ''))
+        for css_class in element.get('class') or []:
+            code = css_class.removeprefix('baesong_chk_dst_')
+            if code != css_class and code in lists['sc_list'] and code in lists['sg_list']:
+                value = f"{lists['sc_list'][code]}||{lists['sg_list'][code]}"
+        values.append(value)
+    values.reverse()
+    fields[:] = [(name, values.pop() if name == 'baesong_chk[]' and values else value)
+                 for name, value in fields]
+
 def _digits(text: Optional[str]) -> str:
     return re.sub(r'\D', '', text or '')
 
@@ -279,6 +304,7 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
     form = _get_form(response, 'form[action*="orderformupdate"]')
     _check_order_form(form, quantities, purchase_order)
     fields = _form_fields(form)
+    _bind_shipping_fees(BeautifulSoup(response.text, 'html.parser'), form, fields)
 
     sales_dates = [str(r['value']) for r in form.select('input[name="sales_date"]')]
     sales_date = purchase_order.purchase_date.isoformat() if purchase_order.purchase_date \
@@ -302,6 +328,8 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
         'b_addr2': address.address_2 or '',
         'b_addr3': '',
         'b_addr_jibeon': '',
+        # Page clears island surcharges for a new address
+        'add_island_array': '',
         'paymethod': PAYMENT_METHOD,
         'virtualAcc_code': bank_code,
         'virtualAcc_hp': _digits(purchase_order.payment_phone),

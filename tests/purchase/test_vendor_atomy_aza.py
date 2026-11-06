@@ -269,7 +269,8 @@ class TestAtomyAzaClient(AzaTestCase):
             'tot_price': ['30900'], 'tot_price_valid': ['30900'], 'use_point': ['0'],
             # Inputs without value are sent empty. 'on' made the payment fail
             'paymentKey': [''], 'card_id': [''],
-            'baesong_chk[]': ['0||100002'],
+            # Browser binds shipping fee and clears island array by JS
+            'baesong_chk[]': ['3500||100002'], 'add_island_array': [''],
             'sales_date': ['2026-10-17'],
             'ad_sel_addr': ['2'],
             'b_name': ['Company 0001'], 'b_cellphone': ['01011112222'],
