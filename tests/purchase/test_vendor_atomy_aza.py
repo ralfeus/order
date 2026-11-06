@@ -7,6 +7,8 @@ from typing import Callable, Optional, Union
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 
+from bs4 import BeautifulSoup
+
 from tests import BaseTestCase, db
 from app.models.address import Address
 from app.orders.models.order import Order
@@ -18,7 +20,8 @@ from app.orders.models.order_product import OrderProductStatus
 from app.purchase.models import PurchaseOrder, PurchaseOrderStatus
 from app.purchase.models.company import Company
 from app.purchase.models.vendors.atomy_aza import (
-    AtomyAza, _add_to_cart, _get_order_lines, _place_order, _remove_cart_products)
+    AtomyAza, _add_to_cart, _form_fields, _get_order_lines, _place_order,
+    _remove_cart_products)
 from app.users.models.user import User
 from common.exceptions import ProductNotAvailableError, PurchaseOrderError
 from common.utils.aza import URL_BASE, AzaLoginError
@@ -261,13 +264,17 @@ class TestAtomyAzaClient(AzaTestCase):
         self.assertNotIn('ct_all', buy)
         data = session.posted('/shop/orderformupdate.php')[0]
         expected = {
-            'ss_cart_id': ['2610180001'], 'tot_price': ['30900'], 'cart_id[0]': ['777000111'],
+            'ss_cart_id': ['2610180001'], 'cart_id[0]': ['777000111'],
+            # Browser strips thousands separators before submit
+            'tot_price': ['30900'], 'tot_price_valid': ['30900'], 'use_point': ['0'],
+            # Inputs without value are sent empty. 'on' made the payment fail
+            'paymentKey': [''], 'card_id': [''],
             'baesong_chk[]': ['0||100002'],
             'sales_date': ['2026-10-17'],
             'ad_sel_addr': ['2'],
             'b_name': ['Company 0001'], 'b_cellphone': ['01011112222'],
             'b_zip': ['03733'], 'b_addr1': ['Seoul, Street 17'],
-            'b_addr2': ['Building 108, 504'], 'b_addr3': [''],
+            'b_addr2': ['Building 108, 504'], 'b_addr3': [''], 'b_addr_jibeon': [''],
             'paymethod': ['가상계좌'],
             'virtualAcc_code': ['004'], 'virtualAcc_hp': ['01062852045'],
             # Browser clears personal receipt phone for business receipt.
@@ -282,6 +289,14 @@ class TestAtomyAzaClient(AzaTestCase):
         self.assertNotIn('addr_add', data)
         self.assertEqual(session.posted('/m/shop/orderformresult.php')[0]['od_id'],
                          ['26101803073003'])
+
+    def test_form_fields_without_value(self):
+        form = BeautifulSoup(
+            '<form><input type="hidden" name="paymentKey"><input name="text_field">'
+            '<input type="checkbox" name="box" checked><input type="radio" name="radio" checked>'
+            '</form>', 'html.parser').form
+        self.assertEqual(_form_fields(form), [
+            ('paymentKey', ''), ('text_field', ''), ('box', 'on'), ('radio', 'on')])
 
     def test_place_order_cart_update_error(self):
         session = self._order_session(

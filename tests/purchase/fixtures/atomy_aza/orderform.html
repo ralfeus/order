@@ -4,7 +4,7 @@ function fbuyform_submit(f) { if (!f.b_name.value) { alert("받으시는 분 이
 <form name="buyform" method="post" action="https://atomyaza.co.kr/shop/orderformupdate.php" onsubmit="return fbuyform_submit(this);">
   <input type="hidden" name="ss_cart_id" value="2610180001">
   <input type="hidden" name="tot_price_valid" value="30,900">
-  <input type="hidden" name="tot_price" value="30900">
+  <input type="hidden" name="tot_price" value="30,900" readonly>
   <input type="hidden" name="baesong_price" value="0">
   <input type="hidden" name="gs_id[0]" value="100002">
   <input type="hidden" name="gs_price[0]" value="30900">
@@ -36,10 +36,13 @@ function fbuyform_submit(f) { if (!f.b_name.value) { alert("받으시는 분 이
   <input type="radio" name="paymethod" value="가상계좌" checked>
   <input type="radio" name="paymethod" value="카드번호결제">
   <select name="virtualAcc_code"><option value="">은행 선택</option><option value="004">국민은행</option><option value="088">신한은행</option></select>
+  <input type="hidden" id="card_id" name="card_id" />
+  <input type="hidden" id="paymentKey" name="paymentKey" />
   <input type="text" name="virtualAcc_hp" value="">
   <input type="text" name="cardNumber1" value="">
   <input type="password" name="cardPassword" value="">
   <select name="cardInstallmentPlan"><option value="0">일시불</option><option value="2">2개월</option></select>
+  <input type="text" name="use_point" value="0">
   <input type="radio" name="taxsave_yes" value="N">
   <input type="radio" name="taxsave_yes" value="Y" checked>
   <input type="radio" name="taxsave_yes" value="S">

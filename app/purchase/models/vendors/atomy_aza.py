@@ -134,9 +134,12 @@ def _form_fields(form: Tag) -> list[tuple[str, str]]:
             input_type = str(element.get('type', 'text')).lower()
             if input_type in ('submit', 'button', 'image', 'file', 'reset'):
                 continue
-            if input_type in ('checkbox', 'radio') and not element.has_attr('checked'):
-                continue
-            fields.append((str(name), str(element.get('value', 'on'))))
+            if input_type in ('checkbox', 'radio'):
+                if not element.has_attr('checked'):
+                    continue
+                fields.append((str(name), str(element.get('value', 'on'))))
+            else:
+                fields.append((str(name), str(element.get('value', ''))))
     return fields
 
 def _set_field(fields: list[tuple[str, str]], name: str, value: str) -> None:
@@ -298,6 +301,7 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
         'b_addr1': address.address_1,
         'b_addr2': address.address_2 or '',
         'b_addr3': '',
+        'b_addr_jibeon': '',
         'paymethod': PAYMENT_METHOD,
         'virtualAcc_code': bank_code,
         'virtualAcc_hp': _digits(purchase_order.payment_phone),
@@ -309,6 +313,11 @@ def _place_order(session: requests.Session, purchase_order: PurchaseOrder,
         # Browser clears personal receipt phone for business receipt.
         # Otherwise the payment fails
         _set_field(fields, 'tax_hp', '')
+    # Browser strips thousands separators before submit
+    values = dict(fields)
+    for name in ('use_point', 'tot_price', 'tot_price_valid'):
+        if name in values:
+            _set_field(fields, name, values[name].replace(',', ''))
 
     response = _ajax_post(session, urljoin(response.url, str(form.get('action', ''))), fields)
     # Virtual account is requested by the form the page submits by itself
