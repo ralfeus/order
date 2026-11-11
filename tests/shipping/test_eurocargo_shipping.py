@@ -1,4 +1,4 @@
-"""Tests for SeparateShipping method"""
+"""Tests for EurocargoShipping method"""
 import math
 from decimal import Decimal
 from unittest.mock import MagicMock, call, patch
@@ -8,7 +8,7 @@ from app.currencies.models import Currency
 from app.models import Country
 from app.orders.models.order import Order
 from app.orders.models.order_status import OrderStatus
-from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
+from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping
 from app.shipping.models.shipping import NoShipping, ShippingRate
 from app.users.models.role import Role
 from app.users.models.user import User
@@ -17,8 +17,8 @@ from app.shipping.models.shipping_rate import ShippingRate as _ShippingRate
 PW_HASH = "pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576"
 
 
-class TestSeparateShippingModel(BaseTestCase):
-    """Tests for SeparateShipping cost-calculation behaviour"""
+class TestEurocargoShippingModel(BaseTestCase):
+    """Tests for EurocargoShipping cost-calculation behaviour"""
 
     def setUp(self):
         super().setUp()
@@ -27,7 +27,7 @@ class TestSeparateShippingModel(BaseTestCase):
             Currency(code='USD', rate=0.5),
             Currency(code='EUR', rate=0.5),
             Country(id='c1', name='Country1'),
-            SeparateShipping(id=1, name='Separate Shipping'),
+            EurocargoShipping(id=1, name='Eurocargo Shipping'),
             ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=5000),
         ])
 
@@ -36,12 +36,12 @@ class TestSeparateShippingModel(BaseTestCase):
     # ------------------------------------------------------------------
 
     def test_get_shipping_cost_returns_zero_for_known_destination(self):
-        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
+        shipping: EurocargoShipping = EurocargoShipping.query.get(1) #type: ignore
         self.assertEqual(shipping.get_shipping_cost('c1', 500), 0)
 
     def test_get_shipping_cost_returns_zero_for_unknown_destination(self):
         """Even when no rate is configured, cost is 0 (deferred to packing)"""
-        shipping: SeparateShipping = SeparateShipping.query.get(1) #type: ignore
+        shipping: EurocargoShipping = EurocargoShipping.query.get(1) #type: ignore
         self.assertEqual(shipping.get_shipping_cost('xx', 500), 0)
 
     # ------------------------------------------------------------------
@@ -50,14 +50,14 @@ class TestSeparateShippingModel(BaseTestCase):
 
     def test_can_ship_for_country_with_rate(self):
         """Country with a ShippingRate entry is available."""
-        shipping = SeparateShipping.query.get(1)
+        shipping = EurocargoShipping.query.get(1)
         country = Country.query.get('c1')
         self.assertTrue(shipping.can_ship(country, 500))
 
     def test_can_ship_for_country_without_rate(self):
         """Country without a ShippingRate entry is NOT available."""
         self.try_add_entity(Country(id='xx', name='No-Rate Country'))
-        shipping = SeparateShipping.query.get(1)
+        shipping = EurocargoShipping.query.get(1)
         country = Country.query.get('xx')
         self.assertFalse(shipping.can_ship(country, 500))
 
@@ -65,17 +65,17 @@ class TestSeparateShippingModel(BaseTestCase):
     # polymorphic discriminator / to_dict
     # ------------------------------------------------------------------
 
-    def test_discriminator_is_separate(self):
-        shipping = SeparateShipping.query.get(1)
-        self.assertEqual(shipping.discriminator, 'separate')
+    def test_discriminator_is_eurocargo(self):
+        shipping = EurocargoShipping.query.get(1)
+        self.assertEqual(shipping.discriminator, 'eurocargo')
 
-    def test_to_dict_type_is_separate(self):
-        shipping = SeparateShipping.query.get(1)
-        self.assertEqual(shipping.to_dict()['type'], 'separate')
+    def test_to_dict_type_is_eurocargo(self):
+        shipping = EurocargoShipping.query.get(1)
+        self.assertEqual(shipping.to_dict()['type'], 'eurocargo')
 
 
-class TestSeparateShippingOrderIntegration(BaseTestCase):
-    """Tests for Order.set_status() interaction with SeparateShipping"""
+class TestEurocargoShippingOrderIntegration(BaseTestCase):
+    """Tests for Order.set_status() interaction with EurocargoShipping"""
 
     def setUp(self):
         super().setUp()
@@ -83,7 +83,7 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
         # Explicitly connect the signal so tests are independent of app init order
         admin_role = Role(name='admin')
         self.actor = User(
-            username='actor_test_separate',
+            username='actor_test_eurocargo',
             email='actor@test.com',
             password_hash=PW_HASH,
             enabled=True,
@@ -94,7 +94,7 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
             Currency(code='USD', rate=0.5),
             Currency(code='EUR', rate=0.5),
             Country(id='c1', name='Country1'),
-            SeparateShipping(id=1, name='Separate Shipping'),
+            EurocargoShipping(id=1, name='Eurocargo Shipping'),
             ShippingRate(shipping_method_id=1, destination='c1', weight=1000, rate=5000),
             NoShipping(id=999),
         ])
@@ -116,15 +116,15 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
 
     def test_set_status_packed_does_not_calculate_shipping_cost(self):
         """Cost calculation moved to shipped; packing must not touch shipping_base_currency."""
-        order = self._make_order(SeparateShipping.query.get(1))
+        order = self._make_order(EurocargoShipping.query.get(1))
         order.set_status(OrderStatus.packed, self.actor)
         db.session.commit()
 
         self.assertEqual(order.status, OrderStatus.packed)
         self.assertEqual(order.shipping_base_currency, 0)  # untouched
 
-    def test_set_status_packed_non_separate_shipping_leaves_cost_unchanged(self):
-        """Orders with NoShipping are not affected by the SeparateShipping hook"""
+    def test_set_status_packed_non_eurocargo_shipping_leaves_cost_unchanged(self):
+        """Orders with NoShipping are not affected by the EurocargoShipping hook"""
         order = self._make_order(NoShipping.query.get(999), shipping_base_currency=100)
         order.set_status(OrderStatus.packed, self.actor)
 
@@ -136,11 +136,11 @@ class TestSeparateShippingOrderIntegration(BaseTestCase):
 
 
 class TestOnSaleOrderPackedSignalHandler(BaseTestCase):
-    """on_sale_order_packed is a no-op for SeparateShipping (cost deferred to shipped)."""
+    """on_sale_order_packed is a no-op for EurocargoShipping (cost deferred to shipped)."""
 
     def test_packed_handler_does_nothing(self):
         order = MagicMock()
-        from app.shipping.methods.separate.signal_handlers import on_sale_order_packed
+        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_packed
         on_sale_order_packed(order)
         # No attributes should have been set
         order.assert_not_called()
@@ -179,12 +179,12 @@ class _ShippedHandlerMixin:
         return box
 
     def _call_handler(self, order, eur_rate=0.001):
-        from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
-        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
-        order.shipping.__class__ = SeparateShipping
+        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_shipped
+        from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping
+        order.shipping.__class__ = EurocargoShipping
         order.shipping.id = 1
-        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post, \
-             patch('app.shipping.methods.separate.signal_handlers._eur_rate',
+        with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post, \
+             patch('app.shipping.methods.eurocargo.signal_handlers._eur_rate',
                    return_value=eur_rate):
             mock_post.return_value.status_code = 201
             mock_post.return_value.json.return_value = {
@@ -367,11 +367,11 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         payload = self._post(order).call_args[1]['json']
         self.assertNotIn('additional_cost_eur', payload)
 
-    def test_non_separate_shipping_skipped(self):
+    def test_non_eurocargo_shipping_skipped(self):
         order = self._make_order()
-        from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
-        with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post:
-            on_sale_order_shipped(order)  # shipping.__class__ is MagicMock, not SeparateShipping
+        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_shipped
+        with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post:
+            on_sale_order_shipped(order)  # shipping.__class__ is MagicMock, not EurocargoShipping
             mock_post.assert_not_called()
 
     def test_shipment_payload_does_not_include_carrier(self):
@@ -511,7 +511,7 @@ class TestEurocargoShipmentPayload(_ShippedHandlerMixin, BaseTestCase):
         self._post(order).assert_not_called()
 
 
-class TestSeparateShippingAdminAPI(BaseTestCase):
+class TestEurocargoShippingAdminAPI(BaseTestCase):
     """Tests for the admin API endpoints managing country availability."""
 
     PW = 'pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576'
@@ -521,8 +521,8 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
         db.create_all()
         admin_role = Role(name='admin')
         self.admin = User(
-            username='admin_separate_api',
-            email='admin_separate_api@test.com',
+            username='admin_eurocargo_api',
+            email='admin_eurocargo_api@test.com',
             password_hash=self.PW,
             enabled=True,
             roles=[admin_role],
@@ -532,28 +532,28 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
             Country(id='DE', name='Germany'),
             Country(id='FR', name='France'),
             Country(id='PL', name='Poland'),
-            SeparateShipping(id=10, name='Sep Ship'),
+            EurocargoShipping(id=10, name='Sep Ship'),
             # DE is pre-enabled
             _ShippingRate(shipping_method_id=10, destination='DE', weight=0, rate=0),
         ])
-        self.login('admin_separate_api', '1')
+        self.login('admin_eurocargo_api', '1')
 
     # ------------------------------------------------------------------
     # GET /<id>/countries
     # ------------------------------------------------------------------
 
     def test_get_countries_returns_configured_list(self):
-        res = self.client.get('/api/v1/admin/shipping/separate/10/countries')
+        res = self.client.get('/api/v1/admin/shipping/eurocargo/10/countries')
         self.assertEqual(res.status_code, 200)
         self.assertIn('DE', res.json)
 
     def test_get_countries_excludes_unconfigured(self):
-        res = self.client.get('/api/v1/admin/shipping/separate/10/countries')
+        res = self.client.get('/api/v1/admin/shipping/eurocargo/10/countries')
         self.assertEqual(res.status_code, 200)
         self.assertNotIn('FR', res.json)
 
     def test_get_countries_not_found(self):
-        res = self.client.get('/api/v1/admin/shipping/separate/999/countries')
+        res = self.client.get('/api/v1/admin/shipping/eurocargo/999/countries')
         self.assertEqual(res.status_code, 404)
 
     # ------------------------------------------------------------------
@@ -562,14 +562,14 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_save_countries_adds_new(self):
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/countries',
+            '/api/v1/admin/shipping/eurocargo/10/countries',
             json={'countries': ['DE', 'FR']},
             content_type='application/json',
         )
         self.assertEqual(res.status_code, 200)
         self.assertIn('FR', res.json)
         # Verify can_ship now returns True for FR
-        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping as SS
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         fr = Country.query.get('FR')
@@ -577,13 +577,13 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_save_countries_removes_deselected(self):
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/countries',
+            '/api/v1/admin/shipping/eurocargo/10/countries',
             json={'countries': ['FR']},
             content_type='application/json',
         )
         self.assertEqual(res.status_code, 200)
         # DE was pre-enabled but not in new list → removed
-        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping as SS
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         de = Country.query.get('DE')
@@ -591,12 +591,12 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_save_countries_empty_list_clears_all(self):
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/countries',
+            '/api/v1/admin/shipping/eurocargo/10/countries',
             json={'countries': []},
             content_type='application/json',
         )
         self.assertEqual(res.status_code, 200)
-        from app.shipping.methods.separate.models.separate_shipping import SeparateShipping as SS
+        from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping as SS
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         de = Country.query.get('DE')
@@ -604,7 +604,7 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_save_countries_unknown_code_rejected(self):
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/countries',
+            '/api/v1/admin/shipping/eurocargo/10/countries',
             json={'countries': ['XX']},
             content_type='application/json',
         )
@@ -612,7 +612,7 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_save_countries_not_found(self):
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/999/countries',
+            '/api/v1/admin/shipping/eurocargo/999/countries',
             json={'countries': ['DE']},
             content_type='application/json',
         )
@@ -621,7 +621,7 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
     def test_save_countries_requires_admin(self):
         self.logout()
         res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/countries',
+            '/api/v1/admin/shipping/eurocargo/10/countries',
             json={'countries': ['DE']},
             content_type='application/json',
         )
@@ -633,7 +633,7 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
 
     def test_settings_endpoint_removed(self):
         self.assertEqual(
-            self.client.get('/api/v1/admin/shipping/separate/10/settings').status_code, 404)
+            self.client.get('/api/v1/admin/shipping/eurocargo/10/settings').status_code, 404)
         self.assertIn(self.client.post(
-            '/api/v1/admin/shipping/separate/10/settings',
+            '/api/v1/admin/shipping/eurocargo/10/settings',
             json={'first_leg': '1.5'}).status_code, [404, 405])

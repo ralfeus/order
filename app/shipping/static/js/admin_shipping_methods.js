@@ -37,7 +37,7 @@ $(document).ready(() => {
                     {value: 'cargo', label: 'Cargo'},
                     {value: 'ems', label: 'EMS'},
                     {value: 'fedex', label: 'FedEx'},
-                    {value: 'separate', label: 'Separate'},
+                    {value: 'eurocargo', label: 'Eurocargo'},
                     {value: 'weight_based', label: 'Weight based'}
                 ]
             },

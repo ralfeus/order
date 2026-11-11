@@ -1,4 +1,4 @@
-'''Admin API routes for SeparateShipping'''
+'''Admin API routes for EurocargoShipping'''
 from flask import jsonify, request
 from flask_security import login_required, roles_required
 
@@ -7,7 +7,7 @@ from app.models.country import Country
 from app.shipping.models.shipping_rate import ShippingRate
 
 from .. import bp_api_admin
-from ..models.separate_shipping import SeparateShipping
+from ..models.eurocargo_shipping import EurocargoShipping
 
 
 @bp_api_admin.route('/<int:shipping_id>/countries', methods=['GET'])
@@ -15,7 +15,7 @@ from ..models.separate_shipping import SeparateShipping
 @roles_required('admin')
 def get_countries(shipping_id):
     '''Return the list of country codes currently enabled for this shipping method.'''
-    shipping = db.session.get(SeparateShipping, shipping_id)
+    shipping = db.session.get(EurocargoShipping, shipping_id)
     if not shipping:
         return jsonify({'error': f'Shipping {shipping_id} not found'}), 404
 
@@ -36,7 +36,7 @@ def save_countries(shipping_id):
 
     Expects JSON body: ``{"countries": ["DE", "FR", ...]}``
     '''
-    shipping = db.session.get(SeparateShipping, shipping_id)
+    shipping = db.session.get(EurocargoShipping, shipping_id)
     if not shipping:
         return jsonify({'error': f'Shipping {shipping_id} not found'}), 404
 

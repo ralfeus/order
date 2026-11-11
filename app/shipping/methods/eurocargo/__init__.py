@@ -1,11 +1,11 @@
 from flask import Blueprint
 
-from .models.separate_shipping import SeparateShipping  # noqa: F401 - needed for SQLAlchemy
+from .models.eurocargo_shipping import EurocargoShipping  # noqa: F401 - needed for SQLAlchemy
 
-bp_api_admin = Blueprint('shipping_separate_api_admin', __name__,
-                         url_prefix='/api/v1/admin/shipping/separate')
-bp_client_admin = Blueprint('shipping_separate_client_admin', __name__,
-                             url_prefix='/admin/shipping/separate',
+bp_api_admin = Blueprint('shipping_eurocargo_api_admin', __name__,
+                         url_prefix='/api/v1/admin/shipping/eurocargo')
+bp_client_admin = Blueprint('shipping_eurocargo_client_admin', __name__,
+                             url_prefix='/admin/shipping/eurocargo',
                              static_folder='static',
                              template_folder='templates')
 

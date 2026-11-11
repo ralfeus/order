@@ -1,4 +1,4 @@
-'''Signal handlers for SeparateShipping'''
+'''Signal handlers for EurocargoShipping'''
 import logging
 import re
 from decimal import ROUND_HALF_UP, Decimal
@@ -17,11 +17,11 @@ _GRAMS = Decimal('0.001')
 
 
 # ---------------------------------------------------------------------------
-# sale_order_packed → no-op for SeparateShipping
+# sale_order_packed → no-op for EurocargoShipping
 # ---------------------------------------------------------------------------
 
 def on_sale_order_packed(order, **_extra):
-    '''For SeparateShipping, nothing to do at pack time.
+    '''For EurocargoShipping, nothing to do at pack time.
     The carrier and shipping cost are determined later in eurocargo_management
     when the customer selects a carrier on the payment page.'''
     pass
@@ -32,14 +32,14 @@ def on_sale_order_packed(order, **_extra):
 # ---------------------------------------------------------------------------
 
 def on_sale_order_shipped(order, **_extra):
-    '''When a SeparateShipping order is shipped, create one shipment per
+    '''When a EurocargoShipping order is shipped, create one shipment per
     physical box in eurocargo_management.  No carrier or cost is set at this
     point: the customer chooses a carrier on the Eurocargo payment page, and
     Eurocargo prices both legs itself.
     '''
-    from .models.separate_shipping import SeparateShipping
+    from .models.eurocargo_shipping import EurocargoShipping
 
-    if not isinstance(order.shipping, SeparateShipping):
+    if not isinstance(order.shipping, EurocargoShipping):
         return
 
     missing = _missing_fields(order)

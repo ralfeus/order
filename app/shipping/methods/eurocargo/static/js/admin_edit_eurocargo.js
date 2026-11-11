@@ -8,7 +8,7 @@ async function loadData() {
     try {
         const [allRes, enabledRes] = await Promise.all([
             fetch('/api/v1/country'),
-            fetch(`/api/v1/admin/shipping/separate/${shippingId}/countries`),
+            fetch(`/api/v1/admin/shipping/eurocargo/${shippingId}/countries`),
         ]);
         if (!allRes.ok || !enabledRes.ok) throw new Error('Failed to load data');
 
@@ -51,14 +51,14 @@ function renderCountries(countries) {
     });
 }
 
-document.getElementById('separate-form').addEventListener('submit', async function (e) {
+document.getElementById('eurocargo-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     const selected = Array.from(
         document.querySelectorAll('#country-list input[type=checkbox]:checked')
     ).map(cb => cb.value);
 
     try {
-        const countriesRes = await fetch(`/api/v1/admin/shipping/separate/${shippingId}/countries`, {
+        const countriesRes = await fetch(`/api/v1/admin/shipping/eurocargo/${shippingId}/countries`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ countries: selected }),

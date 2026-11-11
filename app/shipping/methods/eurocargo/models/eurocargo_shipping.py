@@ -1,4 +1,4 @@
-'''SeparateShipping method - shipping cost is charged separately via eurocargo_management'''
+'''EurocargoShipping method - shipping cost is charged separately via eurocargo_management'''
 from __future__ import annotations
 
 from app import db
@@ -7,7 +7,7 @@ from app.shipping.models.shipping import Shipping
 from app.shipping.models.shipping_rate import ShippingRate
 
 
-class SeparateShipping(Shipping):
+class EurocargoShipping(Shipping):
     '''Shipping method where cost is charged separately via eurocargo_management.
 
     At order creation the shipping cost is 0 (the customer pays later on the
@@ -17,12 +17,12 @@ class SeparateShipping(Shipping):
     regardless of the weight / rate values stored.
     '''
 
-    __mapper_args__ = {'polymorphic_identity': 'separate'}  # type: ignore
+    __mapper_args__ = {'polymorphic_identity': 'eurocargo'}  # type: ignore
 
-    type = 'SeparateShipping'
+    type = 'EurocargoShipping'
 
     def get_edit_url(self) -> str:
-        return f'/admin/shipping/separate/{self.id}'
+        return f'/admin/shipping/eurocargo/{self.id}'
 
     def get_shipping_cost(self, destination: str, weight: int) -> int:
         '''Returns 0 at order creation time.  Real cost is determined later in ECmgmt.'''
