@@ -488,6 +488,20 @@ class TestEurocargoShipmentPayload(_ShippedHandlerMixin, BaseTestCase):
     def test_description_not_sent(self):
         self.assertNotIn('description', self._payload(self._single()))
 
+    def test_multi_box_first_box_has_no_description(self):
+        order = self._make_order(boxes=[self._make_box(10, 10, 10, quantity=3)],
+                                 total_weight=3000, order_products=[self._make_op()])
+        self.assertNotIn('description', self._all_payloads(self._post(order))[0])
+
+    def test_multi_box_other_boxes_point_to_first(self):
+        order = self._make_order(boxes=[self._make_box(10, 10, 10, quantity=3)],
+                                 total_weight=3000, order_products=[self._make_op()])
+        payloads = self._all_payloads(self._post(order))
+        self.assertEqual(
+            [p['description'] for p in payloads[1:]],
+            ['Part 2 of 3 of order ORD-TEST-001, contents declared on ORD-TEST-001-1',
+             'Part 3 of 3 of order ORD-TEST-001, contents declared on ORD-TEST-001-1'])
+
     # recipient sanitising
 
     def test_address_line_breaks_flattened(self):

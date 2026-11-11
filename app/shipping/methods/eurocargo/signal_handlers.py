@@ -74,6 +74,9 @@ def on_sale_order_shipped(order, **_extra):
                 payload['items'] = items
         else:
             payload['declared_cost_eur'] = '0'
+            payload['description'] = (
+                f'Part {seq} of {len(units)} of order {order.id}, '
+                f'contents declared on {order.id}-1')
 
         _post_shipment(order, shipment_order_id, payload,
                        eurocargo_api_url, eurocargo_base_url,
