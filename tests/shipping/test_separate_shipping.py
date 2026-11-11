@@ -628,71 +628,12 @@ class TestSeparateShippingAdminAPI(BaseTestCase):
         self.assertIn(res.status_code, [401, 403])
 
     # ------------------------------------------------------------------
-    # GET /<id>/settings
+    # /<id>/settings removed: Eurocargo prices the first leg itself
     # ------------------------------------------------------------------
 
-    def test_get_settings_returns_none_when_not_configured(self):
-        res = self.client.get('/api/v1/admin/shipping/separate/10/settings')
-        self.assertEqual(res.status_code, 200)
-        self.assertIsNone(res.json['currency'])
-        self.assertIsNone(res.json['first_leg'])
-
-    def test_get_settings_returns_stored_values(self):
-        from app.settings.models.setting import Setting
-        db.session.add(Setting(key='shipping.separate.10.currency', value='KRW'))
-        db.session.add(Setting(key='shipping.separate.10.first_leg', value='1.5'))
-        db.session.commit()
-        res = self.client.get('/api/v1/admin/shipping/separate/10/settings')
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json['currency'], 'KRW')
-        self.assertEqual(res.json['first_leg'], '1.5')
-
-    def test_get_settings_not_found(self):
-        res = self.client.get('/api/v1/admin/shipping/separate/999/settings')
-        self.assertEqual(res.status_code, 404)
-
-    # ------------------------------------------------------------------
-    # POST /<id>/settings
-    # ------------------------------------------------------------------
-
-    def test_save_settings_creates_new_entries(self):
-        res = self.client.post(
+    def test_settings_endpoint_removed(self):
+        self.assertEqual(
+            self.client.get('/api/v1/admin/shipping/separate/10/settings').status_code, 404)
+        self.assertIn(self.client.post(
             '/api/v1/admin/shipping/separate/10/settings',
-            json={'currency': 'KRW', 'first_leg': '1.5'},
-            content_type='application/json',
-        )
-        self.assertEqual(res.status_code, 200)
-        from app.settings.models.setting import Setting
-        self.assertEqual(Setting.get('shipping.separate.10.currency'), 'KRW')
-        self.assertEqual(Setting.get('shipping.separate.10.first_leg'), '1.5')
-
-    def test_save_settings_updates_existing(self):
-        from app.settings.models.setting import Setting
-        db.session.add(Setting(key='shipping.separate.10.currency', value='USD'))
-        db.session.commit()
-        res = self.client.post(
-            '/api/v1/admin/shipping/separate/10/settings',
-            json={'currency': 'KRW'},
-            content_type='application/json',
-        )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(Setting.get('shipping.separate.10.currency'), 'KRW')
-
-    def test_save_settings_partial_update_leaves_other_unchanged(self):
-        from app.settings.models.setting import Setting
-        db.session.add(Setting(key='shipping.separate.10.first_leg', value='2.0'))
-        db.session.commit()
-        self.client.post(
-            '/api/v1/admin/shipping/separate/10/settings',
-            json={'currency': 'EUR'},
-            content_type='application/json',
-        )
-        self.assertEqual(Setting.get('shipping.separate.10.first_leg'), '2.0')
-
-    def test_save_settings_not_found(self):
-        res = self.client.post(
-            '/api/v1/admin/shipping/separate/999/settings',
-            json={'currency': 'USD'},
-            content_type='application/json',
-        )
-        self.assertEqual(res.status_code, 404)
+            json={'first_leg': '1.5'}).status_code, [404, 405])
