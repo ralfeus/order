@@ -6,7 +6,8 @@ if [ "$CELERY" = "1" ]; then
          --schedule-filename /tmp/celerybeat-schedule \
          --queues "$CELERY_QUEUE"
 else
-    FLASK_APP=app flask db upgrade || echo "WARNING: db upgrade returned $?"
+    # Fail fast: never serve requests against an outdated schema
+    FLASK_APP=app flask db upgrade
     exec gunicorn --bind 0.0.0.0:5000 \
         -w "${GUNICORN_WORKERS:-5}" \
         --limit-request-line 8190 \
