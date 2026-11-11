@@ -149,7 +149,7 @@ class TestOnSaleOrderPackedSignalHandler(BaseTestCase):
 class _ShippedHandlerMixin:
     """Shared helpers for on_sale_order_shipped tests."""
 
-    def _make_order(self, boxes=None, total_weight=2000):
+    def _make_order(self, boxes=None, total_weight=2000, order_products=None):
         order = MagicMock()
         order.id = 'ORD-TEST-001'
         order.customer_name = 'Test Customer'
@@ -164,6 +164,8 @@ class _ShippedHandlerMixin:
         order.shipping_box_weight = 0
         order.boxes = boxes or []
         order.params = {}
+        order.invoice_id = None
+        order.order_products = order_products or []
         shipping = MagicMock()
         order.shipping = shipping
         return order
@@ -176,15 +178,14 @@ class _ShippedHandlerMixin:
         box.quantity = quantity
         return box
 
-    def _call_handler(self, order, first_leg=None):
+    def _call_handler(self, order, eur_rate=0.001):
         from app.shipping.methods.separate.signal_handlers import on_sale_order_shipped
         from app.shipping.methods.separate.models.separate_shipping import SeparateShipping
         order.shipping.__class__ = SeparateShipping
         order.shipping.id = 1
-        setting_value = str(first_leg) if first_leg is not None else None
         with patch('app.shipping.methods.separate.signal_handlers.requests.post') as mock_post, \
-             patch('app.shipping.methods.separate.signal_handlers.Setting.get',
-                   return_value=setting_value):
+             patch('app.shipping.methods.separate.signal_handlers._eur_rate',
+                   return_value=eur_rate):
             mock_post.return_value.status_code = 201
             mock_post.return_value.json.return_value = {
                 'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'
@@ -196,9 +197,22 @@ class _ShippedHandlerMixin:
     def _all_payloads(self, mock_post):
         return [c[1]['json'] for c in mock_post.call_args_list]
 
-    def _post(self, order, first_leg=None):
+    def _post(self, order, **kwargs):
         """Convenience: call handler and return mock_post."""
-        return self._call_handler(order, first_leg=first_leg)
+        return self._call_handler(order, **kwargs)
+
+    def _make_op(self, product_id='P1', price=10000, quantity=1, weight=250,
+                 name_english='Shampoo', name='샴푸', status=None):
+        from app.orders.models.order_product import OrderProductStatus
+        op = MagicMock()
+        op.product_id = product_id
+        op.price = price
+        op.quantity = quantity
+        op.status = status or OrderProductStatus.purchased
+        op.product.name_english = name_english
+        op.product.name = name
+        op.product.weight = weight
+        return op
 
 
 class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
@@ -230,12 +244,16 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         self.assertEqual(payload['width_cm'], 30)
         self.assertEqual(payload['height_cm'], 20)
 
-    def test_no_boxes_one_shipment_created(self):
+    def test_no_boxes_no_shipment_created(self):
+        """Eurocargo rejects API shipments without dimensions, so don't post."""
         order = self._make_order(boxes=[], total_weight=1000)
         mock_post = self._post(order)
-        self.assertEqual(mock_post.call_count, 1)
-        payload = mock_post.call_args[1]['json']
-        self.assertNotIn('length_cm', payload)
+        mock_post.assert_not_called()
+
+    def test_box_without_dimensions_no_shipment_created(self):
+        order = self._make_order(boxes=[self._make_box(None, 30, 20)], total_weight=1000)
+        mock_post = self._post(order)
+        mock_post.assert_not_called()
 
     # ------------------------------------------------------------------
     # Multi-box
@@ -341,38 +359,13 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         self.assertAlmostEqual(float(payloads[1]['weight_kg']), 12.0)
 
     # ------------------------------------------------------------------
-    # additional_cost_eur
+    # additional_cost_eur: first leg is priced by Eurocargo itself
     # ------------------------------------------------------------------
 
-    def test_no_additional_cost_when_first_leg_not_set(self):
-        order = self._make_order(boxes=[], total_weight=2000)
-        mock_post = self._post(order)  # first_leg=None
-        payload = mock_post.call_args[1]['json']
+    def test_additional_cost_eur_never_sent(self):
+        order = self._make_order(boxes=[self._make_box(40, 30, 20)], total_weight=2000)
+        payload = self._post(order).call_args[1]['json']
         self.assertNotIn('additional_cost_eur', payload)
-
-    def test_single_box_additional_cost_eur(self):
-        # no box → actual weight 2000 g = 2.0 kg; first_leg=5.0 → 10.0
-        order = self._make_order(boxes=[], total_weight=2000)
-        mock_post = self._post(order, first_leg=5.0)
-        payload = mock_post.call_args[1]['json']
-        self.assertAlmostEqual(float(payload['additional_cost_eur']), 10.0)
-
-    def test_single_box_additional_cost_eur_uses_volumetric_when_heavier(self):
-        # 50×40×30 → 12.0 kg vol > actual 1.0 kg; first_leg=2.0 → 24.0
-        box = self._make_box(50, 40, 30)
-        order = self._make_order(boxes=[box], total_weight=1000)
-        mock_post = self._post(order, first_leg=2.0)
-        payload = mock_post.call_args[1]['json']
-        self.assertAlmostEqual(float(payload['additional_cost_eur']), 24.0)
-
-    def test_multi_box_additional_cost_eur_per_unit(self):
-        # 2 boxes, total_weight=4000 g → 2.0 kg each (vol 0.2 < actual); first_leg=3.0 → 6.0
-        box1 = self._make_box(10, 10, 10)
-        box2 = self._make_box(10, 10, 10)
-        order = self._make_order(boxes=[box1, box2], total_weight=4000)
-        mock_post = self._post(order, first_leg=3.0)
-        for payload in self._all_payloads(mock_post):
-            self.assertAlmostEqual(float(payload['additional_cost_eur']), 6.0)
 
     def test_non_separate_shipping_skipped(self):
         order = self._make_order()
@@ -388,6 +381,134 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         mock_post = self._post(order)
         payload = mock_post.call_args[1]['json']
         self.assertNotIn('shipment_type_code', payload)
+
+
+class TestEurocargoShipmentPayload(_ShippedHandlerMixin, BaseTestCase):
+    """Payload fields matching the Eurocargo ShipmentCreate schema."""
+
+    def _single(self, **kwargs):
+        return self._make_order(boxes=[self._make_box(40, 30, 20)], total_weight=1000,
+                                **kwargs)
+
+    def _payload(self, order, **kwargs):
+        return self._post(order, **kwargs).call_args[1]['json']
+
+    # container_id
+
+    def test_container_id_from_invoice(self):
+        order = self._single()
+        order.invoice_id = 'INV-2026-11-0001'
+        self.assertEqual(self._payload(order)['container_id'], 'CNT-INV-2026-11-0001')
+
+    def test_container_id_falls_back_to_order_id(self):
+        self.assertEqual(self._payload(self._single())['container_id'], 'CNT-ORD-TEST-001')
+
+    def test_container_id_same_on_every_box(self):
+        order = self._make_order(boxes=[self._make_box(10, 10, 10, quantity=2)],
+                                 total_weight=2000)
+        ids = {p['container_id'] for p in self._all_payloads(self._post(order))}
+        self.assertEqual(ids, {'CNT-ORD-TEST-001'})
+
+    # items
+
+    def test_items_mapped(self):
+        order = self._single(order_products=[
+            self._make_op(price=12345, quantity=2, weight=250)])
+        items = self._payload(order, eur_rate=0.001)['items']
+        self.assertEqual(items, [{
+            'name': 'Shampoo', 'weight_kg': '0.250', 'price_eur': '12.35', 'quantity': 2,
+        }])
+
+    def test_unavailable_products_excluded(self):
+        from app.orders.models.order_product import OrderProductStatus
+        order = self._single(order_products=[
+            self._make_op(product_id='P1'),
+            self._make_op(product_id='P2', status=OrderProductStatus.unavailable),
+        ])
+        items = self._payload(order)['items']
+        self.assertEqual(len(items), 1)
+
+    def test_same_product_and_price_merged(self):
+        order = self._single(order_products=[
+            self._make_op(quantity=1), self._make_op(quantity=3)])
+        items = self._payload(order)['items']
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['quantity'], 4)
+
+    def test_same_product_different_price_not_merged(self):
+        order = self._single(order_products=[
+            self._make_op(price=10000), self._make_op(price=9000)])
+        self.assertEqual(len(self._payload(order)['items']), 2)
+
+    def test_item_name_falls_back_to_korean_then_id(self):
+        order = self._single(order_products=[
+            self._make_op(product_id='P1', name_english=None, name='샴푸'),
+            self._make_op(product_id='P2', name_english='', name=None),
+        ])
+        names = [i['name'] for i in self._payload(order)['items']]
+        self.assertEqual(names, ['샴푸', 'P2'])
+
+    def test_item_without_weight_sends_zero(self):
+        order = self._single(order_products=[self._make_op(weight=None)])
+        self.assertEqual(self._payload(order)['items'][0]['weight_kg'], '0.000')
+
+    def test_items_over_limit_folded_into_other_items(self):
+        ops = [self._make_op(product_id=f'P{i}', price=1000, weight=100)
+               for i in range(105)]
+        items = self._payload(self._single(order_products=ops), eur_rate=0.001)['items']
+        self.assertEqual(len(items), 100)
+        self.assertEqual(items[-1]['name'], 'Other items')
+        self.assertEqual(items[-1]['quantity'], 1)
+        self.assertEqual(items[-1]['price_eur'], '6.00')   # 6 lines × 1.00
+        self.assertEqual(items[-1]['weight_kg'], '0.600')
+
+    def test_no_items_when_eur_rate_unknown(self):
+        order = self._single(order_products=[self._make_op()])
+        payload = self._payload(order, eur_rate=None)
+        self.assertNotIn('items', payload)
+        self.assertEqual(self._post(order, eur_rate=None).call_count, 1)
+
+    def test_no_items_key_when_order_has_no_products(self):
+        self.assertNotIn('items', self._payload(self._single()))
+
+    def test_declared_cost_left_to_eurocargo_on_single_box(self):
+        order = self._single(order_products=[self._make_op()])
+        self.assertNotIn('declared_cost_eur', self._payload(order))
+
+    def test_multi_box_items_only_on_first_box(self):
+        order = self._make_order(boxes=[self._make_box(10, 10, 10, quantity=3)],
+                                 total_weight=3000, order_products=[self._make_op()])
+        payloads = self._all_payloads(self._post(order))
+        self.assertEqual(len(payloads[0]['items']), 1)
+        self.assertNotIn('declared_cost_eur', payloads[0])
+        for payload in payloads[1:]:
+            self.assertNotIn('items', payload)
+            self.assertEqual(payload['declared_cost_eur'], '0')
+
+    def test_description_not_sent(self):
+        self.assertNotIn('description', self._payload(self._single()))
+
+    # recipient sanitising
+
+    def test_address_line_breaks_flattened(self):
+        order = self._single()
+        order.address = 'Hauptstr. 12\r\nHinterhaus\n\tApt 3 '
+        self.assertEqual(self._payload(order)['address'], 'Hauptstr. 12, Hinterhaus, Apt 3')
+
+    def test_empty_phone_sent_as_none(self):
+        order = self._single()
+        order.phone = ''
+        self.assertIsNone(self._payload(order)['phone'])
+
+    def test_missing_email_no_shipment_created(self):
+        order = self._single()
+        order.email = None
+        self._post(order).assert_not_called()
+
+    def test_missing_address_no_shipment_created(self):
+        order = self._single()
+        order.address = ' \n '
+        self._post(order).assert_not_called()
 
 
 class TestSeparateShippingAdminAPI(BaseTestCase):

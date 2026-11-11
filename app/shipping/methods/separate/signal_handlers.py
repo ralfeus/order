@@ -1,12 +1,19 @@
 '''Signal handlers for SeparateShipping'''
 import logging
+import re
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Optional
 
 import requests
 from flask import current_app
 
-from app.settings.models.setting import Setting
-
 logger = logging.getLogger(__name__)
+
+# Eurocargo accepts at most this many inventory lines per shipment
+MAX_ITEMS = 100
+_LINE_BREAKS = re.compile(r'\s*[\r\n\t]+\s*')
+_CENTS = Decimal('0.01')
+_GRAMS = Decimal('0.001')
 
 
 # ---------------------------------------------------------------------------
@@ -25,39 +32,76 @@ def on_sale_order_packed(order, **_extra):
 # ---------------------------------------------------------------------------
 
 def on_sale_order_shipped(order, **_extra):
-    '''When a SeparateShipping order is shipped, create one or more shipment
-    records in eurocargo_management.  No carrier or cost is set at this point:
-    the customer will choose a carrier on the ECmgmt payment page, which then
-    calculates and presents the cost.
+    '''When a SeparateShipping order is shipped, create one shipment per
+    physical box in eurocargo_management.  No carrier or cost is set at this
+    point: the customer chooses a carrier on the Eurocargo payment page, and
+    Eurocargo prices both legs itself.
     '''
     from .models.separate_shipping import SeparateShipping
 
     if not isinstance(order.shipping, SeparateShipping):
         return
 
+    missing = _missing_fields(order)
+    if missing:
+        logger.error('Eurocargo shipment for order %s not created: missing %s',
+                     order.id, ', '.join(missing))
+        return
+
     eurocargo_api_url = current_app.config.get('EUROCARGO_API_URL', 'http://localhost:8000')
     eurocargo_base_url = current_app.config.get('EUROCARGO_BASE_URL', 'http://localhost:3000')
     eurocargo_api_key = current_app.config.get('EUROCARGO_API_KEY', 'supersecretkey')
 
-    shipping_id = order.shipping.id
-    first_leg_raw = Setting.get(f'shipping.separate.{shipping_id}.first_leg')
-    first_leg = float(first_leg_raw) if first_leg_raw else None
+    units = list(_box_units(order.boxes))
+    content_weight_per_unit_kg = order.total_weight / 1000 / len(units)
+    common = _common_fields(order)
+    items = _items(order)
 
-    is_multi_box = len(order.boxes) > 1 or (
-        len(order.boxes) == 1 and order.boxes[0].quantity > 1
-    )
+    for box, seq in units:
+        shipment_order_id = order.id if len(units) == 1 else f'{order.id}-{seq}'
+        payload = {
+            'order_id': shipment_order_id,
+            **common,
+            'weight_kg': str(round(max(content_weight_per_unit_kg, _volumetric_kg(box)), 3)),
+            'length_cm': box.length,
+            'width_cm': box.width,
+            'height_cm': box.height,
+        }
+        # Box contents are unknown per box: the whole inventory travels with
+        # the first box; Eurocargo derives its declared cost from the items.
+        if seq == 1:
+            if items:
+                payload['items'] = items
+        else:
+            payload['declared_cost_eur'] = '0'
 
-    if is_multi_box:
-        _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url,
-                                    eurocargo_api_key, first_leg=first_leg)
-    else:
-        _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url,
-                                eurocargo_api_key, first_leg=first_leg)
+        _post_shipment(order, shipment_order_id, payload,
+                       eurocargo_api_url, eurocargo_base_url,
+                       store_url=seq == 1, api_key=eurocargo_api_key)
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _missing_fields(order) -> list[str]:
+    '''Fields Eurocargo requires from API partners that the order lacks.'''
+    missing = []
+    if not order.email:
+        missing.append('email')
+    if not _single_line(order.address):
+        missing.append('address')
+    if not order.boxes:
+        missing.append('boxes')
+    elif not all(b.length and b.width and b.height for b in order.boxes):
+        missing.append('box dimensions')
+    return missing
+
+
+def _single_line(value: Optional[str]) -> str:
+    '''Eurocargo takes the address as one line: join line breaks with ", ".'''
+    return _LINE_BREAKS.sub(', ', (value or '').strip()).strip(', ')
+
 
 def _volumetric_kg(box):
     '''Return volumetric weight in kg for a single box unit: L × W × H / 5000.'''
@@ -83,77 +127,73 @@ def _common_fields(order):
     '''Return the recipient fields shared by every shipment payload.
 
     ``shipment_type_code`` is intentionally omitted: the carrier is chosen
-    by the customer on the ECmgmt payment page, not at creation time.
+    by the customer on the Eurocargo payment page, not at creation time.
     '''
     return {
         'customer_name': order.customer_name,
-        'email': order.email or '',
-        'address': order.address or '',
+        'email': order.email,
+        'address': _single_line(order.address),
         'city': order.city_eng or '',
         'country': order.country_id or '',
         'zip': order.zip or '',
-        'phone': order.phone,
+        'phone': order.phone or None,
         'tracking_code': order.tracking_id,
+        'container_id': f'CNT-{order.invoice_id or order.id}',
     }
 
 
-def _create_single_shipment(order, eurocargo_api_url, eurocargo_base_url, api_key='',
-                            first_leg=None):
-    '''Single physical box (or no box info): one shipment with the original order_id.'''
-    weight_kg = round(order.total_weight / 1000, 3)
-
-    payload = {
-        'order_id': order.id,
-        **_common_fields(order),
-        'weight_kg': str(weight_kg),
-    }
-
-    if order.boxes:
-        box = order.boxes[0]
-        vol_kg = _volumetric_kg(box)
-        weight_kg = round(max(weight_kg, vol_kg), 3)
-        payload['weight_kg'] = str(weight_kg)
-        if box.length and box.width and box.height:
-            payload['length_cm'] = box.length
-            payload['width_cm'] = box.width
-            payload['height_cm'] = box.height
-
-    if first_leg is not None:
-        payload['additional_cost_eur'] = str(round(weight_kg * first_leg, 2))
-
-    _post_shipment(order, order.id, payload, eurocargo_api_url, eurocargo_base_url,
-                   store_url=True, api_key=api_key)
+def _eur_rate(order) -> Optional[float]:
+    '''Base currency → EUR rate valid when the order was created, or None.'''
+    from app import db
+    from app.currencies.models.currency import Currency
+    eur = db.session.get(Currency, 'EUR')
+    return eur.get_rate(order.when_created) if eur else None
 
 
-def _create_multi_box_shipments(order, eurocargo_api_url, eurocargo_base_url, api_key='',
-                                first_leg=None):
-    '''Multiple physical boxes: one shipment per unit, order_id = <order_id>-<seq>.'''
-    total_units = sum(b.quantity for b in order.boxes)
-    content_weight_per_unit_kg = order.total_weight / 1000 / total_units
-    first_url_stored = False
+def _items(order) -> list[dict]:
+    '''Build the Eurocargo inventory from the order's shipped products.
 
-    for box, seq in _box_units(order.boxes):
-        vol_kg = _volumetric_kg(box)
-        unit_weight_kg = round(max(content_weight_per_unit_kg, vol_kg), 3)
-        shipment_order_id = f'{order.id}-{seq}'
+    Lines of the same product at the same price are merged.  Lines beyond
+    Eurocargo's limit are folded into one "Other items" line.
+    '''
+    from app.orders.models.order_product import OrderProductStatus
 
-        payload = {
-            'order_id': shipment_order_id,
-            **_common_fields(order),
-            'weight_kg': str(unit_weight_kg),
+    ops = [op for op in order.order_products
+           if op.status != OrderProductStatus.unavailable]
+    if not ops:
+        return []
+    rate = _eur_rate(order)
+    if rate is None:
+        logger.error('Eurocargo items for order %s not sent: no EUR rate', order.id)
+        return []
+    rate = Decimal(str(rate))
+
+    lines: dict[tuple, dict] = {}
+    for op in ops:
+        key = (op.product_id, op.price)
+        if key in lines:
+            lines[key]['quantity'] += op.quantity
+            continue
+        product = op.product
+        lines[key] = {
+            'name': (product.name_english or product.name or op.product_id)[:256],
+            'weight_kg': (Decimal(product.weight or 0) / 1000).quantize(_GRAMS),
+            'price_eur': (Decimal(op.price) * rate).quantize(_CENTS, ROUND_HALF_UP),
+            'quantity': op.quantity,
         }
-        if box.length and box.width and box.height:
-            payload['length_cm'] = box.length
-            payload['width_cm'] = box.width
-            payload['height_cm'] = box.height
+    items = list(lines.values())
 
-        if first_leg is not None:
-            payload['additional_cost_eur'] = str(round(unit_weight_kg * first_leg, 2))
+    if len(items) > MAX_ITEMS:
+        kept, rest = items[:MAX_ITEMS - 1], items[MAX_ITEMS - 1:]
+        items = kept + [{
+            'name': 'Other items',
+            'weight_kg': sum(i['weight_kg'] * i['quantity'] for i in rest),
+            'price_eur': sum(i['price_eur'] * i['quantity'] for i in rest),
+            'quantity': 1,
+        }]
 
-        _post_shipment(order, shipment_order_id, payload,
-                       eurocargo_api_url, eurocargo_base_url,
-                       store_url=not first_url_stored, api_key=api_key)
-        first_url_stored = True
+    return [{**i, 'weight_kg': str(i['weight_kg']), 'price_eur': str(i['price_eur'])}
+            for i in items]
 
 
 def _post_shipment(order, shipment_order_id, payload,
