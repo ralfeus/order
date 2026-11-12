@@ -3,6 +3,8 @@ import math
 from decimal import Decimal
 from unittest.mock import MagicMock, call, patch
 
+import requests
+
 from tests import BaseTestCase, db
 from app.currencies.models import Currency
 from app.models import Country
@@ -130,6 +132,91 @@ class TestEurocargoShippingOrderIntegration(BaseTestCase):
 
         self.assertEqual(order.shipping_base_currency, 100)  # unchanged
 
+    def test_set_status_ready_to_ship_calls_eurocargo_api(self):
+        """Setting a Eurocargo order to ready_to_ship posts a shipment to the Eurocargo API."""
+        from app.orders.models.order import OrderBox
+        order = self._make_order(
+            EurocargoShipping.query.get(1), status=OrderStatus.shipped,
+            customer_name='Test Customer', email='customer@test.com',
+            address='1 Test St', zip='10115')
+        order.boxes = [OrderBox(length=30, width=20, height=10, weight=100, quantity=1)]
+        db.session.commit()
+
+        with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post:
+            mock_post.return_value.json.return_value = {
+                'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'}
+            order.set_status(OrderStatus.ready_to_ship, self.actor)
+
+        self.assertEqual(order.status, OrderStatus.ready_to_ship)
+        mock_post.assert_called_once()
+        self.assertEqual(mock_post.call_args.kwargs['json']['order_id'], order.id)
+
+    def _make_shippable_order(self, shipping, status=OrderStatus.packed, **kwargs):
+        from app.orders.models.order import OrderBox
+        fields = dict(customer_name='Test Customer', email='customer@test.com',
+                      address='1 Test St', zip='10115')
+        fields.update(kwargs)
+        order = self._make_order(shipping, status=status, **fields)
+        order.boxes = [OrderBox(length=30, width=20, height=10, weight=100, quantity=1)]
+        db.session.commit()
+        return order
+
+    def _set_status_with_mocked_api(self, order, status):
+        with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post:
+            mock_post.return_value.json.return_value = {
+                'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'}
+            order.set_status(status, self.actor)
+        return mock_post
+
+    def test_set_status_ready_to_ship_twice_posts_once(self):
+        """Re-setting the same status must not create duplicate shipments."""
+        order = self._make_shippable_order(EurocargoShipping.query.get(1))
+        first = self._set_status_with_mocked_api(order, OrderStatus.ready_to_ship)
+        second = self._set_status_with_mocked_api(order, OrderStatus.ready_to_ship)
+
+        first.assert_called_once()
+        second.assert_not_called()
+
+    def test_set_status_ready_to_ship_non_eurocargo_no_api_call(self):
+        order = self._make_shippable_order(NoShipping.query.get(999))
+        mock_post = self._set_status_with_mocked_api(order, OrderStatus.ready_to_ship)
+
+        self.assertEqual(order.status, OrderStatus.ready_to_ship)
+        mock_post.assert_not_called()
+
+    def test_set_status_shipped_eurocargo_no_api_call(self):
+        """Shipments are created on ready_to_ship only; shipped must not post again."""
+        order = self._make_shippable_order(EurocargoShipping.query.get(1),
+                                           status=OrderStatus.ready_to_ship)
+        mock_post = self._set_status_with_mocked_api(order, OrderStatus.shipped)
+
+        self.assertEqual(order.status, OrderStatus.shipped)
+        mock_post.assert_not_called()
+
+    def test_set_status_ready_to_ship_api_error_keeps_status(self):
+        order = self._make_shippable_order(EurocargoShipping.query.get(1))
+        with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post, \
+                self.assertLogs('app.shipping.methods.eurocargo.signal_handlers',
+                                level='ERROR') as logs:
+            mock_post.return_value.raise_for_status.side_effect = \
+                requests.HTTPError('500 Server Error')
+            order.set_status(OrderStatus.ready_to_ship, self.actor)
+
+        self.assertEqual(order.status, OrderStatus.ready_to_ship)
+        mock_post.assert_called_once()
+        self.assertNotIn('eurocargo.shipment_url', order.params or {})
+        self.assertIn('500 Server Error', logs.output[0])
+
+    def test_set_status_ready_to_ship_missing_fields_no_api_call(self):
+        order = self._make_shippable_order(EurocargoShipping.query.get(1), email=None)
+        with self.assertLogs('app.shipping.methods.eurocargo.signal_handlers',
+                             level='ERROR') as logs:
+            mock_post = self._set_status_with_mocked_api(order, OrderStatus.ready_to_ship)
+
+        self.assertEqual(order.status, OrderStatus.ready_to_ship)
+        mock_post.assert_not_called()
+        self.assertIn('missing email', logs.output[0])
+
     def test_shipment_is_paid_status_exists_in_enum(self):
         self.assertIn('shipment_is_paid', [s.name for s in OrderStatus])
         self.assertEqual(OrderStatus.shipment_is_paid.value, 9)
@@ -165,6 +252,7 @@ class _ShippedHandlerMixin:
         order.boxes = boxes or []
         order.params = {}
         order.invoice_id = None
+        order.invoice = None
         order.order_products = order_products or []
         shipping = MagicMock()
         order.shipping = shipping
@@ -179,7 +267,7 @@ class _ShippedHandlerMixin:
         return box
 
     def _call_handler(self, order, eur_rate=0.001):
-        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_shipped
+        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_ready_to_ship
         from app.shipping.methods.eurocargo.models.eurocargo_shipping import EurocargoShipping
         order.shipping.__class__ = EurocargoShipping
         order.shipping.id = 1
@@ -191,7 +279,7 @@ class _ShippedHandlerMixin:
                 'token': 'tok123', 'shipment_url': 'http://example.com/shipments/tok123'
             }
             mock_post.return_value.raise_for_status = MagicMock()
-            on_sale_order_shipped(order)
+            on_sale_order_ready_to_ship(order)
             return mock_post
 
     def _all_payloads(self, mock_post):
@@ -369,9 +457,9 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
 
     def test_non_eurocargo_shipping_skipped(self):
         order = self._make_order()
-        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_shipped
+        from app.shipping.methods.eurocargo.signal_handlers import on_sale_order_ready_to_ship
         with patch('app.shipping.methods.eurocargo.signal_handlers.requests.post') as mock_post:
-            on_sale_order_shipped(order)  # shipping.__class__ is MagicMock, not EurocargoShipping
+            on_sale_order_ready_to_ship(order)  # shipping.__class__ is MagicMock, not EurocargoShipping
             mock_post.assert_not_called()
 
     def test_shipment_payload_does_not_include_carrier(self):
@@ -398,6 +486,18 @@ class TestEurocargoShipmentPayload(_ShippedHandlerMixin, BaseTestCase):
     def test_container_id_from_invoice(self):
         order = self._single()
         order.invoice_id = 'INV-2026-11-0001'
+        self.assertEqual(self._payload(order)['container_id'], 'CNT-INV-2026-11-0001')
+
+    def test_container_id_prefers_invoice_export_id(self):
+        order = self._single()
+        order.invoice_id = 'INV-2026-11-0001'
+        order.invoice = MagicMock(export_id='EXP-42')
+        self.assertEqual(self._payload(order)['container_id'], 'CNT-EXP-42')
+
+    def test_container_id_falls_back_to_invoice_id_without_export_id(self):
+        order = self._single()
+        order.invoice_id = 'INV-2026-11-0001'
+        order.invoice = MagicMock(export_id=None)
         self.assertEqual(self._payload(order)['container_id'], 'CNT-INV-2026-11-0001')
 
     def test_container_id_falls_back_to_order_id(self):

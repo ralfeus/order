@@ -7,6 +7,8 @@ from typing import Optional
 import requests
 from flask import current_app
 
+from app.orders.models.order import Order
+
 logger = logging.getLogger(__name__)
 
 # Eurocargo accepts at most this many inventory lines per shipment
@@ -28,11 +30,11 @@ def on_sale_order_packed(order, **_extra):
 
 
 # ---------------------------------------------------------------------------
-# sale_order_shipped → create ECmgmt shipment record(s), no carrier yet
+# sale_order_ready_to_ship → create ECmgmt shipment record(s), no carrier yet
 # ---------------------------------------------------------------------------
 
-def on_sale_order_shipped(order, **_extra):
-    '''When a EurocargoShipping order is shipped, create one shipment per
+def on_sale_order_ready_to_ship(order, **_extra):
+    '''When a EurocargoShipping order is ready to ship, create one shipment per
     physical box in eurocargo_management.  No carrier or cost is set at this
     point: the customer chooses a carrier on the Eurocargo payment page, and
     Eurocargo prices both legs itself.
@@ -135,7 +137,7 @@ def _box_units(boxes):
             yield box, seq
 
 
-def _common_fields(order):
+def _common_fields(order: Order) -> dict:
     '''Return the recipient fields shared by every shipment payload.
 
     ``shipment_type_code`` is intentionally omitted: the carrier is chosen
@@ -144,13 +146,13 @@ def _common_fields(order):
     return {
         'customer_name': order.customer_name,
         'email': order.email,
-        'address': _single_line(order.address),
+        'address': _single_line(str(order.address)),
         'city': order.city_eng or '',
         'country': order.country_id or '',
         'zip': order.zip or '',
         'phone': order.phone or None,
         'tracking_code': order.tracking_id,
-        'container_id': f'CNT-{order.invoice_id or order.id}',
+        'container_id': f'CNT-{order.invoice and order.invoice.export_id or order.invoice_id or order.id}',
     }
 
 
