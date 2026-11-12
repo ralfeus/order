@@ -41,7 +41,16 @@ def on_sale_order_shipped(order, **_extra):
 
     if not isinstance(order.shipping, EurocargoShipping):
         return
+    create_shipments(order)
 
+
+def create_shipments(order):
+    '''Create one eurocargo_management shipment per physical box of *order*,
+    regardless of the order's shipping method or status.
+
+    On success the shipment URL of the first box is stored in
+    ``order.params['eurocargo.shipment_url']``.  Errors are logged, not raised.
+    '''
     missing = _missing_fields(order)
     if missing:
         logger.error('Eurocargo shipment for order %s not created: missing %s',
