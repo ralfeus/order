@@ -35,6 +35,9 @@ from .order_product import OrderProduct
 from .order_status import OrderStatus
 
 ORDER_ID = 'orders.id'
+# Once the order is handed over for shipping its shipping method is fixed
+SHIPPING_LOCKED_STATUSES = (OrderStatus.ready_to_ship, OrderStatus.shipped,
+                            OrderStatus.at_warehouse, OrderStatus.shipment_is_paid)
 
 class OrderBox(db.Model, BaseModel): # type: ignore
     ''' Specific box used in order '''
@@ -173,6 +176,30 @@ class Order(db.Model, BaseModel): # type: ignore
         if self.status == OrderStatus.shipped:
             from app.orders.signals import sale_order_shipped
             sale_order_shipped.send(self)
+
+    def set_shipping(self, shipping_method_id):
+        '''Changes the order's shipping method.
+
+        Raises OrderError when the order is already handed over for shipping
+        (see SHIPPING_LOCKED_STATUSES) or when the shipping method doesn't
+        exist.  Sends
+        ``sale_order_shipping_changed`` only when the method actually changes.
+        '''
+        shipping_method_id = int(shipping_method_id)
+        if self.shipping_method_id == shipping_method_id:
+            return
+        if self.status in SHIPPING_LOCKED_STATUSES:
+            raise OrderError(
+                f"Shipping method of the order {self.id} can't be changed "
+                f"in status {self.status.name}")
+        shipping = db.session.get(Shipping, shipping_method_id)
+        if shipping is None:
+            raise OrderError(f'No shipping method {shipping_method_id} was found')
+        old_shipping = self.shipping
+        self.shipping = shipping
+        self.shipping_method_id = shipping_method_id
+        from app.orders.signals import sale_order_shipping_changed
+        sale_order_shipping_changed.send(self, old_shipping=old_shipping)
 
     @staticmethod
     def get_new_id():

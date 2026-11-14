@@ -16,34 +16,117 @@ MAX_ITEMS = 100
 _LINE_BREAKS = re.compile(r'\s*[\r\n\t]+\s*')
 _CENTS = Decimal('0.01')
 _GRAMS = Decimal('0.001')
+# Order params holding Eurocargo shipment references.  The URL of the first
+# box is shown to the customer; every box's token is kept for later updates.
+URL_PARAM = 'eurocargo.shipment_url'
+TOKEN_PARAM_PREFIX = 'eurocargo.shipment_token.'
+# Shipments that couldn't be deleted: <prefix><token> = order ID
+DELETE_FAILED_PARAM_PREFIX = 'eurocargo.delete_failed.'
 
 
 # ---------------------------------------------------------------------------
-# sale_order_packed → no-op for EurocargoShipping
+# sale_order_packed → create ECmgmt shipment record(s), no carrier yet
 # ---------------------------------------------------------------------------
 
 def on_sale_order_packed(order, **_extra):
-    '''For EurocargoShipping, nothing to do at pack time.
-    The carrier and shipping cost are determined later in eurocargo_management
-    when the customer selects a carrier on the payment page.'''
-    pass
-
-
-# ---------------------------------------------------------------------------
-# sale_order_ready_to_ship → create ECmgmt shipment record(s), no carrier yet
-# ---------------------------------------------------------------------------
-
-def on_sale_order_ready_to_ship(order, **_extra):
-    '''When a EurocargoShipping order is ready to ship, create one shipment per
+    '''When a EurocargoShipping order is packed, create one shipment per
     physical box in eurocargo_management.  No carrier or cost is set at this
     point: the customer chooses a carrier on the Eurocargo payment page, and
     Eurocargo prices both legs itself.
+
+    An order that already has a shipment (e.g. re-packed after
+    ready_to_ship) gets no new one.
     '''
     from .models.eurocargo_shipping import EurocargoShipping
 
     if not isinstance(order.shipping, EurocargoShipping):
         return
+    if has_shipment(order):
+        logger.info('Eurocargo shipment for order %s already exists, not creating',
+                    order.id)
+        return
     create_shipments(order)
+
+
+# ---------------------------------------------------------------------------
+# sale_order_shipping_changed → delete shipment(s) or create them
+# ---------------------------------------------------------------------------
+
+def on_sale_order_shipping_changed(order, old_shipping=None, **_extra):
+    '''Keep Eurocargo in line with the order's new shipping method.
+
+    * Not Eurocargo any more: every existing shipment is deleted.  The
+      shipping method can't change once the order is handed over for
+      shipping, so a paid or received shipment never gets here.
+    * Changed to Eurocargo on a packed order without a shipment: shipments
+      are created, as if the order was packed now.
+    '''
+    from app.orders.models.order_status import OrderStatus
+    from .models.eurocargo_shipping import EurocargoShipping
+
+    if not isinstance(order.shipping, EurocargoShipping):
+        if has_shipment(order):
+            delete_shipments(order)
+        return
+    if order.status == OrderStatus.packed and not has_shipment(order):
+        create_shipments(order)
+
+
+def delete_shipments(order):
+    '''Delete every Eurocargo shipment of *order*.
+
+    References of the shipments are removed from the order params.  A
+    shipment Eurocargo doesn't know (404) counts as deleted.  Any other
+    failure is logged and the token is kept as
+    ``eurocargo.delete_failed.<token>`` for a later retry; it never raises.
+    '''
+    eurocargo_api_url = current_app.config.get('EUROCARGO_API_URL', 'http://localhost:8000')
+    api_key = current_app.config.get('EUROCARGO_API_KEY', 'supersecretkey')
+
+    for token in _shipment_tokens(order):
+        try:
+            response = requests.delete(
+                f'{eurocargo_api_url}/api/v1/shipments/{token}',
+                headers={'X-API-Key': api_key},
+                timeout=10,
+            )
+            logger.info('Eurocargo delete response for %s (order %s): %s %s',
+                        token, order.id, response.status_code, response.text)
+            if response.status_code == 404:
+                logger.warning('Eurocargo shipment %s of order %s not found, '
+                               'treating as deleted', token, order.id)
+            else:
+                response.raise_for_status()
+                logger.info('Deleted eurocargo shipment %s of order %s',
+                            token, order.id)
+        except Exception as exc:
+            logger.error('Failed to delete eurocargo shipment %s of order %s: %s',
+                         token, order.id, exc)
+            order.params[f'{DELETE_FAILED_PARAM_PREFIX}{token}'] = order.id
+
+    for name in [n for n in order.params
+                 if n == URL_PARAM or n.startswith(TOKEN_PARAM_PREFIX)]:
+        order.params.pop(name)
+
+
+def _shipment_tokens(order) -> list[str]:
+    '''Tokens of all shipments of *order*, unique, in box order.  For orders
+    shipped before tokens were stored the token is taken from the URL.'''
+    params = order.params or {}
+    names = sorted((n for n in params if n.startswith(TOKEN_PARAM_PREFIX)),
+                   key=lambda n: int(n[len(TOKEN_PARAM_PREFIX):]))
+    tokens = [params[n] for n in names]
+    if not tokens and params.get(URL_PARAM):
+        tokens = [params[URL_PARAM].rstrip('/').rsplit('/', 1)[-1]]
+    return list(dict.fromkeys(tokens))
+
+
+def has_shipment(order) -> bool:
+    '''True if a Eurocargo shipment was created for *order*.  Orders shipped
+    before tokens were stored are recognised by the shipment URL.'''
+    params = order.params or {}
+    return URL_PARAM in params or \
+        any(name.startswith(TOKEN_PARAM_PREFIX) for name in params)
 
 
 def create_shipments(order):
@@ -51,7 +134,9 @@ def create_shipments(order):
     regardless of the order's shipping method or status.
 
     On success the shipment URL of the first box is stored in
-    ``order.params['eurocargo.shipment_url']``.  Errors are logged, not raised.
+    ``order.params['eurocargo.shipment_url']`` and the token of each box in
+    ``order.params['eurocargo.shipment_token.<seq>']``.  Errors are logged,
+    not raised.
     '''
     missing = _missing_fields(order)
     if missing:
@@ -89,9 +174,9 @@ def create_shipments(order):
                 f'Part {seq} of {len(units)} of order {order.id}, '
                 f'contents declared on {order.id}-1')
 
-        _post_shipment(order, shipment_order_id, payload,
+        _post_shipment(order, seq, shipment_order_id, payload,
                        eurocargo_api_url, eurocargo_base_url,
-                       store_url=seq == 1, api_key=eurocargo_api_key)
+                       api_key=eurocargo_api_key)
 
 
 # ---------------------------------------------------------------------------
@@ -210,8 +295,8 @@ def _items(order) -> list[dict]:
             for i in items]
 
 
-def _post_shipment(order, shipment_order_id, payload,
-                   eurocargo_api_url, eurocargo_base_url, store_url, api_key=''):
+def _post_shipment(order, seq, shipment_order_id, payload,
+                   eurocargo_api_url, eurocargo_base_url, api_key=''):
     try:
         response = requests.post(
             f'{eurocargo_api_url}/api/v1/shipments',
@@ -225,8 +310,10 @@ def _post_shipment(order, shipment_order_id, payload,
         data = response.json()
         shipment_url = data.get('shipment_url') or \
             f'{eurocargo_base_url}/shipments/{data["token"]}'
-        if store_url:
-            order.params['eurocargo.shipment_url'] = shipment_url
+        token = data.get('token') or shipment_url.rstrip('/').rsplit('/', 1)[-1]
+        order.params[f'{TOKEN_PARAM_PREFIX}{seq}'] = token
+        if seq == 1:
+            order.params[URL_PARAM] = shipment_url
         logger.info('Created eurocargo shipment %s: %s', shipment_order_id, shipment_url)
     except Exception as exc:
         logger.error('Failed to create eurocargo shipment %s: %s', shipment_order_id, exc)

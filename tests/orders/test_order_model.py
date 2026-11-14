@@ -198,3 +198,80 @@ class TestOrderModelCurrency(BaseTestCase):
         # Base currency — user_currency amounts should be 0 (no conversion needed)
         self.assertEqual(float(order.subtotal_user_currency), 0.0)
         self.assertEqual(float(order.total_user_currency), 0.0)
+
+
+class TestOrderSetShipping(BaseTestCase):
+    '''Order.set_shipping(): status lock and shipping_changed signal'''
+
+    def setUp(self):
+        super().setUp()
+        db.create_all()
+        self.user = User(
+            username='test_set_shipping_user',
+            email='test_set_shipping@test.com',
+            password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
+            enabled=True,
+        )
+        self.shipping1 = Shipping(id=1, name='Shipping1')
+        self.shipping2 = Shipping(id=2, name='Shipping2')
+        self.try_add_entities([self.user, self.shipping1, self.shipping2])
+        self.received = []
+        from app.orders.signals import sale_order_shipping_changed
+        self.signal = sale_order_shipping_changed
+        self.signal.connect(self._on_changed)
+
+    def tearDown(self):
+        self.signal.disconnect(self._on_changed)
+        super().tearDown()
+
+    def _on_changed(self, order, **kwargs):
+        self.received.append((order, kwargs.get('old_shipping')))
+
+    def _order(self, status):
+        order = Order(user=self.user, status=status, shipping=self.shipping1)
+        self.try_add_entity(order)
+        return order
+
+    def test_change_sends_signal_with_old_shipping(self):
+        order = self._order(OrderStatus.packed)
+        order.set_shipping(2)
+        self.assertEqual(order.shipping_method_id, 2)
+        self.assertIs(order.shipping, self.shipping2)
+        self.assertEqual(self.received, [(order, self.shipping1)])
+
+    def test_same_shipping_as_string_is_no_change(self):
+        order = self._order(OrderStatus.packed)
+        order.set_shipping('1')
+        self.assertEqual(order.shipping_method_id, 1)
+        self.assertEqual(self.received, [])
+
+    def test_change_blocked_once_handed_over_for_shipping(self):
+        from common.exceptions import OrderError
+        for status in (OrderStatus.ready_to_ship, OrderStatus.shipped,
+                       OrderStatus.at_warehouse, OrderStatus.shipment_is_paid):
+            with self.subTest(status=status):
+                order = self._order(status)
+                with self.assertRaises(OrderError):
+                    order.set_shipping(2)
+                self.assertEqual(order.shipping_method_id, 1)
+        self.assertEqual(self.received, [])
+
+    def test_same_shipping_allowed_when_locked(self):
+        order = self._order(OrderStatus.shipped)
+        order.set_shipping(1)
+        self.assertEqual(self.received, [])
+
+    def test_change_allowed_in_other_statuses(self):
+        for status in (OrderStatus.pending, OrderStatus.po_created,
+                       OrderStatus.packed):
+            with self.subTest(status=status):
+                order = self._order(status)
+                order.set_shipping(2)
+                self.assertEqual(order.shipping_method_id, 2)
+
+    def test_unknown_shipping_rejected(self):
+        from common.exceptions import OrderError
+        order = self._order(OrderStatus.pending)
+        with self.assertRaises(OrderError):
+            order.set_shipping(12345)
+        self.assertEqual(order.shipping_method_id, 1)

@@ -12,6 +12,9 @@ sale_order_packed = signals.signal("sale_order.status.packed")
 sale_order_ready_to_ship = signals.signal("sale_order.status.ready_to_ship")
 # The signal is sent when SO status is set to <shipped>
 sale_order_shipped = signals.signal("sale_order.status.shipped")
+# The signal is sent when SO shipping method is changed
+# The argument is SO object (already carrying the new shipping) and old_shipping
+sale_order_shipping_changed = signals.signal("sale_order.shipping.changed")
 admin_order_products_rendering = signals.signal(
     "sale_order.admin_order_products.rendering"
 )
@@ -32,6 +35,7 @@ __all__ = [
     "sale_order_packed",
     "sale_order_ready_to_ship",
     "sale_order_shipped",
+    "sale_order_shipping_changed",
     "sale_order_model_preparing",
     "user_create_sale_order_rendering",
 ]

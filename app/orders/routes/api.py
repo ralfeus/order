@@ -446,8 +446,11 @@ def _update_order(order: Order, payload):
         order.country_id = payload['country']
     if payload.get('zip') and order.zip != payload['zip']:
         order.zip = payload['zip']
-    if payload.get('shipping') and order.shipping_method_id != payload['shipping']:
-        order.shipping_method_id = payload['shipping']
+    if payload.get('shipping'):
+        try:
+            order.set_shipping(payload['shipping'])
+        except OrderError as ex:
+            abort(Response(str(ex), status=409))
     if payload.get('phone') and order.phone != payload['phone']:
         order.phone = payload['phone']
     if payload.get('comment') and order.comment != payload['comment']:

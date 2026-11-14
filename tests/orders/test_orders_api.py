@@ -566,6 +566,30 @@ class TestOrdersApi(BaseTestCase):
         )
         self.assertEqual(res.status_code, 200)
 
+    def test_save_order_shipping_change_blocked_when_ready_to_ship(self):
+        self.try_add_entities([Shipping(id=2, name="Shipping2")])
+        order = Order(user=self.user, country_id="c1", shipping_method_id=1,
+                      status=OrderStatus.ready_to_ship)
+        self.try_add_entity(order)
+        res = self.try_admin_operation(
+            admin_only=True,
+            operation=lambda: self.client.post(
+                f"/api/v1/order/{order.id}",
+                json={
+                    "address": "Address1",
+                    "city_eng": "City1",
+                    "country": "c1",
+                    "customer_name": "Customer1",
+                    "phone": "1",
+                    "zip": "1",
+                    "shipping": "2",
+                },
+            ),
+        )
+        self.assertEqual(res.status_code, 409)
+        db.session.expire_all()
+        self.assertEqual(db.session.get(Order, order.id).shipping_method_id, 1)
+
     def test_save_order_no_shipping_rate(self):
         order = Order(user=self.user, country_id="c1", shipping_method_id=1)
         subcustomer = Subcustomer(name="A001", username="A001")
