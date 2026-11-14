@@ -9,7 +9,7 @@ from flask_security import login_required, roles_required
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app import db
+from app import cache, db
 from app.models.file import File
 from app.products import bp_api_admin, bp_api_user
 from app.products.models import Product
@@ -150,6 +150,8 @@ def save_product(product_id):
     modify_object(product, payload, editable_attributes)
 
     db.session.commit()
+    if 'shipping' in payload.keys():
+        cache.clear()
 
     return jsonify(product.to_dict(details=True))
 
