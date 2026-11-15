@@ -61,6 +61,29 @@ def on_sale_order_packed(order, old_status=None, new_status=None, **_extra):
 
 
 # ---------------------------------------------------------------------------
+# sale_order_boxes_changed → create shipment if order is packed and none exists
+# ---------------------------------------------------------------------------
+
+def on_sale_order_boxes_changed(order, **_extra):
+    '''Create a Eurocargo shipment when boxes are configured on an order that is
+    already packed (or further along) but has no shipment yet.
+
+    This covers the common case where the operator sets the status to packed
+    first and configures boxes afterwards.
+    '''
+    from app.orders.models.order_status import OrderStatus
+    from .models.eurocargo_shipping import EurocargoShipping
+
+    if not isinstance(order.shipping, EurocargoShipping):
+        return
+    if has_shipment(order):
+        return
+    if order.status is None or order.status.value < OrderStatus.packed.value:
+        return
+    create_shipments(order)
+
+
+# ---------------------------------------------------------------------------
 # sale_order_shipping_changed → delete shipment(s) or create them
 # ---------------------------------------------------------------------------
 

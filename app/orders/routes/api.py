@@ -28,6 +28,7 @@ from app.tools import cleanse_payload, prepare_datatables_query, modify_object, 
 from ..models.order import Order
 from ..models.order_product import OrderProduct, OrderProductStatus
 from ..models.order_status import OrderStatus
+from ..signals import sale_order_boxes_changed
 from ..models.subcustomer import Subcustomer
 from ..models.suborder import Suborder
 
@@ -727,6 +728,7 @@ def update_order_boxes(order:Order, boxes_input):
             length=order_box['length'],
             width=order_box['width'],
             height=order_box['height']))
+    sale_order_boxes_changed.send(order)
 
 @bp_api_user.route('/product')
 @bp_api_admin.route('/product')

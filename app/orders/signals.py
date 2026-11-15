@@ -14,6 +14,9 @@ sale_order_status_changed = signals.signal("sale_order.status.changed")
 # The signal is sent when SO shipping method is changed
 # The argument is SO object (already carrying the new shipping) and old_shipping
 sale_order_shipping_changed = signals.signal("sale_order.shipping.changed")
+# The signal is sent when the boxes configuration of an SO is updated.
+# The argument is the SO object (already carrying the new boxes list).
+sale_order_boxes_changed = signals.signal("sale_order.boxes.changed")
 admin_order_products_rendering = signals.signal(
     "sale_order.admin_order_products.rendering"
 )
@@ -68,6 +71,7 @@ __all__ = [
     "on_status_change",
     "order_product_model_preparing",
     "order_product_saving",
+    "sale_order_boxes_changed",
     "sale_order_created",
     "sale_order_status_changed",
     "sale_order_shipping_changed",
