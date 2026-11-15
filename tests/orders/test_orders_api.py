@@ -621,6 +621,35 @@ class TestOrdersApi(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn('error', res.get_json())
 
+    def test_save_order_boxes_are_typed_when_signal_fires(self):
+        from app.orders.signals import sale_order_boxes_changed
+        order = Order(user=self.user, country_id="c1", shipping_method_id=1)
+        self.try_add_entity(order)
+        seen = []
+
+        def capture(sender, **_):
+            seen.extend(
+                (b.quantity, b.weight, b.length, b.width, b.height)
+                for b in sender.boxes)
+
+        sale_order_boxes_changed.connect(capture)
+        try:
+            res = self.try_admin_operation(
+                admin_only=True,
+                operation=lambda: self.client.post(
+                    f"/api/v1/admin/order/{order.id}",
+                    json={"boxes": [{"quantity": "2", "weight": "6800",
+                                     "length": "42", "width": "30",
+                                     "height": "19"}]},
+                ),
+            )
+        finally:
+            sale_order_boxes_changed.disconnect(capture)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(seen)
+        for values in seen:
+            self.assertEqual(values, (2, 6800, 42, 30, 19))
+
     def test_save_order_add_suborder(self):
         gen_id = f"{__name__}-{int(datetime.now().timestamp())}"
         self.try_add_entities([Order(id=gen_id, user=self.user)])

@@ -537,13 +537,6 @@ class TestOnSaleOrderShippedSignalHandler(_ShippedHandlerMixin, BaseTestCase):
         order_ids = [p['order_id'] for p in self._all_payloads(mock_post)]
         self.assertEqual(order_ids, ['ORD-TEST-001-1', 'ORD-TEST-001-2', 'ORD-TEST-001-3'])
 
-    def test_string_quantity_creates_correct_shipment_count(self):
-        '''quantity arriving as a string from the API must still work'''
-        box = self._make_box(40, 30, 20, quantity='2')
-        order = self._make_order(boxes=[box], total_weight=4000)
-        mock_post = self._post(order)
-        self.assertEqual(mock_post.call_count, 2)
-
     def test_multi_box_first_url_stored(self):
         boxes = [self._make_box(40, 30, 20), self._make_box(50, 40, 30)]
         order = self._make_order(boxes=boxes, total_weight=4000)

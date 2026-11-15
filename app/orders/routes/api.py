@@ -723,11 +723,11 @@ def update_order_boxes(order:Order, boxes_input):
     order.boxes = []
     for order_box in boxes_input:
         order.boxes.append(OrderBox(
-            quantity=order_box['quantity'],
-            weight=order_box['weight'],
-            length=order_box['length'],
-            width=order_box['width'],
-            height=order_box['height']))
+            quantity=int(order_box['quantity']),
+            weight=int(order_box['weight']),
+            length=int(order_box['length']),
+            width=int(order_box['width']),
+            height=int(order_box['height'])))
     sale_order_boxes_changed.send(order)
 
 @bp_api_user.route('/product')
