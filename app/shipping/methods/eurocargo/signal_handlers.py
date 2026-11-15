@@ -252,7 +252,7 @@ def _box_units(boxes):
     '''
     seq = 0
     for box in boxes:
-        for _ in range(box.quantity):
+        for _ in range(int(box.quantity)):
             seq += 1
             yield box, seq
 

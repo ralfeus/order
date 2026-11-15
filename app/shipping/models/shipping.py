@@ -187,7 +187,7 @@ class NoShipping(Shipping):
     __mapper_args__ = {'polymorphic_identity': 'noshipping'} #type: ignore
     @property
     def name(self):
-        return 'No shipping'
+        return super().name or 'No shipping'
 
     def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> tuple[bool, str]:
         all_shippable, bad_products = self._are_all_products_shippable(products)
