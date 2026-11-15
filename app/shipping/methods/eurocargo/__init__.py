@@ -12,9 +12,12 @@ bp_client_admin = Blueprint('shipping_eurocargo_client_admin', __name__,
 
 def register_blueprints(flask_app):
     from . import routes  # noqa: F401
-    from app.orders.signals import sale_order_packed, sale_order_shipping_changed
+    from app.orders.models.order_status import OrderStatus
+    from app.orders.signals import on_status_change, sale_order_shipping_changed
     from .signal_handlers import on_sale_order_packed, on_sale_order_shipping_changed
-    sale_order_packed.connect(on_sale_order_packed)
+    on_status_change(on_sale_order_packed, to_status=OrderStatus.packed)
+    on_status_change(on_sale_order_packed, to_status=OrderStatus.ready_to_ship)
+    on_status_change(on_sale_order_packed, to_status=OrderStatus.shipped)
     sale_order_shipping_changed.connect(on_sale_order_shipping_changed)
     from .cli import eurocargo_cli
     flask_app.cli.add_command(eurocargo_cli)

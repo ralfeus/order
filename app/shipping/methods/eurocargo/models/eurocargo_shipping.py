@@ -28,19 +28,24 @@ class EurocargoShipping(Shipping):
         '''Returns 0 at order creation time.  Real cost is determined later in ECmgmt.'''
         return 0
 
-    def can_ship(self, country: Country, weight: int, products: list = []) -> bool:
-        '''Returns True only when *country* is in the configured available-country list.
+    def can_ship(self, country: Country, weight: int, products: list = []) -> tuple[bool, str]:
+        '''Returns (True, "") when *country* is in the configured available-country list,
+        otherwise (False, reason).
 
         The list is stored as ShippingRate rows for this shipping method.
         Weight and rate values in those rows are ignored; only the destination
         country code is checked.
         '''
-        if not self._are_all_products_shippable(products):
-            return False
+        all_shippable, bad_products = self._are_all_products_shippable(products)
+        if not all_shippable:
+            return False, f"Products not shippable by this method: {', '.join(bad_products)}"
         if not country:
-            return True
+            return True, ""
         country_id = country.id if isinstance(country, Country) else str(country)
-        return db.session.query(ShippingRate).filter_by(
+        rate_exists = db.session.query(ShippingRate).filter_by(
             shipping_method_id=self.id,
             destination=country_id,
         ).count() > 0
+        if rate_exists:
+            return True, ""
+        return False, f"No shipping rate to {country.name if isinstance(country, Country) else country_id}"

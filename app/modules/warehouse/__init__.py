@@ -43,10 +43,11 @@ def _register_routes(app):
 
 
 def _register_signals():
-    from app.orders.signals import sale_order_shipped, \
+    from app.orders.models.order_status import OrderStatus
+    from app.orders.signals import on_status_change, \
         admin_order_products_rendering, order_product_model_preparing, \
         order_product_saving
-    sale_order_shipped.connect(on_sale_order_shipped)
+    on_status_change(on_sale_order_shipped, to_status=OrderStatus.shipped)
     admin_order_products_rendering.connect(on_admin_order_products_rendering)
     order_product_model_preparing.connect(on_order_product_model_preparing)
     order_product_saving.connect(on_order_product_saving)

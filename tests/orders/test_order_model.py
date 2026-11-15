@@ -275,3 +275,120 @@ class TestOrderSetShipping(BaseTestCase):
         with self.assertRaises(OrderError):
             order.set_shipping(12345)
         self.assertEqual(order.shipping_method_id, 1)
+
+
+class TestOrderStatusChangedSignal(BaseTestCase):
+    '''Order.set_status() → sale_order_status_changed, and on_status_change()'''
+
+    def setUp(self):
+        super().setUp()
+        db.create_all()
+        self.user = User(
+            username='test_status_signal_user',
+            email='test_status_signal@test.com',
+            password_hash='pbkdf2:sha256:150000$bwYY0rIO$320d11e791b3a0f1d0742038ceebf879b8182898cbefee7bf0e55b9c9e9e5576',
+            enabled=True,
+        )
+        self.try_add_entities([self.user, NoShipping(id=999)])
+        from app.orders.signals import sale_order_status_changed
+        self.signal = sale_order_status_changed
+        self.receivers = []
+        self.received = []
+
+    def tearDown(self):
+        for receiver in self.receivers:
+            self.signal.disconnect(receiver)
+        super().tearDown()
+
+    def _record(self, order, old_status=None, new_status=None, **_extra):
+        self.received.append((order, old_status, new_status))
+
+    def _connect(self, **filters):
+        from app.orders.signals import on_status_change
+        self.receivers.append(on_status_change(self._record, **filters))
+
+    def _order(self, status=OrderStatus.po_created):
+        order = Order(user=self.user, status=status)
+        self.try_add_entity(order)
+        return order
+
+    def test_change_sends_old_and_new_status(self):
+        self._connect()
+        order = self._order()
+        order.set_status(OrderStatus.packed, self.user)
+        self.assertEqual(self.received,
+                         [(order, OrderStatus.po_created, OrderStatus.packed)])
+
+    def test_same_status_sends_nothing(self):
+        self._connect()
+        order = self._order(OrderStatus.packed)
+        order.set_status(OrderStatus.packed, self.user)
+        self.assertEqual(self.received, [])
+
+    def test_first_status_of_new_order_has_no_old_status(self):
+        self._connect()
+        order = Order(user=self.user)
+        order.set_status(OrderStatus.pending, self.user)
+        self.assertEqual(self.received, [(order, None, OrderStatus.pending)])
+
+    def test_string_status_is_converted(self):
+        self._connect()
+        order = self._order()
+        order.set_status('packed', self.user)
+        self.assertEqual(self.received,
+                         [(order, OrderStatus.po_created, OrderStatus.packed)])
+
+    def test_filter_by_to_status(self):
+        self._connect(to_status=OrderStatus.packed)
+        order = self._order()
+        order.set_status(OrderStatus.can_be_paid, self.user)
+        order.set_status(OrderStatus.packed, self.user)
+        self.assertEqual(self.received,
+                         [(order, OrderStatus.can_be_paid, OrderStatus.packed)])
+
+    def test_filter_by_from_status(self):
+        self._connect(from_status=OrderStatus.ready_to_ship)
+        order = self._order(OrderStatus.packed)
+        order.set_status(OrderStatus.ready_to_ship, self.user)
+        order.set_status(OrderStatus.packed, self.user)
+        self.assertEqual(self.received,
+                         [(order, OrderStatus.ready_to_ship, OrderStatus.packed)])
+
+    def test_filter_by_from_and_to_status(self):
+        self._connect(from_status=OrderStatus.ready_to_ship,
+                      to_status=OrderStatus.packed)
+        order = self._order(OrderStatus.po_created)
+        order.set_status(OrderStatus.packed, self.user)        # wrong from
+        order.set_status(OrderStatus.ready_to_ship, self.user)  # wrong to
+        order.set_status(OrderStatus.packed, self.user)        # match
+        self.assertEqual(self.received,
+                         [(order, OrderStatus.ready_to_ship, OrderStatus.packed)])
+
+    def test_helper_receiver_survives_garbage_collection(self):
+        import gc
+        from app.orders.signals import on_status_change
+        received = []
+        self.receivers.append(on_status_change(
+            lambda order, **kw: received.append(kw['new_status']),
+            to_status=OrderStatus.packed))
+        gc.collect()
+        self._order().set_status(OrderStatus.packed, self.user)
+        self.assertEqual(received, [OrderStatus.packed])
+
+    def test_helper_receiver_can_be_disconnected(self):
+        from app.orders.signals import on_status_change
+        receiver = on_status_change(self._record)
+        self.signal.disconnect(receiver)
+        self._order().set_status(OrderStatus.packed, self.user)
+        self.assertEqual(self.received, [])
+
+    def test_helper_same_subscription_connected_once(self):
+        '''A second registration (e.g. a second create_app()) must not double
+        side effects like shipment creation or stock deduction.'''
+        from app.orders.signals import on_status_change
+        first = on_status_change(self._record, to_status=OrderStatus.packed)
+        second = on_status_change(self._record, to_status=OrderStatus.packed)
+        self.receivers.append(first)
+        self.assertIs(first, second)
+        self._order().set_status(OrderStatus.packed, self.user)
+        self.assertEqual(len(self.received), 1)

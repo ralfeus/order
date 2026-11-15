@@ -54,14 +54,18 @@ class TestEurocargoShippingModel(BaseTestCase):
         """Country with a ShippingRate entry is available."""
         shipping = EurocargoShipping.query.get(1)
         country = Country.query.get('c1')
-        self.assertTrue(shipping.can_ship(country, 500))
+        can, reason = shipping.can_ship(country, 500)
+        self.assertTrue(can)
+        self.assertEqual(reason, "")
 
     def test_can_ship_for_country_without_rate(self):
         """Country without a ShippingRate entry is NOT available."""
         self.try_add_entity(Country(id='xx', name='No-Rate Country'))
         shipping = EurocargoShipping.query.get(1)
         country = Country.query.get('xx')
-        self.assertFalse(shipping.can_ship(country, 500))
+        can, reason = shipping.can_ship(country, 500)
+        self.assertFalse(can)
+        self.assertIn('No-Rate Country', reason)
 
     # ------------------------------------------------------------------
     # polymorphic discriminator / to_dict
@@ -830,7 +834,8 @@ class TestEurocargoShippingAdminAPI(BaseTestCase):
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         fr = Country.query.get('FR')
-        self.assertTrue(shipping.can_ship(fr, 0))
+        can, _ = shipping.can_ship(fr, 0)
+        self.assertTrue(can)
 
     def test_save_countries_removes_deselected(self):
         res = self.client.post(
@@ -844,7 +849,8 @@ class TestEurocargoShippingAdminAPI(BaseTestCase):
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         de = Country.query.get('DE')
-        self.assertFalse(shipping.can_ship(de, 0))
+        can, _ = shipping.can_ship(de, 0)
+        self.assertFalse(can)
 
     def test_save_countries_empty_list_clears_all(self):
         res = self.client.post(
@@ -857,7 +863,8 @@ class TestEurocargoShippingAdminAPI(BaseTestCase):
         shipping = db.session.get(SS, 10)
         db.session.expire_all()
         de = Country.query.get('DE')
-        self.assertFalse(shipping.can_ship(de, 0))
+        can, _ = shipping.can_ship(de, 0)
+        self.assertFalse(can)
 
     def test_save_countries_unknown_code_rejected(self):
         res = self.client.post(

@@ -20,7 +20,8 @@ class TestProductShipping(BaseTestCase):
         ])
 
     def _can_ship(self, shipping_id, products):
-        return db.session.get(Shipping, shipping_id).can_ship(None, 0, products)
+        can, _ = db.session.get(Shipping, shipping_id).can_ship(None, 0, products)
+        return can
 
     def test_product_keys(self):
         self.assertTrue(self._can_ship(1, ['Atomy:0001']))

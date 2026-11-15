@@ -59,7 +59,7 @@ class Shipping(db.Model, BaseModel):  # type: ignore
     def init_on_load(self):
         self.__init__()
 
-    def _are_all_products_shippable(self, products: list[str]):
+    def _are_all_products_shippable(self, products: list[str]) -> tuple[bool, list[str]]:
         '''Products are product keys or codes. A code may match products
         of several vendors, then all of them must be shippable'''
         from app.products.models.product import Product
@@ -73,20 +73,21 @@ class Shipping(db.Model, BaseModel):  # type: ignore
         if non_shippable_products:
             logging.debug("These products are not shippable by %s: %s",
                           self, non_shippable_products)
-        return len(non_shippable_products) == 0
+        return len(non_shippable_products) == 0, non_shippable_products
 
-    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
-        if not self._are_all_products_shippable(products):
+    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> tuple[bool, str]:
+        all_shippable, bad_products = self._are_all_products_shippable(products)
+        if not all_shippable:
             logging.debug("Not all products are shippable to %s by %s", country, self)
-            return False
+            return False, f"Products not shippable by this method: {', '.join(bad_products)}"
         if not country:
-            return True
+            return True, ""
         try:
             self.get_shipping_cost(country, weight)
-            return True
+            return True, ""
         except NoShippingRateError:
             logging.debug("Couldn't get shipping cost to %s by %s", country, self)
-            return False
+            return False, f"No shipping rate to {country.name}"
         
     def consign(self, sender: Address, sender_contact: ShippingContact, 
                 recipient: Address, rcpt_contact: ShippingContact,
@@ -187,11 +188,12 @@ class NoShipping(Shipping):
     @property
     def name(self):
         return 'No shipping'
-    
-    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> bool:
-        if not self._are_all_products_shippable(products):
-            return False
-        return True
+
+    def can_ship(self, country: Country, weight: int, products: list[str]=[]) -> tuple[bool, str]:
+        all_shippable, bad_products = self._are_all_products_shippable(products)
+        if not all_shippable:
+            return False, f"Products not shippable by this method: {', '.join(bad_products)}"
+        return True, ""
 
     def get_shipping_cost(self, destination, weight):
         return 0

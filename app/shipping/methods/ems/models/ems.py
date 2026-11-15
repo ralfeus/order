@@ -82,23 +82,24 @@ class EMS(Shipping):
         from .. import bp_client_admin
         return url_for(endpoint=f'{bp_client_admin.name}.admin_print_label')
 
-    def can_ship(self, country: Country, weight: int, products: list[str] = []) -> bool:
+    def can_ship(self, country: Country, weight: int, products: list[str] = []) -> tuple[bool, str]:
         logger = logging.getLogger("EMS::can_ship()")
-        if not self._are_all_products_shippable(products):
+        all_shippable, bad_products = self._are_all_products_shippable(products)
+        if not all_shippable:
             logger.debug(f"Not all products are shippable to {country}")
-            return False
+            return False, f"Products not shippable by this method: {', '.join(bad_products)}"
         if not weight:
             weight = 1
         if country is None:
-            return True
+            return True, ""
 
         try:
-            rates = self.get_shipping_cost(country.id, weight) #type: ignore
+            self.get_shipping_cost(country.id, weight) #type: ignore
             logger.debug(f"There is a rate to country {country}. Can ship")
+            return True, ""
         except:
-            rates = None
             logger.debug(f"There is no rate to country {country}. Can't ship")
-        return rates is not None
+            return False, f"No shipping rate to {country.name}"
 
     def consign(self, sender: Address, sender_contact: ShippingContact, 
                 recipient: Address, rcpt_contact: ShippingContact,

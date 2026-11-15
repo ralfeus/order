@@ -163,19 +163,12 @@ class Order(db.Model, BaseModel): # type: ignore
             for ao in self.attached_orders:
                 ao.set_status(value, actor)
             self.__pay(actor)
-        status_changed = self.status != value
+        old_status = self.status
         self.status = value
-        if not status_changed:
+        if old_status == value:
             return
-        if self.status == OrderStatus.packed:
-            from app.orders.signals import sale_order_packed
-            sale_order_packed.send(self)
-        if self.status == OrderStatus.ready_to_ship:
-            from app.orders.signals import sale_order_ready_to_ship
-            sale_order_ready_to_ship.send(self)
-        if self.status == OrderStatus.shipped:
-            from app.orders.signals import sale_order_shipped
-            sale_order_shipped.send(self)
+        from app.orders.signals import sale_order_status_changed
+        sale_order_status_changed.send(self, old_status=old_status, new_status=value)
 
     def set_shipping(self, shipping_method_id):
         '''Changes the order's shipping method.

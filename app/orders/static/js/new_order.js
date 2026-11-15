@@ -498,10 +498,29 @@ function update_shipping_methods(country, weight) {
                 shipping_options = $('#shipping')[0].options;
                 selected_shipping_method_name = shipping_options[shipping_options.selectedIndex].text;
             }
-            $('#shipping').html(data.map(
-                e => '<option value="' + e.id + '" data-notification="' + e.notification + '">' + e.name + '</option>'));
+            $('#shipping').html(data.map(e => {
+                var label = e.disabled_reason ? e.name + ' — ' + e.disabled_reason : e.name;
+                var disabled = e.disabled_reason ? ' disabled' : '';
+                return '<option value="' + e.id + '"' + disabled +
+                    ' data-notification="' + (e.notification || '') + '"' +
+                    ' data-disabled-reason="' + (e.disabled_reason || '') + '">' +
+                    label + '</option>';
+            }));
+            var availableMethods = data.filter(i => !i.disabled_reason).map(i => i.id);
             if (data.map(i => i.id).includes(parseInt(g_selected_shipping_method))) {
-                $('#shipping').val(g_selected_shipping_method);
+                if (availableMethods.includes(parseInt(g_selected_shipping_method))) {
+                    $('#shipping').val(g_selected_shipping_method);
+                } else {
+                    // Previously selected method is now disabled — show why
+                    var prev = data.find(i => i.id == parseInt(g_selected_shipping_method));
+                    modal("Shipping method is not available",
+                        "The shipping method '" + selected_shipping_method_name + "'\n" +
+                        "is not available: " + (prev ? prev.disabled_reason : "unknown reason")
+                    );
+                    if (availableMethods.length > 0) {
+                        $('#shipping').val(availableMethods[0]);
+                    }
+                }
             } else if (g_selected_shipping_method) {
                 modal("Shipping method is not available",
                     "The shipping method '" + selected_shipping_method_name + "'\n" +

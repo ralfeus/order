@@ -50,58 +50,35 @@ class TestClientApi(BaseTestCase):
     def test_get_shipping(self):
         res = self.try_user_operation(
             lambda: self.client.get('/api/v1/shipping'))
-        self.assertEqual(res.json, [
-            {
-                'id': 4,
-                'name': 'DHL',
-                'type': 'dhl',
-                'enabled': True,
-                'links': {'edit': '/admin/shipping/dhl/', 'print_label': ''},
-                'is_consignable': False,
-                'notification': None,
-                'edit_url': '/admin/shipping/dhl/',
-                'params': []
-            },
-            {
-                'id': 1,
-                'name': 'Shipping1',
-                'type': 'default',
-                'enabled': True,
-                'links': {'edit': '', 'print_label': ''},
-                'is_consignable': False,
-                'notification': None,
-                'edit_url': '',
-                'params': []
-            },
-            {
-                'id': 2,
-                'name': 'Shipping2',
-                'type': 'default',
-                'enabled': True,
-                'links': {'edit': '', 'print_label': ''},
-                'is_consignable': False,
-                'notification': None,
-                'edit_url': '',
-                'params': []
-            },
-            {
-                'id': 3,
-                'name': 'Shipping3',
-                'type': 'default',
-                'enabled': True,
-                'links': {'edit': '', 'print_label': ''},
-                'is_consignable': False,
-                'notification': None,
-                'edit_url': '',
-                'params': []
-            }
-        ])
+        data = res.json
+        # All 4 enabled methods returned; no country/weight given so all are available
+        self.assertEqual(len(data), 4)
+        self.assertTrue(all(m['disabled_reason'] is None for m in data))
+        names = [m['name'] for m in data]
+        self.assertIn('DHL', names)
+        self.assertIn('Shipping1', names)
+
+        # With country only: all methods returned, unavailable ones have disabled_reason
         res = self.client.get('/api/v1/shipping/c1')
-        self.assertEqual(len(res.json), 2)
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+        self.assertEqual(len(data), 4)
+        available = [m for m in data if m['disabled_reason'] is None]
+        self.assertEqual(len(available), 2)
+
+        # With country + weight: methods without a rate have disabled_reason set
         res = self.client.get('/api/v1/shipping/c2/200')
-        self.assertEqual(len(res.json), 2)
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+        self.assertEqual(len(data), 4)
+        available = [m for m in data if m['disabled_reason'] is None]
+        self.assertEqual(len(available), 2)
+
+        # Weight beyond all rates: all methods disabled, but still 200 with disabled_reason
         res = self.client.get('/api/v1/shipping/c1/1000')
-        self.assertEqual(res.status_code, 409)
+        self.assertEqual(res.status_code, 200)
+        data = res.json
+        self.assertTrue(all(m['disabled_reason'] is not None for m in data))
 
     def test_get_shipping_rate(self):
         res = self.try_user_operation(

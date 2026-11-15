@@ -51,28 +51,30 @@ def get_shipping_methods(country_id, weight):
 
     shipping_methods: list[Shipping] = Shipping.query.filter_by(enabled=True)
     result = []
-    product_ids = []
     product_ids = (
         request.values.get("products").split(",") #type: ignore
         if request.values.get("products")
         else []
     )
     for shipping in shipping_methods:
-        if shipping.can_ship(country=country, weight=weight, products=product_ids):
-            result.append(shipping.to_dict())
+        can, reason = shipping.can_ship(country=country, weight=weight, products=product_ids)
+        entry = shipping.to_dict()
+        entry["disabled_reason"] = None if can else reason
+        result.append(entry)
+        if can:
             logging.debug("%s can ship to %s", shipping, country)
         else:
-            logging.debug("%s can't ship to %s", shipping, country)
+            logging.debug("%s can't ship to %s: %s", shipping, country, reason)
 
     logging.debug("Found shipping methods for %sg to %s:", weight, country_name)
     logging.debug(result)
-    
+
     if len(result) > 0:
         sorted_result = sorted(result, key=itemgetter("name"))
         cache.set(
             "{}_shipping_methods_{}_{}_{}".format(
-                current_app.config['TENANT_NAME'], country_id, weight, 
-                md5(request.query_string).hexdigest()), 
+                current_app.config['TENANT_NAME'], country_id, weight,
+                md5(request.query_string).hexdigest()),
             sorted_result, timeout=86400)
         logging.debug("Returning shipping methods")
         logging.debug("Parameters: country=%s, weight=%s", country_name, weight)

@@ -48,7 +48,7 @@ class TestShipInvoiceCommand(BaseTestCase):
         runner = self.app.test_cli_runner()
         with patch(f'{HANDLERS}.requests.post') as mock_post, \
              patch(f'{HANDLERS}._eur_rate', return_value=0.001), \
-             patch('app.orders.signals.sale_order_shipped.send') as mock_signal:
+             patch('app.orders.signals.sale_order_status_changed.send') as mock_signal:
             if response is None:
                 response = MagicMock()
                 response.status_code = 201
@@ -98,8 +98,8 @@ class TestShipInvoiceCommand(BaseTestCase):
         self.assertEqual(order.shipping_base_currency, 5000)
         self.assertEqual(order.total_base_currency, 15000)
 
-    def test_shipped_signal_not_sent(self):
-        """Other sale_order_shipped receivers (e.g. warehouse) must not run."""
+    def test_status_changed_signal_not_sent(self):
+        """Status change receivers (e.g. warehouse on shipped) must not run."""
         _, _, mock_signal = self._run('INV-1')
         mock_signal.assert_not_called()
 

@@ -25,18 +25,25 @@ DELETE_FAILED_PARAM_PREFIX = 'eurocargo.delete_failed.'
 
 
 # ---------------------------------------------------------------------------
-# sale_order_packed → create ECmgmt shipment record(s), no carrier yet
+# status changed to packed → create ECmgmt shipment record(s), no carrier yet
 # ---------------------------------------------------------------------------
 
-def on_sale_order_packed(order, **_extra):
-    '''When a EurocargoShipping order is packed, create one shipment per
-    physical box in eurocargo_management.  No carrier or cost is set at this
-    point: the customer chooses a carrier on the Eurocargo payment page, and
-    Eurocargo prices both legs itself.
+def on_sale_order_packed(order, old_status=None, new_status=None, **_extra):
+    '''When a EurocargoShipping order is packed or ready to ship or shipped,
+    create one shipment per physical box in eurocargo_management unless it's
+    already created.  No carrier or cost is set at this point: the customer
+    chooses a carrier on the Eurocargo payment page, and Eurocargo prices both
+    legs itself.
 
     An order that already has a shipment (e.g. re-packed after
     ready_to_ship) gets no new one.
+
+    For ready_to_ship / shipped transitions the shipment is created only when
+    the order skipped the packed step entirely (old_status < packed).  If the
+    order already passed through packed the packed handler was (or should have
+    been) responsible.
     '''
+    from app.orders.models.order_status import OrderStatus
     from .models.eurocargo_shipping import EurocargoShipping
 
     if not isinstance(order.shipping, EurocargoShipping):
@@ -45,6 +52,11 @@ def on_sale_order_packed(order, **_extra):
         logger.info('Eurocargo shipment for order %s already exists, not creating',
                     order.id)
         return
+    if new_status in (OrderStatus.ready_to_ship, OrderStatus.shipped):
+        if old_status is not None and old_status.value >= OrderStatus.packed.value:
+            logger.info('Order %s already reached packed, skipping shipment creation on %s',
+                        order.id, new_status)
+            return
     create_shipments(order)
 
 
